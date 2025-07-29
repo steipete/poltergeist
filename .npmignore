@@ -1,0 +1,31 @@
+# Source files (only dist is needed)
+src/
+tsconfig.json
+
+# Development files
+.eslintrc.json
+.prettierrc
+vitest.config.ts
+
+# Test files
+**/*.test.ts
+**/*.spec.ts
+
+# Local config
+poltergeist.config.json
+.poltergeist.log
+
+# Build artifacts
+*.tsbuildinfo
+
+# Git
+.git/
+.gitignore
+
+# IDE
+.vscode/
+.idea/
+
+# OS
+.DS_Store
+Thumbs.db
