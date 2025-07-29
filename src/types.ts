@@ -22,11 +22,18 @@ export const PoltergeistConfigSchema = z.object({
     enabled: z.boolean().default(true),
     successSound: z.string().default('Glass'),
     failureSound: z.string().default('Basso'),
-  }).default({}),
+  }).default({
+    enabled: true,
+    successSound: 'Glass',
+    failureSound: 'Basso',
+  }),
   logging: z.object({
     file: z.string().default('.poltergeist.log'),
     level: z.enum(['debug', 'info', 'warn', 'error']).default('info'),
-  }).default({}),
+  }).default({
+    file: '.poltergeist.log',
+    level: 'info',
+  }),
 });
 
 export type BuildTargetConfig = z.infer<typeof BuildTargetConfigSchema>;
