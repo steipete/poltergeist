@@ -12,6 +12,7 @@ export const BuildTargetConfigSchema = z.object({
   bundleId: z.string().optional(),
   autoRelaunch: z.boolean().optional(),
   settlingDelay: z.number().default(1000),
+  debounceInterval: z.number().default(2000), // Minimum time between builds in ms
   maxRetries: z.number().default(3),
   backoffMultiplier: z.number().default(2),
 });

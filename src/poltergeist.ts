@@ -20,6 +20,7 @@ export class Poltergeist extends EventEmitter {
   private notifier: BuildNotifier;
   private projectName: string;
   private lastNotificationTime: Map<BuildTarget, number> = new Map();
+  private lastBuildTime: Map<BuildTarget, number> = new Map();
 
   constructor(
     private config: PoltergeistConfig,
@@ -157,19 +158,42 @@ export class Poltergeist extends EventEmitter {
       return;
     }
 
+    // Get target config
+    const targetConfig = target === 'cli' ? this.config.cli : this.config.macApp;
+    if (!targetConfig) return;
+
+    // Check debounce interval
+    const now = Date.now();
+    const lastBuild = this.lastBuildTime.get(target) || 0;
+    const timeSinceLastBuild = now - lastBuild;
+    
+    if (timeSinceLastBuild < targetConfig.debounceInterval) {
+      // Too soon to build, reschedule
+      const delay = targetConfig.debounceInterval - timeSinceLastBuild;
+      this.logger.debug(`[${target}] Debouncing build, waiting ${delay}ms`);
+      
+      setTimeout(() => {
+        // Re-queue processing if there are still changes
+        if (this.buildQueues.get(target)?.length && !this.isBuilding.get(target)) {
+          this.processBuildQueue(target);
+        }
+      }, delay);
+      
+      return;
+    }
+
     // Mark as building
     this.isBuilding.set(target, true);
+    this.lastBuildTime.set(target, now);
 
     // Clear the queue
     this.buildQueues.set(target, []);
 
     try {
-      // Get target config for display name
-      const targetConfig = target === 'cli' ? this.config.cli : this.config.macApp;
-      const targetName = targetConfig?.name;
+      // Use already retrieved target config
+      const targetName = targetConfig.name;
 
       // Check if we should send build start notification (debounced)
-      const now = Date.now();
       const lastNotification = this.lastNotificationTime.get(target) || 0;
       const shouldNotify = (now - lastNotification) >= this.config.notifications.minInterval;
 
@@ -209,10 +233,8 @@ export class Poltergeist extends EventEmitter {
     } catch (error) {
       this.logger.error(`[${target}] Build error:`, error);
       // Also notify on exception
-      const targetConfig = target === 'cli' ? this.config.cli : this.config.macApp;
-      const targetName = targetConfig?.name;
       const errorMessage = error instanceof Error ? error.message : String(error);
-      await this.notifier.notifyBuildFailed(target, this.projectName, errorMessage, targetName);
+      await this.notifier.notifyBuildFailed(target, this.projectName, errorMessage, targetConfig.name);
     } finally {
       // Mark as not building
       this.isBuilding.set(target, false);
