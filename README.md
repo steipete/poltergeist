@@ -1,15 +1,15 @@
-# Poltergeist 👻
+# Poltergeist
 
 **The Ghost That Keeps Your Builds Fresh**
 
-[![npm version](https://badge.fury.io/js/@peekaboo%2Fpoltergeist.svg)](https://www.npmjs.com/package/@peekaboo/poltergeist)
+[![npm version](https://badge.fury.io/js/@steipete%2Fpoltergeist.svg)](https://www.npmjs.com/package/@steipete/poltergeist)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 
 Poltergeist is a universal file watcher that automatically rebuilds your projects whenever you save a file. Whether you're working on CLI tools, desktop apps, web projects, or any codebase that needs compilation, Poltergeist haunts your files and ensures your builds are always up-to-date.
 
 ```bash
 # Quick start with npm
-npm install -g @peekaboo/poltergeist
+npm install -g @steipete/poltergeist
 cd your-project
 poltergeist init
 poltergeist haunt
@@ -17,15 +17,15 @@ poltergeist haunt
 
 ## Features
 
-- 🔄 **Language Agnostic**: Works with any build system - Swift, Rust, Go, TypeScript, C++, or anything else
-- 👻 **Automatic Rebuilding**: Detects file changes and triggers builds instantly
-- 🚀 **Auto-Relaunch**: Optionally quit and restart apps after successful builds (macOS)
-- 📊 **Build Status Tracking**: JSON-based status files for integration with other tools
-- 🔔 **Native Notifications**: macOS notifications with sound for build success/failure
-- 🛡️ **Smart Retry Logic**: Exponential backoff for handling transient build failures
-- 🎯 **Flexible Configuration**: Multiple targets with custom watch paths and build commands
-- 📝 **Structured Logging**: Winston-based logging with file and console output
-- ⚡ **Efficient File Watching**: Uses Facebook's Watchman for native, performant file monitoring
+- **Language Agnostic**: Works with any build system - Swift, Rust, Go, TypeScript, C++, or anything else
+- **Automatic Rebuilding**: Detects file changes and triggers builds instantly
+- **Auto-Relaunch**: Optionally quit and restart apps after successful builds (macOS)
+- **Build Status Tracking**: JSON-based status files for integration with other tools
+- **Native Notifications**: macOS notifications with sound for build success/failure
+- **Smart Retry Logic**: Exponential backoff for handling transient build failures
+- **Flexible Configuration**: Multiple targets with custom watch paths and build commands
+- **Structured Logging**: Winston-based logging with file and console output
+- **Efficient File Watching**: Uses Facebook's Watchman for native, performant file monitoring
 
 ## Installation
 
@@ -33,10 +33,10 @@ poltergeist haunt
 
 ```bash
 # Install globally from npm
-npm install -g @peekaboo/poltergeist
+npm install -g @steipete/poltergeist
 
 # Or using npx (no installation needed)
-npx @peekaboo/poltergeist init
+npx @steipete/poltergeist init
 ```
 
 ### Local Development
@@ -452,7 +452,7 @@ Install once, use in any project:
 
 ```bash
 # Install globally
-npm install -g @peekaboo/poltergeist
+npm install -g @steipete/poltergeist
 
 # Now available as a command in any directory
 cd ~/Projects/MyApp
@@ -467,7 +467,7 @@ Add Poltergeist to a specific project:
 ```bash
 # In your project directory
 npm init -y  # If you don't have a package.json
-npm install --save-dev @peekaboo/poltergeist
+npm install --save-dev @steipete/poltergeist
 
 # Run with npx
 npx poltergeist init
@@ -485,7 +485,7 @@ Or add to your `package.json` scripts:
     "build:status": "poltergeist status"
   },
   "devDependencies": {
-    "@peekaboo/poltergeist": "^2.0.0"
+    "@steipete/poltergeist": "^1.0.0"
   }
 }
 ```
@@ -524,10 +524,10 @@ Use `npx` to run Poltergeist without installing:
 
 ```bash
 # Initialize a new project
-npx @peekaboo/poltergeist init
+npx @steipete/poltergeist init
 
 # Start watching (uses local config)
-npx @peekaboo/poltergeist haunt
+npx @steipete/poltergeist haunt
 ```
 
 ### Programmatic API
@@ -535,8 +535,8 @@ npx @peekaboo/poltergeist haunt
 For advanced use cases, Poltergeist can be used programmatically:
 
 ```javascript
-import { Poltergeist, loadConfig } from '@peekaboo/poltergeist';
-import { createLogger } from '@peekaboo/poltergeist';
+import { Poltergeist, loadConfig } from '@steipete/poltergeist';
+import { createLogger } from '@steipete/poltergeist';
 import path from 'path';
 
 async function startWatching() {
@@ -580,7 +580,7 @@ import type {
   PoltergeistConfig, 
   BuildTarget, 
   BuildResult 
-} from '@peekaboo/poltergeist';
+} from '@steipete/poltergeist';
 ```
 
 ### Publishing Updates
@@ -608,4 +608,4 @@ MIT License - see the [LICENSE](LICENSE) file for details.
 
 ---
 
-*Built with 👻 to keep your Swift builds fresh*
+*Universal file watcher and build automation tool*

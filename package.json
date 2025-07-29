@@ -1,16 +1,15 @@
 {
-  "name": "@peekaboo/poltergeist",
-  "version": "2.0.0",
+  "name": "@steipete/poltergeist",
+  "version": "1.0.0",
   "description": "The ghost that keeps your builds fresh - a universal file watcher with auto-rebuild for any language or build system",
   "keywords": ["build", "watchman", "automation", "file-watcher", "cli", "swift", "rust", "go", "typescript", "cpp", "xcode", "make", "cargo", "npm", "gradle", "maven", "macos", "dev-tools"],
-  "homepage": "https://github.com/steipete/Peekaboo/tree/main/tools/poltergeist",
+  "homepage": "https://github.com/steipete/poltergeist",
   "bugs": {
-    "url": "https://github.com/steipete/Peekaboo/issues"
+    "url": "https://github.com/steipete/poltergeist/issues"
   },
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/steipete/Peekaboo.git",
-    "directory": "tools/poltergeist"
+    "url": "git+https://github.com/steipete/poltergeist.git"
   },
   "license": "MIT",
   "author": "Peter Steinberger <steipete@gmail.com>",
