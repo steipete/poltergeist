@@ -83,26 +83,42 @@ This creates a `poltergeist.config.json` file in your project root. Edit it to m
 
 ```json
 {
-  "cli": {
+  "targets": [
+    {
+      "name": "My CLI Tool",
+      "type": "executable",
+      "enabled": true,
+      "buildCommand": "./scripts/build-debug.sh",
+      "outputPath": "./my-cli",
+      "statusFile": "/tmp/my-cli-build-status.json",
+      "lockFile": "/tmp/my-cli-build.lock",
+      "settlingDelay": 1000,
+      "debounceInterval": 2000,
+      "watchPaths": [
+        "src/**/*",
+        "Makefile"
+      ]
+    },
+    {
+      "name": "My Mac App",
+      "type": "app-bundle",
+      "platform": "macos",
+      "enabled": true,
+      "buildCommand": "xcodebuild -workspace MyApp.xcworkspace -scheme MyApp build",
+      "bundleId": "com.example.myapp",
+      "autoRelaunch": true,
+      "settlingDelay": 1000,
+      "debounceInterval": 2000,
+      "watchPaths": [
+        "MyApp/**/*",
+        "Resources/**/*"
+      ]
+    }
+  ],
+  "notifications": {
     "enabled": true,
-    "buildCommand": "./scripts/build-debug.sh",
-    "outputPath": "./my-cli",
-    "statusFile": "/tmp/my-cli-build-status.json",
-    "lockFile": "/tmp/my-cli-build.lock",
-    "watchPaths": [
-      "src/**/*",
-      "Makefile"
-    ]
-  },
-  "macApp": {
-    "enabled": true,
-    "buildCommand": "xcodebuild -workspace MyApp.xcworkspace -scheme MyApp build",
-    "bundleId": "com.example.myapp",
-    "autoRelaunch": true,
-    "watchPaths": [
-      "MyApp/**/*",
-      "Resources/**/*"
-    ]
+    "successSound": "Glass",
+    "failureSound": "Basso"
   }
 }
 ```
@@ -128,31 +144,27 @@ This creates a `poltergeist.config.json` file in your project root. Edit it to m
 
 ## Configuration
 
-### CLI Configuration
+### Target Configuration
+
+Each target in the `targets` array supports these fields:
 
 | Field | Type | Description |
 |-------|------|-------------|
-| `enabled` | boolean | Enable/disable CLI watching |
-| `buildCommand` | string | Command to build your CLI |
-| `outputPath` | string | Path to the built binary |
+| `name` | string | Display name for notifications and logs |
+| `type` | string | Target type: `"executable"` or `"app-bundle"` |
+| `platform` | string | Platform (optional): `"macos"`, `"ios"`, `"linux"`, `"windows"` |
+| `enabled` | boolean | Enable/disable this target |
+| `buildCommand` | string | Command to build your target |
+| `outputPath` | string | Path to the built binary (for executables) |
+| `bundleId` | string | Bundle identifier (for app bundles) |
+| `autoRelaunch` | boolean | Auto quit/relaunch app after build (app bundles only) |
 | `statusFile` | string | Path to build status JSON file |
 | `lockFile` | string | Path to build lock file |
 | `watchPaths` | string[] | Glob patterns for files to watch |
-| `settlingDelay` | number | Milliseconds to wait before building (default: 1000) |
+| `settlingDelay` | number | Milliseconds to wait after file changes stop (default: 1000) |
+| `debounceInterval` | number | Minimum milliseconds between builds (default: 2000) |
 | `maxRetries` | number | Max build retry attempts (default: 3) |
 | `backoffMultiplier` | number | Retry delay multiplier (default: 2) |
-
-### Mac App Configuration
-
-| Field | Type | Description |
-|-------|------|-------------|
-| `enabled` | boolean | Enable/disable Mac app watching |
-| `buildCommand` | string | Command to build your app (usually xcodebuild) |
-| `bundleId` | string | Bundle identifier for auto-relaunch |
-| `autoRelaunch` | boolean | Auto quit/relaunch app after build |
-| `statusFile` | string | Path to build status JSON file |
-| `lockFile` | string | Path to build lock file |
-| `watchPaths` | string[] | Glob patterns for files to watch |
 
 ### Global Configuration
 
@@ -161,7 +173,11 @@ This creates a `poltergeist.config.json` file in your project root. Edit it to m
   "notifications": {
     "enabled": true,
     "successSound": "Glass",
-    "failureSound": "Basso"
+    "failureSound": "Basso",
+    "buildStart": true,        // Show notification when build starts
+    "buildFailed": true,       // Show notification when build fails
+    "buildSuccess": true,      // Show notification when build succeeds
+    "minInterval": 5000        // Minimum milliseconds between notifications
   },
   "logging": {
     "file": ".poltergeist.log",
@@ -176,12 +192,16 @@ This creates a `poltergeist.config.json` file in your project root. Edit it to m
 
 ```json
 {
-  "cli": {
-    "enabled": true,
-    "buildCommand": "make debug",
-    "outputPath": "./bin/my-tool",
-    "watchPaths": ["src/**/*", "Makefile", "*.h"]
-  }
+  "targets": [
+    {
+      "name": "My Tool",
+      "type": "executable",
+      "enabled": true,
+      "buildCommand": "make debug",
+      "outputPath": "./bin/my-tool",
+      "watchPaths": ["src/**/*", "Makefile", "*.h"]
+    }
+  ]
 }
 ```
 
@@ -189,13 +209,18 @@ This creates a `poltergeist.config.json` file in your project root. Edit it to m
 
 ```json
 {
-  "macApp": {
-    "enabled": true,
-    "buildCommand": "xcodebuild -project MyApp.xcodeproj -scheme MyApp -configuration Debug build",
-    "bundleId": "com.mycompany.myapp",
-    "autoRelaunch": true,
-    "watchPaths": ["MyApp/**/*", "*.xib", "*.storyboard"]
-  }
+  "targets": [
+    {
+      "name": "My App",
+      "type": "app-bundle",
+      "platform": "macos",
+      "enabled": true,
+      "buildCommand": "xcodebuild -project MyApp.xcodeproj -scheme MyApp -configuration Debug build",
+      "bundleId": "com.mycompany.myapp",
+      "autoRelaunch": true,
+      "watchPaths": ["MyApp/**/*", "*.xib", "*.storyboard"]
+    }
+  ]
 }
 ```
 
@@ -203,19 +228,26 @@ This creates a `poltergeist.config.json` file in your project root. Edit it to m
 
 ```json
 {
-  "cli": {
-    "enabled": true,
-    "buildCommand": "./scripts/build-cli.sh",
-    "outputPath": "./bin/cli-tool",
-    "watchPaths": ["CLI/**/*", "Shared/**/*", "include/**/*.h"]
-  },
-  "macApp": {
-    "enabled": true,
-    "buildCommand": "./scripts/build-app.sh",
-    "bundleId": "com.example.app",
-    "autoRelaunch": true,
-    "watchPaths": ["App/**/*", "Shared/**/*", "Resources/**/*"]
-  }
+  "targets": [
+    {
+      "name": "CLI Tool",
+      "type": "executable",
+      "enabled": true,
+      "buildCommand": "./scripts/build-cli.sh",
+      "outputPath": "./bin/cli-tool",
+      "watchPaths": ["CLI/**/*", "Shared/**/*", "include/**/*.h"]
+    },
+    {
+      "name": "Mac App",
+      "type": "app-bundle",
+      "platform": "macos",
+      "enabled": true,
+      "buildCommand": "./scripts/build-app.sh",
+      "bundleId": "com.example.app",
+      "autoRelaunch": true,
+      "watchPaths": ["App/**/*", "Shared/**/*", "Resources/**/*"]
+    }
+  ]
 }
 ```
 
@@ -269,6 +301,80 @@ fi
 
 # Run the CLI
 exec ./my-cli "$@"
+```
+
+## Debouncing and Build Control
+
+Poltergeist provides fine-grained control over build timing to prevent excessive builds and notification spam:
+
+### Two-Level Debouncing
+
+1. **File Change Debouncing (`settlingDelay`)**
+   - Waits for file changes to "settle" before starting a build
+   - Default: 1000ms (1 second)
+   - Useful when your editor saves multiple files in quick succession
+
+2. **Build Queue Debouncing (`debounceInterval`)**
+   - Minimum time between builds for each target
+   - Default: 2000ms (2 seconds)
+   - Prevents rapid rebuilds when many files change
+   - Each target has its own debounce timer
+
+### Notification Control
+
+Separate from build debouncing, notification timing is controlled globally:
+
+- **`minInterval`**: Minimum time between any notifications (default: 5000ms)
+- **`buildStart`**: Enable/disable build start notifications
+- **`buildFailed`**: Enable/disable build failure notifications
+- **`buildSuccess`**: Enable/disable build success notifications
+
+### Example: Optimized for Rapid Development
+
+```json
+{
+  "targets": [
+    {
+      "name": "My CLI",
+      "type": "executable",
+      "buildCommand": "./build.sh",
+      "settlingDelay": 500,        // Quick 0.5s settle time
+      "debounceInterval": 3000,     // 3s minimum between builds
+      "watchPaths": ["src/**/*"]
+    }
+  ],
+  "notifications": {
+    "enabled": true,
+    "buildStart": false,          // No start notifications
+    "buildFailed": true,          // Only show failures
+    "buildSuccess": true,         // And successes
+    "minInterval": 10000          // Max 1 notification per 10s
+  }
+}
+```
+
+### Example: Stable Production Builds
+
+```json
+{
+  "targets": [
+    {
+      "name": "Production App",
+      "type": "app-bundle",
+      "buildCommand": "make release",
+      "settlingDelay": 2000,        // Wait 2s for all changes
+      "debounceInterval": 10000,    // 10s minimum between builds
+      "watchPaths": ["src/**/*", "resources/**/*"]
+    }
+  ],
+  "notifications": {
+    "enabled": true,
+    "buildStart": true,           // Show all notifications
+    "buildFailed": true,
+    "buildSuccess": true,
+    "minInterval": 5000           // Standard 5s between notifications
+  }
+}
 ```
 
 ## Advanced Features
