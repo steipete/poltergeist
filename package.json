@@ -2,7 +2,26 @@
   "name": "@steipete/poltergeist",
   "version": "1.0.0",
   "description": "The ghost that keeps your builds fresh - a universal file watcher with auto-rebuild for any language or build system",
-  "keywords": ["build", "watchman", "automation", "file-watcher", "cli", "swift", "rust", "go", "typescript", "cpp", "xcode", "make", "cargo", "npm", "gradle", "maven", "macos", "dev-tools"],
+  "keywords": [
+    "build",
+    "watchman",
+    "automation",
+    "file-watcher",
+    "cli",
+    "swift",
+    "rust",
+    "go",
+    "typescript",
+    "cpp",
+    "xcode",
+    "make",
+    "cargo",
+    "npm",
+    "gradle",
+    "maven",
+    "macos",
+    "dev-tools"
+  ],
   "homepage": "https://github.com/steipete/poltergeist",
   "bugs": {
     "url": "https://github.com/steipete/poltergeist/issues"
@@ -50,7 +69,7 @@
     "prettier": "^3.3.0",
     "tsx": "^4.20.0",
     "typescript": "^5.7.0",
-    "vitest": "^2.0.0"
+    "vitest": "^3.2.4"
   },
   "engines": {
     "node": ">=18.0.0"
