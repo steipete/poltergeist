@@ -1,5 +1,7 @@
 # Poltergeist 👻
 
+![Poltergeist Header](assets/header.png)
+
 > The ghost that keeps your projects fresh
 
 Poltergeist is a universal file watcher and automatic build system for any project. It monitors your source files and automatically rebuilds your CLI tools, applications, or any project whenever you save changes. No more manual rebuilding, no more stale binaries, no more wasted time.
