@@ -1,5 +1,7 @@
 # Poltergeist
 
+![Poltergeist Header](assets/header.png)
+
 **The Ghost That Keeps Your Builds Fresh**
 
 [![npm version](https://badge.fury.io/js/@steipete%2Fpoltergeist.svg)](https://www.npmjs.com/package/@steipete/poltergeist)
