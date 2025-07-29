@@ -6,6 +6,18 @@
 
 Poltergeist is a universal file watcher and automatic build system for any project. It monitors your source files and automatically rebuilds your CLI tools, applications, or any project whenever you save changes. No more manual rebuilding, no more stale binaries, no more wasted time.
 
+## Features
+
+- **Automatic Rebuilding** - Detects file changes and rebuilds immediately
+- **Dual Mode Support** - Works with any build system (Make, CMake, Cargo, npm, gradle, etc.)
+- **Auto-Relaunch** - Automatically quits and relaunches Mac apps after successful builds
+- **Build Status Tracking** - JSON-based status files for integration with other tools
+- **Native Notifications** - macOS notifications with sound for build success/failure
+- **Smart Error Handling** - Clear error messages and recovery instructions
+- **High Performance** - Built on Facebook's Watchman for efficient file watching
+- **Configurable** - JSON configuration with full TypeScript validation
+- **Zero Dependencies** - Only requires Node.js and Watchman
+
 ## Why Poltergeist vs Watchman?
 
 While Poltergeist uses Facebook's Watchman internally for efficient file watching, it provides a complete development automation solution that goes far beyond what Watchman offers:
@@ -29,18 +41,6 @@ While Poltergeist uses Facebook's Watchman internally for efficient file watchin
 - **Developer Experience** - Simple CLI, status monitoring, verbose logging
 
 Think of it this way: Watchman tells you "these files changed", while Poltergeist handles the entire "files changed → rebuild → notify → relaunch app" workflow automatically.
-
-## Features
-
-- 🔄 **Automatic Rebuilding** - Detects file changes and rebuilds immediately
-- 🎯 **Dual Mode Support** - Works with any build system (Make, CMake, Cargo, npm, gradle, etc.)
-- 🚀 **Auto-Relaunch** - Automatically quits and relaunches Mac apps after successful builds
-- 📊 **Build Status Tracking** - JSON-based status files for integration with other tools
-- 🔔 **Native Notifications** - macOS notifications with sound for build success/failure
-- 🎨 **Smart Error Handling** - Clear error messages and recovery instructions
-- ⚡ **High Performance** - Built on Facebook's Watchman for efficient file watching
-- 🔧 **Configurable** - JSON configuration with full TypeScript validation
-- 📦 **Zero Dependencies** - Only requires Node.js and Watchman
 
 ## Installation
 
@@ -187,6 +187,59 @@ Each target in the `targets` array supports these fields:
   }
 }
 ```
+
+## Process Locking and Multiple Instances
+
+Poltergeist uses a process-based locking mechanism to prevent multiple instances from running on the same project. This is particularly useful when working with multiple terminals or AI coding assistants that might independently try to start Poltergeist.
+
+### How It Works
+
+1. **Lock File Creation**: When Poltergeist starts, it creates a lock file in `/tmp/poltergeist/` with a unique name based on your project path:
+   ```
+   /tmp/poltergeist/{project-name}-{hash}.lock
+   ```
+
+2. **Instance Detection**: If another terminal tries to start Poltergeist for the same project:
+   ```bash
+   Terminal 1> poltergeist haunt  # Successfully starts
+   Terminal 2> poltergeist haunt  # Detects existing instance
+   
+   Poltergeist is already running for this project (PID: 12345)
+   If this is incorrect, the process may have crashed.
+   You can remove the lock file manually: rm /tmp/poltergeist/my-project-a3f2c891.lock
+   ```
+
+3. **Automatic Cleanup**: Lock files are automatically removed when:
+   - You stop Poltergeist with Ctrl+C
+   - The terminal is closed
+   - The process terminates for any reason
+
+4. **Stale Lock Detection**: If Poltergeist crashes unexpectedly, the next start attempt will:
+   - Check if the process in the lock file is still running
+   - Automatically clean up stale locks
+   - Start normally
+
+### State Files for Monitoring
+
+In addition to lock files, Poltergeist maintains state files for each build target:
+```
+/tmp/poltergeist/
+├── my-project-a3f2c891.lock          # Process lock file
+├── my-project-a3f2c891-cli.state     # CLI target state
+└── my-project-a3f2c891-macApp.state  # Mac app target state
+```
+
+State files contain:
+- Current build status (idle/building/success/failed)
+- Last build timestamp and duration
+- Error messages if build failed
+- Process information (PID, active status, heartbeat)
+- Project metadata (path, name, config location)
+
+These state files persist after Poltergeist stops, allowing external tools (like the Mac status monitor app) to:
+- See which projects have Poltergeist configured
+- Check the last build status even when not running
+- Monitor active Poltergeist instances across all projects
 
 ## Usage Examples
 
