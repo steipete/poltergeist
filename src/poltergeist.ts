@@ -102,7 +102,7 @@ export class Poltergeist extends EventEmitter {
     );
     await this.notifier.notifyPoltergeistStarted(targets);
 
-    this.logger.info('Poltergeist is now haunting your Swift files! 👻');
+    this.logger.info('Poltergeist is now haunting your project files! 👻');
   }
 
   async stop(): Promise<void> {

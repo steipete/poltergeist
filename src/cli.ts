@@ -15,13 +15,13 @@ const packageJson = await import('../package.json', { with: { type: 'json' } });
 
 program
   .name('poltergeist')
-  .description('The ghost that keeps your Swift projects fresh')
+  .description('The ghost that keeps your projects fresh')
   .version(packageJson.default.version);
 
 program
   .command('haunt')
   .alias('start')
-  .description('Start watching and auto-building your Swift project')
+  .description('Start watching and auto-building your project')
   .option('--cli', 'Watch only CLI targets')
   .option('--mac', 'Watch only Mac app targets')
   .option('--all', 'Watch all targets (default)')
@@ -56,7 +56,7 @@ program
       // Create and start Poltergeist
       const poltergeist = new Poltergeist(config, projectRoot, logger, mode);
 
-      console.info('Summoning Poltergeist to watch your Swift files...');
+      console.info('Summoning Poltergeist to watch your project files...');
       console.info(`Starting in ${mode.toUpperCase()} mode`);
 
       await poltergeist.start();
@@ -169,14 +169,15 @@ program
     const defaultConfig = {
       cli: {
         enabled: true,
-        buildCommand: './scripts/build-swift-debug.sh',
+        buildCommand: './scripts/build-debug.sh',
         outputPath: './my-cli',
         statusFile: '/tmp/my-cli-build-status.json',
         lockFile: '/tmp/my-cli-build.lock',
         watchPaths: [
-          'Sources/**/*.swift',
-          'Package.swift',
-          'Package.resolved'
+          'src/**/*',
+          'lib/**/*',
+          'Makefile',
+          'package.json'
         ],
         settlingDelay: 1000,
         maxRetries: 3,
@@ -190,9 +191,8 @@ program
         lockFile: '/tmp/my-app-build.lock',
         autoRelaunch: true,
         watchPaths: [
-          'MyApp/**/*.swift',
-          'MyApp/**/*.storyboard',
-          'MyApp/**/*.xib'
+          'MyApp/**/*',
+          'Resources/**/*'
         ],
         settlingDelay: 1000,
         maxRetries: 3,

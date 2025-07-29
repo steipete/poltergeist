@@ -79,7 +79,6 @@ export class WatchmanClient extends EventEmitter {
     const expression = ['allof', 
       ['anyof', ...pathExpressions],
       // Exclude auto-generated files
-      ['not', ['match', '**/Version.swift', 'wholename']],
       ['not', ['match', '**/.build/**', 'wholename']],
       ['not', ['match', '**/DerivedData/**', 'wholename']]
     ];
