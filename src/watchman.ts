@@ -21,6 +21,26 @@ export class WatchmanClient extends EventEmitter {
     super();
     this.client = new watchman.Client();
     
+    // Set up the subscription handler once for all subscriptions
+    this.client.on('subscription', (resp: any) => {
+      // Find which target this subscription is for
+      for (const [target, subName] of this.subscriptions) {
+        if (resp.subscription === subName) {
+          const changes: FileChange[] = resp.files.map((file: any) => ({
+            path: file.name,
+            exists: file.exists,
+            new: file.new,
+            size: file.size,
+            mode: file.mode,
+          }));
+          
+          this.logger.debug(`[${target}] Watchman detected ${changes.length} file changes`);
+          this.emit('changes', target, changes);
+          break;
+        }
+      }
+    });
+    
     this.client.on('error', (error) => {
       this.logger.error('Watchman error:', error);
       this.emit('error', error);
@@ -74,6 +94,8 @@ export class WatchmanClient extends EventEmitter {
 
     const subscriptionName = `poltergeist-${target}`;
     
+    this.logger.debug(`Creating subscription ${subscriptionName} for paths:`, paths);
+    
     // Build the expression for matching files
     const pathExpressions = paths.map(path => ['match', path, 'wholename']);
     const expression = ['allof', 
@@ -82,6 +104,8 @@ export class WatchmanClient extends EventEmitter {
       ['not', ['match', '**/.build/**', 'wholename']],
       ['not', ['match', '**/DerivedData/**', 'wholename']]
     ];
+    
+    this.logger.debug(`Subscription expression:`, JSON.stringify(expression, null, 2));
 
     const subscription = {
       expression,
@@ -102,22 +126,8 @@ export class WatchmanClient extends EventEmitter {
 
           this.subscriptions.set(target, subscriptionName);
           this.logger.info(`Created subscription: ${subscriptionName}`);
+          this.logger.debug(`Watching paths: ${paths.join(', ')}`);
           
-          // Set up the subscription handler
-          this.client.on('subscription', (resp: any) => {
-            if (resp.subscription === subscriptionName) {
-              const changes: FileChange[] = resp.files.map((file: any) => ({
-                path: file.name,
-                exists: file.exists,
-                new: file.new,
-                size: file.size,
-                mode: file.mode,
-              }));
-              
-              this.emit('changes', target, changes);
-            }
-          });
-
           resolve();
         }
       );

@@ -17,31 +17,50 @@ A native macOS menu bar application that monitors all active Poltergeist instanc
   - App icon extraction
   - Visual status indicators (green/red)
 
-## Architecture
+## Project Structure
 
-### 1. Core Components
+### 1. Repository Layout
 
 ```
-PoltergeistMonitor.app/
-├── App/
-│   ├── PoltergeistMonitorApp.swift      # Main app entry
-│   └── AppDelegate.swift                # Menu bar setup
-├── Models/
-│   ├── PoltergeistInstance.swift        # Single instance model
-│   ├── BuildStatus.swift                # Build status data
-│   └── ProjectGroup.swift               # Project grouping
-├── Services/
-│   ├── PoltergeistDetector.swift        # Find active instances
-│   ├── StatusFileWatcher.swift          # FSEvents-based watcher
-│   └── AppIconExtractor.swift           # Extract app icons
-├── Views/
-│   ├── MenuBarView.swift                # Main menu bar UI
-│   ├── ProjectStatusView.swift          # Project status table
-│   └── ErrorDetailView.swift            # Error popover
-└── Utils/
-    ├── FileSystemUtils.swift            # File operations
-    └── StatusIndicator.swift            # Icon generation
+poltergeist/                          # Main Poltergeist repo
+├── src/                              # TypeScript source
+├── package.json                      # Node.js config
+├── .poltergeist.json                 # Example config
+├── README.md
+├── docs/
+│   └── mac-app.md                    # This file
+└── apps/                             # Native apps folder
+    └── PoltergeistMonitor/           # Mac app project
+        ├── PoltergeistMonitor.xcodeproj
+        ├── PoltergeistMonitor/
+        │   ├── App/
+        │   │   ├── PoltergeistMonitorApp.swift
+        │   │   └── AppDelegate.swift
+        │   ├── Models/
+        │   │   ├── PoltergeistState.swift
+        │   │   └── BuildStatus.swift
+        │   ├── Services/
+        │   │   ├── StateFileWatcher.swift
+        │   │   └── IconLoader.swift
+        │   ├── Views/
+        │   │   ├── MenuBarView.swift
+        │   │   └── ProjectStatusView.swift
+        │   ├── Resources/
+        │   │   ├── Assets.xcassets
+        │   │   └── Info.plist
+        │   └── Utils/
+        │       └── FileSystemUtils.swift
+        └── README.md
+
 ```
+
+### 2. Why `apps/` folder?
+
+- **Monorepo structure**: Keeps native apps with the main project
+- **Shared documentation**: Easy cross-referencing
+- **Version sync**: Release Mac app alongside Poltergeist updates
+- **Clear separation**: TypeScript vs Swift code
+- **Future expansion**: Room for Windows/Linux monitors
 
 ### 2. Data Model
 
@@ -85,54 +104,181 @@ struct BuildTarget: Identifiable {
 
 ## Communication Protocol
 
-### 1. Discovery Strategy
+### 1. Improved Directory Structure
 
-**Active Instance Detection**:
-1. **Lock File Scanning**: Search for `.poltergeist-*.lock` files in:
-   - `/tmp/` (default location)
-   - User-specified directories
-   - Project roots from recent history
+**Dedicated Poltergeist Directory**:
+```
+/tmp/poltergeist/
+├── my-app-a3f2c891-cli.lock
+├── my-app-a3f2c891-cli.status
+├── my-app-a3f2c891-macApp.lock
+├── my-app-a3f2c891-macApp.status
+├── framework-b7d4e2f3-cli.lock
+├── framework-b7d4e2f3-cli.status
+└── ...
+```
 
-2. **Process Verification**: 
-   - Read PID from lock file
-   - Verify process is running: `kill(pid, 0)`
-   - Check process name contains "node" or "poltergeist"
+**File Naming Pattern**:
+- Format: `{folderName}-{projectHash}-{target}.{extension}`
+- Example: `my-app-a3f2c891-cli.status`
+- Components:
+  - `folderName`: Last component of project path (human-readable)
+  - `projectHash`: First 8 chars of SHA-256 hash (uniqueness)
+  - `target`: Build target (cli/macApp)
+  - `extension`: .lock or .status
 
-3. **Config Loading**:
-   - Find `.poltergeist.json` in project root
-   - Parse to get statusFile paths for each target
-   - Validate paths exist
+**Benefits**:
+- Human-readable at a glance
+- Guaranteed unique via hash
+- Easy to identify projects
+- Single directory to watch
 
-### 2. Status Monitoring
+### 2. Consolidated Log File Format
 
-**File Watching Strategy**:
+**Single JSON file per target containing all info**:
+```json
+{
+  "version": "1.0",
+  "pid": 12345,
+  "projectPath": "/Users/steipete/Projects/my-app",
+  "projectName": "my-app",
+  "target": "cli",
+  "configPath": "/Users/steipete/Projects/my-app/.poltergeist.json",
+  "startTime": "2024-01-20T10:30:00Z",
+  "lastHeartbeat": "2024-01-20T10:35:00Z",
+  "buildStatus": {
+    "status": "failed",
+    "timestamp": "2024-01-20T10:34:55Z",
+    "gitHash": "abc123",
+    "errorSummary": "Type error in main.ts:42",
+    "builder": "TypeScript",
+    "buildTime": 1.234,
+    "fullError": "src/main.ts:42:5 - error TS2322: Type 'string' is not assignable to type 'number'."
+  },
+  "appInfo": {
+    "bundleId": "com.example.myapp",
+    "outputPath": "/path/to/MyApp.app",
+    "icon": "base64_encoded_icon_data_optional"
+  }
+}
+```
+
+### 3. Discovery & Monitoring Flow
+
+**Mac App Workflow**:
+1. **Watch single directory**: FSEvents on `/tmp/poltergeist/`
+2. **Parse any `.log` file**: Extract all needed info from one place
+3. **Verify process**: Check PID is still alive
+4. **Monitor heartbeat**: Mark stale if not updated in 30s
+
+### 4. Efficient File Watching
+
+**Single Directory Watch**:
 ```swift
-// Use FSEvents for efficient file monitoring
-class StatusFileWatcher {
+class PoltergeistWatcher {
     private var stream: FSEventStreamRef?
     
-    func watchStatusFiles(_ files: [String]) {
-        // Create FSEventStream for status file directories
-        // Trigger updates on file modifications
-        // Debounce rapid changes (100ms)
+    func startWatching() {
+        let pathToWatch = "/tmp/poltergeist/"
+        
+        // Create directory if needed
+        try? FileManager.default.createDirectory(
+            atPath: pathToWatch,
+            withIntermediateDirectories: true
+        )
+        
+        // Watch single directory - much more efficient!
+        stream = FSEventStreamCreate(
+            nil,
+            fsEventsCallback,
+            nil,
+            [pathToWatch] as CFArray,
+            FSEventStreamEventId(kFSEventStreamEventIdSinceNow),
+            0.1, // 100ms latency
+            FSEventStreamCreateFlags(kFSEventStreamCreateFlagFileEvents)
+        )
     }
 }
 ```
 
-**Update Flow**:
-1. FSEvents detects status file change
-2. Read and parse JSON status
-3. Update model with new BuildStatus
-4. Trigger UI refresh
-5. Show notification if status changed to failed
+### 5. Lifecycle Management
 
-### 3. Poltergeist Lifecycle Detection
+**Single State File Approach**:
+```
+/tmp/poltergeist/
+├── my-app-a3f2c891-cli.state
+├── my-app-a3f2c891-macApp.state
+├── framework-b7d4e2f3-cli.state
+└── ...
+```
 
-**Instance Gone Detection**:
-- Lock file deleted → Mark as inactive
-- PID no longer running → Mark as inactive  
-- Status file not updated for 30s during "building" → Mark as stale
-- Config file deleted → Remove instance
+**Single State File (combines everything)**:
+```json
+{
+  "version": "1.0",
+  "projectPath": "/Users/steipete/Projects/my-app",
+  "projectName": "my-app",
+  "target": "cli",
+  "configPath": "/Users/steipete/Projects/my-app/.poltergeist.json",
+  
+  "process": {
+    "pid": 12345,
+    "isActive": true,
+    "startTime": "2024-01-20T10:30:00Z",
+    "lastHeartbeat": "2024-01-20T10:35:00Z"
+  },
+  
+  "lastBuild": {
+    "status": "failed",
+    "timestamp": "2024-01-20T10:34:55Z",
+    "gitHash": "abc123",
+    "errorSummary": "Type error in main.ts:42",
+    "buildTime": 1.234,
+    "fullError": "src/main.ts:42:5 - error TS2322..."
+  },
+  
+  "appInfo": {
+    "bundleId": "com.example.myapp",
+    "outputPath": "/path/to/MyApp.app",
+    "iconPath": "/Users/steipete/Projects/my-app/Assets/AppIcon.png"
+  }
+}
+```
+
+**Icon Configuration in .poltergeist.json**:
+```json
+{
+  "cli": {
+    "enabled": true,
+    "buildCommand": "swift build",
+    "iconPath": "Assets/CLIIcon.png",
+    // ... other config
+  },
+  "macApp": {
+    "enabled": true,
+    "buildCommand": "xcodebuild ...",
+    "iconPath": "MyApp/Assets.xcassets/AppIcon.appiconset/icon_128x128.png",
+    // ... other config
+  }
+}
+```
+
+**How Poltergeist Runs**:
+- **NOT a daemon** - runs as foreground process in terminal
+- **Uses Watchman** - Facebook's file watching daemon
+- **Started with**: `poltergeist haunt` (blocks terminal)
+- **Stopped with**: Ctrl+C or closing terminal
+
+**Lifecycle Detection**:
+1. **Active**: PID exists and process is alive
+2. **Inactive**: PID missing or process dead
+3. **Stale**: Heartbeat older than 30 seconds
+
+**Benefits of Single File**:
+- Atomic updates (write to temp, rename)
+- Single source of truth
+- Easy to parse and understand
+- No sync issues between files
 
 ## UI/UX Design
 
@@ -165,18 +311,34 @@ func generateStatusIcon(hasErrors: Bool, isBuilding: Bool) -> NSImage {
 │   └── 🔨 Mac App - Building...
 ├── ─────────────────
 ├── Open All Logs
+├── Clean Up Inactive Projects
 ├── Preferences...
 └── Quit
+```
+
+**Right-Click Context Menu**:
+```
+Right-click on any project entry:
+├── View Full Error
+├── Copy Error Message
+├── Open Project Folder
+├── ─────────────────
+└── Remove from Monitor
 ```
 
 ### 3. Project Status View (on click)
 
 **Table Layout**:
-| Icon | Target | Status | Build Time | Last Update |
-|------|--------|--------|------------|-------------|
-| 📱 | MyApp CLI | ✅ Success | 1.2s | 2 min ago |
-| 🖥️ | MyApp Mac | ✅ Success | 3.4s | 2 min ago |
-| 📱 | Framework CLI | ❌ Failed | - | 5 min ago |
+| Icon | Target | Status | Build Time | Last Update | Active |
+|------|--------|--------|------------|-------------|---------|
+| 📱 | MyApp CLI | ✅ Success | 1.2s | 2 min ago | 🟢 |
+| 🖥️ | MyApp Mac | ✅ Success | 3.4s | 2 min ago | 🟢 |
+| 📱 | Framework CLI | ❌ Failed | - | 5 min ago | ⚪ |
+
+**Visual Indicators**:
+- 🟢 Active (Poltergeist running)
+- ⚪ Inactive (Poltergeist stopped)
+- Dimmed rows for inactive projects
 
 **Error Detail Popover**:
 - Click on failed row → Show error details
@@ -185,21 +347,72 @@ func generateStatusIcon(hasErrors: Bool, isBuilding: Bool) -> NSImage {
 
 ## Technical Implementation
 
-### 1. App Icon Extraction
+### 1. App Icon Loading
 
 ```swift
-class AppIconExtractor {
-    func extractIcon(from bundlePath: String) -> NSImage? {
-        // 1. Parse Info.plist for CFBundleIconFile
-        // 2. Load .icns from Resources
-        // 3. Fall back to generic app icon
-        let bundle = Bundle(path: bundlePath)
-        return bundle?.icon ?? NSWorkspace.shared.icon(forFile: bundlePath)
+class IconLoader {
+    func loadIcon(from state: PoltergeistState) -> NSImage? {
+        // 1. First try the configured icon path
+        if let iconPath = state.appInfo.iconPath {
+            let fullPath = URL(fileURLWithPath: state.projectPath)
+                .appendingPathComponent(iconPath)
+            if let image = NSImage(contentsOf: fullPath) {
+                return image
+            }
+        }
+        
+        // 2. For Mac apps, try extracting from built app
+        if state.target == "macApp", 
+           let outputPath = state.appInfo.outputPath,
+           let bundle = Bundle(path: outputPath) {
+            return bundle.icon
+        }
+        
+        // 3. Fall back to generic icon based on target type
+        return state.target == "cli" ? terminalIcon : appIcon
     }
 }
 ```
 
-### 2. Background Operations
+**Benefits of Icon Configuration**:
+- Projects can specify custom icons
+- Works for both CLI tools and Mac apps
+- Relative paths keep configs portable
+- Falls back gracefully if icon missing
+
+### 2. Cleanup Features
+
+```swift
+class StateFileManager {
+    func removeProject(_ stateFile: String) {
+        // Delete the state file
+        let url = URL(fileURLWithPath: "/tmp/poltergeist/\(stateFile)")
+        try? FileManager.default.removeItem(at: url)
+    }
+    
+    func cleanupInactiveProjects() {
+        // Remove all state files where isActive = false
+        let files = try? FileManager.default.contentsOfDirectory(
+            atPath: "/tmp/poltergeist"
+        )
+        
+        for file in files ?? [] {
+            if let data = try? Data(contentsOf: URL(fileURLWithPath: "/tmp/poltergeist/\(file)")),
+               let state = try? JSONDecoder().decode(PoltergeistState.self, from: data),
+               !state.process.isActive {
+                removeProject(file)
+            }
+        }
+    }
+}
+```
+
+**User Actions**:
+- **Right-click → Remove**: Deletes state file immediately
+- **Clean Up Inactive**: Bulk removes all stopped projects
+- **Automatic cleanup**: Option to auto-remove after X days
+
+### 3. Background Operations
 
 - **FileSystemWatcher**: Runs on background queue
 - **Status Updates**: Debounced and coalesced
@@ -252,6 +465,57 @@ struct Preferences {
 1. **Direct Download**: Notarized DMG from GitHub releases
 2. **Homebrew Cask**: `brew install --cask poltergeist-monitor`
 3. **Mac App Store**: Consider for wider distribution
+
+### Build Instructions
+
+```bash
+# From the repository root
+cd apps/PoltergeistMonitor
+
+# Build for release
+xcodebuild -project PoltergeistMonitor.xcodeproj \
+  -scheme PoltergeistMonitor \
+  -configuration Release \
+  -archivePath ./build/PoltergeistMonitor.xcarchive \
+  archive
+
+# Export for distribution
+xcodebuild -exportArchive \
+  -archivePath ./build/PoltergeistMonitor.xcarchive \
+  -exportPath ./build \
+  -exportOptionsPlist ExportOptions.plist
+```
+
+## Current Limitations & Recommendations
+
+### Lock File Collision Issue
+
+**Problem**: Current Poltergeist implementation uses user-configured lock file paths that can collide between projects.
+
+**Recommended Solution for Poltergeist**:
+```javascript
+// Generate unique lock file based on project path hash
+const crypto = require('crypto');
+const projectHash = crypto.createHash('sha256')
+  .update(projectRoot)
+  .digest('hex')
+  .substring(0, 8);
+
+const lockFile = `/tmp/poltergeist-${projectHash}-${target}.lock`;
+// Example: /tmp/poltergeist-a3f2c891-cli.lock
+```
+
+**Benefits**:
+- Guaranteed unique per project path
+- Short enough to be readable (8 chars)
+- Deterministic (same project = same hash)
+- No conflicts between projects
+
+**Mac App Adaptation**:
+Until Poltergeist implements this, the Mac app should:
+1. Read lock file contents to extract project path
+2. Store project path inside lock files
+3. Handle conflicts by validating PID + project path combination
 
 ## Future Enhancements
 

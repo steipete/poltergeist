@@ -3,6 +3,7 @@ import { z } from 'zod';
 // Configuration schema with Zod for validation
 export const BuildTargetConfigSchema = z.object({
   enabled: z.boolean(),
+  name: z.string().optional(), // Display name for notifications
   buildCommand: z.string(),
   watchPaths: z.array(z.string()),
   statusFile: z.string(),
@@ -22,10 +23,18 @@ export const PoltergeistConfigSchema = z.object({
     enabled: z.boolean().default(true),
     successSound: z.string().default('Glass'),
     failureSound: z.string().default('Basso'),
+    buildStart: z.boolean().default(true),
+    buildFailed: z.boolean().default(true),
+    buildSuccess: z.boolean().default(true),
+    minInterval: z.number().default(5000), // Minimum time between notifications in ms
   }).default({
     enabled: true,
     successSound: 'Glass',
     failureSound: 'Basso',
+    buildStart: true,
+    buildFailed: true,
+    buildSuccess: true,
+    minInterval: 5000,
   }),
   logging: z.object({
     file: z.string().default('.poltergeist.log'),

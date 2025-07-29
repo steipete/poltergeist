@@ -19,6 +19,7 @@ export class Poltergeist extends EventEmitter {
   private isBuilding: Map<BuildTarget, boolean> = new Map();
   private notifier: BuildNotifier;
   private projectName: string;
+  private lastNotificationTime: Map<BuildTarget, number> = new Map();
 
   constructor(
     private config: PoltergeistConfig,
@@ -30,11 +31,7 @@ export class Poltergeist extends EventEmitter {
     
     this.watchman = new WatchmanClient(logger);
     this.projectName = path.basename(projectRoot);
-    this.notifier = new BuildNotifier(
-      this.config.notifications.enabled,
-      this.config.notifications.successSound,
-      this.config.notifications.failureSound
-    );
+    this.notifier = new BuildNotifier(this.config.notifications);
 
     // Set up builders based on mode
     this.setupBuilders();
@@ -51,7 +48,12 @@ export class Poltergeist extends EventEmitter {
   }
 
   private setupBuilders(): void {
+    this.logger.debug(`Setting up builders for mode: ${this.mode}`);
+    this.logger.debug(`Config has cli: ${!!this.config.cli}, enabled: ${this.config.cli?.enabled}`);
+    this.logger.debug(`Config has macApp: ${!!this.config.macApp}, enabled: ${this.config.macApp?.enabled}`);
+    
     if ((this.mode === 'cli' || this.mode === 'all') && this.config.cli?.enabled) {
+      this.logger.debug('Creating CLI builder');
       this.builders.set('cli', new CLIBuilder(
         'cli',
         this.config.cli,
@@ -63,6 +65,7 @@ export class Poltergeist extends EventEmitter {
     }
 
     if ((this.mode === 'mac' || this.mode === 'all') && this.config.macApp?.enabled) {
+      this.logger.debug('Creating Mac App builder');
       this.builders.set('macApp', new MacAppBuilder(
         'macApp',
         this.config.macApp,
@@ -72,10 +75,15 @@ export class Poltergeist extends EventEmitter {
       this.buildQueues.set('macApp', []);
       this.isBuilding.set('macApp', false);
     }
+    
+    this.logger.debug(`Builders created: ${Array.from(this.builders.keys()).join(', ')}`);
   }
 
   async start(): Promise<void> {
     this.logger.info('Starting Poltergeist...');
+    this.logger.debug(`Project root: ${this.projectRoot}`);
+    this.logger.debug(`Mode: ${this.mode}`);
+    this.logger.debug(`Active builders: ${Array.from(this.builders.keys()).join(', ')}`);
 
     // Connect to watchman
     await this.watchman.connect();
@@ -87,12 +95,15 @@ export class Poltergeist extends EventEmitter {
     for (const [target] of this.builders) {
       const config = target === 'cli' ? this.config.cli : this.config.macApp;
       if (config) {
+        this.logger.debug(`Setting up subscription for ${target}`);
         await this.watchman.subscribe(
           target,
           config.watchPaths,
           config.settlingDelay
         );
         this.logger.info(`Watching ${target}: ${config.watchPaths.join(', ')}`);
+      } else {
+        this.logger.warn(`No config found for target: ${target}`);
       }
     }
 
@@ -153,11 +164,32 @@ export class Poltergeist extends EventEmitter {
     this.buildQueues.set(target, []);
 
     try {
+      // Get target config for display name
+      const targetConfig = target === 'cli' ? this.config.cli : this.config.macApp;
+      const targetName = targetConfig?.name;
+
+      // Check if we should send build start notification (debounced)
+      const now = Date.now();
+      const lastNotification = this.lastNotificationTime.get(target) || 0;
+      const shouldNotify = (now - lastNotification) >= this.config.notifications.minInterval;
+
+      if (shouldNotify) {
+        // Send build start notification
+        await this.notifier.notifyBuildStart(target, this.projectName, targetName);
+        this.lastNotificationTime.set(target, now);
+      }
+
       // Run the build
       const result = await builder.build();
 
-      // Send notification
-      await this.notifier.notifyBuildComplete(target, result, this.projectName);
+      // Send notification based on result (only if enough time has passed)
+      if (shouldNotify) {
+        if (!result.success) {
+          await this.notifier.notifyBuildFailed(target, this.projectName, result.error || 'Unknown error', targetName);
+        } else {
+          await this.notifier.notifyBuildComplete(target, result, this.projectName, targetName);
+        }
+      }
 
       // Run post-build actions (like auto-relaunch)
       await builder.postBuild(result);
@@ -176,6 +208,11 @@ export class Poltergeist extends EventEmitter {
 
     } catch (error) {
       this.logger.error(`[${target}] Build error:`, error);
+      // Also notify on exception
+      const targetConfig = target === 'cli' ? this.config.cli : this.config.macApp;
+      const targetName = targetConfig?.name;
+      const errorMessage = error instanceof Error ? error.message : String(error);
+      await this.notifier.notifyBuildFailed(target, this.projectName, errorMessage, targetName);
     } finally {
       // Mark as not building
       this.isBuilding.set(target, false);
@@ -222,7 +259,28 @@ export async function loadConfig(configPath: string): Promise<PoltergeistConfig>
   }
 
   const configContent = await readFile(configPath, 'utf8');
-  const config = JSON.parse(configContent);
+  const rawConfig = JSON.parse(configContent);
+
+  // Transform targets array format to cli/macApp format if needed
+  const config: any = {
+    notifications: rawConfig.notifications,
+    logging: rawConfig.logging
+  };
+
+  if (rawConfig.targets && Array.isArray(rawConfig.targets)) {
+    // New format with targets array
+    for (const target of rawConfig.targets) {
+      if (target.type === 'executable') {
+        config.cli = target;
+      } else if (target.type === 'app-bundle') {
+        config.macApp = target;
+      }
+    }
+  } else {
+    // Old format with cli/macApp properties
+    if (rawConfig.cli) config.cli = rawConfig.cli;
+    if (rawConfig.macApp) config.macApp = rawConfig.macApp;
+  }
 
   // Validate with Zod
   const { PoltergeistConfigSchema } = await import('./types.js');

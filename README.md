@@ -4,6 +4,30 @@
 
 Poltergeist is a universal file watcher and automatic build system for any project. It monitors your source files and automatically rebuilds your CLI tools, applications, or any project whenever you save changes. No more manual rebuilding, no more stale binaries, no more wasted time.
 
+## Why Poltergeist vs Watchman?
+
+While Poltergeist uses Facebook's Watchman internally for efficient file watching, it provides a complete development automation solution that goes far beyond what Watchman offers:
+
+### Watchman = Low-Level File Watching
+- Only notifies you when files change
+- Requires custom scripts to trigger builds
+- No built-in error handling or retries
+- Manual integration with build systems
+- No notification system
+
+### Poltergeist = Complete Build Automation
+- **Automatic Build Triggering** - Runs your build commands when files change
+- **Multi-Target Support** - Manage CLI tools and Mac apps in one config
+- **Build Status Tracking** - JSON status files for tool integration
+- **Mac App Hot Reload** - Auto quit/relaunch apps after builds
+- **Smart Queuing** - Batches changes, prevents redundant builds
+- **Native Notifications** - Success/failure alerts with custom sounds
+- **Robust Error Handling** - Automatic retries with exponential backoff
+- **Zero Config** - Works with any build system out of the box
+- **Developer Experience** - Simple CLI, status monitoring, verbose logging
+
+Think of it this way: Watchman tells you "these files changed", while Poltergeist handles the entire "files changed → rebuild → notify → relaunch app" workflow automatically.
+
 ## Features
 
 - 🔄 **Automatic Rebuilding** - Detects file changes and rebuilds immediately
