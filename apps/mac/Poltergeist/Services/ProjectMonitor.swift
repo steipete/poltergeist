@@ -155,4 +155,9 @@ class ProjectMonitor: ObservableObject {
             removeProject(project)
         }
     }
+    
+    func refreshProjects() {
+        logger.info("Refreshing projects...")
+        scanForProjects()
+    }
 }

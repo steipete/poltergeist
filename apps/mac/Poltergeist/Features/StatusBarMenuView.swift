@@ -5,180 +5,327 @@ struct StatusBarMenuView: View {
     let onDismiss: () -> Void
     
     @State private var selectedProject: Project?
+    @State private var hoveredProjectId: UUID?
     
     var body: some View {
         VStack(spacing: 0) {
-            // Header
-            HStack {
+            // Modern header with material background
+            HStack(spacing: 12) {
                 Image(systemName: "ghost.fill")
-                    .foregroundColor(.primary)
+                    .font(.system(size: 18, weight: .medium))
+                    .foregroundStyle(Color.accentColor)
+                    .symbolEffect(.pulse, isActive: true)
+                
                 Text("Poltergeist Monitor")
-                    .font(.headline)
+                    .font(.system(size: 15, weight: .semibold))
+                
                 Spacer()
                 
+                Button(action: { 
+                    projectMonitor.refreshProjects()
+                }) {
+                    Image(systemName: "arrow.clockwise")
+                        .font(.system(size: 14, weight: .medium))
+                        .foregroundColor(.secondary)
+                }
+                .buttonStyle(.plain)
+                .help("Refresh")
+                
                 Menu {
-                    Button("Clean Up Inactive Projects") {
-                        projectMonitor.cleanupInactiveProjects()
+                    Button(action: { projectMonitor.cleanupInactiveProjects() }) {
+                        Label("Clean Up Inactive", systemImage: "trash")
                     }
                     
                     Divider()
                     
-                    Button("Preferences...") {
+                    Button(action: { 
                         NSApp.sendAction(Selector(("showSettingsWindow:")), to: nil, from: nil)
+                    }) {
+                        Label("Settings...", systemImage: "gear")
                     }
+                    .keyboardShortcut(",", modifiers: .command)
+                    .disabled(true) // Temporarily disabled
                     
-                    Button("Quit") {
-                        NSApp.terminate(nil)
+                    Divider()
+                    
+                    Button(action: { NSApp.terminate(nil) }) {
+                        Label("Quit", systemImage: "power")
                     }
+                    .keyboardShortcut("q", modifiers: .command)
                 } label: {
                     Image(systemName: "ellipsis.circle")
+                        .font(.system(size: 14, weight: .medium))
                         .foregroundColor(.secondary)
                 }
-                .menuStyle(BorderlessButtonMenuStyle())
+                .menuStyle(.borderlessButton)
             }
-            .padding()
+            .padding(.horizontal, 16)
+            .padding(.vertical, 14)
+            .background(.ultraThinMaterial)
             
-            Divider()
-            
-            // Project List
+            // Content area
             if projectMonitor.projects.isEmpty {
-                VStack(spacing: 12) {
-                    Image(systemName: "ghost")
-                        .font(.largeTitle)
-                        .foregroundColor(.secondary)
-                    Text("No Poltergeist instances running")
-                        .foregroundColor(.secondary)
-                    Text("Start Poltergeist in a project with:")
-                        .font(.caption)
-                        .foregroundColor(Color.secondary.opacity(0.7))
-                    Text("poltergeist haunt")
-                        .font(.system(.caption, design: .monospaced))
-                        .foregroundColor(Color.secondary.opacity(0.7))
-                }
-                .frame(maxWidth: .infinity, maxHeight: .infinity)
-                .padding()
+                EmptyStateView()
             } else {
                 ScrollView {
-                    VStack(spacing: 8) {
+                    LazyVStack(spacing: 10) {
                         ForEach(projectMonitor.projects) { project in
-                            ProjectRowView(project: project) {
+                            ModernProjectRow(
+                                project: project,
+                                isHovered: hoveredProjectId == project.id
+                            )
+                            .onTapGesture {
                                 selectedProject = project
+                            }
+                            .onHover { isHovered in
+                                withAnimation(.easeInOut(duration: 0.15)) {
+                                    hoveredProjectId = isHovered ? project.id : nil
+                                }
+                            }
+                            .contextMenu {
+                                ProjectContextMenu(
+                                    project: project,
+                                    projectMonitor: projectMonitor
+                                )
                             }
                         }
                     }
-                    .padding()
+                    .padding(.horizontal, 12)
+                    .padding(.vertical, 10)
                 }
+                .background(Color(NSColor.windowBackgroundColor))
             }
         }
-        .frame(width: 400, height: 500)
-        .background(Color(NSColor.controlBackgroundColor))
+        .frame(minWidth: 480, minHeight: 200, maxHeight: 600)
+        .background(Color(NSColor.windowBackgroundColor))
         .sheet(item: $selectedProject) { project in
-            ProjectDetailView(project: project, projectMonitor: projectMonitor)
+            ModernProjectDetailView(project: project, projectMonitor: projectMonitor)
         }
     }
 }
 
-struct ProjectRowView: View {
+struct EmptyStateView: View {
+    var body: some View {
+        VStack(spacing: 20) {
+            ZStack {
+                Circle()
+                    .fill(.ultraThinMaterial)
+                    .frame(width: 80, height: 80)
+                
+                Image(systemName: "ghost.fill")
+                    .font(.system(size: 42))
+                    .foregroundStyle(.tertiary)
+                    .symbolEffect(.pulse.byLayer, isActive: true)
+            }
+            
+            VStack(spacing: 8) {
+                Text("No Poltergeist instances found")
+                    .font(.system(size: 16, weight: .medium))
+                    .foregroundColor(.primary)
+                
+                Text("Start monitoring a project:")
+                    .font(.system(size: 13))
+                    .foregroundColor(.secondary)
+                
+                HStack {
+                    Image(systemName: "terminal.fill")
+                        .font(.system(size: 11))
+                        .foregroundColor(.secondary)
+                    
+                    Text("poltergeist haunt")
+                        .font(.system(size: 12, design: .monospaced))
+                        .foregroundColor(.primary)
+                }
+                .padding(.horizontal, 14)
+                .padding(.vertical, 8)
+                .background(.regularMaterial)
+                .cornerRadius(8)
+            }
+        }
+        .frame(maxWidth: .infinity, maxHeight: .infinity)
+        .padding(40)
+    }
+}
+
+struct ModernProjectRow: View {
     let project: Project
-    let onTap: () -> Void
+    let isHovered: Bool
     
-    var statusIcon: some View {
-        Image(systemName: project.overallStatus.icon)
-            .foregroundColor(Color(project.overallStatus.color))
+    private var timeSinceLastBuild: String {
+        guard let mostRecentBuild = project.targets.values
+            .compactMap({ $0.lastBuild })
+            .max(by: { $0.timestamp < $1.timestamp }) else {
+            return "No builds yet"
+        }
+        
+        let formatter = RelativeDateTimeFormatter()
+        formatter.unitsStyle = .abbreviated
+        return formatter.localizedString(for: mostRecentBuild.timestamp, relativeTo: Date())
     }
     
     var body: some View {
-        Button(action: onTap) {
-            HStack {
-                statusIcon
-                    .frame(width: 20)
-                
-                VStack(alignment: .leading, spacing: 4) {
-                    Text(project.name)
-                        .font(.system(.body, design: .rounded))
-                        .fontWeight(.medium)
+        VStack(alignment: .leading, spacing: 0) {
+            // Main content
+            HStack(alignment: .top, spacing: 12) {
+                // Status icon
+                ZStack {
+                    RoundedRectangle(cornerRadius: 8)
+                        .fill(Color(project.overallStatus.color).opacity(0.15))
+                        .frame(width: 40, height: 40)
                     
-                    HStack(spacing: 12) {
-                        ForEach(project.sortedTargets, id: \.key) { target, state in
-                            TargetBadge(name: target, state: state)
+                    Image(systemName: project.overallStatus.icon)
+                        .font(.system(size: 18, weight: .medium))
+                        .foregroundColor(Color(project.overallStatus.color))
+                        .symbolEffect(.pulse, isActive: project.overallStatus == .building)
+                }
+                
+                VStack(alignment: .leading, spacing: 6) {
+                    // Project name and path
+                    VStack(alignment: .leading, spacing: 2) {
+                        Text(project.name)
+                            .font(.system(size: 14, weight: .semibold))
+                            .foregroundColor(.primary)
+                        
+                        HStack(spacing: 4) {
+                            Image(systemName: "folder")
+                                .font(.system(size: 10))
+                                .foregroundColor(.secondary)
+                            
+                            Text(project.path)
+                                .font(.system(size: 11))
+                                .foregroundColor(.secondary)
+                                .lineLimit(1)
+                                .truncationMode(.middle)
                         }
+                    }
+                    
+                    // Targets with build info
+                    HStack(spacing: 8) {
+                        ForEach(project.sortedTargets, id: \.key) { target, state in
+                            ModernTargetBadge(name: target, state: state)
+                        }
+                        
+                        Spacer()
+                        
+                        // Last build time
+                        HStack(spacing: 4) {
+                            Image(systemName: "clock")
+                                .font(.system(size: 10))
+                            Text(timeSinceLastBuild)
+                                .font(.system(size: 11))
+                        }
+                        .foregroundColor(.secondary)
                     }
                 }
                 
                 Spacer()
                 
+                // Chevron
                 Image(systemName: "chevron.right")
-                    .foregroundColor(.secondary)
-                    .font(.caption)
+                    .font(.system(size: 12, weight: .medium))
+                    .foregroundColor(Color.secondary.opacity(0.5))
+                    .opacity(isHovered ? 1 : 0.5)
             }
-            .padding(.horizontal, 12)
-            .padding(.vertical, 8)
-            .background(Color(NSColor.controlColor))
-            .cornerRadius(6)
-            .contentShape(Rectangle())
+            .padding(14)
         }
-        .buttonStyle(PlainButtonStyle())
-        .contextMenu {
-            Button("View Full Error") {
-                onTap()
-            }
-            .disabled(project.overallStatus != .failed)
-            
-            Button("Open Project Folder") {
-                NSWorkspace.shared.open(URL(fileURLWithPath: project.path))
-            }
-            
-            Divider()
-            
-            Button("Remove from Monitor", role: .destructive) {
-                ProjectMonitor.shared.removeProject(project)
-            }
-        }
+        .background(
+            RoundedRectangle(cornerRadius: 10)
+                .fill(isHovered ? .regularMaterial : .ultraThinMaterial)
+                .animation(.easeInOut(duration: 0.15), value: isHovered)
+        )
+        .overlay(
+            RoundedRectangle(cornerRadius: 10)
+                .strokeBorder(Color.primary.opacity(isHovered ? 0.1 : 0), lineWidth: 1)
+                .animation(.easeInOut(duration: 0.15), value: isHovered)
+        )
     }
 }
 
-struct TargetBadge: View {
+struct ModernTargetBadge: View {
     let name: String
     let state: TargetState
     
-    var statusColor: Color {
-        if !state.isActive { return .gray }
-        
-        switch state.lastBuild?.status {
-        case "failed": return .red
-        case "success": return .green
-        case "building": return .blue
-        default: return .gray
+    private var config: (icon: String, color: Color, isAnimating: Bool) {
+        if !state.isActive {
+            return ("moon.zzz", .gray, false)
         }
-    }
-    
-    var statusIcon: String {
-        if !state.isActive { return "circle" }
         
         switch state.lastBuild?.status {
-        case "failed": return "xmark.circle.fill"
-        case "success": return "checkmark.circle.fill"
-        case "building": return "arrow.triangle.2.circlepath"
-        default: return "circle.dotted"
+        case "failed": return ("xmark.circle.fill", .red, false)
+        case "success": return ("checkmark.circle.fill", .green, false)
+        case "building": return ("arrow.triangle.2.circlepath", .blue, true)
+        default: return ("circle.dotted", .gray, false)
         }
     }
     
     var body: some View {
         HStack(spacing: 4) {
-            Image(systemName: statusIcon)
-                .font(.caption2)
+            Image(systemName: config.icon)
+                .font(.system(size: 11, weight: .medium))
+                .symbolEffect(.rotate, isActive: config.isAnimating)
+            
             Text(name)
-                .font(.caption)
+                .font(.system(size: 12, weight: .medium))
+            
+            if let buildTime = state.lastBuild?.buildTime {
+                Text("(\(String(format: "%.1fs", buildTime)))")
+                    .font(.system(size: 10))
+                    .foregroundColor(.secondary)
+            }
         }
-        .foregroundColor(statusColor)
-        .padding(.horizontal, 8)
-        .padding(.vertical, 2)
-        .background(statusColor.opacity(0.1))
-        .cornerRadius(4)
+        .foregroundColor(config.color)
+        .padding(.horizontal, 10)
+        .padding(.vertical, 4)
+        .background(
+            Capsule()
+                .fill(config.color.opacity(0.15))
+        )
     }
 }
 
-struct ProjectDetailView: View {
+struct ProjectContextMenu: View {
+    let project: Project
+    let projectMonitor: ProjectMonitor
+    
+    var body: some View {
+        Button(action: {
+            NSWorkspace.shared.open(URL(fileURLWithPath: project.path))
+        }) {
+            Label("Open in Finder", systemImage: "folder")
+        }
+        
+        Button(action: {
+            NSWorkspace.shared.open(URL(fileURLWithPath: project.path))
+        }) {
+            Label("Open in Terminal", systemImage: "terminal")
+        }
+        
+        if project.overallStatus == .failed {
+            Divider()
+            
+            Button(action: {
+                // Copy error to clipboard
+                if let error = project.targets.values.compactMap({ $0.lastBuild?.errorSummary }).first {
+                    NSPasteboard.general.clearContents()
+                    NSPasteboard.general.setString(error, forType: .string)
+                }
+            }) {
+                Label("Copy Error", systemImage: "doc.on.clipboard")
+            }
+        }
+        
+        Divider()
+        
+        Button(action: {
+            projectMonitor.removeProject(project)
+        }) {
+            Label("Remove from Monitor", systemImage: "trash")
+        }
+        .foregroundColor(.red)
+    }
+}
+
+struct ModernProjectDetailView: View {
     let project: Project
     let projectMonitor: ProjectMonitor
     @Environment(\.dismiss) var dismiss
@@ -186,84 +333,149 @@ struct ProjectDetailView: View {
     var body: some View {
         VStack(spacing: 0) {
             // Header
-            HStack {
-                Image(systemName: "folder.fill")
-                    .foregroundColor(.secondary)
-                Text(project.name)
-                    .font(.title2)
-                    .fontWeight(.semibold)
+            HStack(spacing: 12) {
+                ZStack {
+                    RoundedRectangle(cornerRadius: 10)
+                        .fill(Color(project.overallStatus.color).opacity(0.15))
+                        .frame(width: 48, height: 48)
+                    
+                    Image(systemName: project.overallStatus.icon)
+                        .font(.system(size: 24, weight: .medium))
+                        .foregroundColor(Color(project.overallStatus.color))
+                }
+                
+                VStack(alignment: .leading, spacing: 4) {
+                    Text(project.name)
+                        .font(.system(size: 20, weight: .semibold))
+                    
+                    HStack(spacing: 4) {
+                        Image(systemName: "folder")
+                            .font(.system(size: 12))
+                        Text(project.path)
+                            .font(.system(size: 13))
+                            .foregroundColor(.secondary)
+                    }
+                }
+                
                 Spacer()
+                
                 Button("Done") {
                     dismiss()
                 }
+                .buttonStyle(.borderedProminent)
+                .controlSize(.regular)
             }
-            .padding()
+            .padding(20)
+            .background(.ultraThinMaterial)
             
-            Divider()
-            
-            // Project Info
-            VStack(alignment: .leading, spacing: 12) {
-                Label(project.path, systemImage: "folder")
-                    .font(.caption)
-                    .foregroundColor(.secondary)
-                
-                // Target Details
-                ForEach(project.sortedTargets, id: \.key) { target, state in
-                    VStack(alignment: .leading, spacing: 8) {
-                        HStack {
-                            Text(target)
-                                .font(.headline)
-                            Spacer()
-                            if state.isActive {
-                                Label("Active", systemImage: "circle.fill")
-                                    .foregroundColor(.green)
-                                    .font(.caption)
-                            } else {
-                                Label("Inactive", systemImage: "circle")
-                                    .foregroundColor(.gray)
-                                    .font(.caption)
-                            }
-                        }
-                        
-                        if let build = state.lastBuild {
-                            HStack {
-                                Label(build.status.capitalized, systemImage: build.status == "success" ? "checkmark.circle" : "xmark.circle")
-                                    .foregroundColor(build.status == "success" ? .green : .red)
-                                
-                                if let buildTime = build.buildTime {
-                                    Text("(\(String(format: "%.1fs", buildTime)))")
-                                        .foregroundColor(.secondary)
-                                }
-                                
-                                Spacer()
-                                
-                                Text(build.timestamp, style: .relative)
-                                    .font(.caption)
-                                    .foregroundColor(.secondary)
-                            }
-                            .font(.caption)
-                            
-                            if let error = build.errorSummary {
-                                Text(error)
-                                    .font(.system(.caption, design: .monospaced))
-                                    .foregroundColor(.red)
-                                    .padding(8)
-                                    .background(Color.red.opacity(0.1))
-                                    .cornerRadius(4)
-                                    .textSelection(.enabled)
-                            }
-                        }
+            // Content
+            ScrollView {
+                VStack(spacing: 16) {
+                    ForEach(project.sortedTargets, id: \.key) { target, state in
+                        TargetDetailCard(target: target, state: state)
                     }
-                    .padding()
-                    .background(Color(NSColor.controlColor))
-                    .cornerRadius(8)
+                }
+                .padding(20)
+            }
+        }
+        .frame(width: 600, height: 500)
+        .background(Color(NSColor.windowBackgroundColor))
+    }
+}
+
+struct TargetDetailCard: View {
+    let target: String
+    let state: TargetState
+    
+    var body: some View {
+        VStack(alignment: .leading, spacing: 12) {
+            // Header
+            HStack {
+                Label(target, systemImage: "target")
+                    .font(.system(size: 16, weight: .semibold))
+                
+                Spacer()
+                
+                if state.isActive {
+                    Label("Active", systemImage: "circle.fill")
+                        .font(.system(size: 12, weight: .medium))
+                        .foregroundColor(.green)
+                } else {
+                    Label("Inactive", systemImage: "moon.zzz")
+                        .font(.system(size: 12, weight: .medium))
+                        .foregroundColor(.gray)
                 }
             }
-            .padding()
             
-            Spacer()
+            // Build info
+            if let build = state.lastBuild {
+                VStack(alignment: .leading, spacing: 8) {
+                    HStack {
+                        // Status
+                        Label(
+                            build.status.capitalized,
+                            systemImage: build.status == "success" ? "checkmark.circle.fill" : "xmark.circle.fill"
+                        )
+                        .font(.system(size: 13, weight: .medium))
+                        .foregroundColor(build.status == "success" ? .green : .red)
+                        
+                        // Build time
+                        if let buildTime = build.buildTime {
+                            Text("•")
+                                .foregroundColor(.secondary)
+                            Text("\(String(format: "%.2f", buildTime))s")
+                                .font(.system(size: 13))
+                                .foregroundColor(.secondary)
+                        }
+                        
+                        // Git hash
+                        if let gitHash = build.gitHash {
+                            Text("•")
+                                .foregroundColor(.secondary)
+                            HStack(spacing: 2) {
+                                Image(systemName: "number")
+                                    .font(.system(size: 10))
+                                Text(String(gitHash.prefix(7)))
+                                    .font(.system(size: 12, design: .monospaced))
+                            }
+                            .foregroundColor(.secondary)
+                        }
+                        
+                        Spacer()
+                        
+                        // Timestamp
+                        Text(build.timestamp, style: .relative)
+                            .font(.system(size: 12))
+                            .foregroundColor(.secondary)
+                    }
+                    
+                    // Error display
+                    if let error = build.errorSummary {
+                        VStack(alignment: .leading, spacing: 8) {
+                            Label("Build Error", systemImage: "exclamationmark.triangle.fill")
+                                .font(.system(size: 12, weight: .medium))
+                                .foregroundColor(.red)
+                            
+                            Text(error)
+                                .font(.system(size: 12, design: .monospaced))
+                                .foregroundColor(.primary)
+                                .padding(12)
+                                .frame(maxWidth: .infinity, alignment: .leading)
+                                .background(Color.red.opacity(0.1))
+                                .cornerRadius(8)
+                                .textSelection(.enabled)
+                        }
+                    }
+                }
+            } else {
+                Text("No build information available")
+                    .font(.system(size: 13))
+                    .foregroundColor(.secondary)
+                    .italic()
+            }
         }
-        .frame(width: 500, height: 400)
-        .background(Color(NSColor.controlBackgroundColor))
+        .padding(16)
+        .background(.regularMaterial)
+        .cornerRadius(12)
     }
 }

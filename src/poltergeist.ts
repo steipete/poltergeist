@@ -210,12 +210,14 @@ export class Poltergeist {
           const duration = status.duration ? `${(status.duration / 1000).toFixed(1)}s` : '';
           await this.notifier.notifyBuildComplete(
             `${targetName} Built`,
-            `Build completed${duration ? ` in ${duration}` : ''}`
+            `Build completed${duration ? ` in ${duration}` : ''}`,
+            state.target.icon
           );
         } else if (status.status === 'failure') {
           await this.notifier.notifyBuildFailed(
             `${targetName} Failed`,
-            status.error || 'Build failed'
+            status.error || 'Build failed',
+            state.target.icon
           );
         }
       }
@@ -225,7 +227,8 @@ export class Poltergeist {
       if (this.notifier) {
         await this.notifier.notifyBuildFailed(
           `${targetName} Error`,
-          error.message
+          error.message,
+          state.target.icon
         );
       }
     }

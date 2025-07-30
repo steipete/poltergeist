@@ -18,6 +18,7 @@ export interface BaseTarget {
   maxRetries?: number;
   backoffMultiplier?: number;
   debounceInterval?: number;
+  icon?: string;  // Path to icon file for notifications
 }
 
 // Executable target (CLI tools, binaries)
@@ -112,6 +113,7 @@ export const BaseTargetSchema = z.object({
   maxRetries: z.number().optional(),
   backoffMultiplier: z.number().optional(),
   debounceInterval: z.number().optional(),
+  icon: z.string().optional(),
 });
 
 export const ExecutableTargetSchema = BaseTargetSchema.extend({

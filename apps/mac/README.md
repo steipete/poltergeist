@@ -1,78 +1,80 @@
-# Poltergeist for macOS
+# Poltergeist Mac Monitor App
 
-A native macOS menu bar app that watches your Xcode projects and automatically rebuilds them when files change.
+A native macOS menu bar application that monitors all Poltergeist instances across your projects.
+
+## Overview
+
+Poltergeist Monitor is a companion app for the Poltergeist build system. It provides a unified view of all running Poltergeist instances, showing build status, errors, and allowing easy management of watched projects.
 
 ## Features
 
-- 👻 **Menu Bar App**: Lives in your menu bar for easy access
-- 👁️ **File System Watching**: Monitors Swift, Objective-C, and resource files
-- 🔨 **Automatic Builds**: Triggers xcodebuild when files change
-- ⏱️ **Smart Debouncing**: Waits for file changes to settle before building
-- 🔔 **Native Notifications**: macOS notifications for build results
-- 📁 **Recent Projects**: Quick access to recently watched projects
-- ⚡ **Lightweight**: Minimal CPU and memory usage
+- **Menu Bar Status**: Shows a ghost icon that turns red when any builds fail
+- **Project Overview**: Lists all projects with active Poltergeist instances
+- **Target Status**: Shows build status for each target (cli, macApp, etc.)
+- **Build Details**: View build times, git hashes, and timestamps
+- **Error Details**: Click on projects to see full error messages
+- **Automatic Updates**: Monitors `/tmp/poltergeist/` for state file changes
+- **Process Monitoring**: Tracks active instances via PID with heartbeat detection
+- **Cleanup Tools**: Right-click to remove inactive projects or clean up stale state files
 
 ## Requirements
 
-- macOS 14.0 or later
-- Xcode 15.0 or later
-- Swift 5.9 or later
+- macOS 15.0+
+- Xcode 16.0+
+- Swift 6.0
 
-## Installation
+## Building
 
-### Option 1: Build from Source
+1. Open `Poltergeist.xcodeproj` in Xcode
+2. Select the Poltergeist scheme
+3. Build and run (⌘R)
 
-1. Clone the repository
-2. Open `Poltergeist.xcodeproj` in Xcode
-3. Select "Poltergeist" scheme
-4. Build and run (⌘R)
-5. The app will appear in your menu bar
-
-### Option 2: Download Release
-
-Download the latest `.dmg` from the [Releases](https://github.com/yourusername/poltergeist/releases) page.
+The app uses modern Xcode file system synchronized groups, so any files added to the `Poltergeist/` folder will automatically be included in the project.
 
 ## Usage
 
-1. Click the Poltergeist icon in your menu bar
-2. Select "Select Project..." to choose an Xcode project
-3. The app will start watching for file changes
-4. Edit your source files - builds will trigger automatically
-5. See build status in the menu and receive notifications
-
-### Keyboard Shortcuts
-
-- **⌘B** - Trigger build manually
-- **⌘,** - Open settings
-- **⌘Q** - Quit Poltergeist
-
-## Configuration
-
-Poltergeist stores its configuration in UserDefaults. You can customize:
-
-- **Debounce Interval**: Time to wait after file changes before building (default: 2 seconds)
-- **Build Configuration**: Debug/Release (default: Debug)
-- **Build Scheme**: Specific scheme to build
-- **Watched File Extensions**: Which file types trigger builds
-- **Excluded Paths**: Directories to ignore (build/, DerivedData/, etc.)
+1. Start Poltergeist in your projects using `poltergeist haunt`
+2. Launch the Poltergeist Monitor app
+3. Click the ghost icon in your menu bar to see all active projects
+4. Click on any project to see detailed status and errors
 
 ## Architecture
 
-The app is built with SwiftUI and uses:
+### Core Components
 
-- **FSEvents API** for efficient file system monitoring
-- **Process** for running xcodebuild
-- **UserNotifications** for build result notifications
-- **Combine** for reactive event handling
+- **StatusBarController**: Manages the menu bar icon and popover
+- **ProjectMonitor**: Watches `/tmp/poltergeist/` for state file changes
+- **FileWatcher**: Uses FSEvents API for efficient file system monitoring
+- **Project/TargetState**: Data models for tracking build status
 
-## Privacy
+### State File Communication
 
-Poltergeist runs locally and doesn't collect any data. It only accesses the project directories you explicitly select.
+Poltergeist instances write state files to `/tmp/poltergeist/` with the format:
+```
+{projectName}-{projectHash}-{target}.state
+```
+
+Each state file contains:
+- Process information (PID, heartbeat)
+- Last build status and timing
+- Error messages if any
+- Application info (bundle ID, output path)
+
+### File System Synchronized Groups
+
+The project uses Xcode 16's `PBXFileSystemSynchronizedRootGroup` which automatically syncs the file system with the Xcode project. This means:
+- No manual file management in Xcode
+- Files added to disk appear in the project automatically
+- Deletions and renames are synchronized
+
+## Development
+
+The app is built with:
+- **SwiftUI** for the user interface
+- **FSEvents** for file system monitoring
+- **AppKit** for menu bar integration
+- **Combine** for reactive updates
 
 ## License
 
-MIT License - see LICENSE file for details
-
-## Contributing
-
-Contributions are welcome! Please feel free to submit a Pull Request.
+Part of the Poltergeist project - see main repository for license details.

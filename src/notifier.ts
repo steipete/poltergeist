@@ -39,7 +39,8 @@ export class BuildNotifier {
 
   async notifyBuildFailed(
     title: string,
-    message: string
+    message: string,
+    iconPath?: string
   ): Promise<void> {
     if (!this.config.enabled || 
         !this.config.buildFailed || 
@@ -49,18 +50,27 @@ export class BuildNotifier {
 
     // title and message are already provided as parameters
 
-    notifier.notify({
+    const notificationOptions: any = {
       title,
       message,
       sound: this.config.failureSound || 'Basso',
-      icon: '❌',
       timeout: 10,
-    });
+    };
+
+    // Use custom icon if provided, otherwise fallback to emoji
+    if (iconPath) {
+      notificationOptions.appIcon = iconPath;
+    } else {
+      notificationOptions.icon = '❌';
+    }
+
+    notifier.notify(notificationOptions);
   }
 
   async notifyBuildComplete(
     title: string,
-    message: string
+    message: string,
+    iconPath?: string
   ): Promise<void> {
     if (!this.config.enabled || 
         !this.config.buildSuccess || 
@@ -70,13 +80,21 @@ export class BuildNotifier {
 
     // title and message are already provided as parameters
 
-    notifier.notify({
+    const notificationOptions: any = {
       title,
       message,
       sound: this.config.successSound || 'Glass',
-      icon: '✅',
       timeout: 3,
-    });
+    };
+
+    // Use custom icon if provided, otherwise fallback to emoji
+    if (iconPath) {
+      notificationOptions.appIcon = iconPath;
+    } else {
+      notificationOptions.icon = '✅';
+    }
+
+    notifier.notify(notificationOptions);
   }
 
   async notifyPoltergeistStarted(targets: string[]): Promise<void> {
