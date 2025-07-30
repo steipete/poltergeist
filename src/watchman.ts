@@ -73,20 +73,17 @@ export class WatchmanClient extends EventEmitter {
 
   async watchProject(projectRoot: string): Promise<void> {
     return new Promise((resolve, reject) => {
-      this.client.command(
-        ['watch-project', projectRoot],
-        (error: Error | null, resp?: unknown) => {
-          if (error) {
-            reject(new Error(`Failed to watch project: ${error.message}`));
-            return;
-          }
-
-          const watchResp = resp as { watch: string };
-          this.watchRoot = watchResp.watch;
-          this.logger.info(`Watching project at: ${this.watchRoot}`);
-          resolve();
+      this.client.command(['watch-project', projectRoot], (error: Error | null, resp?: unknown) => {
+        if (error) {
+          reject(new Error(`Failed to watch project: ${error.message}`));
+          return;
         }
-      );
+
+        const watchResp = resp as { watch: string };
+        this.watchRoot = watchResp.watch;
+        this.logger.info(`Watching project at: ${this.watchRoot}`);
+        resolve();
+      });
     });
   }
 
@@ -131,7 +128,7 @@ export class WatchmanClient extends EventEmitter {
             mode?: number;
           }>;
         };
-        
+
         if (resp.subscription === subscriptionName) {
           const changes = resp.files.map((file) => ({
             name: file.name,
