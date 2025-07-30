@@ -1,7 +1,8 @@
-// Export main components for programmatic usage
-export { Poltergeist, loadConfig } from './poltergeist.js';
-export { WatchmanClient } from './watchman.js';
-export { Builder, CLIBuilder, MacAppBuilder } from './builder.js';
-export { BuildNotifier } from './notifier.js';
-export { createLogger, createConsoleLogger } from './logger.js';
+// Poltergeist - The ghost that keeps your projects fresh
 export * from './types.js';
+export * from './config.js';
+export * from './poltergeist.js';
+export * from './logger.js';
+export { WatchmanClient, WatchSubscription } from './watchman.js';
+export * from './notifier.js';
+export * from './builders/index.js';

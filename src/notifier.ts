@@ -1,12 +1,12 @@
 import notifier from 'node-notifier';
-import type { BuildResult, BuildTarget } from './types.js';
+import type { BuildTarget } from './types.js';
 
 export class BuildNotifier {
   constructor(
     private config: {
       enabled: boolean;
-      successSound: string;
-      failureSound: string;
+      successSound?: string;
+      failureSound?: string;
       buildStart?: boolean;
       buildFailed?: boolean;
       buildSuccess?: boolean;
@@ -38,10 +38,8 @@ export class BuildNotifier {
   }
 
   async notifyBuildFailed(
-    target: BuildTarget,
-    projectName: string,
-    error: string,
-    targetName?: string
+    title: string,
+    message: string
   ): Promise<void> {
     if (!this.config.enabled || 
         !this.config.buildFailed || 
@@ -49,24 +47,20 @@ export class BuildNotifier {
       return;
     }
 
-    const displayName = targetName || target;
-    const title = `❌ ${projectName} - ${displayName}`;
-    const message = error.split('\n')[0] || 'Build failed';
+    // title and message are already provided as parameters
 
     notifier.notify({
       title,
       message,
-      sound: this.config.failureSound,
+      sound: this.config.failureSound || 'Basso',
       icon: '❌',
       timeout: 10,
     });
   }
 
   async notifyBuildComplete(
-    target: BuildTarget,
-    result: BuildResult,
-    projectName: string,
-    targetName?: string
+    title: string,
+    message: string
   ): Promise<void> {
     if (!this.config.enabled || 
         !this.config.buildSuccess || 
@@ -74,21 +68,14 @@ export class BuildNotifier {
       return;
     }
 
-    const displayName = targetName || target;
-    const title = result.success 
-      ? `✅ ${projectName} - ${displayName}`
-      : `❌ ${projectName} - ${displayName}`;
-
-    const message = result.success
-      ? `Build completed in ${(result.duration / 1000).toFixed(1)}s`
-      : result.error?.split('\n')[0] || 'Build failed';
+    // title and message are already provided as parameters
 
     notifier.notify({
       title,
       message,
-      sound: result.success ? this.config.successSound : this.config.failureSound,
-      icon: result.success ? '✅' : '❌',
-      timeout: result.success ? 3 : 10,
+      sound: this.config.successSound || 'Glass',
+      icon: '✅',
+      timeout: 3,
     });
   }
 

@@ -1,34 +1,45 @@
-// Updated Watchman client for generic target system
 import watchman from 'fb-watchman';
 import { EventEmitter } from 'events';
-import { Logger } from './logger.js';
+import { Logger } from 'winston';
+import type { FileChange, BuildTarget } from './types.js';
 
-export interface FileChange {
-  path: string;
-  exists: boolean;
-  new?: boolean;
-  size?: number;
-  mode?: number;
-}
-
-export interface WatchSubscription {
+export interface WatchmanTrigger {
+  name: string;
   expression: any[];
-  fields: string[];
-  defer?: string[];
-  drop?: string[];
-  settle?: number;
+  command: string[];
+  append_files: boolean;
+  stdin: string[];
+  settling_delay: number;
 }
 
 export class WatchmanClient extends EventEmitter {
   private client: watchman.Client;
   private watchRoot?: string;
-  private logger: Logger;
   private subscriptions: Map<string, string> = new Map();
 
-  constructor(logger: Logger) {
+  constructor(private logger: Logger) {
     super();
-    this.logger = logger;
     this.client = new watchman.Client();
+    
+    // Set up the subscription handler once for all subscriptions
+    this.client.on('subscription', (resp: any) => {
+      // Find which target this subscription is for
+      for (const [target, subName] of this.subscriptions) {
+        if (resp.subscription === subName) {
+          const changes: FileChange[] = resp.files.map((file: any) => ({
+            path: file.name,
+            exists: file.exists,
+            new: file.new,
+            size: file.size,
+            mode: file.mode,
+          }));
+          
+          this.logger.debug(`[${target}] Watchman detected ${changes.length} file changes`);
+          this.emit('changes', target, changes);
+          break;
+        }
+      }
+    });
     
     this.client.on('error', (error) => {
       this.logger.error('Watchman error:', error);
@@ -73,71 +84,59 @@ export class WatchmanClient extends EventEmitter {
   }
 
   async subscribe(
-    projectRoot: string,
-    subscriptionName: string,
-    subscription: WatchSubscription,
-    callback: (files: FileChange[]) => void
+    target: BuildTarget,
+    paths: string[],
+    settlingDelay: number
   ): Promise<void> {
     if (!this.watchRoot) {
       throw new Error('No project is being watched');
     }
 
-    this.logger.debug(`Creating subscription ${subscriptionName}`);
+    const subscriptionName = `poltergeist-${target}`;
     
-    // Add common exclusions to the expression
-    const enhancedExpression = ['allof',
-      subscription.expression,
-      // Exclude common build directories
+    this.logger.debug(`Creating subscription ${subscriptionName} for paths:`, paths);
+    
+    // Build the expression for matching files
+    const pathExpressions = paths.map(path => ['match', path, 'wholename']);
+    const expression = ['allof', 
+      ['anyof', ...pathExpressions],
+      // Exclude auto-generated files
       ['not', ['match', '**/.build/**', 'wholename']],
-      ['not', ['match', '**/DerivedData/**', 'wholename']],
-      ['not', ['match', '**/node_modules/**', 'wholename']],
-      ['not', ['match', '**/.git/**', 'wholename']],
+      ['not', ['match', '**/DerivedData/**', 'wholename']]
     ];
+    
+    this.logger.debug(`Subscription expression:`, JSON.stringify(expression, null, 2));
 
-    const enhancedSubscription = {
-      ...subscription,
-      expression: enhancedExpression,
+    const subscription = {
+      expression,
+      fields: ['name', 'exists', 'new', 'size', 'mode'],
+      defer: ['hg.update'],
+      drop: ['hg.update'],
+      settle: settlingDelay,
     };
 
     return new Promise((resolve, reject) => {
-      // Set up the subscription handler for this specific subscription
-      const handler = (resp: any) => {
-        if (resp.subscription === subscriptionName) {
-          const changes: FileChange[] = resp.files.map((file: any) => ({
-            path: file.name,
-            exists: file.exists,
-            new: file.new,
-            size: file.size,
-            mode: file.mode,
-          }));
-          
-          callback(changes);
-        }
-      };
-
-      // Register the handler
-      this.client.on('subscription', handler);
-
-      // Create the subscription
       this.client.command(
-        ['subscribe', this.watchRoot, subscriptionName, enhancedSubscription] as any,
+        ['subscribe', this.watchRoot, subscriptionName, subscription] as any,
         (error: Error | null, _resp: any) => {
           if (error) {
-            this.client.removeListener('subscription', handler);
             reject(new Error(`Failed to create subscription: ${error.message}`));
             return;
           }
 
-          this.subscriptions.set(subscriptionName, projectRoot);
-          this.logger.info(`Subscription created: ${subscriptionName}`);
+          this.subscriptions.set(target, subscriptionName);
+          this.logger.info(`Created subscription: ${subscriptionName}`);
+          this.logger.debug(`Watching paths: ${paths.join(', ')}`);
+          
           resolve();
         }
       );
     });
   }
 
-  async unsubscribe(subscriptionName: string): Promise<void> {
-    if (!this.subscriptions.has(subscriptionName) || !this.watchRoot) {
+  async unsubscribe(target: BuildTarget): Promise<void> {
+    const subscriptionName = this.subscriptions.get(target);
+    if (!subscriptionName || !this.watchRoot) {
       return;
     }
 
@@ -148,17 +147,17 @@ export class WatchmanClient extends EventEmitter {
           if (error) {
             this.logger.warn(`Failed to unsubscribe ${subscriptionName}: ${error.message}`);
           }
-          this.subscriptions.delete(subscriptionName);
+          this.subscriptions.delete(target);
           resolve();
         }
       );
     });
   }
 
-  async disconnect(): Promise<void> {
+  async shutdown(): Promise<void> {
     // Unsubscribe from all subscriptions
-    for (const subscriptionName of this.subscriptions.keys()) {
-      await this.unsubscribe(subscriptionName);
+    for (const target of this.subscriptions.keys()) {
+      await this.unsubscribe(target as BuildTarget);
     }
 
     // Remove the watch
@@ -175,6 +174,7 @@ export class WatchmanClient extends EventEmitter {
   }
 
   isConnected(): boolean {
+    // fb-watchman doesn't expose readyState, so we'll track connection status differently
     return this.watchRoot !== undefined;
   }
 }

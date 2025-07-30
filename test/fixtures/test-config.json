@@ -1,0 +1,34 @@
+{
+  "targets": [
+    {
+      "name": "test-cli",
+      "type": "executable",
+      "enabled": true,
+      "buildCommand": "echo 'Building CLI...' && sleep 1 && echo 'CLI build complete'",
+      "outputPath": "./test-output/cli",
+      "watchPaths": ["src/**/*.js", "lib/**/*.js"],
+      "statusFile": "/tmp/test-cli-status.json",
+      "lockFile": "/tmp/test-cli.lock"
+    },
+    {
+      "name": "test-app",
+      "type": "app-bundle",
+      "platform": "macos",
+      "enabled": true,
+      "buildCommand": "echo 'Building App...' && sleep 1 && echo 'App build complete'",
+      "bundleId": "com.test.app",
+      "watchPaths": ["app/**/*.js", "app/**/*.html"],
+      "statusFile": "/tmp/test-app-status.json",
+      "lockFile": "/tmp/test-app.lock"
+    }
+  ],
+  "notifications": {
+    "enabled": true,
+    "successSound": "Glass",
+    "failureSound": "Basso"
+  },
+  "logging": {
+    "file": "test.log",
+    "level": "debug"
+  }
+}

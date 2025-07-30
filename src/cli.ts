@@ -1,219 +1,270 @@
 #!/usr/bin/env node
-
+// Updated CLI for generic target system
 import { Command } from 'commander';
 import { existsSync } from 'fs';
-import path from 'path';
+// import { resolve } from 'path';
 import chalk from 'chalk';
-import { createLogger, createConsoleLogger } from './logger.js';
-import { Poltergeist, loadConfig } from './poltergeist.js';
+import { Poltergeist } from './poltergeist.js';
+import { ConfigLoader, ConfigurationError } from './config.js';
+import { createLogger } from './logger.js';
+import { PoltergeistConfig } from './types.js';
+import packageJson from '../package.json' with { type: 'json' };
+const { version } = packageJson;
 
 const program = new Command();
-const console = createConsoleLogger();
-
-// Version from package.json
-const packageJson = await import('../package.json', { with: { type: 'json' } });
 
 program
   .name('poltergeist')
   .description('The ghost that keeps your projects fresh')
-  .version(packageJson.default.version);
+  .version(version);
+
+// Helper function to load config and handle errors
+async function loadConfiguration(configPath: string): Promise<{ config: PoltergeistConfig; projectRoot: string }> {
+  try {
+    const loader = new ConfigLoader(configPath);
+    const config = loader.loadConfig();
+    return { config, projectRoot: loader.getProjectRoot() };
+  } catch (error) {
+    if (error instanceof ConfigurationError) {
+      console.error(chalk.red(error.message));
+    } else {
+      console.error(chalk.red(`Failed to load configuration: ${error}`));
+    }
+    process.exit(1);
+  }
+}
+
+// Helper to get target names from config
+function getTargetNames(config: PoltergeistConfig): string[] {
+  return config.targets.map(t => t.name);
+}
+
+// Helper to format target list
+function formatTargetList(config: PoltergeistConfig): string {
+  return config.targets
+    .map(t => `  - ${chalk.cyan(t.name)} (${t.type})${t.enabled ? '' : chalk.gray(' [disabled]')}`)
+    .join('\n');
+}
 
 program
   .command('haunt')
   .alias('start')
   .description('Start watching and auto-building your project')
-  .option('--cli', 'Watch only CLI targets')
-  .option('--mac', 'Watch only Mac app targets')
-  .option('--all', 'Watch all targets (default)')
+  .option('-t, --target <name>', 'Target to build (omit to build all enabled targets)')
   .option('-c, --config <path>', 'Path to config file', './poltergeist.config.json')
   .option('-v, --verbose', 'Enable verbose logging')
   .action(async (options) => {
-    try {
-      // Determine mode
-      let mode: 'cli' | 'mac' | 'all' = 'all';
-      if (options.cli) mode = 'cli';
-      else if (options.mac) mode = 'mac';
-
-      // Find project root (where config file is)
-      const configPath = path.resolve(options.config);
-      const projectRoot = path.dirname(configPath);
-
-      if (!existsSync(configPath)) {
-        console.error(`Config file not found: ${configPath}`);
-        console.info('Run "poltergeist init" to create a config file');
+    console.log(chalk.gray('👻 [Poltergeist] Summoning Poltergeist to watch your project...'));
+    
+    const { config, projectRoot } = await loadConfiguration(options.config);
+    
+    // Validate target if specified
+    if (options.target) {
+      const targetNames = getTargetNames(config);
+      if (!targetNames.includes(options.target)) {
+        console.error(chalk.red(`Unknown target: ${options.target}`));
+        console.error(chalk.yellow('Available targets:'));
+        console.error(formatTargetList(config));
         process.exit(1);
       }
-
-      // Load config
-      const config = await loadConfig(configPath);
-
-      // Create logger
-      const logger = createLogger(
-        path.join(projectRoot, config.logging.file),
-        options.verbose ? 'debug' : config.logging.level
-      );
-
-      // Create and start Poltergeist
-      const poltergeist = new Poltergeist(config, projectRoot, logger, mode);
-
-      console.info('Summoning Poltergeist to watch your project files...');
-      console.info(`Starting in ${mode.toUpperCase()} mode`);
-
-      await poltergeist.start();
-
-      // Handle graceful shutdown
-      process.on('SIGINT', async () => {
-        console.info('\nReceived SIGINT, stopping Poltergeist...');
-        await poltergeist.stop();
-        process.exit(0);
-      });
-
-      process.on('SIGTERM', async () => {
-        console.info('\nReceived SIGTERM, stopping Poltergeist...');
-        await poltergeist.stop();
-        process.exit(0);
-      });
-
+      console.log(chalk.gray(`👻 [Poltergeist] Building target: ${options.target}`));
+    } else {
+      const enabledTargets = config.targets.filter(t => t.enabled);
+      if (enabledTargets.length === 0) {
+        console.error(chalk.red('No enabled targets found in configuration'));
+        process.exit(1);
+      }
+      console.log(chalk.gray(`👻 [Poltergeist] Building ${enabledTargets.length} enabled target(s)`));
+    }
+    
+    // Create logger
+    const logger = createLogger(
+      config.logging?.file || '.poltergeist.log',
+      config.logging?.level || 'info'
+    );
+    
+    try {
+      const poltergeist = new Poltergeist(config, projectRoot, logger);
+      await poltergeist.start(options.target);
     } catch (error) {
-      console.error(`Failed to start Poltergeist: ${error}`);
+      console.error(chalk.red(`👻 [Poltergeist] Failed to start Poltergeist: ${error}`));
       process.exit(1);
     }
   });
 
 program
-  .command('rest')
-  .alias('stop')
-  .description('Stop all Poltergeist watchers')
-  .action(async () => {
-    console.info('Sending all Poltergeist instances to rest...');
+  .command('stop')
+  .alias('rest')
+  .description('Stop Poltergeist')
+  .option('-t, --target <name>', 'Stop specific target only')
+  .option('-c, --config <path>', 'Path to config file', './poltergeist.config.json')
+  .action(async (options) => {
+    console.log(chalk.gray('👻 [Poltergeist] Putting Poltergeist to rest...'));
+    
+    const { config, projectRoot } = await loadConfiguration(options.config);
     
     try {
-      // In the TypeScript version, we rely on process management
-      // rather than checking for lock files
-      console.success('Use Ctrl+C in the running Poltergeist process to stop it');
+      const poltergeist = new Poltergeist(config, projectRoot);
+      await poltergeist.stop(options.target);
+      console.log(chalk.green('👻 [Poltergeist] Poltergeist is now at rest'));
     } catch (error) {
-      console.error(`Failed to stop Poltergeist: ${error}`);
+      console.error(chalk.red(`👻 [Poltergeist] Failed to stop: ${error}`));
+      process.exit(1);
     }
   });
 
 program
   .command('status')
-  .description('Show Poltergeist status')
+  .description('Check Poltergeist status')
+  .option('-t, --target <name>', 'Check specific target status')
+  .option('-c, --config <path>', 'Path to config file', './poltergeist.config.json')
+  .option('--json', 'Output status as JSON')
+  .action(async (options) => {
+    const { config, projectRoot } = await loadConfiguration(options.config);
+    
+    try {
+      const poltergeist = new Poltergeist(config, projectRoot);
+      const status = await poltergeist.getStatus(options.target);
+      
+      if (options.json) {
+        console.log(JSON.stringify(status, null, 2));
+      } else {
+        console.log(chalk.blue('👻 Poltergeist Status'));
+        console.log(chalk.gray('═'.repeat(50)));
+        
+        if (options.target) {
+          // Single target status
+          const targetStatus = status[options.target];
+          if (!targetStatus) {
+            console.log(chalk.red(`Target '${options.target}' not found`));
+          } else {
+            formatTargetStatus(options.target, targetStatus);
+          }
+        } else {
+          // All targets status
+          const targets = Object.keys(status);
+          if (targets.length === 0) {
+            console.log(chalk.gray('No targets configured'));
+          } else {
+            targets.forEach(name => {
+              formatTargetStatus(name, status[name]);
+              console.log(); // Empty line between targets
+            });
+          }
+        }
+      }
+    } catch (error) {
+      console.error(chalk.red(`👻 [Poltergeist] Failed to get status: ${error}`));
+      process.exit(1);
+    }
+  });
+
+function formatTargetStatus(name: string, status: any): void {
+  console.log(chalk.cyan(`Target: ${name}`));
+  console.log(`  Status: ${formatStatus(status.status)}`);
+  
+  if (status.pid) {
+    console.log(`  Process: ${chalk.green(`Running (PID: ${status.pid})`)}`);
+  } else {
+    console.log(`  Process: ${chalk.gray('Not running')}`);
+  }
+  
+  if (status.lastBuild) {
+    console.log(`  Last Build: ${new Date(status.lastBuild.timestamp).toLocaleString()}`);
+    console.log(`  Build Status: ${formatStatus(status.lastBuild.status)}`);
+    if (status.lastBuild.duration) {
+      console.log(`  Build Time: ${status.lastBuild.duration}ms`);
+    }
+    if (status.lastBuild.error) {
+      console.log(`  Error: ${chalk.red(status.lastBuild.error)}`);
+    }
+  }
+}
+
+function formatStatus(status: string): string {
+  switch (status) {
+    case 'success':
+      return chalk.green('✅ Success');
+    case 'failure':
+      return chalk.red('❌ Failed');
+    case 'building':
+      return chalk.yellow('🔨 Building');
+    case 'watching':
+      return chalk.blue('👀 Watching');
+    default:
+      return chalk.gray(status);
+  }
+}
+
+program
+  .command('logs')
+  .description('Show Poltergeist logs')
+  .option('-t, --target <name>', 'Show logs for specific target')
+  .option('-n, --lines <number>', 'Number of lines to show', '50')
+  .option('-f, --follow', 'Follow log output')
   .option('-c, --config <path>', 'Path to config file', './poltergeist.config.json')
   .action(async (options) => {
-    try {
-      const configPath = path.resolve(options.config);
-      
-      if (!existsSync(configPath)) {
-        console.warn('No config file found. Poltergeist is not configured.');
-        return;
-      }
-
-      const config = await loadConfig(configPath);
-
-      console.info(chalk.magenta('\n=== Poltergeist Status ===\n'));
-
-      // Check each target
-      if (config.cli?.enabled) {
-        console.info(chalk.cyan('CLI Target:'));
-        if (existsSync(config.cli.statusFile)) {
-          const { readFile } = await import('fs/promises');
-          const statusContent = await readFile(config.cli.statusFile, 'utf8');
-          const status = JSON.parse(statusContent);
-          console.info(`  Status: ${status.status}`);
-          console.info(`  Last build: ${status.timestamp}`);
-          if (status.buildTime) {
-            console.info(`  Build time: ${(status.buildTime / 1000).toFixed(1)}s`);
-          }
-        } else {
-          console.info('  Status: No builds yet');
-        }
-        console.info(`  Watch paths: ${config.cli.watchPaths.join(', ')}`);
-      }
-
-      if (config.macApp?.enabled) {
-        console.info(chalk.cyan('\nMac App Target:'));
-        if (existsSync(config.macApp.statusFile)) {
-          const { readFile } = await import('fs/promises');
-          const statusContent = await readFile(config.macApp.statusFile, 'utf8');
-          const status = JSON.parse(statusContent);
-          console.info(`  Status: ${status.status}`);
-          console.info(`  Last build: ${status.timestamp}`);
-          if (status.buildTime) {
-            console.info(`  Build time: ${(status.buildTime / 1000).toFixed(1)}s`);
-          }
-        } else {
-          console.info('  Status: No builds yet');
-        }
-        console.info(`  Watch paths: ${config.macApp.watchPaths.join(', ')}`);
-        console.info(`  Auto-relaunch: ${config.macApp.autoRelaunch ? 'Yes' : 'No'}`);
-      }
-
-    } catch (error) {
-      console.error(`Failed to get status: ${error}`);
+    const { config } = await loadConfiguration(options.config);
+    
+    const logFile = config.logging?.file || '.poltergeist.log';
+    if (!existsSync(logFile)) {
+      console.error(chalk.red('No log file found'));
+      process.exit(1);
     }
+    
+    // This would normally use tail command or similar
+    console.log(chalk.yellow('Log viewing implementation needed'));
   });
 
 program
-  .command('init')
-  .description('Create a Poltergeist config file')
-  .option('-f, --force', 'Overwrite existing config')
+  .command('list')
+  .description('List all configured targets')
+  .option('-c, --config <path>', 'Path to config file', './poltergeist.config.json')
   .action(async (options) => {
-    const configPath = path.resolve('./poltergeist.config.json');
+    const { config } = await loadConfiguration(options.config);
     
-    if (existsSync(configPath) && !options.force) {
-      console.error('Config file already exists. Use --force to overwrite.');
-      process.exit(1);
+    console.log(chalk.blue('👻 Configured Targets'));
+    console.log(chalk.gray('═'.repeat(50)));
+    
+    if (config.targets.length === 0) {
+      console.log(chalk.gray('No targets configured'));
+    } else {
+      config.targets.forEach(target => {
+        const status = target.enabled ? chalk.green('✓') : chalk.red('✗');
+        console.log(`${status} ${chalk.cyan(target.name)} (${target.type})`);
+        console.log(`  Build: ${target.buildCommand}`);
+        console.log(`  Watch: ${target.watchPaths.join(', ')}`);
+        
+        if (target.type === 'executable' && 'outputPath' in target) {
+          console.log(`  Output: ${target.outputPath}`);
+        } else if (target.type === 'app-bundle' && 'bundleId' in target) {
+          console.log(`  Bundle ID: ${target.bundleId}`);
+          if (target.platform) {
+            console.log(`  Platform: ${target.platform}`);
+          }
+        }
+        console.log();
+      });
     }
-
-    const defaultConfig = {
-      cli: {
-        enabled: true,
-        buildCommand: './scripts/build-debug.sh',
-        outputPath: './my-cli',
-        statusFile: '/tmp/my-cli-build-status.json',
-        lockFile: '/tmp/my-cli-build.lock',
-        watchPaths: [
-          'src/**/*',
-          'lib/**/*',
-          'Makefile',
-          'package.json'
-        ],
-        settlingDelay: 1000,
-        maxRetries: 3,
-        backoffMultiplier: 2
-      },
-      macApp: {
-        enabled: false,
-        buildCommand: 'xcodebuild -workspace MyApp.xcworkspace -scheme MyApp -configuration Debug build',
-        bundleId: 'com.example.myapp',
-        statusFile: '/tmp/my-app-build-status.json',
-        lockFile: '/tmp/my-app-build.lock',
-        autoRelaunch: true,
-        watchPaths: [
-          'MyApp/**/*',
-          'Resources/**/*'
-        ],
-        settlingDelay: 1000,
-        maxRetries: 3,
-        backoffMultiplier: 2
-      },
-      notifications: {
-        enabled: true,
-        successSound: 'Glass',
-        failureSound: 'Basso'
-      },
-      logging: {
-        file: '.poltergeist.log',
-        level: 'info'
-      }
-    };
-
-    const { writeFile } = await import('fs/promises');
-    await writeFile(configPath, JSON.stringify(defaultConfig, null, 2));
-    
-    console.success(`Created config file: ${configPath}`);
-    console.info('Edit the config file to match your project structure');
   });
 
+// Backwards compatibility warning for old flags
+const warnOldFlag = (flag: string, newFlag: string) => {
+  console.error(chalk.red(`❌ The ${flag} flag is no longer supported!`));
+  console.error(chalk.yellow(`Use ${newFlag} instead.`));
+  console.error(chalk.gray('\nExample:'));
+  console.error(chalk.gray(`  poltergeist haunt ${newFlag}`));
+  process.exit(1);
+};
+
+// Add handlers for old flags
+program.on('option:cli', () => warnOldFlag('--cli', '--target <name>'));
+program.on('option:mac', () => warnOldFlag('--mac', '--target <name>'));
+
+// Parse arguments
 program.parse(process.argv);
+
+// Show help if no command specified
+if (!process.argv.slice(2).length) {
+  program.outputHelp();
+}

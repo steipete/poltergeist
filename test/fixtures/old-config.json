@@ -1,0 +1,14 @@
+{
+  "cli": {
+    "enabled": true,
+    "buildCommand": "./build.sh",
+    "outputPath": "./bin/app",
+    "watchPaths": ["src/**/*.js"]
+  },
+  "macApp": {
+    "enabled": true,
+    "buildCommand": "./build-app.sh",
+    "bundleId": "com.test.app",
+    "watchPaths": ["app/**/*.js"]
+  }
+}
