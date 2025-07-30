@@ -5,9 +5,10 @@ import { createHash } from 'crypto';
 import { hostname } from 'os';
 import { Logger } from './logger.js';
 import { BuildStatus, Target } from './types.js';
+import { IStateManager } from './interfaces.js';
 
-// State directory
-const STATE_DIR = '/tmp/poltergeist';
+// Default state directory
+const DEFAULT_STATE_DIR = '/tmp/poltergeist';
 
 // Unified state interface
 export interface ProcessInfo {
@@ -37,19 +38,21 @@ export interface PoltergeistState {
   appInfo?: AppInfo;
 }
 
-export class StateManager {
+export class StateManager implements IStateManager {
   private logger: Logger;
   private projectRoot: string;
   private heartbeatInterval?: NodeJS.Timeout;
   private states: Map<string, PoltergeistState> = new Map();
+  private stateDir: string;
 
   constructor(projectRoot: string, logger: Logger) {
     this.logger = logger;
     this.projectRoot = projectRoot;
+    this.stateDir = process.env.POLTERGEIST_STATE_DIR || DEFAULT_STATE_DIR;
     
     // Ensure state directory exists
-    if (!existsSync(STATE_DIR)) {
-      mkdirSync(STATE_DIR, { recursive: true });
+    if (!existsSync(this.stateDir)) {
+      mkdirSync(this.stateDir, { recursive: true });
     }
   }
 
@@ -70,7 +73,7 @@ export class StateManager {
    * Get full path to state file
    */
   private getStateFilePath(targetName: string): string {
-    return join(STATE_DIR, this.getStateFileName(targetName));
+    return join(this.stateDir, this.getStateFileName(targetName));
   }
 
   /**
@@ -158,6 +161,11 @@ export class StateManager {
     const tempFile = `${stateFile}.tmp`;
 
     try {
+      // Ensure state directory exists
+      if (!existsSync(this.stateDir)) {
+        mkdirSync(this.stateDir, { recursive: true });
+      }
+      
       // Update heartbeat
       state.process.lastHeartbeat = new Date().toISOString();
       
@@ -263,6 +271,48 @@ export class StateManager {
   }
 
   /**
+   * Update state with partial updates
+   */
+  public async updateState(targetName: string, updates: Partial<PoltergeistState>): Promise<void> {
+    const currentState = await this.readState(targetName);
+    if (!currentState) {
+      throw new Error(`State not found for target: ${targetName}`);
+    }
+    
+    const updatedState = { ...currentState, ...updates };
+    this.states.set(targetName, updatedState);
+    await this.writeState(targetName);
+  }
+
+  /**
+   * Discover all states in the state directory
+   */
+  public async discoverStates(): Promise<Record<string, Partial<PoltergeistState>>> {
+    const states: Record<string, Partial<PoltergeistState>> = {};
+    
+    if (!existsSync(this.stateDir)) {
+      return states;
+    }
+    
+    const files = await import('fs/promises').then(fs => fs.readdir(this.stateDir));
+    
+    for (const file of files) {
+      if (file.endsWith('.state')) {
+        try {
+          const content = readFileSync(join(this.stateDir, file), 'utf-8');
+          const state = JSON.parse(content) as PoltergeistState;
+          const targetName = file.replace('.state', '').split('-').pop() || '';
+          states[targetName] = state;
+        } catch (error) {
+          this.logger.debug(`Failed to read state file ${file}: ${error}`);
+        }
+      }
+    }
+    
+    return states;
+  }
+
+  /**
    * Clean up state files on exit
    */
   public async cleanup(): Promise<void> {
@@ -295,13 +345,14 @@ export class StateManager {
    */
   public static async listAllStates(): Promise<string[]> {
     const fs = await import('fs/promises');
+    const stateDir = process.env.POLTERGEIST_STATE_DIR || DEFAULT_STATE_DIR;
     
     try {
-      if (!existsSync(STATE_DIR)) {
+      if (!existsSync(stateDir)) {
         return [];
       }
       
-      const files = await fs.readdir(STATE_DIR);
+      const files = await fs.readdir(stateDir);
       return files.filter(f => f.endsWith('.state'));
     } catch {
       return [];

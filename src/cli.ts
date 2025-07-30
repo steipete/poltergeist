@@ -4,9 +4,10 @@ import { Command } from 'commander';
 import { existsSync } from 'fs';
 // import { resolve } from 'path';
 import chalk from 'chalk';
-import { Poltergeist } from './poltergeist.js';
+// import { Poltergeist } from './poltergeist.js';
 import { ConfigLoader, ConfigurationError } from './config.js';
 import { createLogger } from './logger.js';
+import { createPoltergeist } from './factories.js';
 import { PoltergeistConfig } from './types.js';
 import packageJson from '../package.json' with { type: 'json' };
 const { version } = packageJson;
@@ -84,7 +85,7 @@ program
     );
     
     try {
-      const poltergeist = new Poltergeist(config, projectRoot, logger);
+      const poltergeist = createPoltergeist(config, projectRoot, logger);
       await poltergeist.start(options.target);
     } catch (error) {
       console.error(chalk.red(`👻 [Poltergeist] Failed to start Poltergeist: ${error}`));
@@ -104,7 +105,8 @@ program
     const { config, projectRoot } = await loadConfiguration(options.config);
     
     try {
-      const poltergeist = new Poltergeist(config, projectRoot);
+      const logger = createLogger(config.logging?.level || 'info');
+      const poltergeist = createPoltergeist(config, projectRoot, logger);
       await poltergeist.stop(options.target);
       console.log(chalk.green('👻 [Poltergeist] Poltergeist is now at rest'));
     } catch (error) {
@@ -123,7 +125,8 @@ program
     const { config, projectRoot } = await loadConfiguration(options.config);
     
     try {
-      const poltergeist = new Poltergeist(config, projectRoot);
+      const logger = createLogger(config.logging?.level || 'info');
+      const poltergeist = createPoltergeist(config, projectRoot, logger);
       const status = await poltergeist.getStatus(options.target);
       
       if (options.json) {
@@ -372,10 +375,15 @@ const warnOldFlag = (flag: string, newFlag: string) => {
 program.on('option:cli', () => warnOldFlag('--cli', '--target <name>'));
 program.on('option:mac', () => warnOldFlag('--mac', '--target <name>'));
 
-// Parse arguments
-program.parse(process.argv);
+// Parse arguments only when run directly (not when imported for testing)
+if (import.meta.url === `file://${process.argv[1]}`) {
+  program.parse(process.argv);
 
-// Show help if no command specified
-if (!process.argv.slice(2).length) {
-  program.outputHelp();
+  // Show help if no command specified
+  if (!process.argv.slice(2).length) {
+    program.outputHelp();
+  }
 }
+
+// Export program for testing
+export { program };

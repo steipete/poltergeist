@@ -6,3 +6,6 @@ export * from './logger.js';
 export { WatchmanClient, WatchSubscription } from './watchman.js';
 export * from './notifier.js';
 export * from './builders/index.js';
+export * from './interfaces.js';
+export * from './factories.js';
+export * from './state.js';

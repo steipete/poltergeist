@@ -2,9 +2,15 @@
 import { PoltergeistConfig, Target, BuildStatus } from './types.js';
 import { Logger, createLogger } from './logger.js';
 import { WatchmanClient } from './watchman.js';
-import { BuilderFactory, BaseBuilder } from './builders/index.js';
+import { BaseBuilder } from './builders/index.js';
 import { BuildNotifier } from './notifier.js';
 import { StateManager, PoltergeistState } from './state.js';
+import { 
+  IWatchmanClient, 
+  IStateManager, 
+  IBuilderFactory, 
+  PoltergeistDependencies 
+} from './interfaces.js';
 
 interface TargetState {
   target: Target;
@@ -19,17 +25,28 @@ export class Poltergeist {
   private config: PoltergeistConfig;
   private projectRoot: string;
   private logger: Logger;
-  private stateManager: StateManager;
-  private watchman?: WatchmanClient;
+  private stateManager: IStateManager;
+  private watchman?: IWatchmanClient;
   private notifier?: BuildNotifier;
+  private builderFactory: IBuilderFactory;
   private targetStates: Map<string, TargetState> = new Map();
   private isRunning = false;
 
-  constructor(config: PoltergeistConfig, projectRoot: string, logger?: Logger) {
+  constructor(
+    config: PoltergeistConfig, 
+    projectRoot: string, 
+    logger: Logger,
+    deps: PoltergeistDependencies
+  ) {
     this.config = config;
     this.projectRoot = projectRoot;
-    this.logger = logger || createLogger();
-    this.stateManager = new StateManager(projectRoot, this.logger);
+    this.logger = logger;
+    
+    // Use injected dependencies
+    this.stateManager = deps.stateManager!;
+    this.builderFactory = deps.builderFactory!;
+    this.notifier = deps.notifier;
+    this.watchman = deps.watchmanClient;
   }
 
   public async start(targetName?: string): Promise<void> {
@@ -43,8 +60,8 @@ export class Poltergeist {
     // Start heartbeat
     this.stateManager.startHeartbeat();
 
-    // Initialize notifier if enabled
-    if (this.config.notifications?.enabled) {
+    // Initialize notifier if enabled and not already injected
+    if (this.config.notifications?.enabled && !this.notifier) {
       this.notifier = new BuildNotifier(
         this.config.notifications
       );
@@ -60,7 +77,7 @@ export class Poltergeist {
 
     // Initialize target states
     for (const target of targetsToWatch) {
-      const builder = BuilderFactory.createBuilder(target, this.projectRoot, this.logger, this.stateManager);
+      const builder = this.builderFactory.createBuilder(target, this.projectRoot, this.logger, this.stateManager);
       await builder.validate();
       
       this.targetStates.set(target.name, {
@@ -75,7 +92,9 @@ export class Poltergeist {
     }
 
     // Connect to Watchman
-    this.watchman = new WatchmanClient(this.logger);
+    if (!this.watchman) {
+      this.watchman = new WatchmanClient(this.logger);
+    }
     await this.watchman.connect();
     
     // Watch the project
