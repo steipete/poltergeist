@@ -1,5 +1,5 @@
 // Test to verify old config format triggers proper error
-import { ConfigLoader, ConfigurationError } from '../src/config-new.js';
+import { ConfigLoader, ConfigurationError } from '../src/config.js';
 import { describe, it, expect } from 'vitest';
 import { resolve, dirname } from 'path';
 import { fileURLToPath } from 'url';

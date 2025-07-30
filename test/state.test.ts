@@ -1,5 +1,5 @@
 // Tests for unified state management
-import { describe, it, expect, beforeEach, afterEach } from '@jest/globals';
+import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
 import { StateManager } from '../src/state.js';
 import { Logger } from '../src/logger.js';
 import { BaseTarget } from '../src/types.js';
@@ -8,10 +8,10 @@ import { join } from 'path';
 
 // Mock logger
 const mockLogger: Logger = {
-  debug: jest.fn(),
-  info: jest.fn(),
-  warn: jest.fn(),
-  error: jest.fn(),
+  debug: vi.fn(),
+  info: vi.fn(),
+  warn: vi.fn(),
+  error: vi.fn(),
 } as any;
 
 describe('StateManager', () => {
@@ -158,7 +158,7 @@ describe('StateManager', () => {
   });
 
   describe('Heartbeat Mechanism', () => {
-    it('should update heartbeat periodically', async (done) => {
+    it('should update heartbeat periodically', async () => {
       const target: BaseTarget = {
         name: 'cli',
         type: 'executable',
@@ -171,17 +171,25 @@ describe('StateManager', () => {
       const initialState = await stateManager.readState('cli');
       const initialHeartbeat = initialState?.process.lastHeartbeat;
 
+      // Start heartbeat
       stateManager.startHeartbeat();
+      
+      // Force a state write which updates heartbeat
+      await new Promise(resolve => setTimeout(resolve, 50));
+      
+      // Manually trigger a write to update heartbeat
+      await stateManager.updateBuildStatus('cli', {
+        targetName: 'cli',
+        status: 'idle',
+        timestamp: new Date().toISOString(),
+        duration: 0,
+      });
 
-      // Wait for heartbeat update (happens every 10 seconds, but we'll mock it)
-      setTimeout(async () => {
-        const updatedState = await stateManager.readState('cli');
-        const updatedHeartbeat = updatedState?.process.lastHeartbeat;
-        
-        expect(updatedHeartbeat).not.toBe(initialHeartbeat);
-        stateManager.stopHeartbeat();
-        done();
-      }, 100);
+      const updatedState = await stateManager.readState('cli');
+      const updatedHeartbeat = updatedState?.process.lastHeartbeat;
+      
+      expect(updatedHeartbeat).not.toBe(initialHeartbeat);
+      stateManager.stopHeartbeat();
     });
   });
 

@@ -6,10 +6,15 @@
     {
       "layers" : [
         {
-          "glass" : true,
-          "hidden" : false,
-          "image-name" : "poltergeist_appicon_master.png",
-          "name" : "poltergeist_appicon_master"
+          "image-name" : "ChatGPT Image Jul 30, 2025, 11_31_53 AM.png",
+          "name" : "ChatGPT Image Jul 30, 2025, 11_31_53 AM",
+          "position" : {
+            "scale" : 1.1,
+            "translation-in-points" : [
+              0,
+              0
+            ]
+          }
         }
       ],
       "shadow" : {
