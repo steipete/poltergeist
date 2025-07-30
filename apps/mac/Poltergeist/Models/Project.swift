@@ -7,9 +7,9 @@ struct Project: Identifiable, Equatable {
     let hash: String
     var targets: [String: TargetState] = [:]
     
-    // Use path + hash as stable identifier
+    // Use path as stable identifier
     var id: String {
-        "\(path)-\(hash)"
+        path
     }
     
     var sortedTargets: [(key: String, value: TargetState)] {
