@@ -10,6 +10,7 @@ export const BuildTargetConfigSchema = z.object({
   lockFile: z.string(),
   outputPath: z.string().optional(),
   bundleId: z.string().optional(),
+  iconPath: z.string().optional(),
   autoRelaunch: z.boolean().optional(),
   settlingDelay: z.number().default(1000),
   debounceInterval: z.number().default(2000), // Minimum time between builds in ms
