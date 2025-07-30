@@ -1,11 +1,15 @@
-# Poltergeist
+<div align="center">
+  <img src="assets/poltergeist-logo.png" alt="Poltergeist Logo" width="200">
+  
+  # Poltergeist
 
-[![CI](https://github.com/steipete/poltergeist/actions/workflows/ci.yml/badge.svg)](https://github.com/steipete/poltergeist/actions/workflows/ci.yml)
-[![Node.js Version](https://img.shields.io/node/v/@steipete/poltergeist)](https://nodejs.org)
-[![npm version](https://img.shields.io/npm/v/@steipete/poltergeist)](https://www.npmjs.com/package/@steipete/poltergeist)
-[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
+  [![CI](https://github.com/steipete/poltergeist/actions/workflows/ci.yml/badge.svg)](https://github.com/steipete/poltergeist/actions/workflows/ci.yml)
+  [![Node.js Version](https://img.shields.io/node/v/@steipete/poltergeist)](https://nodejs.org)
+  [![npm version](https://img.shields.io/npm/v/@steipete/poltergeist)](https://www.npmjs.com/package/@steipete/poltergeist)
+  [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 
-A universal file watcher and auto-builder that supports any project type through a flexible target system. Poltergeist monitors your source files and automatically rebuilds when changes are detected, supporting any language or build system.
+  A universal file watcher and auto-builder that supports any project type through a flexible target system. Poltergeist monitors your source files and automatically rebuilds when changes are detected, supporting any language or build system.
+</div>
 
 ## Features
 
