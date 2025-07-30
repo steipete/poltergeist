@@ -2,11 +2,15 @@ import Foundation
 import AppKit
 
 struct Project: Identifiable, Equatable {
-    let id = UUID()
     let path: String
     let name: String
     let hash: String
     var targets: [String: TargetState] = [:]
+    
+    // Use path + hash as stable identifier
+    var id: String {
+        "\(path)-\(hash)"
+    }
     
     var sortedTargets: [(key: String, value: TargetState)] {
         targets.sorted { $0.key < $1.key }

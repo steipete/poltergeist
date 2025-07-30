@@ -4,8 +4,8 @@ struct StatusBarMenuView: View {
     @ObservedObject var projectMonitor: ProjectMonitor
     let onDismiss: () -> Void
     
-    @State private var expandedProjectIds: Set<UUID> = []
-    @State private var hoveredProjectId: UUID?
+    @State private var expandedProjectIds: Set<String> = []
+    @State private var hoveredProjectId: String?
     
     // Formatter for build durations
     static let buildDurationFormatter: DateComponentsFormatter = {

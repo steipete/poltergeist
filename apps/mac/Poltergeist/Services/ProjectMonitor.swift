@@ -99,7 +99,7 @@ class ProjectMonitor: ObservableObject {
                             BuildInfo(
                                 status: build.status,
                                 timestamp: buildTimestamp ?? Date(),
-                                errorSummary: build.errorSummary,
+                                errorSummary: build.errorSummary?.isEmpty == true ? nil : build.errorSummary,
                                 buildTime: build.buildTime,
                                 gitHash: build.gitHash
                             )
