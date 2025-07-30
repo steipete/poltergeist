@@ -52,6 +52,7 @@ struct TargetState: Equatable {
     let isActive: Bool
     let lastHeartbeat: Date?
     let lastBuild: BuildInfo?
+    var icon: NSImage?
     
     var isStale: Bool {
         guard let heartbeat = lastHeartbeat else { return true }

@@ -91,6 +91,8 @@ class ProjectMonitor: ObservableObject {
                     let heartbeat = ISO8601DateFormatter().date(from: state.process.lastHeartbeat)
                     let buildTimestamp = state.lastBuild.map { ISO8601DateFormatter().date(from: $0.timestamp) } ?? nil
                     
+                    let icon = IconLoader.shared.loadIcon(from: state, projectPath: state.projectPath)
+                    
                     let targetState = TargetState(
                         target: state.target,
                         isActive: state.process.isActive && !isProcessStale(heartbeat: heartbeat),
@@ -103,8 +105,22 @@ class ProjectMonitor: ObservableObject {
                                 buildTime: build.buildTime,
                                 gitHash: build.gitHash
                             )
-                        }
+                        },
+                        icon: icon
                     )
+                    
+                    // Check for status changes and send notifications
+                    if let existingProject = projects.first(where: { $0.path == state.projectPath }),
+                       let existingTarget = existingProject.targets[state.target],
+                       let newStatus = targetState.lastBuild?.status,
+                       existingTarget.lastBuild?.status != newStatus {
+                        NotificationManager.shared.notifyBuildStatusChange(
+                            project: project,
+                            target: state.target,
+                            newStatus: newStatus,
+                            errorSummary: targetState.lastBuild?.errorSummary
+                        )
+                    }
                     
                     project.targets[state.target] = targetState
                     projectMap[projectKey] = project

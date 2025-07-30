@@ -25,9 +25,37 @@ Poltergeist Monitor is a companion app for the Poltergeist build system. It prov
 
 ## Building
 
+### Using Xcode
 1. Open `Poltergeist.xcodeproj` in Xcode
 2. Select the Poltergeist scheme
 3. Build and run (⌘R)
+
+### Using Command Line
+```bash
+# Build debug version
+make build
+
+# Build release version
+make release
+
+# Create distribution DMG
+make distribute
+
+# Clean build artifacts
+make clean
+
+# Run the app
+make run
+```
+
+### Using Build Scripts
+```bash
+# Build release archive
+./build.sh
+
+# Create notarized DMG for distribution
+./distribute.sh
+```
 
 The app uses modern Xcode file system synchronized groups, so any files added to the `Poltergeist/` folder will automatically be included in the project.
 

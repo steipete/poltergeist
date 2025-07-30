@@ -126,9 +126,9 @@ struct StatusBarMenuView: View {
         }
         .frame(minWidth: 480, minHeight: 200, maxHeight: 600)
         .background(.thinMaterial)
-        .onChange(of: currentProjectIds) { newProjectIds in
+        .onChange(of: currentProjectIds) { oldValue, newValue in
             // Remove expanded state for projects that no longer exist
-            expandedProjectIds = expandedProjectIds.intersection(newProjectIds)
+            expandedProjectIds = expandedProjectIds.intersection(newValue)
         }
     }
 }
@@ -309,9 +309,17 @@ struct ModernTargetBadge: View {
     
     var body: some View {
         HStack(spacing: 4) {
-            Image(systemName: config.icon)
-                .font(.system(size: 11, weight: .medium))
-                .symbolEffect(.rotate, isActive: config.isAnimating)
+            // Show custom icon if available, otherwise show status icon
+            if let customIcon = state.icon {
+                Image(nsImage: customIcon)
+                    .resizable()
+                    .scaledToFit()
+                    .frame(width: 12, height: 12)
+            } else {
+                Image(systemName: config.icon)
+                    .font(.system(size: 11, weight: .medium))
+                    .symbolEffect(.rotate, isActive: config.isAnimating)
+            }
             
             Text(name)
                 .font(.system(size: 12, weight: .medium))

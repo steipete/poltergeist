@@ -41,15 +41,3 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     }
 }
 
-struct SettingsView: View {
-    var body: some View {
-        VStack {
-            Text("Poltergeist Monitor Settings")
-                .font(.title)
-            Text("Settings coming soon...")
-                .foregroundColor(.secondary)
-        }
-        .padding()
-        .frame(width: 400, height: 300)
-    }
-}
