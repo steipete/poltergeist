@@ -43,9 +43,10 @@ export class WatchmanClient extends EventEmitter {
     this.logger = logger;
     this.client = new watchman.Client() as FBWatchmanClient;
 
-    this.client.on('error', (error: Error) => {
-      this.logger.error('Watchman error:', error);
-      this.emit('error', error);
+    this.client.on('error', (error: unknown) => {
+      const err = error instanceof Error ? error : new Error(String(error));
+      this.logger.error('Watchman error:', err);
+      this.emit('error', err);
     });
 
     this.client.on('end', () => {
@@ -74,13 +75,14 @@ export class WatchmanClient extends EventEmitter {
     return new Promise((resolve, reject) => {
       this.client.command(
         ['watch-project', projectRoot],
-        (error: Error | null, resp: { watch: string }) => {
+        (error: Error | null, resp?: unknown) => {
           if (error) {
             reject(new Error(`Failed to watch project: ${error.message}`));
             return;
           }
 
-          this.watchRoot = resp.watch;
+          const watchResp = resp as { watch: string };
+          this.watchRoot = watchResp.watch;
           this.logger.info(`Watching project at: ${this.watchRoot}`);
           resolve();
         }
@@ -118,16 +120,18 @@ export class WatchmanClient extends EventEmitter {
 
     return new Promise((resolve, reject) => {
       // Set up the subscription handler for this specific subscription
-      const handler = (resp: {
-        subscription: string;
-        files: Array<{
-          name: string;
-          exists: boolean;
-          new?: boolean;
-          size?: number;
-          mode?: number;
-        }>;
-      }) => {
+      const handler = (data: unknown) => {
+        const resp = data as {
+          subscription: string;
+          files: Array<{
+            name: string;
+            exists: boolean;
+            new?: boolean;
+            size?: number;
+            mode?: number;
+          }>;
+        };
+        
         if (resp.subscription === subscriptionName) {
           const changes = resp.files.map((file) => ({
             name: file.name,
