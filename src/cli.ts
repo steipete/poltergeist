@@ -163,21 +163,60 @@ function formatTargetStatus(name: string, status: any): void {
   console.log(chalk.cyan(`Target: ${name}`));
   console.log(`  Status: ${formatStatus(status.status)}`);
   
-  if (status.pid) {
+  // Process information
+  if (status.process) {
+    const { pid, hostname, isActive, lastHeartbeat } = status.process;
+    if (isActive) {
+      console.log(`  Process: ${chalk.green(`Running (PID: ${pid} on ${hostname})`)}`);
+      const heartbeatAge = Date.now() - new Date(lastHeartbeat).getTime();
+      const heartbeatStatus = heartbeatAge < 30000 ? chalk.green('✓ Active') : chalk.yellow('⚠ Stale');
+      console.log(`  Heartbeat: ${heartbeatStatus} (${Math.round(heartbeatAge / 1000)}s ago)`);
+    } else {
+      console.log(`  Process: ${chalk.gray('Not running')}`);
+    }
+  } else if (status.pid) {
+    // Legacy format
     console.log(`  Process: ${chalk.green(`Running (PID: ${status.pid})`)}`);
   } else {
     console.log(`  Process: ${chalk.gray('Not running')}`);
   }
   
+  // Build information
   if (status.lastBuild) {
     console.log(`  Last Build: ${new Date(status.lastBuild.timestamp).toLocaleString()}`);
     console.log(`  Build Status: ${formatStatus(status.lastBuild.status)}`);
     if (status.lastBuild.duration) {
       console.log(`  Build Time: ${status.lastBuild.duration}ms`);
     }
-    if (status.lastBuild.error) {
+    if (status.lastBuild.gitHash) {
+      console.log(`  Git Hash: ${status.lastBuild.gitHash}`);
+    }
+    if (status.lastBuild.builder) {
+      console.log(`  Builder: ${status.lastBuild.builder}`);
+    }
+    if (status.lastBuild.errorSummary) {
+      console.log(`  Error: ${chalk.red(status.lastBuild.errorSummary)}`);
+    } else if (status.lastBuild.error) {
       console.log(`  Error: ${chalk.red(status.lastBuild.error)}`);
     }
+  }
+  
+  // App information
+  if (status.appInfo) {
+    if (status.appInfo.bundleId) {
+      console.log(`  Bundle ID: ${status.appInfo.bundleId}`);
+    }
+    if (status.appInfo.outputPath) {
+      console.log(`  Output: ${status.appInfo.outputPath}`);
+    }
+    if (status.appInfo.iconPath) {
+      console.log(`  Icon: ${status.appInfo.iconPath}`);
+    }
+  }
+  
+  // Pending files
+  if (status.pendingFiles !== undefined && status.pendingFiles > 0) {
+    console.log(`  Pending Files: ${chalk.yellow(status.pendingFiles)}`);
   }
 }
 
@@ -245,6 +284,78 @@ program
         }
         console.log();
       });
+    }
+  });
+
+program
+  .command('clean')
+  .description('Clean up stale state files')
+  .option('-a, --all', 'Remove all state files, not just stale ones')
+  .option('-d, --days <number>', 'Remove state files older than N days', '7')
+  .option('--dry-run', 'Show what would be removed without actually removing')
+  .action(async (options) => {
+    console.log(chalk.gray('👻 [Poltergeist] Cleaning up state files...'));
+    
+    const { StateManager } = await import('./state.js');
+    const stateFiles = await StateManager.listAllStates();
+    
+    if (stateFiles.length === 0) {
+      console.log(chalk.green('No state files found'));
+      return;
+    }
+    
+    const logger = createLogger();
+    let removedCount = 0;
+    const daysThreshold = parseInt(options.days);
+    const ageThreshold = Date.now() - (daysThreshold * 24 * 60 * 60 * 1000);
+    
+    for (const file of stateFiles) {
+      try {
+        const stateManager = new StateManager('/', logger);
+        const targetName = file.replace('.state', '').split('-').pop() || '';
+        const state = await stateManager.readState(targetName);
+        
+        if (!state) continue;
+        
+        let shouldRemove = false;
+        let reason = '';
+        
+        if (options.all) {
+          shouldRemove = true;
+          reason = 'all files';
+        } else if (!state.process.isActive) {
+          const lastHeartbeat = new Date(state.process.lastHeartbeat).getTime();
+          if (lastHeartbeat < ageThreshold) {
+            shouldRemove = true;
+            reason = `inactive for ${daysThreshold}+ days`;
+          }
+        }
+        
+        if (shouldRemove) {
+          const projectName = state.projectName || 'unknown';
+          const age = Math.round((Date.now() - new Date(state.process.lastHeartbeat).getTime()) / (1000 * 60 * 60 * 24));
+          
+          console.log(chalk.yellow(`  Removing: ${file}`));
+          console.log(`    Project: ${projectName}`);
+          console.log(`    Target: ${state.target}`);
+          console.log(`    Age: ${age} days`);
+          console.log(`    Reason: ${reason}`);
+          
+          if (!options.dryRun) {
+            await stateManager.removeState(targetName);
+            removedCount++;
+          }
+          console.log();
+        }
+      } catch (error) {
+        console.error(chalk.red(`Error processing ${file}: ${error}`));
+      }
+    }
+    
+    if (options.dryRun) {
+      console.log(chalk.blue(`Would remove ${removedCount} state file(s)`));
+    } else {
+      console.log(chalk.green(`👻 [Poltergeist] Removed ${removedCount} state file(s)`));
     }
   });
 

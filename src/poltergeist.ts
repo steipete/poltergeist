@@ -1,10 +1,10 @@
-// Core Poltergeist class with generic target support
+// Core Poltergeist class with unified state management
 import { PoltergeistConfig, Target, BuildStatus } from './types.js';
 import { Logger, createLogger } from './logger.js';
 import { WatchmanClient } from './watchman.js';
 import { BuilderFactory, BaseBuilder } from './builders/index.js';
 import { BuildNotifier } from './notifier.js';
-import { existsSync, readFileSync } from 'fs';
+import { StateManager, PoltergeistState } from './state.js';
 
 interface TargetState {
   target: Target;
@@ -19,6 +19,7 @@ export class Poltergeist {
   private config: PoltergeistConfig;
   private projectRoot: string;
   private logger: Logger;
+  private stateManager: StateManager;
   private watchman?: WatchmanClient;
   private notifier?: BuildNotifier;
   private targetStates: Map<string, TargetState> = new Map();
@@ -28,6 +29,7 @@ export class Poltergeist {
     this.config = config;
     this.projectRoot = projectRoot;
     this.logger = logger || createLogger();
+    this.stateManager = new StateManager(projectRoot, this.logger);
   }
 
   public async start(targetName?: string): Promise<void> {
@@ -37,6 +39,9 @@ export class Poltergeist {
 
     this.isRunning = true;
     this.logger.info('Starting Poltergeist...');
+
+    // Start heartbeat
+    this.stateManager.startHeartbeat();
 
     // Initialize notifier if enabled
     if (this.config.notifications?.enabled) {
@@ -51,9 +56,11 @@ export class Poltergeist {
       throw new Error('No targets to watch');
     }
 
+    this.logger.info(`👻 [Poltergeist] Building ${targetsToWatch.length} enabled target(s)`);
+
     // Initialize target states
     for (const target of targetsToWatch) {
-      const builder = BuilderFactory.createBuilder(target, this.projectRoot, this.logger);
+      const builder = BuilderFactory.createBuilder(target, this.projectRoot, this.logger, this.stateManager);
       await builder.validate();
       
       this.targetStates.set(target.name, {
@@ -62,6 +69,9 @@ export class Poltergeist {
         watching: false,
         pendingFiles: new Set(),
       });
+
+      // Initialize state file
+      await this.stateManager.initializeState(target);
     }
 
     // Connect to Watchman
@@ -77,11 +87,12 @@ export class Poltergeist {
     // Do initial builds
     await this.performInitialBuilds();
 
-    this.logger.info('Poltergeist is now watching for changes...');
+    this.logger.info('👻 [Poltergeist] is now watching for changes...');
 
-    // Keep the process running
+    // Handle graceful shutdown
     process.on('SIGINT', () => this.stop());
     process.on('SIGTERM', () => this.stop());
+    process.on('exit', () => this.cleanup());
   }
 
   private getTargetsToWatch(targetName?: string): Target[] {
@@ -131,7 +142,7 @@ export class Poltergeist {
         }
       );
 
-      this.logger.info(`Watching ${targetNames.size} target(s): ${pattern}`);
+      this.logger.info(`👻 Watching ${targetNames.size} target(s): ${pattern}`);
     }
   }
 
@@ -142,7 +153,7 @@ export class Poltergeist {
 
     if (changedFiles.length === 0) return;
 
-    this.logger.info(`Files changed: ${changedFiles.join(', ')}`);
+    this.logger.debug(`Files changed: ${changedFiles.join(', ')}`);
 
     // Add changed files to pending for each affected target
     for (const targetName of targetNames) {
@@ -199,8 +210,6 @@ export class Poltergeist {
     state.pendingFiles.clear();
 
     try {
-      this.logger.info(`[${targetName}] Building with ${changedFiles.length} changed file(s)`);
-      
       const status = await state.builder.build(changedFiles);
       state.lastBuild = status;
 
@@ -208,15 +217,20 @@ export class Poltergeist {
       if (this.notifier) {
         if (status.status === 'success') {
           const duration = status.duration ? `${(status.duration / 1000).toFixed(1)}s` : '';
+          const outputInfo = state.builder.getOutputInfo();
+          const message = outputInfo 
+            ? `Built: ${outputInfo}${duration ? ` in ${duration}` : ''}`
+            : `Build completed${duration ? ` in ${duration}` : ''}`;
+            
           await this.notifier.notifyBuildComplete(
             `${targetName} Built`,
-            `Build completed${duration ? ` in ${duration}` : ''}`,
+            message,
             state.target.icon
           );
         } else if (status.status === 'failure') {
           await this.notifier.notifyBuildFailed(
             `${targetName} Failed`,
-            status.error || 'Build failed',
+            status.errorSummary || status.error || 'Build failed',
             state.target.icon
           );
         }
@@ -235,7 +249,7 @@ export class Poltergeist {
   }
 
   public async stop(targetName?: string): Promise<void> {
-    this.logger.info('Stopping Poltergeist...');
+    this.logger.info('👻 [Poltergeist] Putting Poltergeist to rest...');
 
     if (targetName) {
       // Stop specific target
@@ -243,6 +257,7 @@ export class Poltergeist {
       if (state) {
         state.builder.stop();
         this.targetStates.delete(targetName);
+        await this.stateManager.removeState(targetName);
       }
     } else {
       // Stop all targets
@@ -257,8 +272,17 @@ export class Poltergeist {
         this.watchman = undefined;
       }
 
+      // Cleanup state manager
+      await this.stateManager.cleanup();
+
       this.isRunning = false;
     }
+
+    this.logger.info('👻 [Poltergeist] Poltergeist is now at rest');
+  }
+
+  private async cleanup(): Promise<void> {
+    await this.stateManager.cleanup();
   }
 
   public async getStatus(targetName?: string): Promise<Record<string, any>> {
@@ -266,55 +290,51 @@ export class Poltergeist {
 
     if (targetName) {
       const state = this.targetStates.get(targetName);
-      if (!state) {
-        // Try to read from status file
-        const target = this.config.targets.find(t => t.name === targetName);
-        if (target?.statusFile && existsSync(target.statusFile)) {
-          try {
-            const content = readFileSync(target.statusFile, 'utf-8');
-            status[targetName] = JSON.parse(content);
-          } catch {
-            status[targetName] = { status: 'unknown' };
-          }
-        } else {
-          status[targetName] = { status: 'not found' };
-        }
-      } else {
+      const stateFile = await this.stateManager.readState(targetName);
+      
+      if (state && stateFile) {
         status[targetName] = {
           status: state.watching ? 'watching' : 'idle',
-          lastBuild: state.lastBuild,
+          process: stateFile.process,
+          lastBuild: stateFile.lastBuild || state.lastBuild,
+          appInfo: stateFile.appInfo,
           pendingFiles: state.pendingFiles.size,
         };
+      } else if (stateFile) {
+        status[targetName] = {
+          status: stateFile.process.isActive ? 'running' : 'stopped',
+          process: stateFile.process,
+          lastBuild: stateFile.lastBuild,
+          appInfo: stateFile.appInfo,
+        };
+      } else {
+        status[targetName] = { status: 'not found' };
       }
     } else {
       // Get status for all targets
       for (const target of this.config.targets) {
         const state = this.targetStates.get(target.name);
+        const stateFile = await this.stateManager.readState(target.name);
         
-        if (state) {
+        if (state && stateFile) {
           status[target.name] = {
             status: state.watching ? 'watching' : 'idle',
             enabled: target.enabled,
             type: target.type,
-            lastBuild: state.lastBuild,
+            process: stateFile.process,
+            lastBuild: stateFile.lastBuild || state.lastBuild,
+            appInfo: stateFile.appInfo,
             pendingFiles: state.pendingFiles.size,
           };
-        } else if (target.statusFile && existsSync(target.statusFile)) {
-          try {
-            const content = readFileSync(target.statusFile, 'utf-8');
-            const fileStatus = JSON.parse(content);
-            status[target.name] = {
-              ...fileStatus,
-              enabled: target.enabled,
-              type: target.type,
-            };
-          } catch {
-            status[target.name] = {
-              status: 'unknown',
-              enabled: target.enabled,
-              type: target.type,
-            };
-          }
+        } else if (stateFile) {
+          status[target.name] = {
+            status: stateFile.process.isActive ? 'running' : 'stopped',
+            enabled: target.enabled,
+            type: target.type,
+            process: stateFile.process,
+            lastBuild: stateFile.lastBuild,
+            appInfo: stateFile.appInfo,
+          };
         } else {
           status[target.name] = {
             status: 'not running',
@@ -326,5 +346,28 @@ export class Poltergeist {
     }
 
     return status;
+  }
+
+  /**
+   * List all Poltergeist state files across all projects
+   */
+  public static async listAllStates(): Promise<PoltergeistState[]> {
+    const stateFiles = await StateManager.listAllStates();
+    const states: PoltergeistState[] = [];
+    
+    for (const file of stateFiles) {
+      try {
+        const stateManager = new StateManager('/', createLogger());
+        const targetName = file.replace('.state', '').split('-').pop() || '';
+        const state = await stateManager.readState(targetName);
+        if (state) {
+          states.push(state);
+        }
+      } catch {
+        // Ignore invalid state files
+      }
+    }
+    
+    return states;
   }
 }

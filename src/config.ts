@@ -129,14 +129,6 @@ export class ConfigLoader {
         }
       }
 
-      // Resolve status and lock files
-      if (resolvedTarget.statusFile && !resolvedTarget.statusFile.startsWith('/')) {
-        resolvedTarget.statusFile = resolve(this.projectRoot, resolvedTarget.statusFile);
-      }
-      if (resolvedTarget.lockFile && !resolvedTarget.lockFile.startsWith('/')) {
-        resolvedTarget.lockFile = resolve(this.projectRoot, resolvedTarget.lockFile);
-      }
-
       // Resolve docker context
       if (target.type === 'docker' && 'context' in resolvedTarget && resolvedTarget.context) {
         resolvedTarget.context = resolve(this.projectRoot, resolvedTarget.context);

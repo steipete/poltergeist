@@ -11,8 +11,6 @@ export interface BaseTarget {
   enabled: boolean;
   buildCommand: string;
   watchPaths: string[];
-  statusFile?: string;
-  lockFile?: string;
   settlingDelay?: number;
   environment?: Record<string, string>;
   maxRetries?: number;
@@ -106,8 +104,6 @@ export const BaseTargetSchema = z.object({
   enabled: z.boolean(),
   buildCommand: z.string(),
   watchPaths: z.array(z.string()),
-  statusFile: z.string().optional(),
-  lockFile: z.string().optional(),
   settlingDelay: z.number().optional(),
   environment: z.record(z.string(), z.string()).optional(),
   maxRetries: z.number().optional(),

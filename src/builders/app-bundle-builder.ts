@@ -19,9 +19,19 @@ export class AppBundleBuilder extends BaseBuilder<AppBundleTarget> {
   }
 
   protected async postBuild(): Promise<void> {
+    // Update state with bundle info
+    await this.stateManager.updateAppInfo(this.target.name, {
+      bundleId: this.target.bundleId,
+    });
+    
     if (this.target.autoRelaunch) {
       await this.relaunchApp();
     }
+  }
+
+  protected getBuilderName(): string {
+    const platform = this.target.platform || 'macos';
+    return `AppBundle-${platform}`;
   }
 
   private async relaunchApp(): Promise<void> {
@@ -108,8 +118,14 @@ export class AppBundleBuilder extends BaseBuilder<AppBundleTarget> {
         });
 
         // Give it a moment to start
-        setTimeout(() => {
+        setTimeout(async () => {
           this.logger.info(`[${this.target.name}] App launched: ${this.target.bundleId}`);
+          
+          // Update state to indicate app was launched
+          await this.stateManager.updateAppInfo(this.target.name, {
+            bundleId: this.target.bundleId,
+          });
+          
           resolve();
         }, 100);
       } else {

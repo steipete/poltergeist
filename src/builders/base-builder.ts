@@ -1,32 +1,29 @@
 // Base builder class for all target types
 import { spawn, ChildProcess } from 'child_process';
-import { writeFileSync } from 'fs';
+import { execSync } from 'child_process';
 import { Logger } from '../logger.js';
-import { BaseTarget, BuildStatus } from '../types.js';
-import { Lock } from '../lock.js';
+import { Target, BuildStatus } from '../types.js';
+import { StateManager } from '../state.js';
 
-export abstract class BaseBuilder<T extends BaseTarget = BaseTarget> {
+export abstract class BaseBuilder<T extends Target = Target> {
   protected target: T;
   protected projectRoot: string;
   protected logger: Logger;
+  protected stateManager: StateManager;
   protected currentProcess?: ChildProcess;
-  protected lock?: Lock;
 
-  constructor(target: T, projectRoot: string, logger: Logger) {
+  constructor(target: T, projectRoot: string, logger: Logger, stateManager: StateManager) {
     this.target = target;
     this.projectRoot = projectRoot;
     this.logger = logger;
-    
-    if (target.lockFile) {
-      this.lock = new Lock(target.lockFile);
-    }
+    this.stateManager = stateManager;
   }
 
   public async build(changedFiles: string[]): Promise<BuildStatus> {
-    this.logger.info(`[${this.target.name}] Starting build...`);
+    this.logger.info(`[${this.target.name}] Building with ${changedFiles.length} changed file(s)`);
     
-    // Check if already building
-    if (this.lock && !await this.lock.acquire()) {
+    // Check if already building using state manager
+    if (await this.stateManager.isLocked(this.target.name)) {
       this.logger.warn(`[${this.target.name}] Build already in progress, skipping`);
       return {
         targetName: this.target.name,
@@ -40,13 +37,16 @@ export abstract class BaseBuilder<T extends BaseTarget = BaseTarget> {
       targetName: this.target.name,
       status: 'building',
       timestamp: new Date().toISOString(),
+      gitHash: this.getGitHash(),
+      builder: this.getBuilderName(),
     };
 
     try {
-      // Write initial status
-      if (this.target.statusFile) {
-        this.writeStatus(status);
-      }
+      // Initialize state for this target
+      await this.stateManager.initializeState(this.target);
+      
+      // Update build status to building
+      await this.stateManager.updateBuildStatus(this.target.name, status);
 
       // Pre-build hook
       await this.preBuild(changedFiles);
@@ -57,27 +57,30 @@ export abstract class BaseBuilder<T extends BaseTarget = BaseTarget> {
       // Post-build hook
       await this.postBuild();
 
-      // Update status
+      // Update status to success
       status.status = 'success';
       status.duration = Date.now() - startTime;
+      status.buildTime = status.duration / 1000; // seconds
       
       this.logger.info(`[${this.target.name}] Build completed in ${status.duration}ms`);
+      
+      // Update app info if available
+      const outputInfo = this.getOutputInfo();
+      if (outputInfo) {
+        await this.stateManager.updateAppInfo(this.target.name, {
+          outputPath: outputInfo,
+        });
+      }
     } catch (error: any) {
       status.status = 'failure';
       status.error = error.message;
+      status.errorSummary = this.extractErrorSummary(error.message);
       status.duration = Date.now() - startTime;
       
       this.logger.error(`[${this.target.name}] Build failed: ${error.message}`);
     } finally {
-      // Release lock
-      if (this.lock) {
-        await this.lock.release();
-      }
-
-      // Write final status
-      if (this.target.statusFile) {
-        this.writeStatus(status);
-      }
+      // Update final build status
+      await this.stateManager.updateBuildStatus(this.target.name, status);
     }
 
     return status;
@@ -113,14 +116,44 @@ export abstract class BaseBuilder<T extends BaseTarget = BaseTarget> {
     });
   }
 
-  protected writeStatus(status: BuildStatus): void {
-    if (!this.target.statusFile) return;
-    
+  protected getGitHash(): string {
     try {
-      writeFileSync(this.target.statusFile, JSON.stringify(status, null, 2));
-    } catch (error) {
-      this.logger.error(`[${this.target.name}] Failed to write status file: ${error}`);
+      return execSync('git rev-parse --short HEAD', { 
+        cwd: this.projectRoot,
+        encoding: 'utf-8' 
+      }).trim();
+    } catch {
+      return 'unknown';
     }
+  }
+
+  protected getBuilderName(): string {
+    // Override in subclasses for specific builder names
+    return this.target.type;
+  }
+
+  protected extractErrorSummary(error: string): string {
+    // Extract the most relevant part of the error message
+    const lines = error.split('\n');
+    
+    // Look for common error patterns
+    for (const line of lines) {
+      // TypeScript errors
+      if (line.includes('error TS')) {
+        return line.trim();
+      }
+      // Swift errors
+      if (line.includes('error:') || line.includes('Error:')) {
+        return line.trim();
+      }
+      // Generic compilation errors
+      if (line.toLowerCase().includes('compilation failed')) {
+        return line.trim();
+      }
+    }
+    
+    // Return first non-empty line if no specific pattern found
+    return lines.find(l => l.trim().length > 0)?.trim() || error.substring(0, 100);
   }
 
   public stop(): void {
