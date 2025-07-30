@@ -4,7 +4,7 @@ struct StatusBarMenuView: View {
     @ObservedObject var projectMonitor: ProjectMonitor
     let onDismiss: () -> Void
     
-    @State private var selectedProject: Project?
+    @State private var expandedProjectId: UUID?
     @State private var hoveredProjectId: UUID?
     
     // Formatter for build durations
@@ -79,23 +79,41 @@ struct StatusBarMenuView: View {
                 ScrollView {
                     LazyVStack(spacing: 10) {
                         ForEach(projectMonitor.projects) { project in
-                            ModernProjectRow(
-                                project: project,
-                                isHovered: hoveredProjectId == project.id
-                            )
-                            .onTapGesture {
-                                selectedProject = project
-                            }
-                            .onHover { isHovered in
-                                withAnimation(.easeInOut(duration: 0.15)) {
-                                    hoveredProjectId = isHovered ? project.id : nil
-                                }
-                            }
-                            .contextMenu {
-                                ProjectContextMenu(
+                            VStack(spacing: 0) {
+                                ModernProjectRow(
                                     project: project,
-                                    projectMonitor: projectMonitor
+                                    isHovered: hoveredProjectId == project.id,
+                                    isExpanded: expandedProjectId == project.id
                                 )
+                                .onTapGesture {
+                                    withAnimation(.spring(response: 0.3, dampingFraction: 0.8)) {
+                                        if expandedProjectId == project.id {
+                                            expandedProjectId = nil
+                                        } else {
+                                            expandedProjectId = project.id
+                                        }
+                                    }
+                                }
+                                .onHover { isHovered in
+                                    withAnimation(.easeInOut(duration: 0.15)) {
+                                        hoveredProjectId = isHovered ? project.id : nil
+                                    }
+                                }
+                                .contextMenu {
+                                    ProjectContextMenu(
+                                        project: project,
+                                        projectMonitor: projectMonitor
+                                    )
+                                }
+                                
+                                // Inline expanded detail view
+                                if expandedProjectId == project.id {
+                                    InlineProjectDetailView(project: project)
+                                        .transition(.asymmetric(
+                                            insertion: .opacity.combined(with: .move(edge: .top)),
+                                            removal: .opacity.combined(with: .scale)
+                                        ))
+                                }
                             }
                         }
                     }
@@ -107,9 +125,6 @@ struct StatusBarMenuView: View {
         }
         .frame(minWidth: 480, minHeight: 200, maxHeight: 600)
         .background(.thinMaterial)
-        .sheet(item: $selectedProject) { project in
-            ModernProjectDetailView(project: project, projectMonitor: projectMonitor)
-        }
     }
 }
 
@@ -159,6 +174,7 @@ struct EmptyStateView: View {
 struct ModernProjectRow: View {
     let project: Project
     let isHovered: Bool
+    let isExpanded: Bool
     
     private var timeSinceLastBuild: String {
         guard let mostRecentBuild = project.targets.values
@@ -230,10 +246,11 @@ struct ModernProjectRow: View {
                 Spacer()
                 
                 // Chevron
-                Image(systemName: "chevron.right")
+                Image(systemName: isExpanded ? "chevron.down" : "chevron.right")
                     .font(.system(size: 12, weight: .medium))
                     .foregroundColor(Color.secondary.opacity(0.5))
-                    .opacity(isHovered ? 1 : 0.5)
+                    .opacity(isHovered || isExpanded ? 1 : 0.5)
+                    .animation(.easeInOut(duration: 0.2), value: isExpanded)
             }
             .padding(14)
         }
@@ -293,6 +310,93 @@ struct ModernTargetBadge: View {
     }
 }
 
+struct InlineProjectDetailView: View {
+    let project: Project
+    
+    var body: some View {
+        VStack(alignment: .leading, spacing: 12) {
+            ForEach(project.sortedTargets, id: \.key) { target, state in
+                VStack(alignment: .leading, spacing: 8) {
+                    // Target header
+                    HStack {
+                        Label(target, systemImage: "target")
+                            .font(.system(size: 14, weight: .semibold))
+                        
+                        Spacer()
+                        
+                        if state.isActive {
+                            Label("Active", systemImage: "circle.fill")
+                                .font(.system(size: 11, weight: .medium))
+                                .foregroundColor(.green)
+                        } else {
+                            Label("Inactive", systemImage: "moon.zzz")
+                                .font(.system(size: 11, weight: .medium))
+                                .foregroundColor(.gray)
+                        }
+                    }
+                    
+                    // Build info
+                    if let build = state.lastBuild {
+                        HStack(spacing: 12) {
+                            // Status
+                            Label(
+                                build.status.capitalized,
+                                systemImage: build.status == "success" ? "checkmark.circle.fill" : "xmark.circle.fill"
+                            )
+                            .font(.system(size: 12, weight: .medium))
+                            .foregroundColor(build.status == "success" ? .green : .red)
+                            
+                            // Build time
+                            if let buildTime = build.buildTime {
+                                let formattedTime = StatusBarMenuView.buildDurationFormatter.string(from: buildTime) ?? String(format: "%.2fs", buildTime)
+                                Text(formattedTime)
+                                    .font(.system(size: 12))
+                                    .foregroundColor(.secondary)
+                            }
+                            
+                            // Git hash
+                            if let gitHash = build.gitHash {
+                                HStack(spacing: 2) {
+                                    Image(systemName: "number")
+                                        .font(.system(size: 10))
+                                    Text(String(gitHash.prefix(7)))
+                                        .font(.system(size: 11, design: .monospaced))
+                                }
+                                .foregroundColor(.secondary)
+                            }
+                            
+                            Spacer()
+                        }
+                        
+                        // Error display
+                        if let error = build.errorSummary {
+                            Text(error)
+                                .font(.system(size: 11, design: .monospaced))
+                                .foregroundColor(.primary)
+                                .padding(10)
+                                .frame(maxWidth: .infinity, alignment: .leading)
+                                .background(Color.red.opacity(0.1))
+                                .cornerRadius(6)
+                                .textSelection(.enabled)
+                        }
+                    } else {
+                        Text("No build information available")
+                            .font(.system(size: 12))
+                            .foregroundColor(.secondary)
+                            .italic()
+                    }
+                }
+                .padding(12)
+                .background(.regularMaterial)
+                .cornerRadius(8)
+            }
+        }
+        .padding(.horizontal, 14)
+        .padding(.vertical, 12)
+        .background(Color.primary.opacity(0.02))
+    }
+}
+
 struct ProjectContextMenu: View {
     let project: Project
     let projectMonitor: ProjectMonitor
@@ -332,161 +436,5 @@ struct ProjectContextMenu: View {
             Label("Remove from Monitor", systemImage: "trash")
         }
         .foregroundColor(.red)
-    }
-}
-
-struct ModernProjectDetailView: View {
-    let project: Project
-    let projectMonitor: ProjectMonitor
-    @Environment(\.dismiss) var dismiss
-    
-    var body: some View {
-        VStack(spacing: 0) {
-            // Header
-            HStack(spacing: 12) {
-                ZStack {
-                    RoundedRectangle(cornerRadius: 10)
-                        .fill(Color(project.overallStatus.color).opacity(0.15))
-                        .frame(width: 48, height: 48)
-                    
-                    Image(systemName: project.overallStatus.icon)
-                        .font(.system(size: 24, weight: .medium))
-                        .foregroundColor(Color(project.overallStatus.color))
-                }
-                
-                VStack(alignment: .leading, spacing: 4) {
-                    Text(project.name)
-                        .font(.system(size: 20, weight: .semibold))
-                    
-                    HStack(spacing: 4) {
-                        Image(systemName: "folder")
-                            .font(.system(size: 12))
-                        Text(project.path)
-                            .font(.system(size: 13))
-                            .foregroundColor(.secondary)
-                    }
-                }
-                
-                Spacer()
-                
-                Button("Done") {
-                    dismiss()
-                }
-                .buttonStyle(.borderedProminent)
-                .controlSize(.regular)
-            }
-            .padding(20)
-            .background(.ultraThinMaterial)
-            
-            // Content
-            ScrollView {
-                VStack(spacing: 16) {
-                    ForEach(project.sortedTargets, id: \.key) { target, state in
-                        TargetDetailCard(target: target, state: state)
-                    }
-                }
-                .padding(20)
-            }
-        }
-        .frame(width: 600, height: 500)
-        .background(.thinMaterial)
-    }
-}
-
-struct TargetDetailCard: View {
-    let target: String
-    let state: TargetState
-    
-    var body: some View {
-        VStack(alignment: .leading, spacing: 12) {
-            // Header
-            HStack {
-                Label(target, systemImage: "target")
-                    .font(.system(size: 16, weight: .semibold))
-                
-                Spacer()
-                
-                if state.isActive {
-                    Label("Active", systemImage: "circle.fill")
-                        .font(.system(size: 12, weight: .medium))
-                        .foregroundColor(.green)
-                } else {
-                    Label("Inactive", systemImage: "moon.zzz")
-                        .font(.system(size: 12, weight: .medium))
-                        .foregroundColor(.gray)
-                }
-            }
-            
-            // Build info
-            if let build = state.lastBuild {
-                VStack(alignment: .leading, spacing: 8) {
-                    HStack {
-                        // Status
-                        Label(
-                            build.status.capitalized,
-                            systemImage: build.status == "success" ? "checkmark.circle.fill" : "xmark.circle.fill"
-                        )
-                        .font(.system(size: 13, weight: .medium))
-                        .foregroundColor(build.status == "success" ? .green : .red)
-                        
-                        // Build time
-                        if let buildTime = build.buildTime {
-                            Text("•")
-                                .foregroundColor(.secondary)
-                            let formattedTime = StatusBarMenuView.buildDurationFormatter.string(from: buildTime) ?? String(format: "%.2fs", buildTime)
-                            Text(formattedTime)
-                                .font(.system(size: 13))
-                                .foregroundColor(.secondary)
-                        }
-                        
-                        // Git hash
-                        if let gitHash = build.gitHash {
-                            Text("•")
-                                .foregroundColor(.secondary)
-                            HStack(spacing: 2) {
-                                Image(systemName: "number")
-                                    .font(.system(size: 10))
-                                Text(String(gitHash.prefix(7)))
-                                    .font(.system(size: 12, design: .monospaced))
-                            }
-                            .foregroundColor(.secondary)
-                        }
-                        
-                        Spacer()
-                        
-                        // Timestamp
-                        Text(build.timestamp, style: .relative)
-                            .font(.system(size: 12))
-                            .foregroundColor(.secondary)
-                    }
-                    
-                    // Error display
-                    if let error = build.errorSummary {
-                        VStack(alignment: .leading, spacing: 8) {
-                            Label("Build Error", systemImage: "exclamationmark.triangle.fill")
-                                .font(.system(size: 12, weight: .medium))
-                                .foregroundColor(.red)
-                            
-                            Text(error)
-                                .font(.system(size: 12, design: .monospaced))
-                                .foregroundColor(.primary)
-                                .padding(12)
-                                .frame(maxWidth: .infinity, alignment: .leading)
-                                .background(Color.red.opacity(0.1))
-                                .cornerRadius(8)
-                                .textSelection(.enabled)
-                        }
-                    }
-                }
-            } else {
-                Text("No build information available")
-                    .font(.system(size: 13))
-                    .foregroundColor(.secondary)
-                    .italic()
-            }
-        }
-        .padding(16)
-        .background(.regularMaterial)
-        .cornerRadius(12)
     }
 }
