@@ -59,7 +59,7 @@ class ProjectMonitor: ObservableObject {
     }
     
     private func scanForProjects() {
-        logger.info("🔍 Starting project scan in \(poltergeistDirectory)")
+        logger.info("🔍 Starting project scan in \(self.poltergeistDirectory)")
         
         do {
             let fileManager = FileManager.default
@@ -164,7 +164,7 @@ class ProjectMonitor: ObservableObject {
             projects = Array(projectMap.values).sorted { $0.name < $1.name }
             
             if projects.count != oldProjectCount {
-                logger.info("📊 Project count changed: \(oldProjectCount) → \(projects.count)")
+                logger.info("📊 Project count changed: \(oldProjectCount) → \(self.projects.count)")
             }
             
             NotificationCenter.default.post(name: Self.projectsDidUpdateNotification, object: nil)
@@ -180,23 +180,40 @@ class ProjectMonitor: ObservableObject {
     }
     
     func removeProject(_ project: Project) {
-        logger.info("Removing project: \(project.name)")
+        logger.info("🗑️ Removing project: \(project.name) (hash: \(project.hash))")
+        logger.info("📁 Project path: \(project.path)")
+        logger.info("🎯 Targets to remove: \(project.targets.keys.joined(separator: ", "))")
+        
+        var removedCount = 0
+        var failedCount = 0
         
         // Remove all state files for this project
         for (targetName, _) in project.targets {
             let fileName = "\(project.name)-\(project.hash)-\(targetName).state"
             let filePath = "\(poltergeistDirectory)/\(fileName)"
             
+            logger.debug("Attempting to remove: \(filePath)")
+            
             do {
-                try FileManager.default.removeItem(atPath: filePath)
-                logger.debug("Removed state file: \(fileName)")
+                if FileManager.default.fileExists(atPath: filePath) {
+                    try FileManager.default.removeItem(atPath: filePath)
+                    logger.info("✅ Removed state file: \(fileName)")
+                    removedCount += 1
+                } else {
+                    logger.warning("⚠️ State file not found: \(fileName)")
+                }
             } catch {
-                logger.error("Failed to remove state file: \(error.localizedDescription)")
+                logger.error("❌ Failed to remove state file \(fileName): \(error.localizedDescription)")
+                failedCount += 1
             }
         }
         
-        // Rescan
-        scanForProjects()
+        logger.info("📊 Removal complete: \(removedCount) removed, \(failedCount) failed")
+        
+        // Rescan after a small delay to ensure filesystem operations complete
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.1) { [weak self] in
+            self?.scanForProjects()
+        }
     }
     
     func cleanupInactiveProjects() {

@@ -72,7 +72,12 @@ struct StatusBarMenuView: View {
             }
             .padding(.horizontal, 16)
             .padding(.vertical, 14)
-            .background(.ultraThinMaterial)
+            .background(
+                ZStack {
+                    Color.clear.background(.ultraThinMaterial)
+                    Color.primary.opacity(0.02)
+                }
+            )
             
             // Content area
             if projectMonitor.projects.isEmpty {
@@ -122,11 +127,13 @@ struct StatusBarMenuView: View {
                     .padding(.horizontal, 12)
                     .padding(.vertical, 10)
                 }
-                .background(.thinMaterial)
+                .background(.ultraThinMaterial)
             }
         }
         .frame(minWidth: 480, minHeight: 200, maxHeight: 600)
-        .background(.thinMaterial)
+        .background(
+            VisualEffectView()
+        )
         .onChange(of: currentProjectIds) { oldValue, newValue in
             // Remove expanded state for projects that no longer exist
             expandedProjectIds = expandedProjectIds.intersection(newValue)
@@ -281,7 +288,7 @@ struct ModernProjectRow: View {
         }
         .background(
             RoundedRectangle(cornerRadius: 10)
-                .fill(isHovered ? .regularMaterial : .ultraThinMaterial)
+                .fill(Color.primary.opacity(isHovered ? 0.05 : 0))
                 .animation(.easeInOut(duration: 0.15), value: isHovered)
         )
         .overlay(
@@ -305,7 +312,7 @@ struct ModernTargetBadge: View {
         case "failed": return ("xmark.circle.fill", .red, false)
         case "success": return ("checkmark.circle.fill", .green, false)
         case "building": return ("arrow.triangle.2.circlepath", .blue, true)
-        default: return ("circle.dotted", .gray, false)
+        default: return ("minus.circle", .secondary, false)
         }
     }
     
@@ -464,7 +471,9 @@ struct ProjectContextMenu: View {
         Divider()
         
         Button(action: {
-            projectMonitor.removeProject(project)
+            Task { @MainActor in
+                projectMonitor.removeProject(project)
+            }
         }) {
             Label("Remove from Monitor", systemImage: "trash")
         }
