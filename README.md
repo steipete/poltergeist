@@ -209,6 +209,18 @@ Poltergeist maintains state files in `/tmp/poltergeist/` with the following stru
 
 State files are automatically cleaned up when processes exit gracefully.
 
+### Lock-Free Synchronization
+
+Poltergeist uses a unified state file approach instead of traditional lock files:
+
+- **Single state file per target**: Each target has one state file containing all information
+- **Atomic operations**: All writes use temp file + rename for consistency
+- **Heartbeat-based liveness**: Processes update heartbeats every 10 seconds
+- **Automatic staleness detection**: Processes with heartbeats older than 5 minutes are considered inactive
+- **Mac app integration**: The companion Mac app reads the same state files for real-time monitoring
+
+This design prevents race conditions while allowing multiple tools to safely monitor build status. For detailed information about the locking strategy, see [docs/lockfiles.md](docs/lockfiles.md).
+
 ## Examples
 
 ### TypeScript/JavaScript Project
