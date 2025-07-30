@@ -7,13 +7,22 @@ struct StatusBarMenuView: View {
     @State private var selectedProject: Project?
     @State private var hoveredProjectId: UUID?
     
+    // Formatter for build durations
+    static let buildDurationFormatter: DateComponentsFormatter = {
+        let formatter = DateComponentsFormatter()
+        formatter.unitsStyle = .abbreviated
+        formatter.allowedUnits = [.hour, .minute, .second]
+        formatter.maximumUnitCount = 2
+        return formatter
+    }()
+    
     var body: some View {
         VStack(spacing: 0) {
             // Modern header with material background
             HStack(spacing: 12) {
                 Image(systemName: "ghost.fill")
                     .font(.system(size: 18, weight: .medium))
-                    .foregroundStyle(Color.accentColor)
+                    .foregroundStyle(.tint)
                     .symbolEffect(.pulse, isActive: true)
                 
                 Text("Poltergeist Monitor")
@@ -93,11 +102,11 @@ struct StatusBarMenuView: View {
                     .padding(.horizontal, 12)
                     .padding(.vertical, 10)
                 }
-                .background(Color(NSColor.windowBackgroundColor))
+                .background(.thinMaterial)
             }
         }
         .frame(minWidth: 480, minHeight: 200, maxHeight: 600)
-        .background(Color(NSColor.windowBackgroundColor))
+        .background(.thinMaterial)
         .sheet(item: $selectedProject) { project in
             ModernProjectDetailView(project: project, projectMonitor: projectMonitor)
         }
@@ -268,7 +277,8 @@ struct ModernTargetBadge: View {
                 .font(.system(size: 12, weight: .medium))
             
             if let buildTime = state.lastBuild?.buildTime {
-                Text("(\(String(format: "%.1fs", buildTime)))")
+                let formattedTime = StatusBarMenuView.buildDurationFormatter.string(from: buildTime) ?? String(format: "%.1fs", buildTime)
+                Text("(\(formattedTime))")
                     .font(.system(size: 10))
                     .foregroundColor(.secondary)
             }
@@ -379,7 +389,7 @@ struct ModernProjectDetailView: View {
             }
         }
         .frame(width: 600, height: 500)
-        .background(Color(NSColor.windowBackgroundColor))
+        .background(.thinMaterial)
     }
 }
 
@@ -423,7 +433,8 @@ struct TargetDetailCard: View {
                         if let buildTime = build.buildTime {
                             Text("•")
                                 .foregroundColor(.secondary)
-                            Text("\(String(format: "%.2f", buildTime))s")
+                            let formattedTime = StatusBarMenuView.buildDurationFormatter.string(from: buildTime) ?? String(format: "%.2fs", buildTime)
+                            Text(formattedTime)
                                 .font(.system(size: 13))
                                 .foregroundColor(.secondary)
                         }
