@@ -173,7 +173,7 @@ export class Poltergeist {
     files: Array<{ name: string; exists: boolean; type?: string }>,
     targetNames: string[]
   ): void {
-    const changedFiles = files.filter((f) => f.exists && f.type === 'f').map((f) => f.name);
+    const changedFiles = files.filter((f) => f.exists).map((f) => f.name);
 
     if (changedFiles.length === 0) return;
 

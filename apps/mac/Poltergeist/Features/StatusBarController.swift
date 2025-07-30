@@ -11,18 +11,38 @@ final class StatusBarController: NSObject {
     
     override init() {
         super.init()
+        logger.info("🚀 Initializing StatusBarController")
         setupStatusBar()
         startMonitoring()
     }
     
     private func setupStatusBar() {
+        logger.info("📌 Setting up status bar item")
+        
+        // Create status item with proper length
         statusItem = NSStatusBar.system.statusItem(withLength: NSStatusItem.squareLength)
         
+        // Mark as visible to prevent automatic removal
+        statusItem?.isVisible = true
+        
         if let button = statusItem?.button {
+            logger.debug("✅ Status bar button created successfully")
+            
+            // Set a placeholder image first to ensure the item is retained
+            if let placeholderImage = NSImage(systemSymbolName: "ghost.fill", accessibilityDescription: "Poltergeist") {
+                placeholderImage.isTemplate = true
+                button.image = placeholderImage
+            }
+            
             updateIcon()
             button.action = #selector(statusItemClicked)
             button.target = self
             button.sendAction(on: [.leftMouseUp, .rightMouseUp])
+            
+            // Ensure the button stays in the status bar
+            button.appearsDisabled = false
+        } else {
+            logger.error("❌ Failed to create status bar button!")
         }
     }
     
@@ -39,28 +59,81 @@ final class StatusBarController: NSObject {
     }
     
     @objc private func projectsUpdated() {
+        logger.debug("📊 Projects updated notification received")
         updateIcon()
     }
     
     private func updateIcon() {
-        guard let button = statusItem?.button else { return }
+        logger.debug("🎨 Updating status bar icon")
         
+        guard let button = statusItem?.button else {
+            logger.error("❌ No status bar button available to update!")
+            return
+        }
+        
+        let projectCount = projectMonitor.projects.count
         let hasFailures = projectMonitor.projects.contains { project in
             project.targets.values.contains { $0.lastBuild?.status == "failed" }
         }
         
-        let symbolName = hasFailures ? "exclamationmark.circle.fill" : "ghost.fill"
+        logger.info("📈 Status: \(projectCount) projects, failures: \(hasFailures)")
         
-        if let image = NSImage(systemSymbolName: symbolName, accessibilityDescription: "Poltergeist") {
+        // Always ensure we have an image to prevent the icon from disappearing
+        var iconSet = false
+        
+        // Use the StatusBarIcon from Assets
+        if let image = NSImage(named: "StatusBarIcon") {
+            logger.debug("✅ Using StatusBarIcon from assets")
             image.isTemplate = true
+            image.size = NSSize(width: 18, height: 18)
             button.image = image
-            // Don't set contentTintColor for template images - let the system handle it
-            // Only set red color for failures
+            iconSet = true
+            
+            // Set tint color for failures
             if hasFailures {
                 button.contentTintColor = .systemRed
+                logger.debug("🔴 Setting red tint for failures")
             } else {
                 button.contentTintColor = nil
+                logger.debug("⚪️ Clearing tint color")
             }
+        } else {
+            logger.warning("⚠️ StatusBarIcon not found in assets, falling back to SF Symbol")
+        }
+        
+        // Fallback to SF Symbol if asset is missing
+        if !iconSet {
+            let symbolName = hasFailures ? "exclamationmark.circle.fill" : "ghost.fill"
+            if let image = NSImage(systemSymbolName: symbolName, accessibilityDescription: "Poltergeist") {
+                image.isTemplate = true
+                button.image = image
+                logger.debug("✅ Using SF Symbol: \(symbolName)")
+                iconSet = true
+                
+                if hasFailures {
+                    button.contentTintColor = .systemRed
+                } else {
+                    button.contentTintColor = nil
+                }
+            }
+        }
+        
+        if !iconSet {
+            logger.error("❌ Failed to load any icon!")
+            // Create a simple fallback icon to prevent disappearing
+            let fallbackImage = NSImage(size: NSSize(width: 18, height: 18))
+            fallbackImage.lockFocus()
+            NSColor.labelColor.setFill()
+            NSBezierPath(ovalIn: NSRect(x: 4, y: 4, width: 10, height: 10)).fill()
+            fallbackImage.unlockFocus()
+            fallbackImage.isTemplate = true
+            button.image = fallbackImage
+            logger.info("🔨 Created fallback icon")
+        }
+        
+        // Check if the status item is still visible
+        if statusItem?.isVisible == false {
+            logger.error("⚠️ Status item is not visible!")
         }
     }
     

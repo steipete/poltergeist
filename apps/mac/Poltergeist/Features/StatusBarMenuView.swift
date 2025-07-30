@@ -21,10 +21,11 @@ struct StatusBarMenuView: View {
         VStack(spacing: 0) {
             // Modern header with material background
             HStack(spacing: 12) {
-                Image(systemName: "ghost.fill")
-                    .font(.system(size: 18, weight: .medium))
+                Image("StatusBarIcon")
+                    .resizable()
+                    .scaledToFit()
+                    .frame(width: 18, height: 18)
                     .foregroundStyle(.primary)
-                    .symbolEffect(.pulse, isActive: true)
                 
                 Text("Poltergeist Monitor")
                     .font(.system(size: 15, weight: .semibold))
@@ -141,10 +142,11 @@ struct EmptyStateView: View {
                     .fill(.ultraThinMaterial)
                     .frame(width: 80, height: 80)
                 
-                Image(systemName: "ghost.fill")
-                    .font(.system(size: 42))
+                Image("StatusBarIcon")
+                    .resizable()
+                    .scaledToFit()
+                    .frame(width: 42, height: 42)
                     .foregroundStyle(.tertiary)
-                    .symbolEffect(.pulse.byLayer, isActive: true)
             }
             
             VStack(spacing: 8) {

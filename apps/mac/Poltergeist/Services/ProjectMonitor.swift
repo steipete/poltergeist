@@ -59,23 +59,38 @@ class ProjectMonitor: ObservableObject {
     }
     
     private func scanForProjects() {
-        logger.debug("Scanning for projects...")
+        logger.info("🔍 Starting project scan in \(poltergeistDirectory)")
         
         do {
             let fileManager = FileManager.default
             let files = try fileManager.contentsOfDirectory(atPath: poltergeistDirectory)
+            logger.debug("Found \(files.count) files in directory")
             
             var projectMap: [String: Project] = [:]
+            var stateFileCount = 0
             
             for file in files where file.hasSuffix(".state") {
+                stateFileCount += 1
                 let filePath = "\(poltergeistDirectory)/\(file)"
+                logger.debug("Processing state file: \(file)")
                 
-                if let data = try? Data(contentsOf: URL(fileURLWithPath: filePath)),
-                   let state = try? JSONDecoder().decode(PoltergeistState.self, from: data) {
+                do {
+                    let data = try Data(contentsOf: URL(fileURLWithPath: filePath))
+                    let state = try JSONDecoder().decode(PoltergeistState.self, from: data)
+                    
+                    logger.info("📄 Loaded state for project: \(state.projectName), target: \(state.target)")
+                    logger.debug("  PID: \(state.process.pid), Active: \(state.process.isActive)")
+                    logger.debug("  Last heartbeat: \(state.process.lastHeartbeat)")
+                    if let build = state.lastBuild {
+                        logger.debug("  Build status: \(build.status)")
+                    }
                     
                     // Extract project hash from filename
                     let components = file.dropLast(6).split(separator: "-") // Remove .state
-                    guard components.count >= 3 else { continue }
+                    guard components.count >= 3 else {
+                        logger.warning("Invalid state file name format: \(file)")
+                        continue
+                    }
                     
                     let projectHash = String(components[components.count - 2])
                     let projectKey = "\(state.projectPath)-\(projectHash)"
@@ -90,6 +105,11 @@ class ProjectMonitor: ObservableObject {
                     // Update target state
                     let heartbeat = ISO8601DateFormatter().date(from: state.process.lastHeartbeat)
                     let buildTimestamp = state.lastBuild.map { ISO8601DateFormatter().date(from: $0.timestamp) } ?? nil
+                    
+                    let isStale = isProcessStale(heartbeat: heartbeat)
+                    if isStale {
+                        logger.warning("⚠️ Process is stale for \(state.projectName):\(state.target)")
+                    }
                     
                     let icon = IconLoader.shared.loadIcon(from: state, projectPath: state.projectPath)
                     
@@ -124,14 +144,33 @@ class ProjectMonitor: ObservableObject {
                     
                     project.targets[state.target] = targetState
                     projectMap[projectKey] = project
+                    
+                } catch DecodingError.dataCorrupted(let context) {
+                    logger.error("❌ Failed to decode state file \(file): data corrupted - \(context.debugDescription)")
+                } catch DecodingError.keyNotFound(let key, let context) {
+                    logger.error("❌ Failed to decode state file \(file): missing key '\(key.stringValue)' - \(context.debugDescription)")
+                } catch DecodingError.typeMismatch(let type, let context) {
+                    logger.error("❌ Failed to decode state file \(file): type mismatch for \(type) - \(context.debugDescription)")
+                } catch DecodingError.valueNotFound(let type, let context) {
+                    logger.error("❌ Failed to decode state file \(file): value not found for \(type) - \(context.debugDescription)")
+                } catch {
+                    logger.error("❌ Failed to process state file \(file): \(error.localizedDescription)")
                 }
             }
             
+            logger.info("✅ Processed \(stateFileCount) state files, found \(projectMap.count) projects")
+            
+            let oldProjectCount = projects.count
             projects = Array(projectMap.values).sorted { $0.name < $1.name }
+            
+            if projects.count != oldProjectCount {
+                logger.info("📊 Project count changed: \(oldProjectCount) → \(projects.count)")
+            }
+            
             NotificationCenter.default.post(name: Self.projectsDidUpdateNotification, object: nil)
             
         } catch {
-            logger.error("Failed to scan directory: \(error.localizedDescription)")
+            logger.error("❌ Failed to scan directory: \(error.localizedDescription)")
         }
     }
     

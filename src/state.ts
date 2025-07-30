@@ -156,7 +156,8 @@ export class StateManager implements IStateManager {
     if (!state) return;
 
     const stateFile = this.getStateFilePath(targetName);
-    const tempFile = `${stateFile}.tmp`;
+    // Use a unique temp file to avoid concurrent write conflicts
+    const tempFile = `${stateFile}.${process.pid}.${Date.now()}.tmp`;
 
     try {
       // Ensure state directory exists
@@ -175,7 +176,8 @@ export class StateManager implements IStateManager {
 
       this.logger.debug(`State updated for ${targetName}`);
     } catch (error) {
-      this.logger.error(`Failed to write state for ${targetName}: ${error}`);
+      const err = error instanceof Error ? error : new Error(String(error));
+      this.logger.error(`Failed to write state for ${targetName}: ${err.message}`);
 
       // Clean up temp file if it exists
       try {
@@ -183,6 +185,9 @@ export class StateManager implements IStateManager {
           unlinkSync(tempFile);
         }
       } catch {}
+      
+      // Re-throw to ensure callers know the operation failed
+      throw err;
     }
   }
 

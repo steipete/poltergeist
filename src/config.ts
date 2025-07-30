@@ -129,12 +129,8 @@ export class ConfigLoader {
         resolvedTarget.buildCommand = resolve(this.projectRoot, resolvedTarget.buildCommand);
       }
 
-      // Resolve output path for executable and library targets
-      if ('outputPath' in resolvedTarget && resolvedTarget.outputPath) {
-        if (!resolvedTarget.outputPath.startsWith('/')) {
-          resolvedTarget.outputPath = resolve(this.projectRoot, resolvedTarget.outputPath);
-        }
-      }
+      // Keep output path relative for executable and library targets
+      // The builders will resolve it relative to project root as needed
 
       // Resolve docker context
       if (target.type === 'docker' && 'context' in resolvedTarget && resolvedTarget.context) {

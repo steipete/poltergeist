@@ -429,3 +429,5 @@ if (import.meta.url === `file://${process.argv[1]}`) {
 
 // Export program for testing
 export { program };
+// Trigger rebuild
+// Test file watching

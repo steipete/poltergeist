@@ -28,9 +28,9 @@ export class ExecutableBuilder extends BaseBuilder<ExecutableTarget> {
 
     this.logger.info(`[${this.target.name}] Executable built: ${outputPath}`);
 
-    // Update state with output info
+    // Update state with output info (store relative path, not absolute)
     await this.stateManager.updateAppInfo(this.target.name, {
-      outputPath: outputPath,
+      outputPath: this.target.outputPath,
     });
   }
 
