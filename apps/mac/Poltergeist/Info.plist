@@ -27,7 +27,13 @@
 	<key>LSUIElement</key>
 	<true/>
 	<key>NSHumanReadableCopyright</key>
-	<string></string>
+	<string>Copyright © 2024 Poltergeist Project. All rights reserved.</string>
+	<key>CFBundleDisplayName</key>
+	<string>Poltergeist Monitor</string>
+	<key>NSAboutPanelOptionCredits</key>
+	<string>Monitor and manage all your Poltergeist build instances from the menu bar.
+
+A companion app for the Poltergeist build system.</string>
 	<key>NSUserNotificationAlertStyle</key>
 	<string>alert</string>
 </dict>

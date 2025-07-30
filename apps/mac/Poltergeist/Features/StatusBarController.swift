@@ -144,7 +144,7 @@ final class StatusBarController: NSObject {
         // Actions
         menu.addItem(NSMenuItem(
             title: "Open Poltergeist Monitor",
-            action: #selector(showPopover),
+            action: #selector(showPopoverFromMenu),
             keyEquivalent: "p"
         ).with { $0.keyEquivalentModifierMask = [.command, .shift] })
         
@@ -211,10 +211,10 @@ final class StatusBarController: NSObject {
     }
     
     @objc private func showAllProjects() {
-        showPopover()
+        showPopoverFromMenu()
     }
     
-    @objc private func showPopover() {
+    @objc private func showPopoverFromMenu() {
         if popover?.isShown == false {
             togglePopover()
         }
