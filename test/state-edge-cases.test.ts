@@ -271,20 +271,7 @@ describe('StateManager Edge Cases', () => {
       expect(mockLogger.error).toHaveBeenCalled();
     });
 
-    it.skip('should recover from write failures', async () => {
-      const target: BaseTarget = {
-        name: 'write-fail',
-        type: 'executable',
-        enabled: true,
-        buildCommand: 'echo test',
-        watchPaths: ['src/**/*'],
-      };
-
-      await stateManager.initializeState(target);
-      
-      // Test would involve mocking fs module which is difficult in ESM
-      expect(true).toBe(true);
-    });
+    // Write failure recovery test deleted - cannot mock fs module in ESM
   });
 
   describe('File System Edge Cases', () => {
@@ -530,9 +517,6 @@ describe('StateManager Edge Cases', () => {
       expect(validStateFiles[0]).toContain('valid-state');
     });
 
-    it.skip('should handle permission errors during discovery', async () => {
-      // Skip - can't mock ESM modules easily
-      // This would test error handling in listAllStates when readdir fails
-    });
+    // Permission errors during discovery test deleted - cannot mock readdir in ESM
   });
 });
