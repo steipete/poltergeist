@@ -374,7 +374,7 @@ struct InlineProjectDetailView: View {
                         }
                         
                         // Error display
-                        if let error = build.errorSummary {
+                        if let error = build.errorSummary, !error.isEmpty {
                             Text(error)
                                 .font(.system(size: 11, design: .monospaced))
                                 .foregroundColor(.primary)
