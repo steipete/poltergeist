@@ -4,7 +4,7 @@ struct StatusBarMenuView: View {
     @ObservedObject var projectMonitor: ProjectMonitor
     let onDismiss: () -> Void
     
-    @State private var expandedProjectId: UUID?
+    @State private var expandedProjectIds: Set<UUID> = []
     @State private var hoveredProjectId: UUID?
     
     // Formatter for build durations
@@ -17,6 +17,7 @@ struct StatusBarMenuView: View {
     }()
     
     var body: some View {
+        let currentProjectIds = Set(projectMonitor.projects.map { $0.id })
         VStack(spacing: 0) {
             // Modern header with material background
             HStack(spacing: 12) {
@@ -83,14 +84,14 @@ struct StatusBarMenuView: View {
                                 ModernProjectRow(
                                     project: project,
                                     isHovered: hoveredProjectId == project.id,
-                                    isExpanded: expandedProjectId == project.id
+                                    isExpanded: expandedProjectIds.contains(project.id)
                                 )
                                 .onTapGesture {
                                     withAnimation(.spring(response: 0.3, dampingFraction: 0.8)) {
-                                        if expandedProjectId == project.id {
-                                            expandedProjectId = nil
+                                        if expandedProjectIds.contains(project.id) {
+                                            expandedProjectIds.remove(project.id)
                                         } else {
-                                            expandedProjectId = project.id
+                                            expandedProjectIds.insert(project.id)
                                         }
                                     }
                                 }
@@ -107,7 +108,7 @@ struct StatusBarMenuView: View {
                                 }
                                 
                                 // Inline expanded detail view
-                                if expandedProjectId == project.id {
+                                if expandedProjectIds.contains(project.id) {
                                     InlineProjectDetailView(project: project)
                                         .transition(.asymmetric(
                                             insertion: .opacity.combined(with: .move(edge: .top)),
@@ -125,6 +126,10 @@ struct StatusBarMenuView: View {
         }
         .frame(minWidth: 480, minHeight: 200, maxHeight: 600)
         .background(.thinMaterial)
+        .onChange(of: currentProjectIds) { newProjectIds in
+            // Remove expanded state for projects that no longer exist
+            expandedProjectIds = expandedProjectIds.intersection(newProjectIds)
+        }
     }
 }
 
