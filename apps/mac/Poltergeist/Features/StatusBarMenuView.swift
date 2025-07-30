@@ -188,9 +188,27 @@ struct ModernProjectRow: View {
             return "No builds yet"
         }
         
-        let formatter = RelativeDateTimeFormatter()
-        formatter.unitsStyle = .abbreviated
-        return formatter.localizedString(for: mostRecentBuild.timestamp, relativeTo: Date())
+        let now = Date()
+        let timeDifference = now.timeIntervalSince(mostRecentBuild.timestamp)
+        
+        // If timestamp is in the future (clock skew), show "just now"
+        if timeDifference < 0 {
+            return "just now"
+        }
+        
+        // Use a custom formatter to ensure we always show past tense
+        if timeDifference < 60 {
+            return "just now"
+        } else if timeDifference < 3600 {
+            let minutes = Int(timeDifference / 60)
+            return "\(minutes)m ago"
+        } else if timeDifference < 86400 {
+            let hours = Int(timeDifference / 3600)
+            return "\(hours)h ago"
+        } else {
+            let days = Int(timeDifference / 86400)
+            return "\(days)d ago"
+        }
     }
     
     var body: some View {

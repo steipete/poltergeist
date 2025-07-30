@@ -49,12 +49,17 @@ final class StatusBarController: NSObject {
         }
         
         let symbolName = hasFailures ? "exclamationmark.circle.fill" : "ghost.fill"
-        let color: NSColor = hasFailures ? .systemRed : .labelColor
         
         if let image = NSImage(systemSymbolName: symbolName, accessibilityDescription: "Poltergeist") {
             image.isTemplate = true
             button.image = image
-            button.contentTintColor = color
+            // Don't set contentTintColor for template images - let the system handle it
+            // Only set red color for failures
+            if hasFailures {
+                button.contentTintColor = .systemRed
+            } else {
+                button.contentTintColor = nil
+            }
         }
     }
     
