@@ -87,7 +87,11 @@ Poltergeist supports multiple target types:
   "notifications": {
     "enabled": true,
     "successSound": "Glass",
-    "failureSound": "Basso"
+    "failureSound": "Basso",
+    "buildStart": true,
+    "buildFailed": true,
+    "buildSuccess": true,
+    "minInterval": 5000
   },
   "logging": {
     "file": ".poltergeist.log",
@@ -95,6 +99,23 @@ Poltergeist supports multiple target types:
   }
 }
 ```
+
+### Global Configuration
+
+The global configuration options control Poltergeist's behavior across all targets:
+
+#### Notifications
+- `enabled`: Enable/disable all notifications
+- `successSound`: macOS sound for successful builds (e.g., "Glass", "Ping")
+- `failureSound`: macOS sound for failed builds (e.g., "Basso", "Funk")
+- `buildStart`: Show notification when build starts
+- `buildFailed`: Show notification when build fails
+- `buildSuccess`: Show notification when build succeeds
+- `minInterval`: Minimum milliseconds between notifications
+
+#### Logging
+- `file`: Path to the log file
+- `level`: Log level (debug, info, warn, error)
 
 ### Target-Specific Options
 
