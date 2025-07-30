@@ -1,6 +1,12 @@
 import notifier from 'node-notifier';
 import type { BuildTarget } from './types.js';
 
+interface ExtendedNotification extends notifier.Notification {
+  sound?: string | boolean;
+  timeout?: number;
+  appIcon?: string;
+}
+
 export class BuildNotifier {
   constructor(
     private config: {
@@ -18,9 +24,11 @@ export class BuildNotifier {
     projectName: string,
     targetName?: string
   ): Promise<void> {
-    if (!this.config.enabled || 
-        !this.config.buildStart || 
-        process.env.POLTERGEIST_NOTIFICATIONS === 'false') {
+    if (
+      !this.config.enabled ||
+      !this.config.buildStart ||
+      process.env.POLTERGEIST_NOTIFICATIONS === 'false'
+    ) {
       return;
     }
 
@@ -37,20 +45,18 @@ export class BuildNotifier {
     });
   }
 
-  async notifyBuildFailed(
-    title: string,
-    message: string,
-    iconPath?: string
-  ): Promise<void> {
-    if (!this.config.enabled || 
-        !this.config.buildFailed || 
-        process.env.POLTERGEIST_NOTIFICATIONS === 'false') {
+  async notifyBuildFailed(title: string, message: string, iconPath?: string): Promise<void> {
+    if (
+      !this.config.enabled ||
+      !this.config.buildFailed ||
+      process.env.POLTERGEIST_NOTIFICATIONS === 'false'
+    ) {
       return;
     }
 
     // title and message are already provided as parameters
 
-    const notificationOptions: any = {
+    const notificationOptions: ExtendedNotification = {
       title,
       message,
       sound: this.config.failureSound || 'Basso',
@@ -67,20 +73,18 @@ export class BuildNotifier {
     notifier.notify(notificationOptions);
   }
 
-  async notifyBuildComplete(
-    title: string,
-    message: string,
-    iconPath?: string
-  ): Promise<void> {
-    if (!this.config.enabled || 
-        !this.config.buildSuccess || 
-        process.env.POLTERGEIST_NOTIFICATIONS === 'false') {
+  async notifyBuildComplete(title: string, message: string, iconPath?: string): Promise<void> {
+    if (
+      !this.config.enabled ||
+      !this.config.buildSuccess ||
+      process.env.POLTERGEIST_NOTIFICATIONS === 'false'
+    ) {
       return;
     }
 
     // title and message are already provided as parameters
 
-    const notificationOptions: any = {
+    const notificationOptions: ExtendedNotification = {
       title,
       message,
       sound: this.config.successSound || 'Glass',

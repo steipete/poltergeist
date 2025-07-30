@@ -1,11 +1,12 @@
 // Unified state management for Poltergeist
-import { existsSync, readFileSync, writeFileSync, mkdirSync, renameSync, unlinkSync } from 'fs';
-import { join } from 'path';
+
 import { createHash } from 'crypto';
+import { existsSync, mkdirSync, readFileSync, renameSync, unlinkSync, writeFileSync } from 'fs';
 import { hostname } from 'os';
-import { Logger } from './logger.js';
-import { BuildStatus, Target } from './types.js';
-import { IStateManager } from './interfaces.js';
+import { join } from 'path';
+import type { IStateManager } from './interfaces.js';
+import type { Logger } from './logger.js';
+import type { BuildStatus, Target } from './types.js';
 
 // Default state directory
 const DEFAULT_STATE_DIR = '/tmp/poltergeist';
@@ -32,7 +33,7 @@ export interface PoltergeistState {
   target: string;
   targetType: string;
   configPath: string;
-  
+
   process: ProcessInfo;
   lastBuild?: BuildStatus;
   appInfo?: AppInfo;
@@ -49,7 +50,7 @@ export class StateManager implements IStateManager {
     this.logger = logger;
     this.projectRoot = projectRoot;
     this.stateDir = process.env.POLTERGEIST_STATE_DIR || DEFAULT_STATE_DIR;
-    
+
     // Ensure state directory exists
     if (!existsSync(this.stateDir)) {
       mkdirSync(this.stateDir, { recursive: true });
@@ -61,11 +62,8 @@ export class StateManager implements IStateManager {
    */
   private getStateFileName(targetName: string): string {
     const projectName = this.projectRoot.split('/').pop() || 'unknown';
-    const projectHash = createHash('sha256')
-      .update(this.projectRoot)
-      .digest('hex')
-      .substring(0, 8);
-    
+    const projectHash = createHash('sha256').update(this.projectRoot).digest('hex').substring(0, 8);
+
     return `${projectName}-${projectHash}-${targetName}.state`;
   }
 
@@ -81,7 +79,7 @@ export class StateManager implements IStateManager {
    */
   public async initializeState(target: Target): Promise<PoltergeistState> {
     const configPath = join(this.projectRoot, '.poltergeist.json');
-    
+
     const state: PoltergeistState = {
       version: '1.0',
       projectPath: this.projectRoot,
@@ -89,7 +87,7 @@ export class StateManager implements IStateManager {
       target: target.name,
       targetType: target.type,
       configPath,
-      
+
       process: {
         pid: process.pid,
         hostname: hostname(),
@@ -118,7 +116,7 @@ export class StateManager implements IStateManager {
 
     this.states.set(target.name, state);
     await this.writeState(target.name);
-    
+
     return state;
   }
 
@@ -165,20 +163,20 @@ export class StateManager implements IStateManager {
       if (!existsSync(this.stateDir)) {
         mkdirSync(this.stateDir, { recursive: true });
       }
-      
+
       // Update heartbeat
       state.process.lastHeartbeat = new Date().toISOString();
-      
+
       // Write to temp file
       writeFileSync(tempFile, JSON.stringify(state, null, 2));
-      
+
       // Atomic rename
       renameSync(tempFile, stateFile);
-      
+
       this.logger.debug(`State updated for ${targetName}`);
     } catch (error) {
       this.logger.error(`Failed to write state for ${targetName}: ${error}`);
-      
+
       // Clean up temp file if it exists
       try {
         if (existsSync(tempFile)) {
@@ -193,15 +191,15 @@ export class StateManager implements IStateManager {
    */
   public async readState(targetName: string): Promise<PoltergeistState | null> {
     const stateFile = this.getStateFilePath(targetName);
-    
+
     try {
       if (!existsSync(stateFile)) {
         return null;
       }
-      
+
       const data = readFileSync(stateFile, 'utf-8');
       const state = JSON.parse(data) as PoltergeistState;
-      
+
       // Check if process is still active
       if (state.process.pid !== process.pid) {
         try {
@@ -212,7 +210,7 @@ export class StateManager implements IStateManager {
           state.process.isActive = false;
         }
       }
-      
+
       return state;
     } catch (error) {
       this.logger.error(`Failed to read state for ${targetName}: ${error}`);
@@ -226,24 +224,24 @@ export class StateManager implements IStateManager {
   public async isLocked(targetName: string): Promise<boolean> {
     const state = await this.readState(targetName);
     if (!state) return false;
-    
+
     // Check if it's our own process
     if (state.process.pid === process.pid) {
       return false;
     }
-    
+
     // Check if the process is still active
     if (!state.process.isActive) {
       return false;
     }
-    
+
     // Check heartbeat age (5 minutes timeout)
     const heartbeatAge = Date.now() - new Date(state.process.lastHeartbeat).getTime();
     if (heartbeatAge > 5 * 60 * 1000) {
       this.logger.info(`Stale state detected for ${targetName}, considering unlocked`);
       return false;
     }
-    
+
     return true;
   }
 
@@ -252,7 +250,7 @@ export class StateManager implements IStateManager {
    */
   public startHeartbeat(): void {
     if (this.heartbeatInterval) return;
-    
+
     this.heartbeatInterval = setInterval(async () => {
       for (const targetName of this.states.keys()) {
         await this.writeState(targetName);
@@ -278,7 +276,7 @@ export class StateManager implements IStateManager {
     if (!currentState) {
       throw new Error(`State not found for target: ${targetName}`);
     }
-    
+
     const updatedState = { ...currentState, ...updates };
     this.states.set(targetName, updatedState);
     await this.writeState(targetName);
@@ -289,13 +287,13 @@ export class StateManager implements IStateManager {
    */
   public async discoverStates(): Promise<Record<string, Partial<PoltergeistState>>> {
     const states: Record<string, Partial<PoltergeistState>> = {};
-    
+
     if (!existsSync(this.stateDir)) {
       return states;
     }
-    
-    const files = await import('fs/promises').then(fs => fs.readdir(this.stateDir));
-    
+
+    const files = await import('fs/promises').then((fs) => fs.readdir(this.stateDir));
+
     for (const file of files) {
       if (file.endsWith('.state')) {
         try {
@@ -308,7 +306,7 @@ export class StateManager implements IStateManager {
         }
       }
     }
-    
+
     return states;
   }
 
@@ -317,7 +315,7 @@ export class StateManager implements IStateManager {
    */
   public async cleanup(): Promise<void> {
     this.stopHeartbeat();
-    
+
     for (const [targetName, state] of this.states.entries()) {
       state.process.isActive = false;
       await this.writeState(targetName);
@@ -329,7 +327,7 @@ export class StateManager implements IStateManager {
    */
   public async removeState(targetName: string): Promise<void> {
     const stateFile = this.getStateFilePath(targetName);
-    
+
     try {
       if (existsSync(stateFile)) {
         unlinkSync(stateFile);
@@ -346,14 +344,14 @@ export class StateManager implements IStateManager {
   public static async listAllStates(): Promise<string[]> {
     const fs = await import('fs/promises');
     const stateDir = process.env.POLTERGEIST_STATE_DIR || DEFAULT_STATE_DIR;
-    
+
     try {
       if (!existsSync(stateDir)) {
         return [];
       }
-      
+
       const files = await fs.readdir(stateDir);
-      return files.filter(f => f.endsWith('.state'));
+      return files.filter((f) => f.endsWith('.state'));
     } catch {
       return [];
     }

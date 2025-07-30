@@ -1,14 +1,12 @@
 // Integration tests for multi-target scenarios
-import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
-import { Poltergeist } from '../src/poltergeist.js';
-import { PoltergeistConfig } from '../src/types.js';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { createPoltergeistWithDeps } from '../src/factories.js';
-import { 
-  createTestHarness, 
-  simulateFileChange, 
+import type { Poltergeist } from '../src/poltergeist.js';
+import {
+  createTestHarness,
+  simulateFileChange,
+  type TestHarness,
   waitForAsync,
-  expectBuilderCalledWith,
-  TestHarness
 } from './helpers.js';
 
 // Mock child_process module
@@ -63,66 +61,78 @@ describe('Multi-Target Integration Tests', () => {
   afterEach(() => {
     vi.useRealTimers();
     if (poltergeist) {
-      poltergeist['cleanup']();
+      poltergeist.cleanup();
     }
   });
 
   // Helper to start Poltergeist and clear initial build calls
   async function startAndClearBuilds() {
     await poltergeist.start();
-    harness.builderFactory.builders.forEach(builder => vi.mocked(builder.build).mockClear());
+    harness.builderFactory.builders.forEach((builder) => vi.mocked(builder.build).mockClear());
   }
 
   describe('Target Independence', () => {
     it('should build targets independently', async () => {
-      poltergeist = createPoltergeistWithDeps(harness.config, '/test/project', harness.deps, harness.logger);
+      poltergeist = createPoltergeistWithDeps(
+        harness.config,
+        '/test/project',
+        harness.deps,
+        harness.logger
+      );
       await startAndClearBuilds();
 
       // Get all subscribe calls
       const subscribeCalls = vi.mocked(harness.watchmanClient.subscribe).mock.calls;
-      
+
       // Find the subscription for backend files
-      const backendSubIndex = subscribeCalls.findIndex(call => 
-        call[2].expression[1] === 'backend/**/*.ts');
+      const backendSubIndex = subscribeCalls.findIndex(
+        (call) => call[2].expression[1] === 'backend/**/*.ts'
+      );
       expect(backendSubIndex).toBeGreaterThanOrEqual(0);
-      
+
       // Trigger a change for the backend target only
       simulateFileChange(harness.watchmanClient, ['backend/server.ts'], backendSubIndex);
 
       // Backend has 100ms settling delay
       await waitForAsync(110);
-      
+
       // Only backend should have built
       const backendBuilder = harness.builderFactory.builders.get('backend');
       const frontendBuilder = harness.builderFactory.builders.get('frontend');
       const macAppBuilder = harness.builderFactory.builders.get('mac-app');
-      
+
       expect(backendBuilder?.build).toHaveBeenCalledTimes(1);
       expect(frontendBuilder?.build).not.toHaveBeenCalled();
       expect(macAppBuilder?.build).not.toHaveBeenCalled();
-      
+
       // Now trigger frontend change
-      const frontendSubIndex = subscribeCalls.findIndex(call => 
-        call[2].expression[1] === 'frontend/**/*.tsx');
+      const frontendSubIndex = subscribeCalls.findIndex(
+        (call) => call[2].expression[1] === 'frontend/**/*.tsx'
+      );
       expect(frontendSubIndex).toBeGreaterThanOrEqual(0);
-      
+
       simulateFileChange(harness.watchmanClient, ['frontend/App.tsx'], frontendSubIndex);
-      
+
       // Frontend has 150ms settling delay
       await waitForAsync(160);
-      
+
       // Now frontend should have built too
       expect(frontendBuilder?.build).toHaveBeenCalledTimes(1);
       expect(macAppBuilder?.build).not.toHaveBeenCalled();
     });
 
     it('should handle failures in one target without affecting others', async () => {
-      poltergeist = createPoltergeistWithDeps(harness.config, '/test/project', harness.deps, harness.logger);
+      poltergeist = createPoltergeistWithDeps(
+        harness.config,
+        '/test/project',
+        harness.deps,
+        harness.logger
+      );
       await startAndClearBuilds();
 
       // Make backend fail after initialization
       const backendBuilder = harness.builderFactory.builders.get('backend');
-      vi.mocked(backendBuilder!.build).mockResolvedValue({
+      vi.mocked(backendBuilder?.build).mockResolvedValue({
         status: 'failure',
         targetName: 'backend',
         timestamp: new Date().toISOString(),
@@ -145,14 +155,20 @@ describe('Multi-Target Integration Tests', () => {
       expect(harness.builderFactory.builders.get('frontend')?.build).toHaveBeenCalled();
 
       // Frontend should succeed despite backend failure
-      const frontendResult = await harness.builderFactory.builders.get('frontend')?.build.mock.results[0].value;
+      const frontendResult =
+        await harness.builderFactory.builders.get('frontend')?.build.mock.results[0].value;
       expect(frontendResult.status).toBe('success');
     });
   });
 
   describe('Shared Dependencies', () => {
     it('should rebuild dependent targets when shared files change', async () => {
-      poltergeist = createPoltergeistWithDeps(harness.config, '/test/project', harness.deps, harness.logger);
+      poltergeist = createPoltergeistWithDeps(
+        harness.config,
+        '/test/project',
+        harness.deps,
+        harness.logger
+      );
       await startAndClearBuilds();
 
       // Get callbacks for backend and frontend (both watch shared/)
@@ -168,12 +184,21 @@ describe('Multi-Target Integration Tests', () => {
       vi.advanceTimersByTime(160);
 
       // Both targets should rebuild
-      expect(harness.builderFactory.builders.get('backend')?.build).toHaveBeenCalledWith(['shared/types.ts']);
-      expect(harness.builderFactory.builders.get('frontend')?.build).toHaveBeenCalledWith(['shared/types.ts']);
+      expect(harness.builderFactory.builders.get('backend')?.build).toHaveBeenCalledWith([
+        'shared/types.ts',
+      ]);
+      expect(harness.builderFactory.builders.get('frontend')?.build).toHaveBeenCalledWith([
+        'shared/types.ts',
+      ]);
     });
 
     it('should deduplicate builds when same file triggers multiple targets', async () => {
-      poltergeist = createPoltergeistWithDeps(harness.config, '/test/project', harness.deps, harness.logger);
+      poltergeist = createPoltergeistWithDeps(
+        harness.config,
+        '/test/project',
+        harness.deps,
+        harness.logger
+      );
       await startAndClearBuilds();
 
       const backendCallback = vi.mocked(harness.watchmanClient.subscribe).mock.calls[0]?.[3];
@@ -181,7 +206,7 @@ describe('Multi-Target Integration Tests', () => {
 
       // Same file change reported multiple times
       const sharedChange = { name: 'shared/utils.ts', exists: true, type: 'f' };
-      
+
       // Simulate watchman reporting the change to both subscriptions multiple times
       backendCallback([sharedChange]);
       backendCallback([sharedChange]); // Duplicate
@@ -201,7 +226,12 @@ describe('Multi-Target Integration Tests', () => {
     it('should only build enabled targets', async () => {
       harness.config.targets[1].enabled = false; // Disable frontend
 
-      poltergeist = createPoltergeistWithDeps(harness.config, '/test/project', harness.deps, harness.logger);
+      poltergeist = createPoltergeistWithDeps(
+        harness.config,
+        '/test/project',
+        harness.deps,
+        harness.logger
+      );
       await startAndClearBuilds();
 
       // Should create subscriptions for watch paths of enabled targets
@@ -227,7 +257,12 @@ describe('Multi-Target Integration Tests', () => {
     });
 
     it('should handle starting specific target only', async () => {
-      poltergeist = createPoltergeistWithDeps(harness.config, '/test/project', harness.deps, harness.logger);
+      poltergeist = createPoltergeistWithDeps(
+        harness.config,
+        '/test/project',
+        harness.deps,
+        harness.logger
+      );
       await poltergeist.start('frontend');
 
       // Should create subscriptions for the specified target's watch paths
@@ -259,7 +294,12 @@ describe('Multi-Target Integration Tests', () => {
 
       harness.config.targets.push(...manyTargets);
 
-      poltergeist = createPoltergeistWithDeps(harness.config, '/test/project', harness.deps, harness.logger);
+      poltergeist = createPoltergeistWithDeps(
+        harness.config,
+        '/test/project',
+        harness.deps,
+        harness.logger
+      );
       await startAndClearBuilds();
 
       // Should create subscriptions for all unique watch paths
@@ -275,7 +315,7 @@ describe('Multi-Target Integration Tests', () => {
 
       // Should stop the builder for that target
       expect(harness.builderFactory.builders.get('service-5')?.stop).toHaveBeenCalled();
-      
+
       // Should not unsubscribe from Watchman (subscriptions are shared)
       expect(harness.watchmanClient.unsubscribe).not.toHaveBeenCalled();
 
@@ -284,7 +324,12 @@ describe('Multi-Target Integration Tests', () => {
     });
 
     it('should clean up all resources on full stop', async () => {
-      poltergeist = createPoltergeistWithDeps(harness.config, '/test/project', harness.deps, harness.logger);
+      poltergeist = createPoltergeistWithDeps(
+        harness.config,
+        '/test/project',
+        harness.deps,
+        harness.logger
+      );
       await startAndClearBuilds();
 
       // Stop all
@@ -301,9 +346,13 @@ describe('Multi-Target Integration Tests', () => {
       expect(harness.builderFactory.builders.get('backend')?.stop).toHaveBeenCalled();
       expect(harness.builderFactory.builders.get('frontend')?.stop).toHaveBeenCalled();
       expect(harness.builderFactory.builders.get('mac-app')?.stop).toHaveBeenCalled();
-      
+
       // Target states should be cleared
-      const targetStates = (poltergeist as any).targetStates;
+      // Access private property for testing purposes
+      const poltergeistWithPrivates = poltergeist as Poltergeist & {
+        targetStates: Map<string, unknown>;
+      };
+      const targetStates = poltergeistWithPrivates.targetStates;
       expect(targetStates.size).toBe(0);
     });
   });
@@ -311,14 +360,19 @@ describe('Multi-Target Integration Tests', () => {
   describe('Build Coordination', () => {
     it('should handle concurrent builds across targets', async () => {
       // Make builds take time
-      let buildResolvers: Map<string, () => void> = new Map();
-      
+      const buildResolvers: Map<string, () => void> = new Map();
+
       // We need to start first to create the builders
-      poltergeist = createPoltergeistWithDeps(harness.config, '/test/project', harness.deps, harness.logger);
+      poltergeist = createPoltergeistWithDeps(
+        harness.config,
+        '/test/project',
+        harness.deps,
+        harness.logger
+      );
       await startAndClearBuilds();
-      
+
       // Setup build mocks for each target
-      ['backend', 'frontend', 'mac-app'].forEach(name => {
+      ['backend', 'frontend', 'mac-app'].forEach((name) => {
         const builder = harness.builderFactory.builders.get(name);
         if (builder) {
           vi.mocked(builder.build).mockClear();
@@ -329,8 +383,8 @@ describe('Multi-Target Integration Tests', () => {
               targetName: name,
               timestamp: new Date().toISOString(),
             });
-            
-            return new Promise(resolve => {
+
+            return new Promise((resolve) => {
               buildResolvers.set(name, async () => {
                 const result = {
                   status: 'success' as const,
@@ -349,20 +403,23 @@ describe('Multi-Target Integration Tests', () => {
 
       // Get subscription callbacks for each target's first watch path
       const subscribeCalls = vi.mocked(harness.watchmanClient.subscribe).mock.calls;
-      
+
       // Find subscription for backend files
-      const backendSubIndex = subscribeCalls.findIndex(call => 
-        call[2].expression[1] === 'backend/**/*.ts');
+      const backendSubIndex = subscribeCalls.findIndex(
+        (call) => call[2].expression[1] === 'backend/**/*.ts'
+      );
       const backendCallback = subscribeCalls[backendSubIndex]?.[3];
-      
-      // Find subscription for frontend files  
-      const frontendSubIndex = subscribeCalls.findIndex(call => 
-        call[2].expression[1] === 'frontend/**/*.tsx');
+
+      // Find subscription for frontend files
+      const frontendSubIndex = subscribeCalls.findIndex(
+        (call) => call[2].expression[1] === 'frontend/**/*.tsx'
+      );
       const frontendCallback = subscribeCalls[frontendSubIndex]?.[3];
-      
+
       // Find subscription for mac-app files
-      const macAppSubIndex = subscribeCalls.findIndex(call => 
-        call[2].expression[1] === 'mac-app/**/*.swift');
+      const macAppSubIndex = subscribeCalls.findIndex(
+        (call) => call[2].expression[1] === 'mac-app/**/*.swift'
+      );
       const macAppCallback = subscribeCalls[macAppSubIndex]?.[3];
 
       // Trigger all targets simultaneously
@@ -381,44 +438,51 @@ describe('Multi-Target Integration Tests', () => {
       // Complete builds in different order
       const frontendResolver = buildResolvers.get('frontend');
       if (frontendResolver) await frontendResolver();
-      
+
       const backendResolver = buildResolvers.get('backend');
       if (backendResolver) await backendResolver();
-      
+
       const macAppResolver = buildResolvers.get('mac-app');
       if (macAppResolver) await macAppResolver();
 
       // All should complete successfully
       const stateManager = harness.deps.stateManager;
-      
+
       // Each target should have 2 status updates: building + success
       const updateCalls = vi.mocked(stateManager.updateBuildStatus).mock.calls;
-      const backendCalls = updateCalls.filter(call => call[0] === 'backend');
-      const frontendCalls = updateCalls.filter(call => call[0] === 'frontend');
-      const macAppCalls = updateCalls.filter(call => call[0] === 'mac-app');
-      
+      const backendCalls = updateCalls.filter((call) => call[0] === 'backend');
+      const frontendCalls = updateCalls.filter((call) => call[0] === 'frontend');
+      const macAppCalls = updateCalls.filter((call) => call[0] === 'mac-app');
+
       expect(backendCalls).toHaveLength(2);
       expect(frontendCalls).toHaveLength(2);
       expect(macAppCalls).toHaveLength(2);
     });
 
     it('should queue builds per target independently', async () => {
-      poltergeist = createPoltergeistWithDeps(harness.config, '/test/project', harness.deps, harness.logger);
+      poltergeist = createPoltergeistWithDeps(
+        harness.config,
+        '/test/project',
+        harness.deps,
+        harness.logger
+      );
       await startAndClearBuilds();
 
       const backendCallback = vi.mocked(harness.watchmanClient.subscribe).mock.calls[0]?.[3];
 
       // Make backend build slow
       let buildComplete: () => void;
-      vi.mocked(harness.builderFactory.builders.get('backend')!.build).mockImplementationOnce(() => 
-        new Promise(resolve => {
-          buildComplete = () => resolve({
-            status: 'success',
-            targetName: 'backend',
-            timestamp: new Date().toISOString(),
-            duration: 1000,
-          });
-        })
+      vi.mocked(harness.builderFactory.builders.get('backend')?.build).mockImplementationOnce(
+        () =>
+          new Promise((resolve) => {
+            buildComplete = () =>
+              resolve({
+                status: 'success',
+                targetName: 'backend',
+                timestamp: new Date().toISOString(),
+                duration: 1000,
+              });
+          })
       );
 
       // First change triggers build
@@ -430,7 +494,7 @@ describe('Multi-Target Integration Tests', () => {
       backendCallback([{ name: 'backend/file3.ts', exists: true, type: 'f' }]);
 
       // Complete first build
-      buildComplete!();
+      buildComplete?.();
       await Promise.resolve();
 
       // Wait for second build
@@ -457,15 +521,15 @@ describe('Multi-Target Integration Tests', () => {
             target: 'backend',
             targetType: 'executable',
             configPath: '/test/project/.poltergeist.json',
-            process: { 
-              pid: 1234, 
+            process: {
+              pid: 1234,
               hostname: 'test-host',
               platform: process.platform,
               arch: process.arch,
               nodeVersion: process.version,
               isActive: true,
               startTime: new Date().toISOString(),
-              lastHeartbeat: new Date().toISOString()
+              lastHeartbeat: new Date().toISOString(),
             },
             lastBuild: {
               status: 'success',
@@ -492,15 +556,15 @@ describe('Multi-Target Integration Tests', () => {
             target: 'frontend',
             targetType: 'executable',
             configPath: '/test/project/.poltergeist.json',
-            process: { 
-              pid: 1234, 
+            process: {
+              pid: 1234,
               hostname: 'test-host',
               platform: process.platform,
               arch: process.arch,
               nodeVersion: process.version,
               isActive: true,
               startTime: new Date().toISOString(),
-              lastHeartbeat: new Date().toISOString()
+              lastHeartbeat: new Date().toISOString(),
             },
             lastBuild: {
               status: 'failure',
@@ -525,7 +589,12 @@ describe('Multi-Target Integration Tests', () => {
         return Promise.resolve(null);
       });
 
-      poltergeist = createPoltergeistWithDeps(harness.config, '/test/project', harness.deps, harness.logger);
+      poltergeist = createPoltergeistWithDeps(
+        harness.config,
+        '/test/project',
+        harness.deps,
+        harness.logger
+      );
       await startAndClearBuilds();
 
       const status = await poltergeist.getStatus();
@@ -540,7 +609,12 @@ describe('Multi-Target Integration Tests', () => {
     });
 
     it('should report status for specific target', async () => {
-      poltergeist = createPoltergeistWithDeps(harness.config, '/test/project', harness.deps, harness.logger);
+      poltergeist = createPoltergeistWithDeps(
+        harness.config,
+        '/test/project',
+        harness.deps,
+        harness.logger
+      );
       await startAndClearBuilds();
 
       const status = await poltergeist.getStatus('frontend');

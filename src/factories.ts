@@ -1,12 +1,13 @@
 // Factory functions for easier testing and initialization
-import { Poltergeist } from './poltergeist.js';
-import { PoltergeistConfig } from './types.js';
-import { Logger, createLogger } from './logger.js';
-import { StateManager } from './state.js';
+
 import { BuilderFactory } from './builders/index.js';
-// import { BuildNotifier } from './notifier.js';
+import type { PoltergeistDependencies } from './interfaces.js';
+import { createLogger, type Logger } from './logger.js';
+import { BuildNotifier } from './notifier.js';
+import { Poltergeist } from './poltergeist.js';
+import { StateManager } from './state.js';
+import type { PoltergeistConfig } from './types.js';
 import { WatchmanClient } from './watchman.js';
-import { PoltergeistDependencies } from './interfaces.js';
 
 /**
  * Create a Poltergeist instance with default dependencies
@@ -52,11 +53,11 @@ export function createDefaultDependencies(
  * Create mock dependencies for testing
  */
 export function createMockDependencies(): PoltergeistDependencies {
-  const vi = (globalThis as any).vi;
+  const vi = (globalThis as { vi?: typeof import('vitest').vi }).vi;
   if (!vi) {
     throw new Error('This function requires Vitest. Import it in your test file.');
   }
-  
+
   return {
     stateManager: {
       initializeState: vi.fn().mockResolvedValue({}),
@@ -90,11 +91,14 @@ export function createMockDependencies(): PoltergeistDependencies {
       unsubscribe: vi.fn().mockResolvedValue(undefined),
       isConnected: vi.fn().mockReturnValue(true),
     },
-    notifier: {
-      notify: vi.fn().mockResolvedValue(undefined),
+    notifier: Object.assign(Object.create(BuildNotifier.prototype), {
+      config: { enabled: false },
+      notifyBuildStart: vi.fn().mockResolvedValue(undefined),
       notifyBuildComplete: vi.fn().mockResolvedValue(undefined),
       notifyBuildFailed: vi.fn().mockResolvedValue(undefined),
-    } as any,
+      notifyPoltergeistStarted: vi.fn().mockResolvedValue(undefined),
+      notifyPoltergeistStopped: vi.fn().mockResolvedValue(undefined),
+    }) as BuildNotifier,
   };
 }
 
@@ -114,7 +118,7 @@ export function createTestHarness(
   const logger = createLogger();
   const mocks = createMockDependencies();
   const poltergeist = createPoltergeistWithDeps(config, projectRoot, mocks, logger);
-  
+
   return {
     poltergeist,
     mocks: mocks as Required<PoltergeistDependencies>,

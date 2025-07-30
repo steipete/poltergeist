@@ -1,18 +1,21 @@
 // Tests for error recovery and resilience
-import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
-import { Poltergeist } from '../src/poltergeist.js';
-import { StateManager } from '../src/state.js';
-import { PoltergeistConfig, ExecutableTarget } from '../src/types.js';
-import { createPoltergeistWithDeps } from '../src/factories.js';
-import { 
-  createTestHarness, 
-  simulateFileChange, 
-  waitForAsync,
-  TestHarness
-} from './helpers.js';
-import { writeFileSync, mkdirSync, rmSync, existsSync } from 'fs';
-import { join } from 'path';
+
+import { existsSync, mkdirSync, rmSync, writeFileSync } from 'fs';
 import { tmpdir } from 'os';
+import { join } from 'path';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import type { BaseBuilder } from '../src/builders/index.js';
+import { createPoltergeistWithDeps } from '../src/factories.js';
+import type { IStateManager } from '../src/interfaces.js';
+import type { Poltergeist } from '../src/poltergeist.js';
+import { StateManager } from '../src/state.js';
+import type { ExecutableTarget } from '../src/types.js';
+import {
+  createTestHarness,
+  simulateFileChange,
+  type TestHarness,
+  waitForAsync,
+} from './helpers.js';
 
 // Mock child_process module
 vi.mock('child_process', () => ({
@@ -31,19 +34,21 @@ describe('Error Recovery and Resilience', () => {
     vi.useFakeTimers();
 
     // Create test directory
-    testDir = join(tmpdir(), 'poltergeist-error-test-' + Date.now());
+    testDir = join(tmpdir(), `poltergeist-error-test-${Date.now()}`);
     mkdirSync(testDir, { recursive: true });
 
     // Create test harness
     harness = createTestHarness({
-      targets: [{
-        name: 'test-target',
-        type: 'executable',
-        enabled: true,
-        buildCommand: 'npm run build',
-        outputPath: './dist',
-        watchPaths: ['src/**/*.ts'],
-      }],
+      targets: [
+        {
+          name: 'test-target',
+          type: 'executable',
+          enabled: true,
+          buildCommand: 'npm run build',
+          outputPath: './dist',
+          watchPaths: ['src/**/*.ts'],
+        },
+      ],
     });
 
     // Set test directory via environment variable
@@ -54,7 +59,7 @@ describe('Error Recovery and Resilience', () => {
   afterEach(() => {
     vi.useRealTimers();
     if (poltergeist) {
-      poltergeist['cleanup']();
+      poltergeist.cleanup();
     }
     delete process.env.POLTERGEIST_STATE_DIR;
     if (existsSync(testDir)) {
@@ -64,7 +69,12 @@ describe('Error Recovery and Resilience', () => {
 
   describe('Watchman Connection Recovery', () => {
     it('should handle watchman disconnection gracefully', async () => {
-      poltergeist = createPoltergeistWithDeps(harness.config, '/test/project', harness.deps, harness.logger);
+      poltergeist = createPoltergeistWithDeps(
+        harness.config,
+        '/test/project',
+        harness.deps,
+        harness.logger
+      );
       await poltergeist.start();
 
       // Verify initial connection
@@ -83,10 +93,17 @@ describe('Error Recovery and Resilience', () => {
 
     it('should handle watchman errors during operation', async () => {
       // Make watchman operations fail
-      vi.mocked(harness.watchmanClient.connect).mockRejectedValue(new Error('Watchman: command failed'));
+      vi.mocked(harness.watchmanClient.connect).mockRejectedValue(
+        new Error('Watchman: command failed')
+      );
 
-      poltergeist = createPoltergeistWithDeps(harness.config, '/test/project', harness.deps, harness.logger);
-      
+      poltergeist = createPoltergeistWithDeps(
+        harness.config,
+        '/test/project',
+        harness.deps,
+        harness.logger
+      );
+
       // Should fail to start due to watchman error
       await expect(poltergeist.start()).rejects.toThrow('Watchman: command failed');
     });
@@ -97,8 +114,13 @@ describe('Error Recovery and Resilience', () => {
         .mockRejectedValueOnce(new Error('Connection refused'))
         .mockResolvedValue(undefined);
 
-      poltergeist = createPoltergeistWithDeps(harness.config, '/test/project', harness.deps, harness.logger);
-      
+      poltergeist = createPoltergeistWithDeps(
+        harness.config,
+        '/test/project',
+        harness.deps,
+        harness.logger
+      );
+
       // Should fail on first attempt
       await expect(poltergeist.start()).rejects.toThrow('Connection refused');
     });
@@ -109,13 +131,18 @@ describe('Error Recovery and Resilience', () => {
       // Don't create a builder here - let the factory do it
       let buildCount = 0;
 
-      poltergeist = createPoltergeistWithDeps(harness.config, '/test/project', harness.deps, harness.logger);
+      poltergeist = createPoltergeistWithDeps(
+        harness.config,
+        '/test/project',
+        harness.deps,
+        harness.logger
+      );
       await poltergeist.start();
-      
+
       // Get the actual builder that was created
       const actualBuilder = harness.builderFactory.builders.get('test-target');
       console.log('Actual builder:', !!actualBuilder);
-      
+
       // Mock the actual builder's build method
       if (actualBuilder) {
         vi.mocked(actualBuilder.build).mockImplementation(() => {
@@ -141,46 +168,43 @@ describe('Error Recovery and Resilience', () => {
 
       // Ensure watchman subscription was created
       expect(harness.watchmanClient.subscribe).toHaveBeenCalled();
-      
+
       // Let's check what subscription was created
       const subscribeCall = vi.mocked(harness.watchmanClient.subscribe).mock.calls[0];
       console.log('Subscribe call:', subscribeCall);
-      
+
       // Get the callback function
       const watchCallback = subscribeCall[3];
       console.log('Callback type:', typeof watchCallback);
 
       // Wait for initial build
       await waitForAsync(100);
-      
+
       // Reset the build mock after initial build
       if (actualBuilder) vi.mocked(actualBuilder.build).mockClear();
 
       console.log('Simulating file change...');
-      
-      // Spy on buildTarget before triggering change
-      const buildTargetSpy = vi.spyOn(poltergeist as any, 'buildTarget');
-      
+
+      // We'll verify the build was called through the builder mock instead
+
       // Call the callback
       const callback = vi.mocked(harness.watchmanClient.subscribe).mock.calls[0][3];
       console.log('Calling callback...');
       callback([{ name: 'src/file1.ts', exists: true, type: 'f' }]);
-      
-      // Check if pending files were added
-      const targetState = poltergeist['targetStates'].get('test-target');
-      console.log('Pending files after callback:', targetState?.pendingFiles);
-      console.log('Build timer exists:', !!targetState?.buildTimer);
-      console.log('Builder in state:', !!targetState?.builder);
-      console.log('Builder is same as mocked:', targetState?.builder === actualBuilder);
-      
+
+      // We can't directly access private properties, but we can verify behavior
+      // by checking if the build was triggered after the settling delay
+
       // Try different timer approaches
       console.log('Running all timers...');
       await vi.runAllTimersAsync();
-      
-      console.log('Build calls:', actualBuilder ? vi.mocked(actualBuilder.build).mock.calls.length : 0);
-      console.log('buildTarget calls:', buildTargetSpy.mock.calls.length);
+
+      console.log(
+        'Build calls:',
+        actualBuilder ? vi.mocked(actualBuilder.build).mock.calls.length : 0
+      );
       console.log('Logger error calls:', vi.mocked(harness.logger.error).mock.calls);
-      
+
       expect(actualBuilder?.build).toHaveBeenCalled();
 
       // Second change - build succeeds
@@ -189,7 +213,7 @@ describe('Error Recovery and Resilience', () => {
       await vi.runAllTimersAsync();
 
       expect(actualBuilder?.build).toHaveBeenCalledTimes(2);
-      
+
       // Should recover and continue working normally
       if (actualBuilder) {
         const secondBuildResult = await vi.mocked(actualBuilder.build).mock.results[1].value;
@@ -198,16 +222,21 @@ describe('Error Recovery and Resilience', () => {
     });
 
     it('should handle builder crashes', async () => {
-      poltergeist = createPoltergeistWithDeps(harness.config, '/test/project', harness.deps, harness.logger);
+      poltergeist = createPoltergeistWithDeps(
+        harness.config,
+        '/test/project',
+        harness.deps,
+        harness.logger
+      );
       await poltergeist.start();
-      
+
       // Get the actual builder that was created
       const actualBuilder = harness.builderFactory.builders.get('test-target');
       expect(actualBuilder).toBeDefined();
 
       // Wait for initial build
       await waitForAsync(100);
-      
+
       // Reset the build mock after initial build and make it crash
       if (actualBuilder) {
         vi.mocked(actualBuilder.build).mockClear();
@@ -239,16 +268,21 @@ describe('Error Recovery and Resilience', () => {
     });
 
     it('should handle repeated build failures with backoff', async () => {
-      poltergeist = createPoltergeistWithDeps(harness.config, '/test/project', harness.deps, harness.logger);
+      poltergeist = createPoltergeistWithDeps(
+        harness.config,
+        '/test/project',
+        harness.deps,
+        harness.logger
+      );
       await poltergeist.start();
-      
+
       // Get the actual builder that was created
       const actualBuilder = harness.builderFactory.builders.get('test-target');
       expect(actualBuilder).toBeDefined();
 
       // Wait for initial build
       await waitForAsync(100);
-      
+
       // Reset build count after initial build and make all builds fail
       if (actualBuilder) {
         vi.mocked(actualBuilder.build).mockClear();
@@ -278,7 +312,7 @@ describe('Error Recovery and Resilience', () => {
   describe('State File Recovery', () => {
     it('should recover from corrupted state files', async () => {
       const target: ExecutableTarget = harness.config.targets[0] as ExecutableTarget;
-      
+
       // Create corrupted state file
       const statePath = join(testDir, 'test-project-abc123-test-target.state');
       writeFileSync(statePath, '{ corrupted json');
@@ -303,7 +337,7 @@ describe('Error Recovery and Resilience', () => {
 
       // Check if directory was recreated
       expect(existsSync(testDir)).toBe(true);
-      
+
       // Verify state was written
       const state = await stateManager.readState('test-target');
       expect(state).toBeDefined();
@@ -311,7 +345,7 @@ describe('Error Recovery and Resilience', () => {
 
     it('should handle concurrent state file access', async () => {
       const target: ExecutableTarget = harness.config.targets[0] as ExecutableTarget;
-      
+
       // Initialize state
       await stateManager.initializeState(target, 1234);
 
@@ -351,8 +385,13 @@ describe('Error Recovery and Resilience', () => {
 
       harness.config = { targets: manyTargets };
 
-      poltergeist = createPoltergeistWithDeps(harness.config, '/test/project', harness.deps, harness.logger);
-      
+      poltergeist = createPoltergeistWithDeps(
+        harness.config,
+        '/test/project',
+        harness.deps,
+        harness.logger
+      );
+
       // Should handle initialization
       await expect(poltergeist.start()).resolves.not.toThrow();
 
@@ -361,20 +400,25 @@ describe('Error Recovery and Resilience', () => {
     });
 
     it('should clean up resources on unexpected errors', async () => {
-      poltergeist = createPoltergeistWithDeps(harness.config, '/test/project', harness.deps, harness.logger);
+      poltergeist = createPoltergeistWithDeps(
+        harness.config,
+        '/test/project',
+        harness.deps,
+        harness.logger
+      );
       await poltergeist.start();
-      
+
       // Get the actual builder that was created
       const actualBuilder = harness.builderFactory.builders.get('test-target');
       expect(actualBuilder).toBeDefined();
 
       // Wait for initial build
       await waitForAsync(100);
-      
+
       // Reset the build mock after initial build
       if (actualBuilder) {
         vi.mocked(actualBuilder.build).mockClear();
-        
+
         // Force an error in the event handler
         vi.mocked(actualBuilder.build).mockImplementation(() => {
           throw new Error('Unexpected system error');
@@ -396,12 +440,17 @@ describe('Error Recovery and Resilience', () => {
 
   describe('Signal Handling Recovery', () => {
     it('should handle multiple rapid SIGINT signals', async () => {
-      poltergeist = createPoltergeistWithDeps(harness.config, '/test/project', harness.deps, harness.logger);
+      poltergeist = createPoltergeistWithDeps(
+        harness.config,
+        '/test/project',
+        harness.deps,
+        harness.logger
+      );
       await poltergeist.start();
 
       // Send multiple SIGINT signals rapidly
       for (let i = 0; i < 5; i++) {
-        process.emit('SIGINT' as any);
+        process.emit('SIGINT' as NodeJS.Signals);
         // Advance timers to let signal handler run
         await vi.runOnlyPendingTimersAsync();
       }
@@ -418,10 +467,18 @@ describe('Error Recovery and Resilience', () => {
       // Make cleanup slow
       let resolveDisconnect: () => void;
       harness.watchmanClient.disconnect.mockImplementation(
-        () => new Promise(resolve => { resolveDisconnect = resolve; })
+        () =>
+          new Promise((resolve) => {
+            resolveDisconnect = resolve;
+          })
       );
 
-      poltergeist = createPoltergeistWithDeps(harness.config, '/test/project', harness.deps, harness.logger);
+      poltergeist = createPoltergeistWithDeps(
+        harness.config,
+        '/test/project',
+        harness.deps,
+        harness.logger
+      );
       await poltergeist.start();
 
       // First SIGINT
@@ -435,7 +492,7 @@ describe('Error Recovery and Resilience', () => {
 
       // The current implementation doesn't handle double SIGINT specially
       // It will just call stop again
-      
+
       // Clean up
       if (resolveDisconnect) resolveDisconnect();
     });
@@ -444,24 +501,31 @@ describe('Error Recovery and Resilience', () => {
   describe('Configuration Error Recovery', () => {
     it('should handle invalid target harness.configuration gracefully', async () => {
       // Make builder creation fail for invalid target
-      const originalCreateBuilder = vi.mocked(harness.builderFactory.createBuilder).getMockImplementation();
+      const originalCreateBuilder = vi
+        .mocked(harness.builderFactory.createBuilder)
+        .getMockImplementation();
       vi.mocked(harness.builderFactory.createBuilder).mockImplementation((target) => {
         if (target.type === 'invalid-type') {
           throw new Error('Unknown target type: invalid-type');
         }
-        return originalCreateBuilder!(target);
+        return originalCreateBuilder?.(target);
       });
 
       harness.config.targets.push({
         name: 'invalid-target',
-        type: 'invalid-type' as any,
+        type: 'invalid-type' as 'executable',
         enabled: true,
         buildCommand: 'echo test',
         watchPaths: [],
       });
 
-      poltergeist = createPoltergeistWithDeps(harness.config, '/test/project', harness.deps, harness.logger);
-      
+      poltergeist = createPoltergeistWithDeps(
+        harness.config,
+        '/test/project',
+        harness.deps,
+        harness.logger
+      );
+
       // Should throw error for invalid target type
       await expect(poltergeist.start()).rejects.toThrow('Unknown target type: invalid-type');
     });
@@ -479,12 +543,22 @@ describe('Error Recovery and Resilience', () => {
           validate: vi.fn().mockRejectedValue(new Error('Invalid harness.configuration')),
           stop: vi.fn(),
           getOutputInfo: vi.fn().mockReturnValue(`Built ${target.name}`),
-        } as any;
+          target,
+          projectRoot: '/test/project',
+          logger: harness.logger,
+          stateManager: harness.deps.stateManager,
+          currentProcess: undefined,
+        } as BaseBuilder;
         return builder;
       });
 
-      poltergeist = createPoltergeistWithDeps(harness.config, '/test/project', harness.deps, harness.logger);
-      
+      poltergeist = createPoltergeistWithDeps(
+        harness.config,
+        '/test/project',
+        harness.deps,
+        harness.logger
+      );
+
       // Should throw validation error
       await expect(poltergeist.start()).rejects.toThrow('Invalid harness.configuration');
     });
@@ -492,26 +566,32 @@ describe('Error Recovery and Resilience', () => {
 
   describe('Long-running Process Recovery', () => {
     it('should maintain stability over extended periods', async () => {
-      poltergeist = createPoltergeistWithDeps(harness.config, '/test/project', harness.deps, harness.logger);
+      poltergeist = createPoltergeistWithDeps(
+        harness.config,
+        '/test/project',
+        harness.deps,
+        harness.logger
+      );
       await poltergeist.start();
-      
+
       // Get the actual builder that was created
       const actualBuilder = harness.builderFactory.builders.get('test-target');
       expect(actualBuilder).toBeDefined();
 
       // Wait for initial build
       await waitForAsync(100);
-      
+
       // Reset build call count after initial build
       if (actualBuilder) {
         vi.mocked(actualBuilder.build).mockClear();
       }
 
       // Simulate extended operation with periodic activity
-      for (let hour = 0; hour < 5; hour++) { // Reduced from 24 to 5 for test speed
+      for (let hour = 0; hour < 5; hour++) {
+        // Reduced from 24 to 5 for test speed
         // File changes every hour
         simulateFileChange(harness.watchmanClient, [`src/hourly-${hour}.ts`]);
-        
+
         // Advance past settling delay
         await vi.advanceTimersByTimeAsync(100);
         await vi.runAllTimersAsync();
@@ -542,10 +622,15 @@ describe('Error Recovery and Resilience', () => {
       };
 
       // Replace the state manager in harness deps
-      harness.deps.stateManager = mockStateManager as any;
+      harness.deps.stateManager = mockStateManager as IStateManager;
 
-      poltergeist = createPoltergeistWithDeps(harness.config, '/test/project', harness.deps, harness.logger);
-      
+      poltergeist = createPoltergeistWithDeps(
+        harness.config,
+        '/test/project',
+        harness.deps,
+        harness.logger
+      );
+
       // Should start despite heartbeat failure
       await expect(poltergeist.start()).resolves.not.toThrow();
 

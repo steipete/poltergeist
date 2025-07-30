@@ -1,7 +1,7 @@
 // Builder for app bundle targets (macOS, iOS apps)
 import { spawn } from 'child_process';
+import type { AppBundleTarget } from '../types.js';
 import { BaseBuilder } from './base-builder.js';
-import { AppBundleTarget } from '../types.js';
 
 export class AppBundleBuilder extends BaseBuilder<AppBundleTarget> {
   private isAppRunning = false;
@@ -23,7 +23,7 @@ export class AppBundleBuilder extends BaseBuilder<AppBundleTarget> {
     await this.stateManager.updateAppInfo(this.target.name, {
       bundleId: this.target.bundleId,
     });
-    
+
     if (this.target.autoRelaunch) {
       await this.relaunchApp();
     }
@@ -46,7 +46,7 @@ export class AppBundleBuilder extends BaseBuilder<AppBundleTarget> {
       if (this.isAppRunning) {
         await this.quitApp();
         // Wait a bit for the app to quit
-        await new Promise(resolve => setTimeout(resolve, 500));
+        await new Promise((resolve) => setTimeout(resolve, 500));
       }
 
       // Launch the app
@@ -61,12 +61,12 @@ export class AppBundleBuilder extends BaseBuilder<AppBundleTarget> {
   private async quitApp(): Promise<void> {
     return new Promise((resolve) => {
       const platform = this.target.platform || 'macos';
-      
+
       if (platform === 'macos') {
         // Use osascript to quit the app gracefully
         const quitProcess = spawn('osascript', [
           '-e',
-          `tell application id "${this.target.bundleId}" to quit`
+          `tell application id "${this.target.bundleId}" to quit`,
         ]);
 
         quitProcess.on('close', () => {
@@ -80,7 +80,9 @@ export class AppBundleBuilder extends BaseBuilder<AppBundleTarget> {
         });
       } else {
         // For iOS/tvOS/etc, we might use different commands
-        this.logger.warn(`[${this.target.name}] App quit not implemented for platform: ${platform}`);
+        this.logger.warn(
+          `[${this.target.name}] App quit not implemented for platform: ${platform}`
+        );
         resolve();
       }
     });
@@ -89,13 +91,13 @@ export class AppBundleBuilder extends BaseBuilder<AppBundleTarget> {
   private async launchApp(): Promise<void> {
     return new Promise((resolve, reject) => {
       const platform = this.target.platform || 'macos';
-      
+
       if (this.target.launchCommand) {
         // Use custom launch command
         const launchProcess = spawn(this.target.launchCommand, {
           shell: true,
           detached: true,
-          stdio: 'ignore'
+          stdio: 'ignore',
         });
 
         launchProcess.unref();
@@ -103,16 +105,13 @@ export class AppBundleBuilder extends BaseBuilder<AppBundleTarget> {
         resolve();
       } else if (platform === 'macos') {
         // Use open command for macOS
-        const launchProcess = spawn('open', [
-          '-b',
-          this.target.bundleId
-        ], {
+        const launchProcess = spawn('open', ['-b', this.target.bundleId], {
           detached: true,
-          stdio: 'ignore'
+          stdio: 'ignore',
         });
 
         launchProcess.unref();
-        
+
         launchProcess.on('error', (error) => {
           reject(new Error(`Failed to launch app: ${error.message}`));
         });
@@ -120,16 +119,18 @@ export class AppBundleBuilder extends BaseBuilder<AppBundleTarget> {
         // Give it a moment to start
         setTimeout(async () => {
           this.logger.info(`[${this.target.name}] App launched: ${this.target.bundleId}`);
-          
+
           // Update state to indicate app was launched
           await this.stateManager.updateAppInfo(this.target.name, {
             bundleId: this.target.bundleId,
           });
-          
+
           resolve();
         }, 100);
       } else {
-        this.logger.warn(`[${this.target.name}] App launch not implemented for platform: ${platform}`);
+        this.logger.warn(
+          `[${this.target.name}] App launch not implemented for platform: ${platform}`
+        );
         resolve();
       }
     });

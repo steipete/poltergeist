@@ -2,7 +2,14 @@
 import { z } from 'zod';
 
 // Target types
-export type TargetType = 'executable' | 'app-bundle' | 'library' | 'framework' | 'test' | 'docker' | 'custom';
+export type TargetType =
+  | 'executable'
+  | 'app-bundle'
+  | 'library'
+  | 'framework'
+  | 'test'
+  | 'docker'
+  | 'custom';
 
 // Base target interface
 export interface BaseTarget {
@@ -16,7 +23,7 @@ export interface BaseTarget {
   maxRetries?: number;
   backoffMultiplier?: number;
   debounceInterval?: number;
-  icon?: string;  // Path to icon file for notifications
+  icon?: string; // Path to icon file for notifications
 }
 
 // Executable target (CLI tools, binaries)
@@ -67,17 +74,17 @@ export interface DockerTarget extends BaseTarget {
 // Custom target (for extensibility)
 export interface CustomTarget extends BaseTarget {
   type: 'custom';
-  config: Record<string, any>;
+  config: Record<string, unknown>;
 }
 
 // Union type for all targets
-export type Target = 
-  | ExecutableTarget 
-  | AppBundleTarget 
-  | LibraryTarget 
-  | FrameworkTarget 
-  | TestTarget 
-  | DockerTarget 
+export type Target =
+  | ExecutableTarget
+  | AppBundleTarget
+  | LibraryTarget
+  | FrameworkTarget
+  | TestTarget
+  | DockerTarget
   | CustomTarget;
 
 // Configuration interface
@@ -168,18 +175,24 @@ export const TargetSchema = z.discriminatedUnion('type', [
 
 export const PoltergeistConfigSchema = z.object({
   targets: z.array(TargetSchema),
-  notifications: z.object({
-    enabled: z.boolean(),
-    successSound: z.string().optional(),
-    failureSound: z.string().optional(),
-  }).optional(),
-  logging: z.object({
-    file: z.string(),
-    level: z.enum(['debug', 'info', 'warn', 'error']),
-  }).optional(),
-  watchman: z.object({
-    settlingDelay: z.number().optional(),
-  }).optional(),
+  notifications: z
+    .object({
+      enabled: z.boolean(),
+      successSound: z.string().optional(),
+      failureSound: z.string().optional(),
+    })
+    .optional(),
+  logging: z
+    .object({
+      file: z.string(),
+      level: z.enum(['debug', 'info', 'warn', 'error']),
+    })
+    .optional(),
+  watchman: z
+    .object({
+      settlingDelay: z.number().optional(),
+    })
+    .optional(),
 });
 
 // Build status interface

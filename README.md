@@ -1,26 +1,38 @@
-# 👻 Poltergeist
+# Poltergeist
 
-> The ghost that keeps your projects fresh
+[![CI](https://github.com/steipete/poltergeist/actions/workflows/ci.yml/badge.svg)](https://github.com/steipete/poltergeist/actions/workflows/ci.yml)
+[![Node.js Version](https://img.shields.io/node/v/@steipete/poltergeist)](https://nodejs.org)
+[![npm version](https://img.shields.io/npm/v/@steipete/poltergeist)](https://www.npmjs.com/package/@steipete/poltergeist)
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 
-Poltergeist is a universal file watcher and auto-builder that supports any project type through a flexible target system. It watches your source files and automatically rebuilds when changes are detected.
+A universal file watcher and auto-builder that supports any project type through a flexible target system. Poltergeist monitors your source files and automatically rebuilds when changes are detected, supporting any language or build system.
 
 ## Features
 
-- 🎯 **Generic Target System** - Support for any build type (executables, apps, libraries, docker, etc.)
-- 👀 **Smart File Watching** - Powered by Facebook's Watchman for efficient file monitoring
-- 🔔 **Build Notifications** - macOS notifications for build success/failure
-- 🚀 **Fast Incremental Builds** - Only rebuild what changed
-- 🔒 **Concurrent Build Protection** - Lock files prevent overlapping builds
-- 📝 **Target-Specific Logging** - Clear logs showing which target is building
-- ⚡ **Optimized Watch Patterns** - Shared watchers for overlapping paths
+- **Universal Target System**: Support for any build type including executables, applications, libraries, Docker containers, and custom build processes
+- **Efficient File Watching**: Powered by Facebook's Watchman for high-performance file monitoring with minimal CPU usage
+- **Build Notifications**: Native macOS notifications for build status updates
+- **State Management**: Unified state system with process tracking, build history, and heartbeat monitoring
+- **Concurrent Build Protection**: Intelligent lock management prevents overlapping builds
+- **Multi-Target Support**: Build multiple targets simultaneously with independent configuration
+- **Environment Variables**: Full support for custom environment variables per target
+- **Cross-Platform**: Works on macOS, Linux, and Windows (with platform-specific features)
+
+## Requirements
+
+- Node.js 20.0.0 or higher
+- [Watchman](https://facebook.github.io/watchman/) (automatically installed as a dependency)
+- macOS for notification features (optional)
 
 ## Installation
+
+Install globally via npm:
 
 ```bash
 npm install -g @steipete/poltergeist
 ```
 
-Or use directly with npx:
+Or run directly using npx:
 
 ```bash
 npx @steipete/poltergeist haunt
@@ -39,7 +51,8 @@ npx @steipete/poltergeist haunt
       "enabled": true,
       "buildCommand": "npm run build",
       "outputPath": "./dist/app",
-      "watchPaths": ["src/**/*.ts", "src/**/*.js"]
+      "watchPaths": ["src/**/*.ts", "src/**/*.js"],
+      "settlingDelay": 100
     }
   ]
 }
@@ -53,170 +66,208 @@ poltergeist haunt
 
 ## Configuration
 
-### Target Types
+### Configuration File Structure
 
-Poltergeist supports multiple target types:
-
-- `executable` - CLI tools, binaries
-- `app-bundle` - macOS, iOS, tvOS, watchOS apps
-- `library` - Static or dynamic libraries
-- `framework` - Apple frameworks
-- `test` - Test suites
-- `docker` - Docker images
-- `custom` - Custom target types via plugins
-
-### Configuration Structure
+Poltergeist uses a JSON configuration file (`poltergeist.config.json`) to define build targets and global settings:
 
 ```json
 {
   "targets": [
     {
-      "name": "unique-target-name",
-      "type": "target-type",
+      "name": "target-name",
+      "type": "executable|app-bundle",
       "enabled": true,
-      "buildCommand": "command to build",
-      "watchPaths": ["patterns/**/*.ext"],
-      "statusFile": "/tmp/build-status.json",
-      "lockFile": "/tmp/build.lock",
-      "settlingDelay": 1000,
+      "buildCommand": "build command",
+      "watchPaths": ["glob/patterns/**/*.ext"],
+      "outputPath": "./path/to/output",
+      "settlingDelay": 100,
       "environment": {
-        "KEY": "value"
+        "ENV_VAR": "value"
       }
     }
   ],
   "notifications": {
     "enabled": true,
-    "successSound": "Glass",
-    "failureSound": "Basso",
     "buildStart": true,
-    "buildFailed": true,
     "buildSuccess": true,
-    "minInterval": 5000
-  },
-  "logging": {
-    "file": ".poltergeist.log",
-    "level": "info"
+    "buildFailed": true
   }
 }
 ```
 
-### Global Configuration
+### Target Configuration
 
-The global configuration options control Poltergeist's behavior across all targets:
+Each target supports the following properties:
 
-#### Notifications
-- `enabled`: Enable/disable all notifications
-- `successSound`: macOS sound for successful builds (e.g., "Glass", "Ping")
-- `failureSound`: macOS sound for failed builds (e.g., "Basso", "Funk")
-- `buildStart`: Show notification when build starts
-- `buildFailed`: Show notification when build fails
-- `buildSuccess`: Show notification when build succeeds
-- `minInterval`: Minimum milliseconds between notifications
+| Property | Type | Required | Description |
+|----------|------|----------|-------------|
+| `name` | string | Yes | Unique identifier for the target |
+| `type` | string | Yes | Target type: `executable` or `app-bundle` |
+| `enabled` | boolean | No | Whether the target is active (default: true) |
+| `buildCommand` | string | Yes | Command to execute for building |
+| `watchPaths` | string[] | Yes | Glob patterns for files to watch |
+| `outputPath` | string | No | Path to the build output |
+| `settlingDelay` | number | No | Milliseconds to wait before building after changes (default: 100) |
+| `environment` | object | No | Environment variables for the build process |
 
-#### Logging
-- `file`: Path to the log file
-- `level`: Log level (debug, info, warn, error)
+### Target Types
 
-### Target-Specific Options
+#### Executable Target
 
-#### Executable Targets
+For CLI tools, binaries, and general build processes:
+
 ```json
 {
   "type": "executable",
-  "outputPath": "./path/to/binary"
+  "buildCommand": "cargo build --release",
+  "outputPath": "./target/release/myapp"
 }
 ```
 
-#### App Bundle Targets
+#### App Bundle Target
+
+For macOS, iOS, and other Apple platform applications:
+
 ```json
 {
   "type": "app-bundle",
   "platform": "macos",
   "bundleId": "com.example.app",
-  "autoRelaunch": true,
-  "launchCommand": "open -b com.example.app"
+  "buildCommand": "xcodebuild -scheme MyApp",
+  "autoRelaunch": true
 }
 ```
 
-## CLI Commands
+Additional properties for app-bundle targets:
 
-```bash
-# Start watching (all enabled targets)
-poltergeist haunt
+| Property | Type | Description |
+|----------|------|-------------|
+| `platform` | string | Target platform: `macos`, `ios`, `tvos`, `watchos`, `visionos` |
+| `bundleId` | string | Application bundle identifier |
+| `autoRelaunch` | boolean | Automatically relaunch the app after building |
 
-# Watch specific target
-poltergeist haunt --target my-app
+### Global Configuration
 
-# Check status
-poltergeist status
-poltergeist status --target my-app
+Configure notifications and logging behavior:
 
-# Stop watching
-poltergeist stop
-
-# List all targets
-poltergeist list
-
-# View logs
-poltergeist logs
-poltergeist logs --follow
+```json
+{
+  "notifications": {
+    "enabled": true,
+    "buildStart": true,
+    "buildSuccess": true,
+    "buildFailed": true
+  }
+}
 ```
 
-## Real-World Example
+## Command Line Interface
 
-Here's how [Peekaboo](https://github.com/steipete/peekaboo) uses Poltergeist:
+### Commands
+
+| Command | Description |
+|---------|-------------|
+| `poltergeist haunt [options]` | Start watching and building |
+| `poltergeist stop [options]` | Stop all Poltergeist processes |
+| `poltergeist status [options]` | Display current build status |
+| `poltergeist list` | List all configured targets |
+| `poltergeist clean` | Remove stale state files |
+| `poltergeist logs [options]` | Display build logs |
+
+### Options
+
+#### haunt/start
+- `-t, --target <name>`: Build only a specific target
+- `-c, --config <path>`: Custom configuration file path
+- `-v, --verbose`: Enable verbose logging
+
+#### stop
+- `-t, --target <name>`: Stop only a specific target
+- `-a, --all`: Stop all targets across all projects
+
+#### status
+- `-t, --target <name>`: Show status for a specific target
+- `-v, --verbose`: Show detailed status information
+
+#### logs
+- `-t, --target <name>`: Show logs for a specific target
+- `-f, --follow`: Follow log output in real-time
+- `-n, --lines <number>`: Number of lines to display
+
+## State Management
+
+Poltergeist maintains state files in `/tmp/poltergeist/` with the following structure:
+
+- Process information with PID and hostname
+- Build status and history
+- Application metadata (for app-bundle targets)
+- Heartbeat monitoring for process health
+
+State files are automatically cleaned up when processes exit gracefully.
+
+## Examples
+
+### TypeScript/JavaScript Project
 
 ```json
 {
   "targets": [
     {
-      "name": "peekaboo-cli",
+      "name": "frontend",
       "type": "executable",
-      "enabled": true,
-      "buildCommand": "./scripts/build-swift-debug.sh",
-      "outputPath": "./peekaboo",
-      "watchPaths": [
-        "Core/PeekabooCore/**/*.swift",
-        "Core/AXorcist/**/*.swift",
-        "Apps/CLI/**/*.swift"
-      ]
+      "buildCommand": "npm run build",
+      "watchPaths": ["src/**/*.{ts,tsx,js,jsx}", "public/**/*"],
+      "outputPath": "./dist"
     },
     {
-      "name": "peekaboo-mac",
-      "type": "app-bundle",
-      "platform": "macos",
-      "enabled": true,
-      "buildCommand": "./scripts/build-mac-debug.sh",
-      "bundleId": "boo.peekaboo",
-      "autoRelaunch": true,
-      "watchPaths": [
-        "Apps/Mac/**/*.swift",
-        "Apps/Mac/**/*.storyboard",
-        "Core/**/*.swift"
-      ]
+      "name": "backend",
+      "type": "executable",
+      "buildCommand": "tsc && node dist/server.js",
+      "watchPaths": ["server/**/*.ts"],
+      "environment": {
+        "NODE_ENV": "development"
+      }
     }
   ]
 }
 ```
 
-## Migration from Old Format
+### Rust Project
 
-**⚠️ Breaking Change**: The old `cli` and `macApp` configuration format is no longer supported.
+```json
+{
+  "targets": [
+    {
+      "name": "rust-app",
+      "type": "executable",
+      "buildCommand": "cargo build --release",
+      "watchPaths": ["src/**/*.rs", "Cargo.toml"],
+      "outputPath": "./target/release/myapp"
+    }
+  ]
+}
+```
 
-See [MIGRATION.md](MIGRATION.md) for detailed migration instructions.
+### Xcode Project
 
-## Environment Variables
-
-- `POLTERGEIST_NOTIFICATIONS=false` - Disable build notifications
-- `POLTERGEIST_LOG_LEVEL=debug` - Override log level
-
-## Requirements
-
-- Node.js 16+
-- [Watchman](https://facebook.github.io/watchman/) (installed automatically via npm)
-- macOS (for notifications and app relaunching)
+```json
+{
+  "targets": [
+    {
+      "name": "ios-app",
+      "type": "app-bundle",
+      "platform": "ios",
+      "bundleId": "com.example.iosapp",
+      "buildCommand": "xcodebuild -scheme MyApp -sdk iphonesimulator",
+      "watchPaths": ["MyApp/**/*.swift", "MyApp/**/*.storyboard"]
+    }
+  ]
+}
+```
 
 ## Development
+
+### Building from Source
 
 ```bash
 # Clone the repository
@@ -226,26 +277,91 @@ cd poltergeist
 # Install dependencies
 npm install
 
-# Build
+# Build the project
 npm run build
 
 # Run tests
 npm test
 
-# Watch for changes
+# Development mode with auto-rebuild
 npm run dev
 ```
 
-## License
+### Project Structure
 
-MIT © Peter Steinberger
+```
+poltergeist/
+├── src/
+│   ├── builders/         # Build target implementations
+│   ├── cli.ts           # Command-line interface
+│   ├── config.ts        # Configuration management
+│   ├── poltergeist.ts   # Core application logic
+│   ├── state.ts         # State management
+│   └── watchman.ts      # File watching integration
+├── test/                # Test files
+├── dist/                # Compiled output
+└── poltergeist.config.json
+```
+
+### Testing
+
+The project uses Vitest for testing with comprehensive test coverage:
+
+```bash
+# Run all tests
+npm test
+
+# Run tests in watch mode
+npm run test:watch
+
+# Generate coverage report
+npm run test:coverage
+```
+
+### Code Quality
+
+The project uses Biome for linting and formatting:
+
+```bash
+# Run linter
+npm run lint
+
+# Fix linting issues
+npm run lint:fix
+
+# Format code
+npm run format
+
+# Type checking
+npm run typecheck
+```
 
 ## Contributing
 
-Contributions are welcome! Please read our [Contributing Guide](CONTRIBUTING.md) for details.
+Contributions are welcome! Please follow these guidelines:
+
+1. Fork the repository
+2. Create a feature branch (`git checkout -b feature/amazing-feature`)
+3. Commit your changes (`git commit -m 'Add amazing feature'`)
+4. Push to the branch (`git push origin feature/amazing-feature`)
+5. Open a Pull Request
+
+Please ensure:
+- All tests pass (`npm test`)
+- Code is properly formatted (`npm run format`)
+- Linting passes (`npm run lint`)
+- Type checking passes (`npm run typecheck`)
+
+## License
+
+This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
+
+## Author
+
+Created and maintained by [Peter Steinberger](https://github.com/steipete)
 
 ## Acknowledgments
 
 - Built with [Watchman](https://facebook.github.io/watchman/) for efficient file watching
-- Inspired by the need for a universal, flexible build watcher
-- Ghost emoji because why not 👻
+- Inspired by the need for a universal, language-agnostic build automation tool
+- Special thanks to all contributors and users who have helped improve Poltergeist

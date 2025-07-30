@@ -1,9 +1,8 @@
 // Base builder class for all target types
-import { spawn, ChildProcess } from 'child_process';
-import { execSync } from 'child_process';
-import { Logger } from '../logger.js';
-import { Target, BuildStatus } from '../types.js';
-import { StateManager } from '../state.js';
+import { type ChildProcess, execSync, spawn } from 'child_process';
+import type { Logger } from '../logger.js';
+import type { StateManager } from '../state.js';
+import type { BuildStatus, Target } from '../types.js';
 
 export abstract class BaseBuilder<T extends Target = Target> {
   protected target: T;
@@ -21,7 +20,7 @@ export abstract class BaseBuilder<T extends Target = Target> {
 
   public async build(changedFiles: string[]): Promise<BuildStatus> {
     this.logger.info(`[${this.target.name}] Building with ${changedFiles.length} changed file(s)`);
-    
+
     // Check if already building using state manager
     if (await this.stateManager.isLocked(this.target.name)) {
       this.logger.warn(`[${this.target.name}] Build already in progress, skipping`);
@@ -44,7 +43,7 @@ export abstract class BaseBuilder<T extends Target = Target> {
     try {
       // Initialize state for this target
       await this.stateManager.initializeState(this.target);
-      
+
       // Update build status to building
       await this.stateManager.updateBuildStatus(this.target.name, status);
 
@@ -61,9 +60,9 @@ export abstract class BaseBuilder<T extends Target = Target> {
       status.status = 'success';
       status.duration = Date.now() - startTime;
       status.buildTime = status.duration / 1000; // seconds
-      
+
       this.logger.info(`[${this.target.name}] Build completed in ${status.duration}ms`);
-      
+
       // Update app info if available
       const outputInfo = this.getOutputInfo();
       if (outputInfo) {
@@ -71,13 +70,13 @@ export abstract class BaseBuilder<T extends Target = Target> {
           outputPath: outputInfo,
         });
       }
-    } catch (error: any) {
+    } catch (error) {
       status.status = 'failure';
-      status.error = error.message;
-      status.errorSummary = this.extractErrorSummary(error.message);
+      status.error = error instanceof Error ? error.message : String(error);
+      status.errorSummary = this.extractErrorSummary(status.error);
       status.duration = Date.now() - startTime;
-      
-      this.logger.error(`[${this.target.name}] Build failed: ${error.message}`);
+
+      this.logger.error(`[${this.target.name}] Build failed: ${status.error}`);
     } finally {
       // Update final build status
       await this.stateManager.updateBuildStatus(this.target.name, status);
@@ -118,9 +117,9 @@ export abstract class BaseBuilder<T extends Target = Target> {
 
   protected getGitHash(): string {
     try {
-      return execSync('git rev-parse --short HEAD', { 
+      return execSync('git rev-parse --short HEAD', {
         cwd: this.projectRoot,
-        encoding: 'utf-8' 
+        encoding: 'utf-8',
       }).trim();
     } catch {
       return 'unknown';
@@ -135,7 +134,7 @@ export abstract class BaseBuilder<T extends Target = Target> {
   protected extractErrorSummary(error: string): string {
     // Extract the most relevant part of the error message
     const lines = error.split('\n');
-    
+
     // Look for common error patterns
     for (const line of lines) {
       // TypeScript errors
@@ -151,9 +150,9 @@ export abstract class BaseBuilder<T extends Target = Target> {
         return line.trim();
       }
     }
-    
+
     // Return first non-empty line if no specific pattern found
-    return lines.find(l => l.trim().length > 0)?.trim() || error.substring(0, 100);
+    return lines.find((l) => l.trim().length > 0)?.trim() || error.substring(0, 100);
   }
 
   public stop(): void {

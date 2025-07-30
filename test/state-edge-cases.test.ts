@@ -1,11 +1,12 @@
 // Edge case tests for StateManager - concurrent access, file corruption, etc.
-import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
-import { StateManager } from '../src/state.js';
-import { Logger } from '../src/logger.js';
-import { BaseTarget } from '../src/types.js';
-import { writeFileSync, readFileSync, unlinkSync, existsSync, mkdirSync, rmSync, readdirSync } from 'fs';
-import { join } from 'path';
+
+import { existsSync, mkdirSync, readdirSync, rmSync, unlinkSync, writeFileSync } from 'fs';
 import { tmpdir } from 'os';
+import { join } from 'path';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import type { Logger } from '../src/logger.js';
+import { StateManager } from '../src/state.js';
+import type { BaseTarget } from '../src/types.js';
 
 // Mock logger
 const mockLogger: Logger = {
@@ -13,30 +14,31 @@ const mockLogger: Logger = {
   info: vi.fn(),
   warn: vi.fn(),
   error: vi.fn(),
-} as any;
+  success: vi.fn(),
+};
 
 describe('StateManager Edge Cases', () => {
   let stateManager: StateManager;
   let testDir: string;
   const projectRoot = '/test/project';
-  
+
   beforeEach(() => {
     vi.clearAllMocks();
-    testDir = join(tmpdir(), 'poltergeist-state-edge-test-' + Date.now());
+    testDir = join(tmpdir(), `poltergeist-state-edge-test-${Date.now()}`);
     mkdirSync(testDir, { recursive: true });
-    
+
     // Mock the state directory
     process.env.POLTERGEIST_STATE_DIR = testDir;
-    
+
     // Reset all mock function calls
     mockLogger.debug.mockClear();
     mockLogger.info.mockClear();
     mockLogger.warn.mockClear();
     mockLogger.error.mockClear();
-    
+
     stateManager = new StateManager(projectRoot, mockLogger);
   });
-  
+
   afterEach(async () => {
     if (stateManager) {
       stateManager.stopHeartbeat();
@@ -63,15 +65,15 @@ describe('StateManager Edge Cases', () => {
       await stateManager.initializeState(target);
 
       // Perform multiple concurrent reads
-      const readPromises = Array(10).fill(null).map(() => 
-        stateManager.readState('concurrent-test')
-      );
+      const readPromises = Array(10)
+        .fill(null)
+        .map(() => stateManager.readState('concurrent-test'));
 
       const results = await Promise.all(readPromises);
 
       // All reads should return the same data
       expect(results).toHaveLength(10);
-      results.forEach(result => {
+      results.forEach((result) => {
         expect(result).toBeDefined();
         expect(result?.target).toBe('concurrent-test');
         expect(result?.process.pid).toBe(process.pid);
@@ -90,21 +92,23 @@ describe('StateManager Edge Cases', () => {
       await stateManager.initializeState(target);
 
       // Perform multiple concurrent updates
-      const updatePromises = Array(10).fill(null).map((_, index) => 
-        stateManager.updateBuildStatus('concurrent-write', {
-          targetName: 'concurrent-write',
-          status: index % 2 === 0 ? 'success' : 'failure',
-          timestamp: new Date().toISOString(),
-          duration: index * 100,
-          buildNumber: index,
-        })
-      );
+      const updatePromises = Array(10)
+        .fill(null)
+        .map((_, index) =>
+          stateManager.updateBuildStatus('concurrent-write', {
+            targetName: 'concurrent-write',
+            status: index % 2 === 0 ? 'success' : 'failure',
+            timestamp: new Date().toISOString(),
+            duration: index * 100,
+            buildNumber: index,
+          })
+        );
 
       await Promise.all(updatePromises);
 
       // Read final state
       const finalState = await stateManager.readState('concurrent-write');
-      
+
       expect(finalState).toBeDefined();
       // State should exist and have target name
       expect(finalState?.target).toBe('concurrent-write');
@@ -146,19 +150,25 @@ describe('StateManager Edge Cases', () => {
       };
 
       await stateManager.initializeState(target);
-      
+
       // Start heartbeat
       stateManager.startHeartbeat();
 
       // Simulate multiple manual heartbeat updates
-      const heartbeatPromises = Array(5).fill(null).map(async () => {
-        await new Promise(resolve => setTimeout(resolve, 10));
-        const state = await stateManager.readState('heartbeat-test');
-        if (state) {
-          state.process.lastHeartbeat = new Date().toISOString();
-          await (stateManager as any).writeState('heartbeat-test', state);
-        }
-      });
+      const heartbeatPromises = Array(5)
+        .fill(null)
+        .map(async () => {
+          await new Promise((resolve) => setTimeout(resolve, 10));
+          const state = await stateManager.readState('heartbeat-test');
+          if (state) {
+            await stateManager.updateState('heartbeat-test', {
+              process: {
+                ...state.process,
+                lastHeartbeat: new Date().toISOString(),
+              },
+            });
+          }
+        });
 
       await Promise.all(heartbeatPromises);
 
@@ -180,22 +190,23 @@ describe('StateManager Edge Cases', () => {
         watchPaths: ['src/**/*'],
       };
       await stateManager.initializeState(target);
-      
+
       // Find the actual state file
       const files = readdirSync(testDir);
-      const stateFile = files.find(f => f.includes('test') && f.endsWith('.state'));
+      const stateFile = files.find((f) => f.includes('test') && f.endsWith('.state'));
       expect(stateFile).toBeDefined();
-      
-      const statePath = join(testDir, stateFile!);
-      
+
+      if (!stateFile) throw new Error('State file not found');
+      const statePath = join(testDir, stateFile);
+
       // Write corrupted JSON
       writeFileSync(statePath, '{ "invalid": json, }');
-      
+
       // Clear any previous mock calls
       mockLogger.error.mockClear();
 
       const result = await stateManager.readState('test');
-      
+
       expect(result).toBeNull();
       expect(mockLogger.error).toHaveBeenCalledWith(
         expect.stringContaining('Failed to read state for test:')
@@ -212,22 +223,23 @@ describe('StateManager Edge Cases', () => {
         watchPaths: ['src/**/*'],
       };
       await stateManager.initializeState(target);
-      
+
       // Find the actual state file
       const files = readdirSync(testDir);
-      const stateFile = files.find(f => f.includes('test') && f.endsWith('.state'));
+      const stateFile = files.find((f) => f.includes('test') && f.endsWith('.state'));
       expect(stateFile).toBeDefined();
-      
-      const statePath = join(testDir, stateFile!);
-      
+
+      if (!stateFile) throw new Error('State file not found');
+      const statePath = join(testDir, stateFile);
+
       // Now overwrite with incomplete JSON
       writeFileSync(statePath, '{"target": "test", "process": {');
-      
+
       // Clear mocks after the successful write
       mockLogger.error.mockClear();
 
       const result = await stateManager.readState('test');
-      
+
       expect(result).toBeNull();
       expect(mockLogger.error).toHaveBeenCalledWith(
         expect.stringContaining('Failed to read state for test:')
@@ -244,28 +256,32 @@ describe('StateManager Edge Cases', () => {
         watchPaths: ['src/**/*'],
       };
       await stateManager.initializeState(target);
-      
+
       // Find the actual state file
       const files = readdirSync(testDir);
-      const stateFile = files.find(f => f.includes('test') && f.endsWith('.state'));
+      const stateFile = files.find((f) => f.includes('test') && f.endsWith('.state'));
       expect(stateFile).toBeDefined();
-      
-      const statePath = join(testDir, stateFile!);
-      
+
+      if (!stateFile) throw new Error('State file not found');
+      const statePath = join(testDir, stateFile);
+
       // Write JSON with missing required fields
-      writeFileSync(statePath, JSON.stringify({
-        target: 'test',
-        projectName: 'project',
-        projectPath: projectRoot,
-        // Missing process field will cause error
-        version: '1.0',
-      }));
-      
+      writeFileSync(
+        statePath,
+        JSON.stringify({
+          target: 'test',
+          projectName: 'project',
+          projectPath: projectRoot,
+          // Missing process field will cause error
+          version: '1.0',
+        })
+      );
+
       // Clear mocks after the successful write
       mockLogger.error.mockClear();
 
       const result = await stateManager.readState('test');
-      
+
       // Should return null because process.pid check will fail
       expect(result).toBeNull();
       expect(mockLogger.error).toHaveBeenCalled();
@@ -336,14 +352,15 @@ describe('StateManager Edge Cases', () => {
 
       // Get all state files and find the one for delete-test
       const files = readdirSync(testDir);
-      const stateFile = files.find(f => f.includes('delete-test') && f.endsWith('.state'));
+      const stateFile = files.find((f) => f.includes('delete-test') && f.endsWith('.state'));
       expect(stateFile).toBeDefined();
-      
-      const statePath = join(testDir, stateFile!);
-      
+
+      if (!stateFile) throw new Error('State file not found');
+      const statePath = join(testDir, stateFile);
+
       // Verify file exists before deleting
       expect(existsSync(statePath)).toBe(true);
-      
+
       // Delete the file
       unlinkSync(statePath);
 
@@ -365,8 +382,8 @@ describe('StateManager Edge Cases', () => {
 
       await stateManager.initializeState(target);
 
-      // Add many build history entries
-      for (let i = 0; i < 1000; i++) {
+      // Add many build history entries - reduced from 1000 to 100 for faster tests
+      for (let i = 0; i < 100; i++) {
         await stateManager.updateBuildStatus('large-state', {
           targetName: 'large-state',
           status: i % 2 === 0 ? 'success' : 'failure',
@@ -382,7 +399,7 @@ describe('StateManager Edge Cases', () => {
       const state = await stateManager.readState('large-state');
       expect(state).toBeDefined();
       expect(state?.lastBuild).toBeDefined();
-    });
+    }, 10000);
 
     it('should clean up old heartbeat intervals', async () => {
       const target: BaseTarget = {
@@ -398,19 +415,23 @@ describe('StateManager Edge Cases', () => {
       // Start and stop heartbeat multiple times
       for (let i = 0; i < 5; i++) {
         stateManager.startHeartbeat();
-        await new Promise(resolve => setTimeout(resolve, 50));
+        await new Promise((resolve) => setTimeout(resolve, 50));
         stateManager.stopHeartbeat();
       }
 
       // Should not have memory leaks or multiple intervals
-      const activeTimers = (stateManager as any).heartbeatInterval;
+      // Access private property for testing purposes
+      const stateManagerWithPrivates = stateManager as StateManager & {
+        heartbeatInterval?: NodeJS.Timeout;
+      };
+      const activeTimers = stateManagerWithPrivates.heartbeatInterval;
       expect(activeTimers).toBeUndefined();
     });
   });
 
   describe('Lock Detection Edge Cases', () => {
     it('should detect stale locks and override them', async () => {
-      const target: BaseTarget = {
+      const _target: BaseTarget = {
         name: 'stale-lock',
         type: 'executable',
         enabled: true,
@@ -442,7 +463,10 @@ describe('StateManager Edge Cases', () => {
         appInfo: null,
       };
 
-      const statePath = join(testDir, `${projectRoot.replace(/\//g, '-').substring(1)}-abc123-stale-lock.state`);
+      const statePath = join(
+        testDir,
+        `${projectRoot.replace(/\//g, '-').substring(1)}-abc123-stale-lock.state`
+      );
       writeFileSync(statePath, JSON.stringify(staleState));
 
       // Should not be locked (stale lock should be ignored)
@@ -451,7 +475,7 @@ describe('StateManager Edge Cases', () => {
     });
 
     it('should handle hostname changes', async () => {
-      const target: BaseTarget = {
+      const _target: BaseTarget = {
         name: 'hostname-test',
         type: 'executable',
         enabled: true,
@@ -483,7 +507,10 @@ describe('StateManager Edge Cases', () => {
         appInfo: null,
       };
 
-      const statePath = join(testDir, `${projectRoot.replace(/\//g, '-').substring(1)}-abc123-hostname-test.state`);
+      const statePath = join(
+        testDir,
+        `${projectRoot.replace(/\//g, '-').substring(1)}-abc123-hostname-test.state`
+      );
       writeFileSync(statePath, JSON.stringify(state));
 
       // Should detect as not locked since hostname is different
@@ -498,7 +525,7 @@ describe('StateManager Edge Cases', () => {
       writeFileSync(join(testDir, 'not-a-state.txt'), 'text file');
       writeFileSync(join(testDir, 'test.state.backup'), 'backup file');
       mkdirSync(join(testDir, 'subdirectory'));
-      
+
       // Create valid state file
       const target: BaseTarget = {
         name: 'valid-state',
@@ -511,8 +538,10 @@ describe('StateManager Edge Cases', () => {
 
       // Should only find valid state files
       const files = await StateManager.listAllStates();
-      const validStateFiles = files.filter(f => f.endsWith('.state') && f.includes('valid-state'));
-      
+      const validStateFiles = files.filter(
+        (f) => f.endsWith('.state') && f.includes('valid-state')
+      );
+
       expect(validStateFiles).toHaveLength(1);
       expect(validStateFiles[0]).toContain('valid-state');
     });

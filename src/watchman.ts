@@ -1,7 +1,8 @@
 // Updated Watchman client for generic target system
-import watchman from 'fb-watchman';
+
 import { EventEmitter } from 'events';
-import { Logger } from './logger.js';
+import watchman from 'fb-watchman';
+import type { Logger } from './logger.js';
 
 export interface FileChange {
   path: string;
@@ -12,15 +13,27 @@ export interface FileChange {
 }
 
 export interface WatchSubscription {
-  expression: any[];
+  expression: Array<string | Array<string>>;
   fields: string[];
   defer?: string[];
   drop?: string[];
   settle?: number;
 }
 
+// Custom type definition for fb-watchman client
+interface FBWatchmanClient {
+  capabilityCheck(
+    options: { optional: string[]; required: string[] },
+    callback: (error: Error | null, resp?: unknown) => void
+  ): void;
+  command(args: unknown[], callback: (error: Error | null, resp?: unknown) => void): void;
+  on(event: string, handler: (data: unknown) => void): this;
+  removeListener(event: string, handler: (data: unknown) => void): this;
+  end(): void;
+}
+
 export class WatchmanClient extends EventEmitter {
-  private client: watchman.Client;
+  private client: FBWatchmanClient;
   private watchRoot?: string;
   private logger: Logger;
   private subscriptions: Map<string, string> = new Map();
@@ -28,9 +41,9 @@ export class WatchmanClient extends EventEmitter {
   constructor(logger: Logger) {
     super();
     this.logger = logger;
-    this.client = new watchman.Client();
-    
-    this.client.on('error', (error) => {
+    this.client = new watchman.Client() as FBWatchmanClient;
+
+    this.client.on('error', (error: Error) => {
       this.logger.error('Watchman error:', error);
       this.emit('error', error);
     });
@@ -45,7 +58,7 @@ export class WatchmanClient extends EventEmitter {
     return new Promise((resolve, reject) => {
       this.client.capabilityCheck(
         { optional: [], required: ['relative_root'] },
-        (error) => {
+        (error: Error | null) => {
           if (error) {
             reject(new Error(`Watchman capability check failed: ${error.message}`));
           } else {
@@ -59,33 +72,37 @@ export class WatchmanClient extends EventEmitter {
 
   async watchProject(projectRoot: string): Promise<void> {
     return new Promise((resolve, reject) => {
-      this.client.command(['watch-project', projectRoot], (error: Error | null, resp: any) => {
-        if (error) {
-          reject(new Error(`Failed to watch project: ${error.message}`));
-          return;
+      this.client.command(
+        ['watch-project', projectRoot],
+        (error: Error | null, resp: { watch: string }) => {
+          if (error) {
+            reject(new Error(`Failed to watch project: ${error.message}`));
+            return;
+          }
+
+          this.watchRoot = resp.watch;
+          this.logger.info(`Watching project at: ${this.watchRoot}`);
+          resolve();
         }
-        
-        this.watchRoot = resp.watch;
-        this.logger.info(`Watching project at: ${this.watchRoot}`);
-        resolve();
-      });
+      );
     });
   }
 
   async subscribe(
     projectRoot: string,
     subscriptionName: string,
-    subscription: WatchSubscription,
-    callback: (files: FileChange[]) => void
+    subscription: { expression: Array<string | Array<string>>; fields: string[] },
+    callback: (files: Array<{ name: string; exists: boolean; type?: string }>) => void
   ): Promise<void> {
     if (!this.watchRoot) {
       throw new Error('No project is being watched');
     }
 
     this.logger.debug(`Creating subscription ${subscriptionName}`);
-    
+
     // Add common exclusions to the expression
-    const enhancedExpression = ['allof',
+    const enhancedExpression = [
+      'allof',
       subscription.expression,
       // Exclude common build directories
       ['not', ['match', '**/.build/**', 'wholename']],
@@ -101,16 +118,23 @@ export class WatchmanClient extends EventEmitter {
 
     return new Promise((resolve, reject) => {
       // Set up the subscription handler for this specific subscription
-      const handler = (resp: any) => {
+      const handler = (resp: {
+        subscription: string;
+        files: Array<{
+          name: string;
+          exists: boolean;
+          new?: boolean;
+          size?: number;
+          mode?: number;
+        }>;
+      }) => {
         if (resp.subscription === subscriptionName) {
-          const changes: FileChange[] = resp.files.map((file: any) => ({
-            path: file.name,
+          const changes = resp.files.map((file) => ({
+            name: file.name,
             exists: file.exists,
-            new: file.new,
-            size: file.size,
-            mode: file.mode,
+            type: file.new ? 'new' : undefined,
           }));
-          
+
           callback(changes);
         }
       };
@@ -120,8 +144,8 @@ export class WatchmanClient extends EventEmitter {
 
       // Create the subscription
       this.client.command(
-        ['subscribe', this.watchRoot, subscriptionName, enhancedSubscription] as any,
-        (error: Error | null, _resp: any) => {
+        ['subscribe', this.watchRoot, subscriptionName, enhancedSubscription],
+        (error: Error | null) => {
           if (error) {
             this.client.removeListener('subscription', handler);
             reject(new Error(`Failed to create subscription: ${error.message}`));
@@ -143,7 +167,7 @@ export class WatchmanClient extends EventEmitter {
 
     return new Promise((resolve) => {
       this.client.command(
-        ['unsubscribe', this.watchRoot, subscriptionName] as any,
+        ['unsubscribe', this.watchRoot, subscriptionName],
         (error: Error | null) => {
           if (error) {
             this.logger.warn(`Failed to unsubscribe ${subscriptionName}: ${error.message}`);
@@ -164,7 +188,7 @@ export class WatchmanClient extends EventEmitter {
     // Remove the watch
     if (this.watchRoot) {
       await new Promise<void>((resolve) => {
-        this.client.command(['watch-del', this.watchRoot] as any, () => {
+        this.client.command(['watch-del', this.watchRoot], () => {
           resolve();
         });
       });

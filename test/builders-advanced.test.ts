@@ -1,33 +1,40 @@
 // Advanced builder tests - timeout handling, large output, environment variables
-import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
-import { ExecutableBuilder, AppBundleBuilder } from '../src/builders/index.js';
-import { StateManager } from '../src/state.js';
-import { Logger } from '../src/logger.js';
-import { ExecutableTarget, AppBundleTarget } from '../src/types.js';
-import { spawn, ChildProcess } from 'child_process';
+
+import { spawn } from 'child_process';
 import { EventEmitter } from 'events';
 import { Readable } from 'stream';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import { ExecutableBuilder } from '../src/builders/index.js';
+import type { IStateManager } from '../src/interfaces.js';
+import type { Logger } from '../src/logger.js';
+import type { ExecutableTarget } from '../src/types.js';
 
 // Mock child process with stream support
 class MockChildProcess extends EventEmitter {
   stdout: Readable;
   stderr: Readable;
-  
+  stdin = {
+    write: vi.fn(),
+    end: vi.fn(),
+  };
+  pid = 12345;
+
   constructor() {
     super();
     this.stdout = new Readable({ read() {} });
     this.stderr = new Readable({ read() {} });
   }
-  
+
   kill(signal?: string) {
     this.emit('close', signal === 'SIGKILL' ? 137 : 143);
+    return true;
   }
 }
 
 // Mock modules
 vi.mock('child_process', () => ({
   spawn: vi.fn(),
-  execSync: vi.fn().mockReturnValue('abc123\n')
+  execSync: vi.fn().mockReturnValue('abc123\n'),
 }));
 
 vi.mock('../src/notifier.js');
@@ -44,7 +51,8 @@ const mockLogger: Logger = {
   info: vi.fn(),
   warn: vi.fn(),
   error: vi.fn(),
-} as any;
+  success: vi.fn(),
+};
 
 // Mock state manager
 const mockStateManager = {
@@ -52,14 +60,32 @@ const mockStateManager = {
   updateAppInfo: vi.fn(),
   readState: vi.fn(),
   isLocked: vi.fn().mockResolvedValue(false),
-  initializeState: vi.fn().mockResolvedValue({}),
-} as any;
+  initializeState: vi.fn().mockResolvedValue({
+    target: 'test',
+    projectName: 'test-project',
+    projectRoot: '/test/project',
+    process: {
+      pid: process.pid,
+      hostname: 'test-host',
+      isActive: true,
+      lastHeartbeat: new Date().toISOString(),
+    },
+    lastBuild: null,
+    buildHistory: [],
+  }),
+  updateState: vi.fn(),
+  removeState: vi.fn(),
+  discoverStates: vi.fn(),
+  startHeartbeat: vi.fn(),
+  stopHeartbeat: vi.fn(),
+  cleanup: vi.fn(),
+} as IStateManager;
 
 describe('Advanced Builder Tests', () => {
   beforeEach(() => {
     vi.clearAllMocks();
   });
-  
+
   afterEach(() => {
     vi.useRealTimers();
   });
@@ -84,24 +110,19 @@ describe('Advanced Builder Tests', () => {
         },
       };
 
-      const builder = new ExecutableBuilder(
-        target,
-        '/test/project',
-        mockLogger,
-        mockStateManager
-      );
+      const builder = new ExecutableBuilder(target, '/test/project', mockLogger, mockStateManager);
 
       const mockProcess = new MockChildProcess();
-      vi.mocked(spawn).mockReturnValue(mockProcess as any);
+      vi.mocked(spawn).mockReturnValue(mockProcess as ReturnType<typeof spawn>);
 
       // Start the build
       const buildPromise = builder.build([]);
-      
+
       // Emit close event to complete the build
       setImmediate(() => {
         mockProcess.emit('close', 0);
       });
-      
+
       // Wait for build to complete
       await buildPromise;
 
@@ -134,24 +155,19 @@ describe('Advanced Builder Tests', () => {
         },
       };
 
-      const builder = new ExecutableBuilder(
-        target,
-        '/test/project',
-        mockLogger,
-        mockStateManager
-      );
+      const builder = new ExecutableBuilder(target, '/test/project', mockLogger, mockStateManager);
 
       const mockProcess = new MockChildProcess();
-      vi.mocked(spawn).mockReturnValue(mockProcess as any);
+      vi.mocked(spawn).mockReturnValue(mockProcess as ReturnType<typeof spawn>);
 
       // Start the build
       const buildPromise = builder.build([]);
-      
+
       // Emit close event to complete the build
       setImmediate(() => {
         mockProcess.emit('close', 0);
       });
-      
+
       // Wait for build to complete
       await buildPromise;
 
@@ -186,24 +202,19 @@ describe('Advanced Builder Tests', () => {
         },
       };
 
-      const builder = new ExecutableBuilder(
-        target,
-        '/test/project',
-        mockLogger,
-        mockStateManager
-      );
+      const builder = new ExecutableBuilder(target, '/test/project', mockLogger, mockStateManager);
 
       const mockProcess = new MockChildProcess();
-      vi.mocked(spawn).mockReturnValue(mockProcess as any);
+      vi.mocked(spawn).mockReturnValue(mockProcess as ReturnType<typeof spawn>);
 
       // Start the build
       const buildPromise = builder.build([]);
-      
+
       // Emit close event to complete the build
       setImmediate(() => {
         mockProcess.emit('close', 0);
       });
-      
+
       // Wait for build to complete
       await buildPromise;
 
@@ -234,31 +245,26 @@ describe('Advanced Builder Tests', () => {
         watchPaths: ['src/**/*'],
         environment: {
           'SPECIAL-VAR': 'value-with-dash',
-          'VAR_WITH_UNDERSCORE': 'underscore_value',
-          'PATH_ADDITION': '/custom/path:$PATH',
-          'QUOTED_VAR': '"quoted value"',
-          'EMPTY_VAR': '',
+          VAR_WITH_UNDERSCORE: 'underscore_value',
+          PATH_ADDITION: '/custom/path:$PATH',
+          QUOTED_VAR: '"quoted value"',
+          EMPTY_VAR: '',
         },
       };
 
-      const builder = new ExecutableBuilder(
-        target,
-        '/test/project',
-        mockLogger,
-        mockStateManager
-      );
+      const builder = new ExecutableBuilder(target, '/test/project', mockLogger, mockStateManager);
 
       const mockProcess = new MockChildProcess();
-      vi.mocked(spawn).mockReturnValue(mockProcess as any);
+      vi.mocked(spawn).mockReturnValue(mockProcess as ReturnType<typeof spawn>);
 
       // Start the build
       const buildPromise = builder.build([]);
-      
+
       // Emit close event to complete the build
       setImmediate(() => {
         mockProcess.emit('close', 0);
       });
-      
+
       // Wait for build to complete
       await buildPromise;
 
@@ -268,10 +274,10 @@ describe('Advanced Builder Tests', () => {
           cwd: '/test/project',
           env: expect.objectContaining({
             'SPECIAL-VAR': 'value-with-dash',
-            'VAR_WITH_UNDERSCORE': 'underscore_value',
-            'PATH_ADDITION': '/custom/path:$PATH',
-            'QUOTED_VAR': '"quoted value"',
-            'EMPTY_VAR': '',
+            VAR_WITH_UNDERSCORE: 'underscore_value',
+            PATH_ADDITION: '/custom/path:$PATH',
+            QUOTED_VAR: '"quoted value"',
+            EMPTY_VAR: '',
           }),
           shell: true,
           stdio: 'inherit',
@@ -291,15 +297,10 @@ describe('Advanced Builder Tests', () => {
         watchPaths: ['src/**/*'],
       };
 
-      const builder = new ExecutableBuilder(
-        target,
-        '/test/project',
-        mockLogger,
-        mockStateManager
-      );
+      const builder = new ExecutableBuilder(target, '/test/project', mockLogger, mockStateManager);
 
       const mockProcess = new MockChildProcess();
-      vi.mocked(spawn).mockReturnValue(mockProcess as any);
+      vi.mocked(spawn).mockReturnValue(mockProcess as ReturnType<typeof spawn>);
 
       // Start the build
       const buildPromise = builder.build([]);
@@ -325,15 +326,10 @@ describe('Advanced Builder Tests', () => {
         watchPaths: ['src/**/*'],
       };
 
-      const builder = new ExecutableBuilder(
-        target,
-        '/test/project',
-        mockLogger,
-        mockStateManager
-      );
+      const builder = new ExecutableBuilder(target, '/test/project', mockLogger, mockStateManager);
 
       const mockProcess = new MockChildProcess();
-      vi.mocked(spawn).mockReturnValue(mockProcess as any);
+      vi.mocked(spawn).mockReturnValue(mockProcess as ReturnType<typeof spawn>);
 
       // Start the build
       const buildPromise = builder.build([]);

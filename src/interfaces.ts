@@ -1,9 +1,10 @@
 // Interfaces for dependency injection and better testability
-import { Target, BuildStatus } from './types.js';
-import { Logger } from './logger.js';
-import { BuildNotifier } from './notifier.js';
-import { BaseBuilder } from './builders/index.js';
-import { PoltergeistState } from './state.js';
+
+import type { BaseBuilder } from './builders/index.js';
+import type { Logger } from './logger.js';
+import type { BuildNotifier } from './notifier.js';
+import type { PoltergeistState } from './state.js';
+import type { BuildStatus, Target } from './types.js';
 
 /**
  * Interface for Watchman client operations
@@ -16,10 +17,10 @@ export interface IWatchmanClient {
     root: string,
     name: string,
     config: {
-      expression: any[];
+      expression: Array<string | Array<string>>;
       fields: string[];
     },
-    callback: (files: any[]) => void
+    callback: (files: Array<{ name: string; exists: boolean; type?: string }>) => void
   ): Promise<void>;
   unsubscribe(subscriptionName: string): Promise<void>;
   isConnected(): boolean;
@@ -49,7 +50,7 @@ export interface IBuilderFactory {
     target: Target,
     projectRoot: string,
     logger: Logger,
-    stateManager?: any
+    stateManager?: IStateManager
   ): BaseBuilder;
 }
 

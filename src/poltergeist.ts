@@ -1,16 +1,17 @@
 // Core Poltergeist class with unified state management
-import { PoltergeistConfig, Target, BuildStatus } from './types.js';
-import { Logger, createLogger } from './logger.js';
-import { WatchmanClient } from './watchman.js';
-import { BaseBuilder } from './builders/index.js';
-import { BuildNotifier } from './notifier.js';
-import { StateManager, PoltergeistState } from './state.js';
-import { 
-  IWatchmanClient, 
-  IStateManager, 
-  IBuilderFactory, 
-  PoltergeistDependencies 
+
+import type { BaseBuilder } from './builders/index.js';
+import type {
+  IBuilderFactory,
+  IStateManager,
+  IWatchmanClient,
+  PoltergeistDependencies,
 } from './interfaces.js';
+import { createLogger, type Logger } from './logger.js';
+import { BuildNotifier } from './notifier.js';
+import { type PoltergeistState, StateManager } from './state.js';
+import type { BuildStatus, PoltergeistConfig, Target } from './types.js';
+import { WatchmanClient } from './watchman.js';
 
 interface TargetState {
   target: Target;
@@ -33,18 +34,18 @@ export class Poltergeist {
   private isRunning = false;
 
   constructor(
-    config: PoltergeistConfig, 
-    projectRoot: string, 
+    config: PoltergeistConfig,
+    projectRoot: string,
     logger: Logger,
     deps: PoltergeistDependencies
   ) {
     this.config = config;
     this.projectRoot = projectRoot;
     this.logger = logger;
-    
+
     // Use injected dependencies
-    this.stateManager = deps.stateManager!;
-    this.builderFactory = deps.builderFactory!;
+    this.stateManager = deps.stateManager;
+    this.builderFactory = deps.builderFactory;
     this.notifier = deps.notifier;
     this.watchman = deps.watchmanClient;
   }
@@ -62,9 +63,7 @@ export class Poltergeist {
 
     // Initialize notifier if enabled and not already injected
     if (this.config.notifications?.enabled && !this.notifier) {
-      this.notifier = new BuildNotifier(
-        this.config.notifications
-      );
+      this.notifier = new BuildNotifier(this.config.notifications);
     }
 
     // Determine which targets to build
@@ -77,9 +76,14 @@ export class Poltergeist {
 
     // Initialize target states
     for (const target of targetsToWatch) {
-      const builder = this.builderFactory.createBuilder(target, this.projectRoot, this.logger, this.stateManager);
+      const builder = this.builderFactory.createBuilder(
+        target,
+        this.projectRoot,
+        this.logger,
+        this.stateManager
+      );
       await builder.validate();
-      
+
       this.targetStates.set(target.name, {
         target,
         builder,
@@ -95,10 +99,10 @@ export class Poltergeist {
     if (!this.watchman) {
       this.watchman = new WatchmanClient(this.logger);
     }
-    await this.watchman.connect();
-    
+    await this.watchman?.connect();
+
     // Watch the project
-    await this.watchman.watchProject(this.projectRoot);
+    await this.watchman?.watchProject(this.projectRoot);
 
     // Subscribe to file changes for each target
     await this.subscribeToChanges();
@@ -116,7 +120,7 @@ export class Poltergeist {
 
   private getTargetsToWatch(targetName?: string): Target[] {
     if (targetName) {
-      const target = this.config.targets.find(t => t.name === targetName);
+      const target = this.config.targets.find((t) => t.name === targetName);
       if (!target) {
         throw new Error(`Target '${targetName}' not found`);
       }
@@ -127,7 +131,7 @@ export class Poltergeist {
     }
 
     // Return all enabled targets
-    return this.config.targets.filter(t => t.enabled);
+    return this.config.targets.filter((t) => t.enabled);
   }
 
   private async subscribeToChanges(): Promise<void> {
@@ -135,20 +139,20 @@ export class Poltergeist {
 
     // Group targets by their watch paths to optimize subscriptions
     const pathToTargets = new Map<string, Set<string>>();
-    
+
     for (const [name, state] of this.targetStates) {
       for (const pattern of state.target.watchPaths) {
         if (!pathToTargets.has(pattern)) {
           pathToTargets.set(pattern, new Set());
         }
-        pathToTargets.get(pattern)!.add(name);
+        pathToTargets.get(pattern)?.add(name);
       }
     }
 
     // Create subscriptions
     for (const [pattern, targetNames] of pathToTargets) {
       const subscriptionName = `poltergeist_${pattern.replace(/[^a-zA-Z0-9]/g, '_')}`;
-      
+
       await this.watchman.subscribe(
         this.projectRoot,
         subscriptionName,
@@ -165,10 +169,11 @@ export class Poltergeist {
     }
   }
 
-  private handleFileChanges(files: any[], targetNames: string[]): void {
-    const changedFiles = files
-      .filter(f => f.exists && f.type === 'f')
-      .map(f => f.name);
+  private handleFileChanges(
+    files: Array<{ name: string; exists: boolean; type?: string }>,
+    targetNames: string[]
+  ): void {
+    const changedFiles = files.filter((f) => f.exists && f.type === 'f').map((f) => f.name);
 
     if (changedFiles.length === 0) return;
 
@@ -189,9 +194,7 @@ export class Poltergeist {
       }
 
       // Set new timer with settling delay
-      const delay = state.target.settlingDelay || 
-                   this.config.watchman?.settlingDelay || 
-                   1000;
+      const delay = state.target.settlingDelay || this.config.watchman?.settlingDelay || 1000;
 
       state.buildTimer = setTimeout(() => {
         this.buildTarget(targetName);
@@ -237,10 +240,10 @@ export class Poltergeist {
         if (status.status === 'success') {
           const duration = status.duration ? `${(status.duration / 1000).toFixed(1)}s` : '';
           const outputInfo = state.builder.getOutputInfo();
-          const message = outputInfo 
+          const message = outputInfo
             ? `Built: ${outputInfo}${duration ? ` in ${duration}` : ''}`
             : `Build completed${duration ? ` in ${duration}` : ''}`;
-            
+
           await this.notifier.notifyBuildComplete(
             `${targetName} Built`,
             message,
@@ -254,13 +257,14 @@ export class Poltergeist {
           );
         }
       }
-    } catch (error: any) {
-      this.logger.error(`[${targetName}] Build error: ${error.message}`);
-      
+    } catch (error) {
+      const errorMessage = error instanceof Error ? error.message : String(error);
+      this.logger.error(`[${targetName}] Build error: ${errorMessage}`);
+
       if (this.notifier) {
         await this.notifier.notifyBuildFailed(
           `${targetName} Error`,
-          error.message,
+          errorMessage,
           state.target.icon
         );
       }
@@ -304,13 +308,13 @@ export class Poltergeist {
     await this.stateManager.cleanup();
   }
 
-  public async getStatus(targetName?: string): Promise<Record<string, any>> {
-    const status: Record<string, any> = {};
+  public async getStatus(targetName?: string): Promise<Record<string, unknown>> {
+    const status: Record<string, unknown> = {};
 
     if (targetName) {
       const state = this.targetStates.get(targetName);
       const stateFile = await this.stateManager.readState(targetName);
-      
+
       if (state && stateFile) {
         status[targetName] = {
           status: state.watching ? 'watching' : 'idle',
@@ -334,7 +338,7 @@ export class Poltergeist {
       for (const target of this.config.targets) {
         const state = this.targetStates.get(target.name);
         const stateFile = await this.stateManager.readState(target.name);
-        
+
         if (state && stateFile) {
           status[target.name] = {
             status: state.watching ? 'watching' : 'idle',
@@ -373,7 +377,7 @@ export class Poltergeist {
   public static async listAllStates(): Promise<PoltergeistState[]> {
     const stateFiles = await StateManager.listAllStates();
     const states: PoltergeistState[] = [];
-    
+
     for (const file of stateFiles) {
       try {
         const stateManager = new StateManager('/', createLogger());
@@ -386,7 +390,7 @@ export class Poltergeist {
         // Ignore invalid state files
       }
     }
-    
+
     return states;
   }
 }

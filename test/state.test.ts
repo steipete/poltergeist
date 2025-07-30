@@ -1,10 +1,11 @@
 // Tests for unified state management
-import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
-import { StateManager } from '../src/state.js';
-import { Logger } from '../src/logger.js';
-import { BaseTarget } from '../src/types.js';
+
 import { existsSync, rmSync } from 'fs';
 import { join } from 'path';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import type { Logger } from '../src/logger.js';
+import { StateManager } from '../src/state.js';
+import type { BaseTarget } from '../src/types.js';
 
 // Mock logger
 const mockLogger: Logger = {
@@ -12,7 +13,8 @@ const mockLogger: Logger = {
   info: vi.fn(),
   warn: vi.fn(),
   error: vi.fn(),
-} as any;
+  success: vi.fn(),
+};
 
 describe('StateManager', () => {
   const projectRoot = '/Users/test/Projects/test-app';
@@ -38,18 +40,18 @@ describe('StateManager', () => {
 
   describe('State File Naming', () => {
     it('should generate unique state file names', () => {
-      const fileName1 = stateManager['getStateFileName']('cli');
-      const fileName2 = stateManager['getStateFileName']('macApp');
-      
+      const fileName1 = stateManager.getStateFileName('cli');
+      const fileName2 = stateManager.getStateFileName('macApp');
+
       expect(fileName1).toMatch(/^test-app-[a-f0-9]{8}-cli\.state$/);
       expect(fileName2).toMatch(/^test-app-[a-f0-9]{8}-macApp\.state$/);
       expect(fileName1).not.toBe(fileName2);
     });
 
     it('should use consistent hash for same project', () => {
-      const fileName1 = stateManager['getStateFileName']('cli');
-      const fileName2 = stateManager['getStateFileName']('cli');
-      
+      const fileName1 = stateManager.getStateFileName('cli');
+      const fileName2 = stateManager.getStateFileName('cli');
+
       expect(fileName1).toBe(fileName2);
     });
   });
@@ -87,8 +89,8 @@ describe('StateManager', () => {
       };
 
       await stateManager.initializeState(target);
-      
-      const stateFile = stateManager['getStateFilePath']('cli');
+
+      const stateFile = stateManager.getStateFilePath('cli');
       expect(existsSync(stateFile)).toBe(true);
     });
   });
@@ -104,7 +106,7 @@ describe('StateManager', () => {
       };
 
       await stateManager.initializeState(target);
-      
+
       const buildStatus = {
         targetName: 'cli',
         status: 'success' as const,
@@ -114,7 +116,7 @@ describe('StateManager', () => {
       };
 
       await stateManager.updateBuildStatus('cli', buildStatus);
-      
+
       const state = await stateManager.readState('cli');
       expect(state?.lastBuild).toEqual(buildStatus);
     });
@@ -131,7 +133,7 @@ describe('StateManager', () => {
       };
 
       await stateManager.initializeState(target);
-      
+
       const isLocked = await stateManager.isLocked('cli');
       expect(isLocked).toBe(false);
     });
@@ -146,12 +148,12 @@ describe('StateManager', () => {
       };
 
       const state = await stateManager.initializeState(target);
-      
+
       // Manually make the heartbeat old
       state.process.lastHeartbeat = new Date(Date.now() - 10 * 60 * 1000).toISOString();
       state.process.pid = 99999; // Different PID
-      await stateManager['writeState']('cli');
-      
+      await stateManager.writeState('cli');
+
       const isLocked = await stateManager.isLocked('cli');
       expect(isLocked).toBe(false);
     });
@@ -173,10 +175,10 @@ describe('StateManager', () => {
 
       // Start heartbeat
       stateManager.startHeartbeat();
-      
+
       // Force a state write which updates heartbeat
-      await new Promise(resolve => setTimeout(resolve, 50));
-      
+      await new Promise((resolve) => setTimeout(resolve, 50));
+
       // Manually trigger a write to update heartbeat
       await stateManager.updateBuildStatus('cli', {
         targetName: 'cli',
@@ -187,7 +189,7 @@ describe('StateManager', () => {
 
       const updatedState = await stateManager.readState('cli');
       const updatedHeartbeat = updatedState?.process.lastHeartbeat;
-      
+
       expect(updatedHeartbeat).not.toBe(initialHeartbeat);
       stateManager.stopHeartbeat();
     });
@@ -205,7 +207,7 @@ describe('StateManager', () => {
 
       await stateManager.initializeState(target);
       await stateManager.cleanup();
-      
+
       const state = await stateManager.readState('cli');
       expect(state?.process.isActive).toBe(false);
     });
@@ -220,10 +222,10 @@ describe('StateManager', () => {
       };
 
       await stateManager.initializeState(target);
-      const stateFile = stateManager['getStateFilePath']('cli');
-      
+      const stateFile = stateManager.getStateFilePath('cli');
+
       await stateManager.removeState('cli');
-      
+
       expect(existsSync(stateFile)).toBe(false);
     });
   });
@@ -239,10 +241,10 @@ describe('StateManager', () => {
       };
 
       await stateManager.initializeState(target);
-      
+
       const stateFiles = await StateManager.listAllStates();
-      const testAppStates = stateFiles.filter(f => f.includes('test-app'));
-      
+      const testAppStates = stateFiles.filter((f) => f.includes('test-app'));
+
       expect(testAppStates.length).toBeGreaterThan(0);
       expect(testAppStates[0]).toMatch(/test-app-.*-cli\.state/);
     });

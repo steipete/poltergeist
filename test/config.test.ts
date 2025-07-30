@@ -1,11 +1,11 @@
 // Comprehensive tests for configuration loading and validation
-import { describe, it, expect, beforeEach, vi } from 'vitest';
-import { ConfigLoader, ConfigurationError, migrateOldConfig } from '../src/config.js';
-import { resolve, dirname } from 'path';
-import { fileURLToPath } from 'url';
-import { writeFileSync, unlinkSync, mkdirSync, rmSync } from 'fs';
+
+import { mkdirSync, rmSync, writeFileSync } from 'fs';
 import { tmpdir } from 'os';
-import { join } from 'path';
+import { dirname, join } from 'path';
+import { fileURLToPath } from 'url';
+import { beforeEach, describe, expect, it } from 'vitest';
+import { ConfigLoader, ConfigurationError, migrateOldConfig } from '../src/config.js';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
@@ -25,7 +25,7 @@ describe('ConfigLoader', () => {
     // Clean up temp directory
     try {
       rmSync(tempDir, { recursive: true, force: true });
-    } catch (e) {
+    } catch (_e) {
       // Ignore cleanup errors
     }
   });
@@ -112,7 +112,7 @@ describe('ConfigLoader', () => {
 
       writeFileSync(configPath, JSON.stringify(oldConfig, null, 2));
       const loader = new ConfigLoader(configPath);
-      
+
       // This should throw by default
       expect(() => loader.loadConfig()).toThrow();
 
@@ -220,7 +220,7 @@ describe('ConfigLoader', () => {
 
     it('should allow valid platforms for app-bundle', () => {
       const platforms = ['macos', 'ios', 'tvos', 'watchos', 'visionos'];
-      
+
       for (const platform of platforms) {
         const config = {
           targets: [
@@ -238,7 +238,7 @@ describe('ConfigLoader', () => {
 
         writeFileSync(configPath, JSON.stringify(config, null, 2));
         const loader = new ConfigLoader(configPath);
-        
+
         expect(() => loader.loadConfig()).not.toThrow();
       }
     });
@@ -379,7 +379,7 @@ describe('ConfigLoader', () => {
   describe('File Handling', () => {
     it('should throw error if config file does not exist', () => {
       const loader = new ConfigLoader('/non/existent/path/.poltergeist.json');
-      
+
       expect(() => loader.loadConfig()).toThrow('Configuration file not found');
     });
 

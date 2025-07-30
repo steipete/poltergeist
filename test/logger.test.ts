@@ -1,11 +1,14 @@
 // Comprehensive tests for Logger functionality
-import { describe, it, expect, beforeEach, afterEach, vi, MockedFunction } from 'vitest';
-import { createLogger, createTargetLogger, TargetLogger, SimpleLogger, createConsoleLogger } from '../src/logger.js';
+
+import { afterEach, beforeEach, describe, expect, it, type MockedFunction, vi } from 'vitest';
 import winston from 'winston';
-import chalk from 'chalk';
-import { writeFileSync, unlinkSync, readFileSync, existsSync } from 'fs';
-import { join } from 'path';
-import { tmpdir } from 'os';
+import {
+  createConsoleLogger,
+  createLogger,
+  createTargetLogger,
+  SimpleLogger,
+  TargetLogger,
+} from '../src/logger.js';
 
 // Mock winston
 vi.mock('winston', () => ({
@@ -13,8 +16,8 @@ vi.mock('winston', () => ({
     createLogger: vi.fn(),
     format: {
       combine: vi.fn().mockImplementation((...args) => args),
-      timestamp: vi.fn().mockImplementation((opts?: any) => ({ type: 'timestamp', opts })),
-      errors: vi.fn().mockImplementation((opts?: any) => ({ type: 'errors', opts })),
+      timestamp: vi.fn().mockImplementation((opts?: unknown) => ({ type: 'timestamp', opts })),
+      errors: vi.fn().mockImplementation((opts?: unknown) => ({ type: 'errors', opts })),
       splat: vi.fn().mockImplementation(() => ({ type: 'splat' })),
       json: vi.fn().mockImplementation(() => ({ type: 'json' })),
       printf: vi.fn().mockImplementation((fn) => ({ type: 'printf', fn })),
@@ -39,11 +42,11 @@ vi.mock('chalk', () => ({
 }));
 
 describe('createLogger', () => {
-  let mockWinstonLogger: any;
+  let mockWinstonLogger: winston.Logger;
 
   beforeEach(() => {
     vi.clearAllMocks();
-    
+
     mockWinstonLogger = {
       log: vi.fn(),
       info: vi.fn(),
@@ -51,26 +54,24 @@ describe('createLogger', () => {
       warn: vi.fn(),
       debug: vi.fn(),
     };
-    
+
     vi.mocked(winston.createLogger).mockReturnValue(mockWinstonLogger);
   });
 
   it('should create logger with console transport only when no logFile specified', () => {
-    const logger = createLogger();
+    const _logger = createLogger();
 
     expect(winston.createLogger).toHaveBeenCalledWith({
       level: 'info',
       format: expect.any(Array),
-      transports: expect.arrayContaining([
-        expect.objectContaining({ type: 'console' }),
-      ]),
+      transports: expect.arrayContaining([expect.objectContaining({ type: 'console' })]),
     });
 
     expect(winston.transports.File).not.toHaveBeenCalled();
   });
 
   it('should create logger with both console and file transports when logFile specified', () => {
-    const logger = createLogger('/tmp/test.log', 'debug');
+    const _logger = createLogger('/tmp/test.log', 'debug');
 
     expect(winston.createLogger).toHaveBeenCalledWith({
       level: 'debug',
@@ -88,7 +89,7 @@ describe('createLogger', () => {
   });
 
   it('should use custom log level when specified', () => {
-    const logger = createLogger(undefined, 'warn');
+    const _logger = createLogger(undefined, 'warn');
 
     expect(winston.createLogger).toHaveBeenCalledWith(
       expect.objectContaining({
@@ -99,22 +100,22 @@ describe('createLogger', () => {
 
   it('should return a TargetLogger instance', () => {
     const logger = createLogger();
-    
+
     expect(logger).toBeInstanceOf(TargetLogger);
   });
 });
 
 describe('TargetLogger', () => {
-  let mockWinstonLogger: any;
+  let mockWinstonLogger: winston.Logger;
   let targetLogger: TargetLogger;
 
   beforeEach(() => {
     vi.clearAllMocks();
-    
+
     mockWinstonLogger = {
       log: vi.fn(),
     };
-    
+
     targetLogger = new TargetLogger(mockWinstonLogger, 'test-target');
   });
 
@@ -208,18 +209,10 @@ describe('SimpleLogger', () => {
       logger.warn('Warning message');
       logger.error('Error message');
 
-      expect(consoleLogSpy).not.toHaveBeenCalledWith(
-        expect.stringContaining('DEBUG')
-      );
-      expect(consoleLogSpy).not.toHaveBeenCalledWith(
-        expect.stringContaining('INFO')
-      );
-      expect(consoleWarnSpy).toHaveBeenCalledWith(
-        expect.stringContaining('WARN')
-      );
-      expect(consoleErrorSpy).toHaveBeenCalledWith(
-        expect.stringContaining('ERROR')
-      );
+      expect(consoleLogSpy).not.toHaveBeenCalledWith(expect.stringContaining('DEBUG'));
+      expect(consoleLogSpy).not.toHaveBeenCalledWith(expect.stringContaining('INFO'));
+      expect(consoleWarnSpy).toHaveBeenCalledWith(expect.stringContaining('WARN'));
+      expect(consoleErrorSpy).toHaveBeenCalledWith(expect.stringContaining('ERROR'));
     });
 
     it('should log all levels when set to debug', () => {
@@ -230,12 +223,8 @@ describe('SimpleLogger', () => {
       logger.warn('Warning message');
       logger.error('Error message');
 
-      expect(consoleLogSpy).toHaveBeenCalledWith(
-        expect.stringContaining('DEBUG')
-      );
-      expect(consoleLogSpy).toHaveBeenCalledWith(
-        expect.stringContaining('INFO')
-      );
+      expect(consoleLogSpy).toHaveBeenCalledWith(expect.stringContaining('DEBUG'));
+      expect(consoleLogSpy).toHaveBeenCalledWith(expect.stringContaining('INFO'));
       expect(consoleWarnSpy).toHaveBeenCalled();
       expect(consoleErrorSpy).toHaveBeenCalled();
     });
@@ -262,26 +251,18 @@ describe('SimpleLogger', () => {
 
     it('should apply color formatting with chalk', () => {
       const logger = new SimpleLogger('test', 'debug'); // Set to debug to ensure all levels are logged
-      
+
       logger.error('Error message');
-      expect(consoleErrorSpy).toHaveBeenCalledWith(
-        expect.stringContaining('[RED]')
-      );
+      expect(consoleErrorSpy).toHaveBeenCalledWith(expect.stringContaining('[RED]'));
 
       logger.warn('Warning');
-      expect(consoleWarnSpy).toHaveBeenCalledWith(
-        expect.stringContaining('[YELLOW]')
-      );
+      expect(consoleWarnSpy).toHaveBeenCalledWith(expect.stringContaining('[YELLOW]'));
 
       logger.debug('Debug');
-      expect(consoleLogSpy).toHaveBeenCalledWith(
-        expect.stringContaining('[GRAY]')
-      );
+      expect(consoleLogSpy).toHaveBeenCalledWith(expect.stringContaining('[GRAY]'));
 
       logger.success('Success');
-      expect(consoleLogSpy).toHaveBeenCalledWith(
-        expect.stringContaining('[GREEN]')
-      );
+      expect(consoleLogSpy).toHaveBeenCalledWith(expect.stringContaining('[GREEN]'));
     });
   });
 
@@ -289,7 +270,7 @@ describe('SimpleLogger', () => {
     it('should log metadata when provided', () => {
       const logger = new SimpleLogger();
       const metadata = { userId: 123, action: 'build' };
-      
+
       logger.info('User action', metadata);
 
       expect(consoleLogSpy).toHaveBeenCalledTimes(2);
@@ -298,7 +279,7 @@ describe('SimpleLogger', () => {
 
     it('should not log metadata when not provided', () => {
       const logger = new SimpleLogger();
-      
+
       logger.info('No metadata');
 
       expect(consoleLogSpy).toHaveBeenCalledTimes(1);
@@ -310,13 +291,13 @@ describe('createTargetLogger', () => {
   it('should create a TargetLogger with specified target name', () => {
     const mockBaseLogger = {
       log: vi.fn(),
-    } as any;
+    } as winston.Logger;
 
     const targetLogger = createTargetLogger(mockBaseLogger, 'my-target');
 
     expect(targetLogger).toBeInstanceOf(TargetLogger);
     targetLogger.info('Test');
-    
+
     expect(mockBaseLogger.log).toHaveBeenCalledWith({
       level: 'info',
       message: 'Test',
@@ -356,9 +337,7 @@ describe('createConsoleLogger', () => {
     const logger = createConsoleLogger();
 
     logger.info('Info message');
-    expect(consoleLogSpy).toHaveBeenCalledWith(
-      expect.stringContaining('👻')
-    );
+    expect(consoleLogSpy).toHaveBeenCalledWith(expect.stringContaining('👻'));
     expect(consoleLogSpy).toHaveBeenCalledWith(
       expect.stringContaining('[CYAN][Poltergeist][/CYAN]')
     );
@@ -385,7 +364,7 @@ describe('Custom Format Function', () => {
     // We need to import the module to trigger the format.printf call
     vi.resetModules();
     await import('../src/logger.js');
-    
+
     // Get the custom format function
     const formatCall = vi.mocked(winston.format.printf).mock.calls[0];
     if (!formatCall || !formatCall[0]) {
@@ -434,7 +413,7 @@ describe('Custom Format Function', () => {
     // We need to import the module to trigger the format.printf call
     vi.resetModules();
     await import('../src/logger.js');
-    
+
     const formatCall = vi.mocked(winston.format.printf).mock.calls[0];
     if (!formatCall || !formatCall[0]) {
       throw new Error('printf not called');

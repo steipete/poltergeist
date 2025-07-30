@@ -1,10 +1,17 @@
 // Test helpers for Poltergeist tests
-import { vi } from 'vitest';
+
 import { EventEmitter } from 'events';
-import { PoltergeistConfig, Target, BuildStatus } from '../src/types.js';
-import { Logger } from '../src/logger.js';
-import { IWatchmanClient, IStateManager, IBuilderFactory, PoltergeistDependencies } from '../src/interfaces.js';
-import { BaseBuilder } from '../src/builders/index.js';
+import { vi } from 'vitest';
+import type { BaseBuilder } from '../src/builders/index.js';
+import type {
+  IBuilderFactory,
+  IStateManager,
+  IWatchmanClient,
+  PoltergeistDependencies,
+} from '../src/interfaces.js';
+import type { Logger } from '../src/logger.js';
+import type { BuildNotifier } from '../src/notifier.js';
+import type { BuildStatus, PoltergeistConfig, Target } from '../src/types.js';
 
 /**
  * Create a mock logger
@@ -15,7 +22,8 @@ export function createMockLogger(): Logger {
     info: vi.fn(),
     warn: vi.fn(),
     error: vi.fn(),
-  } as any;
+    success: vi.fn(),
+  };
 }
 
 /**
@@ -68,7 +76,7 @@ export function createMockStateManager(): IStateManager {
  * Create a mock builder
  */
 export function createMockBuilder(targetName: string): BaseBuilder {
-  return {
+  const mockBuilder = {
     build: vi.fn().mockResolvedValue({
       status: 'success',
       targetName,
@@ -78,7 +86,18 @@ export function createMockBuilder(targetName: string): BaseBuilder {
     validate: vi.fn().mockResolvedValue(undefined),
     stop: vi.fn(),
     getOutputInfo: vi.fn().mockReturnValue(`Built ${targetName}`),
-  } as any;
+    // Add required properties from BaseBuilder
+    target: { name: targetName } as Target,
+    projectRoot: '/test/project',
+    logger: createMockLogger(),
+    stateManager: {} as IStateManager,
+    currentProcess: undefined,
+  };
+
+  // Set the prototype to BaseBuilder
+  Object.setPrototypeOf(mockBuilder, Object.create(Object.getPrototypeOf({} as BaseBuilder)));
+
+  return mockBuilder as BaseBuilder;
 }
 
 /**
@@ -90,7 +109,7 @@ export interface MockBuilderFactory extends IBuilderFactory {
 
 export function createMockBuilderFactory(): MockBuilderFactory {
   const builders = new Map<string, BaseBuilder>();
-  
+
   return {
     builders,
     createBuilder: vi.fn().mockImplementation((target: Target) => {
@@ -106,15 +125,17 @@ export function createMockBuilderFactory(): MockBuilderFactory {
  */
 export function createTestConfig(overrides?: Partial<PoltergeistConfig>): PoltergeistConfig {
   return {
-    targets: [{
-      name: 'test-target',
-      type: 'executable',
-      enabled: true,
-      buildCommand: 'npm run build',
-      outputPath: './dist',
-      watchPaths: ['src/**/*.ts'],
-      settlingDelay: 100,
-    }],
+    targets: [
+      {
+        name: 'test-target',
+        type: 'executable',
+        enabled: true,
+        buildCommand: 'npm run build',
+        outputPath: './dist',
+        watchPaths: ['src/**/*.ts'],
+        settlingDelay: 100,
+      },
+    ],
     ...overrides,
   };
 }
@@ -128,10 +149,13 @@ export function createMockDependencies(): PoltergeistDependencies {
     stateManager: createMockStateManager(),
     builderFactory: createMockBuilderFactory(),
     notifier: {
-      notify: vi.fn().mockResolvedValue(undefined),
+      config: { enabled: false },
+      notifyBuildStart: vi.fn().mockResolvedValue(undefined),
       notifyBuildComplete: vi.fn().mockResolvedValue(undefined),
       notifyBuildFailed: vi.fn().mockResolvedValue(undefined),
-    } as any,
+      notifyPoltergeistStarted: vi.fn().mockResolvedValue(undefined),
+      notifyPoltergeistStopped: vi.fn().mockResolvedValue(undefined),
+    } as BuildNotifier,
   };
 }
 
@@ -145,17 +169,17 @@ export function simulateFileChange(
 ): void {
   const subscribeCalls = vi.mocked(watchmanClient.subscribe).mock.calls;
   const callback = subscribeCalls[subscriptionIndex]?.[3];
-  
+
   if (!callback) {
     throw new Error(`No subscription callback found at index ${subscriptionIndex}`);
   }
-  
-  const fileChanges = files.map(name => ({
+
+  const fileChanges = files.map((name) => ({
     name,
     exists: true,
     type: 'f' as const,
   }));
-  
+
   callback(fileChanges);
 }
 
@@ -186,7 +210,7 @@ export function createTestHarness(configOverrides?: Partial<PoltergeistConfig>):
   const config = createTestConfig(configOverrides);
   const logger = createMockLogger();
   const deps = createMockDependencies();
-  
+
   return {
     config,
     logger,

@@ -1,7 +1,8 @@
 // Comprehensive tests for BuildNotifier
-import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
-import { BuildNotifier } from '../src/notifier.js';
+
 import notifier from 'node-notifier';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import { BuildNotifier } from '../src/notifier.js';
 
 // Mock node-notifier
 vi.mock('node-notifier', () => ({
@@ -101,7 +102,7 @@ describe('BuildNotifier', () => {
 
     it('should respect POLTERGEIST_NOTIFICATIONS environment variable', async () => {
       process.env.POLTERGEIST_NOTIFICATIONS = 'false';
-      
+
       const config = {
         enabled: true,
         buildStart: true,
@@ -159,7 +160,11 @@ describe('BuildNotifier', () => {
       };
 
       const buildNotifier = new BuildNotifier(config);
-      await buildNotifier.notifyBuildFailed('Build Failed', 'Error in compilation', '/path/to/icon.png');
+      await buildNotifier.notifyBuildFailed(
+        'Build Failed',
+        'Error in compilation',
+        '/path/to/icon.png'
+      );
 
       expect(notifier.notify).toHaveBeenCalledWith({
         title: 'Build Failed',
@@ -196,7 +201,7 @@ describe('BuildNotifier', () => {
 
     it('should respect POLTERGEIST_NOTIFICATIONS environment variable', async () => {
       process.env.POLTERGEIST_NOTIFICATIONS = 'false';
-      
+
       const config = {
         enabled: true,
         buildFailed: true,
@@ -291,7 +296,7 @@ describe('BuildNotifier', () => {
 
     it('should respect POLTERGEIST_NOTIFICATIONS environment variable', async () => {
       process.env.POLTERGEIST_NOTIFICATIONS = 'false';
-      
+
       const config = {
         enabled: true,
         buildSuccess: true,
@@ -401,7 +406,7 @@ describe('BuildNotifier', () => {
       };
 
       const buildNotifier = new BuildNotifier(config);
-      
+
       // Should not send any build notifications without specific flags
       await buildNotifier.notifyBuildStart('cli', 'Project');
       await buildNotifier.notifyBuildFailed('Failed', 'Error');
@@ -419,7 +424,7 @@ describe('BuildNotifier', () => {
       };
 
       const buildNotifier = new BuildNotifier(config);
-      
+
       await buildNotifier.notifyBuildStart('cli', 'Project');
       await buildNotifier.notifyBuildFailed('Failed', 'Error');
       await buildNotifier.notifyBuildComplete('Success', 'Done');
@@ -436,7 +441,7 @@ describe('BuildNotifier', () => {
       const buildNotifier = new BuildNotifier(config);
       const longProjectName = 'A'.repeat(100);
       const longTargetName = 'B'.repeat(100);
-      
+
       await buildNotifier.notifyBuildStart('cli', longProjectName, longTargetName);
 
       expect(notifier.notify).toHaveBeenCalledWith({

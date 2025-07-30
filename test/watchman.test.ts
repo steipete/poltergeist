@@ -1,8 +1,9 @@
 // Tests for Watchman integration
-import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
-import { WatchmanClient } from '../src/watchman.js';
-import { Logger } from '../src/logger.js';
+
 import watchman from 'fb-watchman';
+import { beforeEach, describe, expect, it, vi } from 'vitest';
+import type { Logger } from '../src/logger.js';
+import { WatchmanClient } from '../src/watchman.js';
 
 // Mock watchman
 vi.mock('fb-watchman', () => ({
@@ -14,7 +15,13 @@ vi.mock('fb-watchman', () => ({
 describe('WatchmanClient', () => {
   let client: WatchmanClient;
   let mockLogger: Logger;
-  let mockWatchmanInstance: any;
+  let mockWatchmanInstance: {
+    capabilityCheck: ReturnType<typeof vi.fn>;
+    command: ReturnType<typeof vi.fn>;
+    on: ReturnType<typeof vi.fn>;
+    removeListener: ReturnType<typeof vi.fn>;
+    end: ReturnType<typeof vi.fn>;
+  };
 
   beforeEach(() => {
     vi.clearAllMocks();
@@ -25,7 +32,8 @@ describe('WatchmanClient', () => {
       error: vi.fn(),
       warn: vi.fn(),
       debug: vi.fn(),
-    } as any;
+      success: vi.fn(),
+    };
 
     // Mock watchman client instance
     mockWatchmanInstance = {
@@ -33,7 +41,7 @@ describe('WatchmanClient', () => {
       command: vi.fn(),
       end: vi.fn(),
       removeListener: vi.fn(),
-      capabilityCheck: vi.fn((caps, callback) => {
+      capabilityCheck: vi.fn((_caps, callback) => {
         callback(null);
       }),
     };
@@ -55,7 +63,7 @@ describe('WatchmanClient', () => {
     });
 
     it('should handle connection errors', async () => {
-      mockWatchmanInstance.capabilityCheck.mockImplementation((caps, callback) => {
+      mockWatchmanInstance.capabilityCheck.mockImplementation((_caps, callback) => {
         callback(new Error('Connection failed'));
       });
 
@@ -129,7 +137,7 @@ describe('WatchmanClient', () => {
 
     it('should create subscriptions with enhanced expressions', async () => {
       const callback = vi.fn();
-      
+
       await client.subscribe(
         '/test/project',
         'test-subscription',
@@ -183,7 +191,12 @@ describe('WatchmanClient', () => {
 
     it('should handle file change events', async () => {
       const callback = vi.fn();
-      let subscriptionHandler: any;
+      let subscriptionHandler:
+        | ((resp: {
+            subscription: string;
+            files: Array<{ name: string; exists: boolean; new: boolean }>;
+          }) => void)
+        | undefined;
 
       // Capture the subscription handler
       mockWatchmanInstance.on.mockImplementation((event, handler) => {
@@ -212,8 +225,8 @@ describe('WatchmanClient', () => {
       });
 
       expect(callback).toHaveBeenCalledWith([
-        { path: 'src/index.js', exists: true, new: true },
-        { path: 'src/utils.js', exists: true, new: false },
+        { name: 'src/index.js', exists: true, type: 'new' },
+        { name: 'src/utils.js', exists: true, type: undefined },
       ]);
     });
   });
@@ -277,7 +290,7 @@ describe('WatchmanClient', () => {
 
       // Should not throw
       await expect(client.unsubscribe('test-subscription')).resolves.toBeUndefined();
-      
+
       expect(mockLogger.warn).toHaveBeenCalledWith(
         expect.stringContaining('Failed to unsubscribe test-subscription')
       );
@@ -359,7 +372,7 @@ describe('WatchmanClient', () => {
 
       // Trigger error event
       const errorCallback = mockWatchmanInstance.on.mock.calls.find(
-        call => call[0] === 'error'
+        (call) => call[0] === 'error'
       )?.[1];
 
       const testError = new Error('Test error');
@@ -374,9 +387,7 @@ describe('WatchmanClient', () => {
       client.on('disconnected', disconnectHandler);
 
       // Trigger end event
-      const endCallback = mockWatchmanInstance.on.mock.calls.find(
-        call => call[0] === 'end'
-      )?.[1];
+      const endCallback = mockWatchmanInstance.on.mock.calls.find((call) => call[0] === 'end')?.[1];
 
       endCallback?.();
 

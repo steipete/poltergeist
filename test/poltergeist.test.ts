@@ -1,17 +1,12 @@
 // Integration tests for Poltergeist main class
-import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
-import { Poltergeist } from '../src/poltergeist.js';
-import { ExecutableTarget, AppBundleTarget, BuildNotifier } from '../src/types.js';
+
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import type { BaseBuilder } from '../src/builders/index.js';
 import { createPoltergeistWithDeps } from '../src/factories.js';
-import { 
-  createTestHarness, 
-  simulateFileChange, 
-  waitForAsync,
-  TestHarness
-} from './helpers.js';
+import { Poltergeist } from '../src/poltergeist.js';
 import { StateManager } from '../src/state.js';
-import { IWatchmanClient } from '../src/interfaces.js';
-import { EventEmitter } from 'events';
+import type { AppBundleTarget, ExecutableTarget } from '../src/types.js';
+import { createTestHarness, simulateFileChange, type TestHarness } from './helpers.js';
 
 // Mock StateManager static methods
 vi.mock('../src/state.js', async () => {
@@ -76,7 +71,12 @@ describe('Poltergeist', () => {
       vi.mocked(cliBuilder.getOutputInfo).mockReturnValue('/dist/cli');
     }
 
-    poltergeist = createPoltergeistWithDeps(harness.config, '/test/project', harness.deps, harness.logger);
+    poltergeist = createPoltergeistWithDeps(
+      harness.config,
+      '/test/project',
+      harness.deps,
+      harness.logger
+    );
   });
 
   afterEach(() => {
@@ -124,7 +124,9 @@ describe('Poltergeist', () => {
       expect(cliBuilder?.build).toHaveBeenCalled();
       expect(appBuilder?.build).toHaveBeenCalled();
 
-      expect(harness.logger.info).toHaveBeenCalledWith('👻 [Poltergeist] is now watching for changes...');
+      expect(harness.logger.info).toHaveBeenCalledWith(
+        '👻 [Poltergeist] is now watching for changes...'
+      );
     });
 
     it('should start watching specific target', async () => {
@@ -151,21 +153,21 @@ describe('Poltergeist', () => {
 
     it('should throw error if target is disabled', async () => {
       harness.config.targets[0].enabled = false;
-      
-      await expect(poltergeist.start('cli')).rejects.toThrow(
-        "Target 'cli' is disabled"
-      );
+
+      await expect(poltergeist.start('cli')).rejects.toThrow("Target 'cli' is disabled");
     });
 
     it('should throw error if no targets to watch', async () => {
-      harness.config.targets.forEach(t => t.enabled = false);
-      
+      harness.config.targets.forEach((t) => {
+        t.enabled = false;
+      });
+
       await expect(poltergeist.start()).rejects.toThrow('No targets to watch');
     });
 
     it('should throw error if already running', async () => {
       await poltergeist.start();
-      
+
       await expect(poltergeist.start()).rejects.toThrow('Poltergeist is already running');
     });
 
@@ -176,9 +178,16 @@ describe('Poltergeist', () => {
         build: vi.fn(),
         stop: vi.fn(),
         getOutputInfo: vi.fn(),
+        target: harness.config.targets[0],
+        projectRoot: '/test/project',
+        logger: harness.logger,
+        stateManager: harness.deps.stateManager,
+        currentProcess: undefined,
       };
-      vi.mocked(harness.builderFactory.createBuilder).mockReturnValueOnce(mockBuilder as any);
-      
+      vi.mocked(harness.builderFactory.createBuilder).mockReturnValueOnce(
+        mockBuilder as BaseBuilder
+      );
+
       await expect(poltergeist.start()).rejects.toThrow('Invalid configuration');
     });
   });
@@ -195,7 +204,7 @@ describe('Poltergeist', () => {
 
     it('should build target after file changes with settling delay', async () => {
       const cliBuilder = harness.builderFactory.builders.get('cli');
-      
+
       // Clear initial build calls
       vi.mocked(cliBuilder?.build).mockClear();
 
@@ -214,7 +223,7 @@ describe('Poltergeist', () => {
 
     it('should reset timer on subsequent file changes', async () => {
       const cliBuilder = harness.builderFactory.builders.get('cli');
-      
+
       // Clear initial build calls
       vi.mocked(cliBuilder?.build).mockClear();
 
@@ -242,7 +251,7 @@ describe('Poltergeist', () => {
 
     it('should ignore non-existent files', async () => {
       const cliBuilder = harness.builderFactory.builders.get('cli');
-      
+
       // Clear initial build calls
       vi.mocked(cliBuilder?.build).mockClear();
 
@@ -262,16 +271,14 @@ describe('Poltergeist', () => {
 
     it('should ignore non-file changes', async () => {
       const cliBuilder = harness.builderFactory.builders.get('cli');
-      
+
       // Clear initial build calls
       vi.mocked(cliBuilder?.build).mockClear();
 
       // Simulate directory change - manually call the handler
       const subscribeCall = vi.mocked(harness.watchmanClient.subscribe).mock.calls[0];
       const changeHandler = subscribeCall[3];
-      changeHandler([
-        { name: 'src/newdir', exists: true, type: 'd' },
-      ]);
+      changeHandler([{ name: 'src/newdir', exists: true, type: 'd' }]);
 
       await vi.advanceTimersByTimeAsync(100);
 
@@ -304,11 +311,11 @@ describe('Poltergeist', () => {
 
       // Check that notifyBuildComplete was called
       expect(harness.deps.notifier?.notifyBuildComplete).toHaveBeenCalled();
-      
+
       // Get the actual call and verify it matches expected pattern
-      const call = vi.mocked(harness.deps.notifier?.notifyBuildComplete).mock.calls.find(
-        c => c[0] === 'cli Built' && c[1].includes('2.5s')
-      );
+      const call = vi
+        .mocked(harness.deps.notifier?.notifyBuildComplete)
+        .mock.calls.find((c) => c[0] === 'cli Built' && c[1].includes('2.5s'));
       expect(call).toBeDefined();
     });
 
@@ -368,7 +375,9 @@ describe('Poltergeist', () => {
       // Should cleanup state manager
       expect(harness.stateManager.cleanup).toHaveBeenCalled();
 
-      expect(harness.logger.info).toHaveBeenCalledWith('👻 [Poltergeist] Poltergeist is now at rest');
+      expect(harness.logger.info).toHaveBeenCalledWith(
+        '👻 [Poltergeist] Poltergeist is now at rest'
+      );
     });
 
     it('should stop specific target', async () => {
@@ -505,9 +514,12 @@ describe('Poltergeist', () => {
 
   describe('listAllStates', () => {
     it('should list all poltergeist states', async () => {
-      vi.mocked(StateManager.listAllStates).mockResolvedValue(['project1-hash1-cli.state', 'project2-hash2-app.state']);
+      vi.mocked(StateManager.listAllStates).mockResolvedValue([
+        'project1-hash1-cli.state',
+        'project2-hash2-app.state',
+      ]);
 
-      const states = await Poltergeist.listAllStates();
+      const _states = await Poltergeist.listAllStates();
 
       expect(StateManager.listAllStates).toHaveBeenCalled();
     });
@@ -523,10 +535,9 @@ describe('Poltergeist', () => {
   });
 
   describe('graceful shutdown', () => {
-
     it('should handle SIGINT', async () => {
       await poltergeist.start();
-      
+
       const stopSpy = vi.spyOn(poltergeist, 'stop');
       process.emit('SIGINT', 'SIGINT');
 
@@ -535,7 +546,7 @@ describe('Poltergeist', () => {
 
     it('should handle SIGTERM', async () => {
       await poltergeist.start();
-      
+
       const stopSpy = vi.spyOn(poltergeist, 'stop');
       process.emit('SIGTERM', 'SIGTERM');
 

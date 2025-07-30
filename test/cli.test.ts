@@ -1,8 +1,10 @@
 // Comprehensive tests for CLI commands
-import { describe, it, expect, beforeEach, afterEach, vi, MockedFunction } from 'vitest';
-import { writeFileSync, unlinkSync, mkdirSync, rmSync, existsSync } from 'fs';
-import { join } from 'path';
+
+import { existsSync, mkdirSync, rmSync, writeFileSync } from 'fs';
 import { tmpdir } from 'os';
+import { join } from 'path';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import type { PoltergeistConfig } from '../src/types.js';
 
 // We'll test the CLI by importing the commands directly rather than spawning processes
 // This gives us better control and avoids needing to build the CLI first
@@ -18,8 +20,13 @@ const { mockPoltergeist, mockStateManager, mockConfigLoader, mockLogger } = vi.h
         status: 'idle',
         enabled: true,
         type: 'executable',
-        process: { pid: 1234, isActive: true, hostname: 'test-host', lastHeartbeat: new Date().toISOString() },
-      }
+        process: {
+          pid: 1234,
+          isActive: true,
+          hostname: 'test-host',
+          lastHeartbeat: new Date().toISOString(),
+        },
+      },
     }),
   };
 
@@ -34,7 +41,7 @@ const { mockPoltergeist, mockStateManager, mockConfigLoader, mockLogger } = vi.h
     }),
     removeState: vi.fn().mockResolvedValue(undefined),
   }));
-  
+
   // Add static method
   mockStateManager.listAllStates = vi.fn().mockResolvedValue(['test-state.state']);
 
@@ -49,14 +56,16 @@ const { mockPoltergeist, mockStateManager, mockConfigLoader, mockLogger } = vi.h
         }
         // Return default config
         return {
-          targets: [{
-            name: 'test-target',
-            type: 'executable',
-            enabled: true,
-            buildCommand: 'echo "Building"',
-            outputPath: './dist/test',
-            watchPaths: ['src/**/*.ts'],
-          }],
+          targets: [
+            {
+              name: 'test-target',
+              type: 'executable',
+              enabled: true,
+              buildCommand: 'echo "Building"',
+              outputPath: './dist/test',
+              watchPaths: ['src/**/*.ts'],
+            },
+          ],
         };
       }),
       getProjectRoot: vi.fn().mockReturnValue(process.cwd()),
@@ -74,27 +83,30 @@ const { mockPoltergeist, mockStateManager, mockConfigLoader, mockLogger } = vi.h
     mockPoltergeist,
     mockStateManager,
     mockConfigLoader,
-    mockLogger
+    mockLogger,
   };
 });
 
 vi.mock('../src/factories.js', () => ({
-  createPoltergeist: vi.fn().mockReturnValue(mockPoltergeist)
+  createPoltergeist: vi.fn().mockReturnValue(mockPoltergeist),
 }));
 
 // Add the static method to the Poltergeist mock
 vi.mock('../src/poltergeist.js', () => ({
-  Poltergeist: Object.assign(vi.fn().mockImplementation(() => mockPoltergeist), {
-    listAllStates: vi.fn().mockResolvedValue([
-      {
-        projectName: 'project1',
-        hash: 'abc123',
-        targetName: 'cli',
-        process: { pid: 1234, isActive: true },
-        lastBuild: { status: 'success', timestamp: new Date().toISOString() }
-      }
-    ])
-  })
+  Poltergeist: Object.assign(
+    vi.fn().mockImplementation(() => mockPoltergeist),
+    {
+      listAllStates: vi.fn().mockResolvedValue([
+        {
+          projectName: 'project1',
+          hash: 'abc123',
+          targetName: 'cli',
+          process: { pid: 1234, isActive: true },
+          lastBuild: { status: 'success', timestamp: new Date().toISOString() },
+        },
+      ]),
+    }
+  ),
 }));
 
 vi.mock('../src/state.js', () => ({
@@ -127,87 +139,90 @@ describe('CLI Commands', () => {
   let configPath: string;
   let originalCwd: string;
   let originalProcessExit: typeof process.exit;
-  
+
   beforeEach(async () => {
     vi.clearAllMocks();
     mockConsoleLog.mockClear();
     mockConsoleError.mockClear();
     mockExit.mockClear();
-    
+
     // Store original process.exit
     originalProcessExit = process.exit;
-    
+
     // Store original cwd
     originalCwd = process.cwd();
-    
+
     // Create temp directory for tests
-    testDir = mkdirSync(join(tmpdir(), 'poltergeist-cli-test-' + Date.now()), { recursive: true });
+    testDir = mkdirSync(join(tmpdir(), `poltergeist-cli-test-${Date.now()}`), { recursive: true });
     configPath = join(testDir, 'poltergeist.config.json');
-    
+
     // Change to test directory
     process.chdir(testDir);
   });
-  
+
   afterEach(() => {
     // Restore original cwd
     process.chdir(originalCwd);
-    
+
     // Cleanup
     if (existsSync(testDir)) {
       rmSync(testDir, { recursive: true, force: true });
     }
-    
+
     // Restore process.exit
     process.exit = originalProcessExit;
   });
 
   // Helper to run CLI command directly
-  async function runCLI(args: string[]): Promise<{ exitCode: number; error?: Error; stdout?: string; stderr?: string }> {
+  async function runCLI(
+    args: string[]
+  ): Promise<{ exitCode: number; error?: Error; stdout?: string; stderr?: string }> {
     mockConsoleLog.mockClear();
     mockConsoleError.mockClear();
     mockExit.mockClear();
-    
+
     // Capture stdout/stderr from console mocks
     const stdout: string[] = [];
     const stderr: string[] = [];
-    
+
     mockConsoleLog.mockImplementation((...args) => {
       stdout.push(args.join(' '));
     });
-    
+
     mockConsoleError.mockImplementation((...args) => {
       stderr.push(args.join(' '));
     });
-    
+
     try {
       // Parse arguments like the CLI would
       await program.parseAsync(['node', 'poltergeist', ...args]);
-      return { 
-        exitCode: 0, 
+      return {
+        exitCode: 0,
         stdout: stdout.join('\n'),
-        stderr: stderr.join('\n')
+        stderr: stderr.join('\n'),
       };
-    } catch (error: any) {
-      if (error.message && error.message.includes('Process exited with code')) {
-        const code = parseInt(error.message.match(/code (\d+)/)?.[1] || '1');
-        return { 
-          exitCode: code, 
+    } catch (error) {
+      const errorMessage = error instanceof Error ? error.message : String(error);
+      if (errorMessage.includes('Process exited with code')) {
+        const code = Number.parseInt(errorMessage.match(/code (\d+)/)?.[1] || '1');
+        return {
+          exitCode: code,
           error,
           stdout: stdout.join('\n'),
-          stderr: stderr.join('\n')
+          stderr: stderr.join('\n'),
         };
       }
-      return { 
-        exitCode: 1, 
+      return {
+        exitCode: 1,
         error,
         stdout: stdout.join('\n'),
-        stderr: stderr.join('\n')
+        stderr: stderr.join('\n'),
       };
     }
   }
 
   // Helper to create test config
-  function createTestConfig(config: any = null) {
+  function createTestConfig(config: Partial<PoltergeistConfig> | null = null) {
     const defaultConfig = {
       targets: [
         {
@@ -220,39 +235,47 @@ describe('CLI Commands', () => {
         },
       ],
     };
-    
+
     writeFileSync(configPath, JSON.stringify(config || defaultConfig, null, 2));
   }
 
   describe('haunt/start command', () => {
     it('should start watching with default config', async () => {
       createTestConfig();
-      
+
       const result = await runCLI(['haunt']);
-      
+
       expect(result.exitCode).toBe(0);
       expect(mockConsoleLog).toHaveBeenCalledWith(expect.stringContaining('Summoning Poltergeist'));
-      expect(mockConsoleLog).toHaveBeenCalledWith(expect.stringContaining('Building 1 enabled target(s)'));
+      expect(mockConsoleLog).toHaveBeenCalledWith(
+        expect.stringContaining('Building 1 enabled target(s)')
+      );
     });
 
     it('should start watching specific target', async () => {
       createTestConfig();
-      
+
       const result = await runCLI(['start', '--target', 'test-target']);
-      
+
       expect(result.exitCode).toBe(0);
-      expect(mockConsoleLog).toHaveBeenCalledWith(expect.stringContaining('Building target: test-target'));
+      expect(mockConsoleLog).toHaveBeenCalledWith(
+        expect.stringContaining('Building target: test-target')
+      );
     });
 
     it('should fail with unknown target', async () => {
       createTestConfig();
-      
+
       const result = await runCLI(['haunt', '--target', 'unknown-target']);
-      
+
       expect(result.exitCode).toBe(1);
-      expect(mockConsoleError).toHaveBeenCalledWith(expect.stringContaining('Unknown target: unknown-target'));
+      expect(mockConsoleError).toHaveBeenCalledWith(
+        expect.stringContaining('Unknown target: unknown-target')
+      );
       expect(mockConsoleError).toHaveBeenCalledWith(expect.stringContaining('Available targets:'));
-      expect(mockConsoleError).toHaveBeenCalledWith(expect.stringContaining('test-target (executable)'));
+      expect(mockConsoleError).toHaveBeenCalledWith(
+        expect.stringContaining('test-target (executable)')
+      );
     });
 
     it('should fail with no enabled targets', async () => {
@@ -268,38 +291,51 @@ describe('CLI Commands', () => {
           },
         ],
       });
-      
+
       const result = await runCLI(['haunt']);
-      
+
       expect(result.exitCode).toBe(1);
-      expect(mockConsoleError).toHaveBeenCalledWith(expect.stringContaining('No enabled targets found'));
+      expect(mockConsoleError).toHaveBeenCalledWith(
+        expect.stringContaining('No enabled targets found')
+      );
     });
 
     it('should handle custom config path', async () => {
       const customConfigPath = join(testDir, 'custom.config.json');
       createTestConfig();
-      writeFileSync(customConfigPath, JSON.stringify({
-        targets: [{
-          name: 'custom-target',
-          type: 'executable',
-          enabled: true,
-          buildCommand: 'echo "custom"',
-          outputPath: './dist/custom',
-          watchPaths: ['**/*.js'],
-        }],
-      }, null, 2));
-      
+      writeFileSync(
+        customConfigPath,
+        JSON.stringify(
+          {
+            targets: [
+              {
+                name: 'custom-target',
+                type: 'executable',
+                enabled: true,
+                buildCommand: 'echo "custom"',
+                outputPath: './dist/custom',
+                watchPaths: ['**/*.js'],
+              },
+            ],
+          },
+          null,
+          2
+        )
+      );
+
       const result = await runCLI(['haunt', '--config', customConfigPath]);
-      
+
       expect(result.exitCode).toBe(0);
-      expect(mockConsoleLog).toHaveBeenCalledWith(expect.stringContaining('Building 1 enabled target(s)'));
+      expect(mockConsoleLog).toHaveBeenCalledWith(
+        expect.stringContaining('Building 1 enabled target(s)')
+      );
     });
 
     it('should enable verbose logging', async () => {
       createTestConfig();
-      
+
       const result = await runCLI(['haunt', '--verbose']);
-      
+
       expect(result.exitCode).toBe(0);
       // In real implementation, would check for verbose logs
     });
@@ -308,31 +344,37 @@ describe('CLI Commands', () => {
   describe('stop/rest command', () => {
     it('should stop all targets', async () => {
       createTestConfig();
-      
+
       const result = await runCLI(['stop']);
-      
+
       expect(result.exitCode).toBe(0);
-      expect(mockConsoleLog).toHaveBeenCalledWith(expect.stringContaining('Putting Poltergeist to rest'));
-      expect(mockConsoleLog).toHaveBeenCalledWith(expect.stringContaining('Poltergeist is now at rest'));
+      expect(mockConsoleLog).toHaveBeenCalledWith(
+        expect.stringContaining('Putting Poltergeist to rest')
+      );
+      expect(mockConsoleLog).toHaveBeenCalledWith(
+        expect.stringContaining('Poltergeist is now at rest')
+      );
     });
 
     it('should stop specific target', async () => {
       createTestConfig();
-      
+
       const result = await runCLI(['rest', '--target', 'test-target']);
-      
+
       expect(result.exitCode).toBe(0);
-      expect(mockConsoleLog).toHaveBeenCalledWith(expect.stringContaining('Putting Poltergeist to rest'));
+      expect(mockConsoleLog).toHaveBeenCalledWith(
+        expect.stringContaining('Putting Poltergeist to rest')
+      );
     });
 
     it('should handle stop errors gracefully', async () => {
       createTestConfig();
-      
+
       // Mock error
       mockPoltergeist.stop.mockRejectedValueOnce(new Error('Stop failed'));
-      
+
       const result = await runCLI(['stop']);
-      
+
       expect(result.exitCode).toBe(1);
       expect(mockConsoleError).toHaveBeenCalledWith(expect.stringContaining('Failed to stop:'));
       expect(mockConsoleError).toHaveBeenCalledWith(expect.stringContaining('Stop failed'));
@@ -342,9 +384,9 @@ describe('CLI Commands', () => {
   describe('status command', () => {
     it('should show status for all targets', async () => {
       createTestConfig();
-      
+
       const result = await runCLI(['status']);
-      
+
       expect(result.exitCode).toBe(0);
       expect(mockConsoleLog).toHaveBeenCalledWith(expect.stringContaining('Poltergeist Status'));
       expect(mockConsoleLog).toHaveBeenCalledWith(expect.stringContaining('Target: test-target'));
@@ -354,9 +396,9 @@ describe('CLI Commands', () => {
 
     it('should show status for specific target', async () => {
       createTestConfig();
-      
+
       const result = await runCLI(['status', '--target', 'test-target']);
-      
+
       expect(result.exitCode).toBe(0);
       expect(result.stdout).toContain('Target: test-target');
       expect(result.stdout).not.toContain('Available targets:');
@@ -364,9 +406,9 @@ describe('CLI Commands', () => {
 
     it('should output JSON format', async () => {
       createTestConfig();
-      
+
       const result = await runCLI(['status', '--json']);
-      
+
       expect(result.exitCode).toBe(0);
       const json = JSON.parse(result.stdout);
       expect(json).toHaveProperty('test-target');
@@ -375,22 +417,29 @@ describe('CLI Commands', () => {
 
     it('should handle missing target', async () => {
       createTestConfig();
-      
+
       mockPoltergeist.getStatus.mockResolvedValueOnce({});
-      
+
       const result = await runCLI(['status', '--target', 'missing-target']);
-      
+
       expect(result.exitCode).toBe(0);
-      expect(mockConsoleLog).toHaveBeenCalledWith(expect.stringContaining("Target 'missing-target' not found"));
+      expect(mockConsoleLog).toHaveBeenCalledWith(
+        expect.stringContaining("Target 'missing-target' not found")
+      );
     });
 
     it('should format different status types', async () => {
       createTestConfig();
-      
+
       mockPoltergeist.getStatus.mockResolvedValueOnce({
         'build-target': {
           status: 'building',
-          process: { pid: 1234, isActive: true, hostname: 'test-host', lastHeartbeat: new Date().toISOString() },
+          process: {
+            pid: 1234,
+            isActive: true,
+            hostname: 'test-host',
+            lastHeartbeat: new Date().toISOString(),
+          },
           lastBuild: {
             timestamp: new Date().toISOString(),
             status: 'success',
@@ -415,18 +464,22 @@ describe('CLI Commands', () => {
           },
         },
       });
-      
+
       const result = await runCLI(['status']);
-      
+
       expect(result.exitCode).toBe(0);
       expect(mockConsoleLog).toHaveBeenCalledWith(expect.stringContaining('✅ Success'));
       expect(mockConsoleLog).toHaveBeenCalledWith(expect.stringContaining('❌ Failed'));
       expect(mockConsoleLog).toHaveBeenCalledWith(expect.stringContaining('🔨 Building'));
       expect(mockConsoleLog).toHaveBeenCalledWith(expect.stringContaining('Build Time: 1234ms'));
       expect(mockConsoleLog).toHaveBeenCalledWith(expect.stringContaining('Git Hash: abc123'));
-      expect(mockConsoleLog).toHaveBeenCalledWith(expect.stringContaining('Bundle ID: com.test.app'));
+      expect(mockConsoleLog).toHaveBeenCalledWith(
+        expect.stringContaining('Bundle ID: com.test.app')
+      );
       expect(mockConsoleLog).toHaveBeenCalledWith(expect.stringContaining('Pending Files: 3'));
-      expect(mockConsoleLog).toHaveBeenCalledWith(expect.stringContaining('Build failed with errors'));
+      expect(mockConsoleLog).toHaveBeenCalledWith(
+        expect.stringContaining('Build failed with errors')
+      );
     });
   });
 
@@ -453,24 +506,30 @@ describe('CLI Commands', () => {
           },
         ],
       });
-      
+
       const result = await runCLI(['list']);
-      
+
       expect(result.exitCode).toBe(0);
       expect(mockConsoleLog).toHaveBeenCalledWith(expect.stringContaining('Configured Targets'));
       expect(mockConsoleLog).toHaveBeenCalledWith(expect.stringContaining('✓ cli (executable)'));
-      expect(mockConsoleLog).toHaveBeenCalledWith(expect.stringContaining('✗ mac-app (app-bundle)'));
-      expect(mockConsoleLog).toHaveBeenCalledWith(expect.stringContaining('Build: npm run build:cli'));
+      expect(mockConsoleLog).toHaveBeenCalledWith(
+        expect.stringContaining('✗ mac-app (app-bundle)')
+      );
+      expect(mockConsoleLog).toHaveBeenCalledWith(
+        expect.stringContaining('Build: npm run build:cli')
+      );
       expect(mockConsoleLog).toHaveBeenCalledWith(expect.stringContaining('Output: ./dist/cli'));
-      expect(mockConsoleLog).toHaveBeenCalledWith(expect.stringContaining('Bundle ID: com.example.app'));
+      expect(mockConsoleLog).toHaveBeenCalledWith(
+        expect.stringContaining('Bundle ID: com.example.app')
+      );
       expect(mockConsoleLog).toHaveBeenCalledWith(expect.stringContaining('Platform: macos'));
     });
 
     it('should handle empty target list', async () => {
       createTestConfig({ targets: [] });
-      
+
       const result = await runCLI(['list']);
-      
+
       expect(result.exitCode).toBe(0);
       expect(mockConsoleLog).toHaveBeenCalledWith(expect.stringContaining('No targets configured'));
     });
@@ -479,10 +538,10 @@ describe('CLI Commands', () => {
   describe('clean command', () => {
     it('should clean stale state files', async () => {
       createTestConfig();
-      
+
       // Mock StateManager static method
       mockStateManager.listAllStates.mockResolvedValue(['old-state.state', 'new-state.state']);
-      
+
       // Mock StateManager instances
       const oldStateManager = {
         readState: vi.fn().mockResolvedValueOnce({
@@ -495,7 +554,7 @@ describe('CLI Commands', () => {
         }),
         removeState: vi.fn().mockResolvedValue(undefined),
       };
-      
+
       const newStateManager = {
         readState: vi.fn().mockResolvedValueOnce({
           projectName: 'new-project',
@@ -507,25 +566,34 @@ describe('CLI Commands', () => {
         }),
         removeState: vi.fn().mockResolvedValue(undefined),
       };
-      
+
       // Mock the StateManager constructor to return different instances
-      mockStateManager.mockImplementationOnce(() => oldStateManager)
-                      .mockImplementationOnce(() => newStateManager);
-      
+      mockStateManager
+        .mockImplementationOnce(() => oldStateManager)
+        .mockImplementationOnce(() => newStateManager);
+
       const result = await runCLI(['clean']);
-      
+
       expect(result.exitCode).toBe(0);
-      expect(mockConsoleLog).toHaveBeenCalledWith(expect.stringContaining('Cleaning up state files'));
-      expect(mockConsoleLog).toHaveBeenCalledWith(expect.stringContaining('Removing: old-state.state'));
+      expect(mockConsoleLog).toHaveBeenCalledWith(
+        expect.stringContaining('Cleaning up state files')
+      );
+      expect(mockConsoleLog).toHaveBeenCalledWith(
+        expect.stringContaining('Removing: old-state.state')
+      );
       expect(mockConsoleLog).toHaveBeenCalledWith(expect.stringContaining('Project: old-project'));
       expect(mockConsoleLog).toHaveBeenCalledWith(expect.stringContaining('Target: old-target'));
-      expect(mockConsoleLog).toHaveBeenCalledWith(expect.stringContaining('Reason: inactive for 7+ days'));
-      expect(mockConsoleLog).toHaveBeenCalledWith(expect.stringContaining('Removed 1 state file(s)'));
+      expect(mockConsoleLog).toHaveBeenCalledWith(
+        expect.stringContaining('Reason: inactive for 7+ days')
+      );
+      expect(mockConsoleLog).toHaveBeenCalledWith(
+        expect.stringContaining('Removed 1 state file(s)')
+      );
     });
 
     it('should support dry-run mode', async () => {
       createTestConfig();
-      
+
       // Mock some state files
       mockStateManager.listAllStates.mockResolvedValue(['test.state']);
       mockStateManager.mockImplementationOnce(() => ({
@@ -539,16 +607,16 @@ describe('CLI Commands', () => {
         }),
         removeState: vi.fn().mockResolvedValue(undefined),
       }));
-      
+
       const result = await runCLI(['clean', '--dry-run']);
-      
+
       expect(result.exitCode).toBe(0);
       expect(mockConsoleLog).toHaveBeenCalledWith(expect.stringContaining('Would remove'));
     });
 
     it('should clean all state files with --all flag', async () => {
       createTestConfig();
-      
+
       // Mock some state files
       mockStateManager.listAllStates.mockResolvedValue(['test.state']);
       mockStateManager.mockImplementationOnce(() => ({
@@ -562,16 +630,16 @@ describe('CLI Commands', () => {
         }),
         removeState: vi.fn().mockResolvedValue(undefined),
       }));
-      
+
       const result = await runCLI(['clean', '--all', '--dry-run']);
-      
+
       expect(result.exitCode).toBe(0);
       expect(mockConsoleLog).toHaveBeenCalledWith(expect.stringContaining('Reason: all files'));
     });
 
     it('should support custom days threshold', async () => {
       createTestConfig();
-      
+
       // Mock some state files
       mockStateManager.listAllStates.mockResolvedValue(['test.state']);
       mockStateManager.mockImplementationOnce(() => ({
@@ -585,9 +653,9 @@ describe('CLI Commands', () => {
         }),
         removeState: vi.fn().mockResolvedValue(undefined),
       }));
-      
+
       const result = await runCLI(['clean', '--days', '30', '--dry-run']);
-      
+
       expect(result.exitCode).toBe(0);
       // Would check for 30 days threshold in real implementation
     });
@@ -597,18 +665,18 @@ describe('CLI Commands', () => {
     it('should show log viewing not implemented message', async () => {
       createTestConfig();
       writeFileSync(join(testDir, '.poltergeist.log'), 'test logs');
-      
+
       const result = await runCLI(['logs']);
-      
+
       expect(result.exitCode).toBe(0);
       expect(result.stdout).toContain('Log viewing implementation needed');
     });
 
     it('should fail when log file does not exist', async () => {
       createTestConfig();
-      
+
       const result = await runCLI(['logs']);
-      
+
       expect(result.exitCode).toBe(1);
       expect(result.stderr).toContain('No log file found');
     });
@@ -617,45 +685,49 @@ describe('CLI Commands', () => {
   describe('error handling', () => {
     it('should handle missing config file', async () => {
       // Mock ConfigLoader to throw error for missing file
-      mockConfigLoader.mockImplementationOnce((path) => ({
+      mockConfigLoader.mockImplementationOnce((_path) => ({
         loadConfig: vi.fn().mockImplementation(() => {
           throw new Error('Configuration file not found');
         }),
         getProjectRoot: vi.fn().mockReturnValue(process.cwd()),
       }));
-      
+
       const result = await runCLI(['haunt']);
-      
+
       expect(result.exitCode).toBe(1);
-      expect(mockConsoleError).toHaveBeenCalledWith(expect.stringContaining('Failed to load configuration'));
+      expect(mockConsoleError).toHaveBeenCalledWith(
+        expect.stringContaining('Failed to load configuration')
+      );
     });
 
     it('should handle invalid config file', async () => {
       writeFileSync(configPath, 'invalid json');
-      
+
       // Mock ConfigLoader to throw error for invalid JSON
-      mockConfigLoader.mockImplementationOnce((path) => ({
+      mockConfigLoader.mockImplementationOnce((_path) => ({
         loadConfig: vi.fn().mockImplementation(() => {
           throw new Error('Invalid JSON');
         }),
         getProjectRoot: vi.fn().mockReturnValue(process.cwd()),
       }));
-      
+
       const result = await runCLI(['haunt']);
-      
+
       expect(result.exitCode).toBe(1);
-      expect(mockConsoleError).toHaveBeenCalledWith(expect.stringContaining('Failed to load configuration'));
+      expect(mockConsoleError).toHaveBeenCalledWith(
+        expect.stringContaining('Failed to load configuration')
+      );
     });
 
     it('should warn about deprecated flags', async () => {
       createTestConfig();
-      
+
       // Commander.js throws an error for unknown options
       const resultCli = await runCLI(['haunt', '--cli']);
       expect(resultCli.exitCode).toBe(1);
       // Check that it failed due to unknown option
       expect(resultCli.error?.message).toContain('Process exited with code 1');
-      
+
       const resultMac = await runCLI(['haunt', '--mac']);
       expect(resultMac.exitCode).toBe(1);
       // Check that it failed due to unknown option
@@ -670,12 +742,12 @@ describe('CLI Commands', () => {
       mockConsoleLog.mockImplementation((output) => {
         helpOutput.push(output);
       });
-      
+
       const result = await runCLI([]);
-      
+
       // Help output causes exit code 1 when no command is provided
       expect(result.exitCode).toBe(1);
-      
+
       // Check if help was output (commander may use process.stdout.write directly)
       const output = helpOutput.join('\n');
       if (output) {
@@ -692,11 +764,11 @@ describe('CLI Commands', () => {
       mockConsoleLog.mockImplementation((output) => {
         versionOutput.push(output);
       });
-      
+
       const result = await runCLI(['--version']);
-      
+
       expect(result.exitCode).toBe(0);
-      
+
       // Version might be printed directly to stdout
       const output = versionOutput.join('\n') || result.stdout;
       if (output) {
@@ -709,11 +781,11 @@ describe('CLI Commands', () => {
       mockConsoleLog.mockImplementation((output) => {
         helpOutput.push(output);
       });
-      
+
       const result = await runCLI(['haunt', '--help']);
-      
+
       expect(result.exitCode).toBe(0);
-      
+
       // Help might be printed directly to stdout
       const output = helpOutput.join('\n') || result.stdout;
       if (output) {

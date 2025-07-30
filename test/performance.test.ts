@@ -1,14 +1,9 @@
 // Performance tests - build debouncing, memory usage, scalability
-import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
-import { Poltergeist } from '../src/poltergeist.js';
-import { ExecutableTarget } from '../src/types.js';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { createPoltergeistWithDeps } from '../src/factories.js';
-import { 
-  createTestHarness, 
-  simulateFileChange, 
-  waitForAsync,
-  TestHarness
-} from './helpers.js';
+import type { Poltergeist } from '../src/poltergeist.js';
+import type { ExecutableTarget } from '../src/types.js';
+import { createTestHarness, simulateFileChange, type TestHarness } from './helpers.js';
 
 describe('Performance Tests', () => {
   let poltergeist: Poltergeist;
@@ -20,15 +15,17 @@ describe('Performance Tests', () => {
 
     // Setup test harness with config
     harness = createTestHarness({
-      targets: [{
-        name: 'test',
-        type: 'executable',
-        enabled: true,
-        buildCommand: 'npm run build',
-        outputPath: './dist',
-        watchPaths: ['src/**/*.ts'],
-        settlingDelay: 100, // 100ms debounce
-      } as ExecutableTarget],
+      targets: [
+        {
+          name: 'test',
+          type: 'executable',
+          enabled: true,
+          buildCommand: 'npm run build',
+          outputPath: './dist',
+          watchPaths: ['src/**/*.ts'],
+          settlingDelay: 100, // 100ms debounce
+        } as ExecutableTarget,
+      ],
     });
 
     // Setup builder mock
@@ -49,9 +46,14 @@ describe('Performance Tests', () => {
 
   describe('Build Debouncing', () => {
     it('should debounce rapid file changes', async () => {
-      poltergeist = createPoltergeistWithDeps(harness.config, '/test/project', harness.deps, harness.logger);
+      poltergeist = createPoltergeistWithDeps(
+        harness.config,
+        '/test/project',
+        harness.deps,
+        harness.logger
+      );
       await poltergeist.start();
-      
+
       // Clear the initial build call
       const testBuilder = harness.builderFactory.builders.get('test');
       vi.mocked(testBuilder?.build).mockClear();
@@ -81,7 +83,7 @@ describe('Performance Tests', () => {
 
       // Advance past settling delay and run all timers
       vi.advanceTimersByTime(110); // Past the 100ms settling delay
-      
+
       // Wait for async operations to complete
       for (let i = 0; i < 10; i++) {
         await Promise.resolve();
@@ -99,9 +101,14 @@ describe('Performance Tests', () => {
     });
 
     it('should reset debounce timer on new changes', async () => {
-      poltergeist = createPoltergeistWithDeps(harness.config, '/test/project', harness.deps, harness.logger);
+      poltergeist = createPoltergeistWithDeps(
+        harness.config,
+        '/test/project',
+        harness.deps,
+        harness.logger
+      );
       await poltergeist.start();
-      
+
       // Clear the initial build call
       const testBuilder = harness.builderFactory.builders.get('test');
       vi.mocked(testBuilder?.build).mockClear();
@@ -127,7 +134,7 @@ describe('Performance Tests', () => {
 
       // Advance past settling delay from last change
       vi.advanceTimersByTime(30); // Total 110ms from last change
-      
+
       // Wait for async operations to complete
       for (let i = 0; i < 10; i++) {
         await Promise.resolve();
@@ -135,10 +142,7 @@ describe('Performance Tests', () => {
 
       // Now should build with both files
       expect(testBuilder?.build).toHaveBeenCalledTimes(1);
-      expect(testBuilder?.build).toHaveBeenCalledWith([
-        'src/file1.ts',
-        'src/file2.ts',
-      ]);
+      expect(testBuilder?.build).toHaveBeenCalledWith(['src/file1.ts', 'src/file2.ts']);
     });
 
     it('should handle different settling delays per target', async () => {
@@ -166,24 +170,29 @@ describe('Performance Tests', () => {
         ],
       });
 
-      poltergeist = createPoltergeistWithDeps(harness.config, '/test/project', harness.deps, harness.logger);
+      poltergeist = createPoltergeistWithDeps(
+        harness.config,
+        '/test/project',
+        harness.deps,
+        harness.logger
+      );
       await poltergeist.start();
-      
+
       // Now get the builders after they've been created
       const fastBuilder = harness.builderFactory.builders.get('fast');
       const slowBuilder = harness.builderFactory.builders.get('slow');
-      
+
       // Setup mocks and clear initial build calls
       if (fastBuilder) {
         vi.mocked(fastBuilder.build).mockResolvedValue({
           status: 'success',
-          targetName: 'fast',  
+          targetName: 'fast',
           timestamp: new Date().toISOString(),
           duration: 50,
         });
         vi.mocked(fastBuilder.build).mockClear();
       }
-      
+
       if (slowBuilder) {
         vi.mocked(slowBuilder.build).mockResolvedValue({
           status: 'success',
@@ -204,7 +213,7 @@ describe('Performance Tests', () => {
 
       // Advance time for fast target
       vi.advanceTimersByTime(60);
-      
+
       // Wait for async operations to complete
       for (let i = 0; i < 10; i++) {
         await Promise.resolve();
@@ -219,7 +228,7 @@ describe('Performance Tests', () => {
 
       // Advance time for slow target
       vi.advanceTimersByTime(150); // Total 210ms
-      
+
       // Wait for async operations to complete
       for (let i = 0; i < 10; i++) {
         await Promise.resolve();
@@ -231,9 +240,14 @@ describe('Performance Tests', () => {
     });
 
     it('should accumulate files during settling period', async () => {
-      poltergeist = createPoltergeistWithDeps(harness.config, '/test/project', harness.deps, harness.logger);
+      poltergeist = createPoltergeistWithDeps(
+        harness.config,
+        '/test/project',
+        harness.deps,
+        harness.logger
+      );
       await poltergeist.start();
-      
+
       // Clear the initial build call
       const testBuilder = harness.builderFactory.builders.get('test');
       vi.mocked(testBuilder?.build).mockClear();
@@ -241,25 +255,25 @@ describe('Performance Tests', () => {
       // Simulate a realistic scenario of multiple file saves
       simulateFileChange(harness.watchmanClient, ['src/index.ts']);
       vi.advanceTimersByTime(20);
-      
+
       simulateFileChange(harness.watchmanClient, ['src/utils.ts']);
       vi.advanceTimersByTime(20);
-      
+
       simulateFileChange(harness.watchmanClient, ['src/types.ts']);
       vi.advanceTimersByTime(20);
-      
+
       // File deleted - simulate with exists: false
       const subscribeCall = vi.mocked(harness.watchmanClient.subscribe).mock.calls[0];
       const changeHandler = subscribeCall[3];
       changeHandler([{ name: 'src/old.ts', exists: false, type: 'f' }]);
       vi.advanceTimersByTime(20);
-      
+
       // Same file modified again (should not duplicate)
       simulateFileChange(harness.watchmanClient, ['src/index.ts']);
-      
+
       // Advance past settling delay
       vi.advanceTimersByTime(110); // 110ms from last change to pass 100ms settling delay
-      
+
       // Wait for async operations to complete
       for (let i = 0; i < 10; i++) {
         await Promise.resolve();
@@ -276,7 +290,12 @@ describe('Performance Tests', () => {
 
   describe('Memory Usage', () => {
     it('should not accumulate unbounded file change history', async () => {
-      poltergeist = createPoltergeistWithDeps(harness.config, '/test/project', harness.deps, harness.logger);
+      poltergeist = createPoltergeistWithDeps(
+        harness.config,
+        '/test/project',
+        harness.deps,
+        harness.logger
+      );
       await poltergeist.start();
 
       // Simulate rapid file changes
@@ -295,13 +314,17 @@ describe('Performance Tests', () => {
 
         // Clear build mock
         const testBuilder = harness.builderFactory.builders.get('test');
-      vi.mocked(testBuilder?.build).mockClear();
+        vi.mocked(testBuilder?.build).mockClear();
       }
 
       // Memory usage should be bounded
       // In real implementation, would check actual memory metrics
       // Here we verify that old data is not retained
-      const targetStates = (poltergeist as any).targetStates;
+      // Access private property for testing purposes
+      const poltergeistWithPrivates = poltergeist as Poltergeist & {
+        targetStates: Map<string, { pendingFiles: Set<string> }>;
+      };
+      const targetStates = poltergeistWithPrivates.targetStates;
       expect(targetStates.size).toBe(1); // Only one target
 
       // Check that pending files are cleared after builds
@@ -310,7 +333,12 @@ describe('Performance Tests', () => {
     });
 
     it('should clean up event listeners on stop', async () => {
-      poltergeist = createPoltergeistWithDeps(harness.config, '/test/project', harness.deps, harness.logger);
+      poltergeist = createPoltergeistWithDeps(
+        harness.config,
+        '/test/project',
+        harness.deps,
+        harness.logger
+      );
       await poltergeist.start();
 
       // Stop poltergeist
@@ -318,7 +346,7 @@ describe('Performance Tests', () => {
 
       // Watchman should be disconnected
       expect(harness.watchmanClient.disconnect).toHaveBeenCalled();
-      
+
       // Builders should be stopped
       const testBuilder = harness.builderFactory.builders.get('test');
       expect(testBuilder?.stop).toHaveBeenCalled();
@@ -338,18 +366,27 @@ describe('Performance Tests', () => {
       // Create new harness with many targets
       harness = createTestHarness({ targets: manyTargets });
 
-      poltergeist = createPoltergeistWithDeps(harness.config, '/test/project', harness.deps, harness.logger);
+      poltergeist = createPoltergeistWithDeps(
+        harness.config,
+        '/test/project',
+        harness.deps,
+        harness.logger
+      );
       const startTime = Date.now();
-      
+
       await poltergeist.start();
-      
+
       const initTime = Date.now() - startTime;
 
       // Initialization should be reasonably fast
       expect(initTime).toBeLessThan(1000); // Less than 1 second
 
       // Should create builders for all targets
-      const targetStates = (poltergeist as any).targetStates;
+      // Access private property for testing purposes
+      const poltergeistWithPrivates = poltergeist as Poltergeist & {
+        targetStates: Map<string, unknown>;
+      };
+      const targetStates = poltergeistWithPrivates.targetStates;
       expect(targetStates.size).toBe(50);
 
       // Should create subscriptions for all targets
@@ -362,7 +399,12 @@ describe('Performance Tests', () => {
 
   describe('Resource Cleanup', () => {
     it('should clean up resources on process exit', async () => {
-      poltergeist = createPoltergeistWithDeps(harness.config, '/test/project', harness.deps, harness.logger);
+      poltergeist = createPoltergeistWithDeps(
+        harness.config,
+        '/test/project',
+        harness.deps,
+        harness.logger
+      );
       await poltergeist.start();
 
       // Simulate process exit
@@ -374,11 +416,18 @@ describe('Performance Tests', () => {
     });
 
     it('should handle cleanup errors gracefully', async () => {
-      poltergeist = createPoltergeistWithDeps(harness.config, '/test/project', harness.deps, harness.logger);
+      poltergeist = createPoltergeistWithDeps(
+        harness.config,
+        '/test/project',
+        harness.deps,
+        harness.logger
+      );
       await poltergeist.start();
 
       // Make cleanup operations fail
-      vi.mocked(harness.watchmanClient.disconnect).mockRejectedValue(new Error('Disconnect failed'));
+      vi.mocked(harness.watchmanClient.disconnect).mockRejectedValue(
+        new Error('Disconnect failed')
+      );
       vi.mocked(harness.stateManager.cleanup).mockRejectedValue(new Error('Cleanup failed'));
 
       // Should handle the error gracefully and not throw
@@ -389,10 +438,15 @@ describe('Performance Tests', () => {
   describe('Scalability', () => {
     it('should handle high-frequency file changes', async () => {
       harness.config.targets[0].settlingDelay = 10; // Very short delay
-      
-      poltergeist = createPoltergeistWithDeps(harness.config, '/test/project', harness.deps, harness.logger);
+
+      poltergeist = createPoltergeistWithDeps(
+        harness.config,
+        '/test/project',
+        harness.deps,
+        harness.logger
+      );
       await poltergeist.start();
-      
+
       // Clear initial build
       const testBuilder = harness.builderFactory.builders.get('test');
       vi.mocked(testBuilder?.build).mockClear();
@@ -402,7 +456,7 @@ describe('Performance Tests', () => {
       const changeHandler = subscribeCall[3];
 
       // Simulate file watcher going crazy
-      const changes: any[] = [];
+      const changes: Array<{ name: string; exists: boolean; type: string }> = [];
       for (let i = 0; i < 10000; i++) {
         changes.push({ name: `src/file${i % 100}.ts`, exists: true, type: 'f' });
       }
@@ -426,8 +480,13 @@ describe('Performance Tests', () => {
         'test/**/**/**/**/*.spec.ts',
       ];
 
-      poltergeist = createPoltergeistWithDeps(harness.config, '/test/project', harness.deps, harness.logger);
-      
+      poltergeist = createPoltergeistWithDeps(
+        harness.config,
+        '/test/project',
+        harness.deps,
+        harness.logger
+      );
+
       const startTime = performance.now();
       await poltergeist.start();
       const duration = performance.now() - startTime;
