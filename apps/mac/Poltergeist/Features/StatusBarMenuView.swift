@@ -22,7 +22,7 @@ struct StatusBarMenuView: View {
             HStack(spacing: 12) {
                 Image(systemName: "ghost.fill")
                     .font(.system(size: 18, weight: .medium))
-                    .foregroundStyle(.tint)
+                    .foregroundStyle(.primary)
                     .symbolEffect(.pulse, isActive: true)
                 
                 Text("Poltergeist Monitor")
