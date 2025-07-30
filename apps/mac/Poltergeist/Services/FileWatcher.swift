@@ -14,21 +14,27 @@ class FileWatcher {
     }
     
     func start() {
-        let callback: FSEventStreamCallback = { _, _, numEvents, _, _, _ in
-            if numEvents > 0 {
-                DispatchQueue.main.async { [weak self] in
-                    self?.callback()
-                }
-            }
-        }
+        // Create a context that holds a reference to self
+        let selfPtr = Unmanaged.passUnretained(self).toOpaque()
         
         var context = FSEventStreamContext(
             version: 0,
-            info: nil,
+            info: selfPtr,
             retain: nil,
             release: nil,
             copyDescription: nil
         )
+        
+        let callback: FSEventStreamCallback = { _, clientCallBackInfo, numEvents, _, _, _ in
+            guard let info = clientCallBackInfo else { return }
+            let watcher = Unmanaged<FileWatcher>.fromOpaque(info).takeUnretainedValue()
+            
+            if numEvents > 0 {
+                DispatchQueue.main.async {
+                    watcher.callback()
+                }
+            }
+        }
         
         let pathsToWatch = [path] as CFArray
         
