@@ -8,21 +8,22 @@
   [![npm version](https://img.shields.io/npm/v/@steipete/poltergeist)](https://www.npmjs.com/package/@steipete/poltergeist)
   [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 
-  **The ghost that keeps your builds fresh** - A universal file watcher with auto-rebuild for any language or build system. Poltergeist monitors your source files and automatically rebuilds when changes are detected, with intelligent project detection and optimized performance.
+  **The ghost that keeps your builds fresh** 👻  
+  A universal file watcher with auto-rebuild for any language or build system
 </div>
 
-## ✨ Features
+## Features
 
-- **🎯 Universal Target System**: Support for executables, app bundles, libraries, frameworks, tests, Docker containers, and custom builds
-- **⚡ Efficient File Watching**: Powered by Facebook's Watchman with smart exclusions and performance optimization
-- **🧠 Intelligent Project Detection**: Automatically detects Swift, Node.js, Rust, Python, and mixed projects
-- **🔧 Smart Configuration**: Project-specific exclusions with performance profiles (conservative, balanced, aggressive)
-- **📱 Native Notifications**: macOS notifications with customizable sounds for build status
-- **🔄 Concurrent Build Protection**: Intelligent locking prevents overlapping builds
-- **📊 Advanced State Management**: Process tracking, build history, and heartbeat monitoring
-- **🌍 Cross-Platform**: Works on macOS, Linux, and Windows
+- **Universal Target System**: Support for executables, app bundles, libraries, frameworks, tests, Docker containers, and custom builds
+- **Efficient File Watching**: Powered by Facebook's Watchman with smart exclusions and performance optimization
+- **Intelligent Project Detection**: Automatically detects Swift, Node.js, Rust, Python, and mixed projects
+- **Smart Configuration**: Project-specific exclusions with performance profiles (conservative, balanced, aggressive)
+- **Native Notifications**: macOS notifications with customizable sounds for build status
+- **Concurrent Build Protection**: Intelligent locking prevents overlapping builds
+- **Advanced State Management**: Process tracking, build history, and heartbeat monitoring
+- **Cross-Platform**: Works on macOS, Linux, and Windows
 
-## 🚀 Quick Start
+## Quick Start
 
 ### Installation
 
@@ -72,13 +73,13 @@ npx @steipete/poltergeist haunt
 poltergeist haunt
 ```
 
-## 📋 Requirements
+## Requirements
 
 - **Node.js 20.0.0** or higher
 - **[Watchman](https://facebook.github.io/watchman/)** (automatically installed as dependency)
 - **macOS** for notification features (optional)
 
-## ⚙️ Configuration
+## Configuration
 
 ### Configuration Schema v1.0
 
@@ -140,7 +141,7 @@ Poltergeist v1.0 uses a clean, modern configuration schema with no backwards com
 }
 ```
 
-### 🎯 Target Types
+### Target Types
 
 #### Executable Target
 For CLI tools, binaries, and general applications:
@@ -243,7 +244,7 @@ For custom build processes:
 }
 ```
 
-### 🧠 Smart Project Detection
+### Smart Project Detection
 
 Poltergeist automatically detects your project type based on configuration files:
 
@@ -255,7 +256,7 @@ Poltergeist automatically detects your project type based on configuration files
 | `python` | `pyproject.toml`, `requirements.txt` | `__pycache__`, virtual envs |
 | `mixed` | Multiple indicators | Combined exclusions from all types |
 
-### 🏎️ Performance Profiles
+### Performance Profiles
 
 Choose the right balance between file coverage and performance:
 
@@ -278,7 +279,7 @@ Choose the right balance between file coverage and performance:
 | `balanced` | Good performance/coverage balance | 50 | Most projects (default) |
 | `aggressive` | Maximum performance | 100 | Large projects, CI/CD |
 
-### 📁 Smart Exclusions
+### Smart Exclusions
 
 Poltergeist includes 70+ optimized exclusion patterns:
 
@@ -298,7 +299,7 @@ Poltergeist includes 70+ optimized exclusion patterns:
 - Build outputs: `dist`, `.next`, `.nuxt`
 - Logs: `*.log`, `npm-debug.log*`
 
-### 🔧 Advanced Configuration
+### Advanced Configuration
 
 #### Custom Exclusion Rules
 
@@ -358,7 +359,7 @@ Poltergeist includes 70+ optimized exclusion patterns:
 }
 ```
 
-## 🖥️ Command Line Interface
+## Command Line Interface
 
 ### Commands
 
@@ -394,7 +395,7 @@ poltergeist list [options]
   -c, --config <path>   Custom config file path
 ```
 
-### 📊 Status Output
+### Status Output
 
 ```bash
 $ poltergeist status
@@ -412,7 +413,7 @@ Target: my-cli
   Output: ./bin/mycli
 ```
 
-## 📋 Examples
+## Examples
 
 ### Swift Package Manager Project
 
@@ -598,7 +599,7 @@ Target: my-cli
 }
 ```
 
-## 🔄 State Management
+## State Management
 
 ### Unified State System
 
@@ -637,7 +638,7 @@ Poltergeist v1.0 uses a lock-free state management system with atomic operations
 }
 ```
 
-## 🚧 Development
+## Development
 
 ### Building from Source
 
@@ -700,7 +701,7 @@ npm run typecheck
 npm run build && npm test && npm run lint
 ```
 
-## 🧪 Testing
+## Testing
 
 Comprehensive test suite with Vitest:
 
@@ -715,7 +716,7 @@ npm run test:watch
 npm run test:coverage
 ```
 
-## 🤝 Contributing
+## Contributing
 
 Contributions welcome! Please ensure:
 
@@ -732,15 +733,15 @@ Contributions welcome! Please ensure:
 - **Performance over features**: Optimize for large projects
 - **Simple over complex**: Clean APIs over extensive configuration
 
-## 📄 License
+## License
 
 MIT License - see [LICENSE](LICENSE) file for details.
 
-## 👤 Author
+## Author
 
 Created and maintained by [Peter Steinberger](https://github.com/steipete)
 
-## 🙏 Acknowledgments
+## Acknowledgments
 
 - **[Watchman](https://facebook.github.io/watchman/)** for efficient file watching
 - **[Zod](https://zod.dev/)** for runtime type validation
@@ -750,5 +751,5 @@ Created and maintained by [Peter Steinberger](https://github.com/steipete)
 ---
 
 <div align="center">
-  <strong>👻 Keep your builds fresh with Poltergeist! 👻</strong>
+  <strong>Keep your builds fresh with Poltergeist</strong>
 </div>
