@@ -4,8 +4,7 @@ import type {
   Target, 
   BuildRequest, 
   BuildSchedulingConfig,
-  BuildStatus,
-  TargetPriority 
+  BuildStatus
 } from './types.js';
 import type { Logger } from './logger.js';
 import type { BaseBuilder } from './builders/index.js';
@@ -208,17 +207,10 @@ export class IntelligentBuildQueue {
    * Execute the actual build
    */
   private async executeBuild(request: QueuedBuild): Promise<BuildStatus> {
-    const { target, builder } = request;
+    const { builder, triggeringFiles } = request;
     
-    // Update state to building
-    await builder.updateBuildStatus({
-      targetName: target.name,
-      status: 'building',
-      timestamp: new Date().toISOString()
-    });
-
     // Execute the build
-    return await builder.build();
+    return await builder.build(triggeringFiles);
   }
 
   /**
@@ -265,7 +257,7 @@ export class IntelligentBuildQueue {
   public getQueueStatus(): {
     pending: { target: string; priority: number; timestamp: number }[];
     running: { target: string; startTime: number; duration: number }[];
-    stats: typeof this.queueStats;
+    stats: { totalBuilds: number; successfulBuilds: number; failedBuilds: number; avgWaitTime: number; avgBuildTime: number };
   } {
     const now = Date.now();
     
@@ -341,7 +333,7 @@ export class IntelligentBuildQueue {
     return this.targets.get(targetName);
   }
 
-  private updateStats(result: BuildStatus, startTime: number): void {
+  private updateStats(result: BuildStatus, _startTime: number): void {
     this.queueStats.totalBuilds++;
     
     if (result.status === 'success') {

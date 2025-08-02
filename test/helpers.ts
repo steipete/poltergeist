@@ -125,6 +125,8 @@ export function createMockBuilderFactory(): MockBuilderFactory {
  */
 export function createTestConfig(overrides?: Partial<PoltergeistConfig>): PoltergeistConfig {
   return {
+    version: '1.0',
+    projectType: 'node',
     targets: [
       {
         name: 'test-target',
@@ -136,6 +138,19 @@ export function createTestConfig(overrides?: Partial<PoltergeistConfig>): Polter
         settlingDelay: 100,
       },
     ],
+    watchman: {
+      useDefaultExclusions: true,
+      excludeDirs: [],
+      projectType: 'node',
+      maxFileEvents: 10000,
+      recrawlThreshold: 5,
+      settlingDelay: 1000,
+      rules: [],
+    },
+    performance: {
+      mode: 'balanced',
+      reportInterval: 300,
+    },
     ...overrides,
   };
 }

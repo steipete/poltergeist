@@ -198,14 +198,62 @@ export class PriorityEngine {
   }
 
   private matchesPattern(file: string, pattern: string): boolean {
-    // Simple glob matching - convert to regex
-    const regexPattern = pattern
-      .replace(/\*\*/g, '.*')
-      .replace(/\*/g, '[^/]*')
-      .replace(/\?/g, '.');
+    // Simple glob matching using minimatch-style logic
+    // Split pattern and file into segments
+    const patternSegments = pattern.split('/');
+    const fileSegments = file.split('/');
+    
+    return this.matchSegments(fileSegments, patternSegments, 0, 0);
+  }
+
+  private matchSegments(fileSegments: string[], patternSegments: string[], fileIndex: number, patternIndex: number): boolean {
+    // If we've consumed all pattern segments
+    if (patternIndex >= patternSegments.length) {
+      return fileIndex >= fileSegments.length; // Should have consumed all file segments too
+    }
+    
+    // If we've consumed all file segments but have pattern left
+    if (fileIndex >= fileSegments.length) {
+      return false;
+    }
+    
+    const patternSegment = patternSegments[patternIndex];
+    
+    // Handle ** (matches zero or more path segments)
+    if (patternSegment === '**') {
+      // Try matching zero segments (skip **)
+      if (this.matchSegments(fileSegments, patternSegments, fileIndex, patternIndex + 1)) {
+        return true;
+      }
+      
+      // Try matching one or more segments
+      for (let i = fileIndex; i < fileSegments.length; i++) {
+        if (this.matchSegments(fileSegments, patternSegments, i + 1, patternIndex + 1)) {
+          return true;
+        }
+      }
+      return false;
+    }
+    
+    // Handle normal segments with * and ?
+    if (this.matchWildcard(fileSegments[fileIndex], patternSegment)) {
+      return this.matchSegments(fileSegments, patternSegments, fileIndex + 1, patternIndex + 1);
+    }
+    
+    return false;
+  }
+
+  private matchWildcard(text: string, pattern: string): boolean {
+    // Convert single segment pattern to regex
+    let regexPattern = pattern
+      .replace(/[.+^${}()|[\]\\]/g, '\\$&')  // Escape regex special chars
+      .replace(/\*/g, '.*')                  // * matches any characters
+      .replace(/\?/g, '.');                  // ? matches single char
+    
+    regexPattern = '^' + regexPattern + '$';
     
     try {
-      return new RegExp(regexPattern).test(file);
+      return new RegExp(regexPattern).test(text);
     } catch {
       return false;
     }
@@ -229,7 +277,7 @@ export class PriorityEngine {
     return 'shared';
   }
 
-  private calculateImpactWeight(file: string, changeType: 'direct' | 'shared' | 'generated'): number {
+  private calculateImpactWeight(_file: string, changeType: 'direct' | 'shared' | 'generated'): number {
     switch (changeType) {
       case 'direct': return 1.0;
       case 'shared': return 0.7;
