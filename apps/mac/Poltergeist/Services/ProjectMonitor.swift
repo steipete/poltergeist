@@ -86,13 +86,24 @@ class ProjectMonitor: ObservableObject {
                     }
                     
                     // Extract project hash from filename
-                    let components = file.dropLast(6).split(separator: "-") // Remove .state
+                    // Format: projectName-hash-target.state
+                    let fileWithoutExtension = String(file.dropLast(6)) // Remove .state
+                    let components = fileWithoutExtension.split(separator: "-")
+                    
+                    logger.debug("📝 Parsing state file: \(file)")
+                    logger.debug("📝 Components after splitting: \(components)")
+                    
                     guard components.count >= 3 else {
-                        logger.warning("Invalid state file name format: \(file)")
+                        logger.warning("Invalid state file name format: \(file) (only \(components.count) components)")
                         continue
                     }
                     
+                    // The hash is the second-to-last component
                     let projectHash = String(components[components.count - 2])
+                    let targetName = String(components[components.count - 1])
+                    
+                    logger.debug("📝 Extracted hash: \(projectHash), target: \(targetName)")
+                    
                     let projectKey = "\(state.projectPath)-\(projectHash)"
                     
                     // Create or update project
@@ -184,6 +195,19 @@ class ProjectMonitor: ObservableObject {
         logger.info("📁 Project path: \(project.path)")
         logger.info("🎯 Targets to remove: \(project.targets.keys.joined(separator: ", "))")
         
+        // First, list all files in the directory for debugging
+        do {
+            let allFiles = try FileManager.default.contentsOfDirectory(atPath: poltergeistDirectory)
+            let projectFiles = allFiles.filter { $0.contains(project.name) && $0.hasSuffix(".state") }
+            logger.info("📂 All state files for project '\(project.name)': \(projectFiles.joined(separator: ", "))")
+            
+            // Also show files that match the hash
+            let hashFiles = allFiles.filter { $0.contains(project.hash) && $0.hasSuffix(".state") }
+            logger.info("📂 All state files with hash '\(project.hash)': \(hashFiles.joined(separator: ", "))")
+        } catch {
+            logger.error("❌ Failed to list directory contents: \(error.localizedDescription)")
+        }
+        
         var removedCount = 0
         var failedCount = 0
         
@@ -192,18 +216,39 @@ class ProjectMonitor: ObservableObject {
             let fileName = "\(project.name)-\(project.hash)-\(targetName).state"
             let filePath = "\(poltergeistDirectory)/\(fileName)"
             
-            logger.debug("Attempting to remove: \(filePath)")
+            logger.info("🔍 Looking for file: \(fileName)")
+            logger.debug("🔍 Full path: \(filePath)")
             
             do {
                 if FileManager.default.fileExists(atPath: filePath) {
+                    logger.info("✅ File exists, attempting removal...")
                     try FileManager.default.removeItem(atPath: filePath)
-                    logger.info("✅ Removed state file: \(fileName)")
+                    logger.info("✅ Successfully removed state file: \(fileName)")
                     removedCount += 1
                 } else {
                     logger.warning("⚠️ State file not found: \(fileName)")
+                    
+                    // Try alternative naming patterns
+                    let alternativePatterns = [
+                        "\(project.name)-\(targetName)-\(project.hash).state",
+                        "\(project.name)_\(project.hash)_\(targetName).state",
+                        "\(project.name).\(project.hash).\(targetName).state"
+                    ]
+                    
+                    for pattern in alternativePatterns {
+                        let altPath = "\(poltergeistDirectory)/\(pattern)"
+                        if FileManager.default.fileExists(atPath: altPath) {
+                            logger.info("🔄 Found file with alternative pattern: \(pattern)")
+                            try FileManager.default.removeItem(atPath: altPath)
+                            logger.info("✅ Removed alternative pattern file: \(pattern)")
+                            removedCount += 1
+                            break
+                        }
+                    }
                 }
             } catch {
                 logger.error("❌ Failed to remove state file \(fileName): \(error.localizedDescription)")
+                logger.error("❌ Error details: \(error)")
                 failedCount += 1
             }
         }
@@ -212,6 +257,7 @@ class ProjectMonitor: ObservableObject {
         
         // Rescan after a small delay to ensure filesystem operations complete
         DispatchQueue.main.asyncAfter(deadline: .now() + 0.1) { [weak self] in
+            self?.logger.info("🔄 Triggering rescan after removal...")
             self?.scanForProjects()
         }
     }

@@ -20,7 +20,8 @@ export interface IWatchmanClient {
       expression: Array<string | Array<string>>;
       fields: string[];
     },
-    callback: (files: Array<{ name: string; exists: boolean; type?: string }>) => void
+    callback: (files: Array<{ name: string; exists: boolean; type?: string }>) => void,
+    exclusionExpressions?: Array<[string, string[]]>
   ): Promise<void>;
   unsubscribe(subscriptionName: string): Promise<void>;
   isConnected(): boolean;

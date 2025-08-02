@@ -115,7 +115,7 @@ final class StatusBarController: NSObject {
         guard let button = statusItem?.button else { return }
         
         let popover = NSPopover()
-        popover.contentSize = NSSize(width: 400, height: 600)
+        popover.contentSize = NSSize(width: 480, height: 600)
         popover.behavior = .transient
         popover.animates = true
         

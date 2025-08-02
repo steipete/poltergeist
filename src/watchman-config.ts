@@ -1,0 +1,484 @@
+// Poltergeist v1.0 - Smart Watchman configuration with project detection
+
+import { promises as fs } from 'fs';
+import path from 'path';
+import type { Logger } from './logger.js';
+import type { 
+  PoltergeistConfig, 
+  ProjectType, 
+  PerformanceProfile
+} from './types.js';
+
+/**
+ * Project-specific exclusion sets optimized for each ecosystem
+ */
+export const PROJECT_TYPE_EXCLUSIONS = {
+  swift: [
+    // Swift Package Manager
+    '.build', '**/.build/**', 'Package.resolved',
+    // Xcode
+    'DerivedData', '**/DerivedData/**',
+    '*.xcworkspace/xcuserdata', '*.xcodeproj/xcuserdata',
+    '*.xcworkspace/xcshareddata/xcschemes',
+    '*.xcodeproj/project.xcworkspace/xcuserdata',
+    // Build artifacts
+    '*.dSYM', '*.framework', '*.app', '*.ipa',
+    // Swift-specific
+    '*.swiftmodule', '*.swiftdoc', '*.swiftsourceinfo',
+  ],
+  
+  node: [
+    // Dependencies
+    'node_modules', '**/node_modules/**',
+    // Build outputs
+    'dist', 'build', 'out', '.next', '.nuxt', 'coverage',
+    // Cache and temp
+    '.cache', '.parcel-cache', '.nyc_output', 'lib-cov',
+    // Logs
+    '*.log', 'logs', 'npm-debug.log*', 'yarn-debug.log*', 'yarn-error.log*',
+    // Package managers
+    'package-lock.json', 'yarn.lock', 'pnpm-lock.yaml',
+  ],
+  
+  rust: [
+    // Cargo
+    'target', '**/target/**', 'Cargo.lock',
+    // Build artifacts
+    '*.rlib', '*.rmeta', '*.crate',
+    // IDE
+    '*.rs.bk',
+  ],
+  
+  python: [
+    // Python bytecode
+    '__pycache__', '**/__pycache__/**', '*.pyc', '*.pyo', '*.pyd',
+    // Virtual environments
+    'venv', 'env', '.venv', '.env',
+    // Testing and coverage
+    '.pytest_cache', '.coverage', 'htmlcov', '.tox',
+    // Type checking and linting
+    '.mypy_cache', '.ruff_cache', '.pylint.d',
+    // Distribution
+    '*.egg-info', 'dist', 'build',
+  ],
+  
+  mixed: [] // Will be populated by combining all types
+} as const;
+
+/**
+ * Universal exclusions that apply to all project types
+ */
+export const UNIVERSAL_EXCLUSIONS = [
+  // Version control
+  '.git', '.svn', '.hg', '.bzr',
+  // OS files
+  '.DS_Store', 'Thumbs.db', 'desktop.ini',
+  // IDE and editors
+  '.vscode', '.idea', '.cursor', '.vs', '*.swp', '*.swo',
+  // Temporary files
+  'tmp', 'temp', '.tmp', '*.tmp', '*.temp',
+  // Archives
+  '*.zip', '*.tar', '*.gz', '*.rar', '*.7z',
+] as const;
+
+// Populate mixed type with all exclusions
+(PROJECT_TYPE_EXCLUSIONS as any).mixed = [
+  ...PROJECT_TYPE_EXCLUSIONS.swift,
+  ...PROJECT_TYPE_EXCLUSIONS.node,
+  ...PROJECT_TYPE_EXCLUSIONS.rust,
+  ...PROJECT_TYPE_EXCLUSIONS.python,
+];
+
+/**
+ * Performance profiles with different exclusion strategies
+ */
+export const PERFORMANCE_PROFILES = {
+  conservative: {
+    description: 'Minimal exclusions, maximum file coverage',
+    excludeOnlyEssential: true,
+    maxExclusions: 20,
+  },
+  balanced: {
+    description: 'Good balance of performance and coverage',
+    excludeOnlyEssential: false,
+    maxExclusions: 50,
+  },
+  aggressive: {
+    description: 'Maximum performance, minimal file coverage',
+    excludeOnlyEssential: false,
+    maxExclusions: 100,
+  },
+} as const;
+
+/**
+ * Configuration error with helpful suggestions
+ */
+export class ConfigurationError extends Error {
+  constructor(
+    message: string,
+    public readonly suggestion?: string,
+    public readonly code?: string
+  ) {
+    super(message);
+    this.name = 'ConfigurationError';
+  }
+}
+
+/**
+ * Smart Watchman configuration manager - v1.0
+ * Clean, modern, opinionated design for optimal performance
+ */
+export class WatchmanConfigManager {
+  private projectRoot: string;
+  private logger: Logger;
+  private configPath: string;
+
+  constructor(projectRoot: string, logger: Logger) {
+    this.projectRoot = projectRoot;
+    this.logger = logger;
+    this.configPath = path.join(projectRoot, '.watchmanconfig');
+  }
+
+  /**
+   * Detect project type based on files in project root
+   */
+  async detectProjectType(): Promise<ProjectType> {
+    try {
+      const files = await fs.readdir(this.projectRoot);
+      const fileSet = new Set(files);
+
+      // Check for definitive indicators in order of specificity
+      if (fileSet.has('Package.swift')) {
+        this.logger.debug('Detected Swift project (Package.swift found)');
+        return 'swift';
+      }
+      
+      if (fileSet.has('Cargo.toml')) {
+        this.logger.debug('Detected Rust project (Cargo.toml found)');
+        return 'rust';
+      }
+      
+      if (fileSet.has('package.json')) {
+        this.logger.debug('Detected Node.js project (package.json found)');
+        return 'node';
+      }
+      
+      if (fileSet.has('pyproject.toml') || fileSet.has('requirements.txt') || fileSet.has('setup.py')) {
+        this.logger.debug('Detected Python project (Python config files found)');
+        return 'python';
+      }
+      
+      // Check for multiple project types
+      const indicators = [
+        fileSet.has('Package.swift') ? 'swift' : null,
+        fileSet.has('package.json') ? 'node' : null,
+        fileSet.has('Cargo.toml') ? 'rust' : null,
+        (fileSet.has('pyproject.toml') || fileSet.has('requirements.txt')) ? 'python' : null,
+      ].filter(Boolean);
+      
+      if (indicators.length > 1) {
+        this.logger.info(`Multiple project types detected: ${indicators.join(', ')}. Using 'mixed' type.`);
+        return 'mixed';
+      }
+      
+      this.logger.warn('Could not detect project type. Defaulting to mixed.');
+      return 'mixed';
+      
+    } catch (error) {
+      this.logger.error(`Error detecting project type: ${error}`);
+      return 'mixed';
+    }
+  }
+
+  /**
+   * Get optimized exclusions based on project type and performance profile
+   */
+  getOptimizedExclusions(
+    projectType: ProjectType, 
+    profile: PerformanceProfile = 'balanced',
+    customExclusions: string[] = []
+  ): string[] {
+    const universal = [...UNIVERSAL_EXCLUSIONS];
+    const projectSpecific = [...PROJECT_TYPE_EXCLUSIONS[projectType]];
+    const profileConfig = PERFORMANCE_PROFILES[profile];
+    
+    let exclusions = [...universal, ...projectSpecific, ...customExclusions];
+    
+    // Apply performance profile limits
+    if (profileConfig.excludeOnlyEssential) {
+      // Keep only the most critical exclusions for conservative profile
+      exclusions = exclusions.filter(pattern => 
+        pattern.includes('.git') || 
+        pattern.includes('node_modules') || 
+        pattern.includes('.build') ||
+        pattern.includes('DerivedData')
+      );
+    }
+    
+    // Limit total exclusions based on profile
+    if (exclusions.length > profileConfig.maxExclusions) {
+      this.logger.warn(
+        `Exclusion count (${exclusions.length}) exceeds profile limit (${profileConfig.maxExclusions}). ` +
+        `Keeping most critical exclusions.`
+      );
+      exclusions = exclusions.slice(0, profileConfig.maxExclusions);
+    }
+    
+    // Remove duplicates and sort for consistency
+    exclusions = [...new Set(exclusions)].sort();
+    
+    this.logger.info(
+      `Generated ${exclusions.length} exclusions for ${projectType} project with ${profile} profile`
+    );
+    
+    return exclusions;
+  }
+
+  /**
+   * Validate watch patterns with strict checking
+   */
+  validateWatchPattern(pattern: string): void {
+    if (!pattern || typeof pattern !== 'string') {
+      throw new ConfigurationError(
+        'Watch pattern must be a non-empty string',
+        'Use glob patterns like "**/*.swift" or "src/**/*.ts"',
+        'INVALID_PATTERN'
+      );
+    }
+    
+    // Check for common mistakes
+    if (pattern.includes('*') && !pattern.includes('/')) {
+      throw new ConfigurationError(
+        `Invalid pattern "${pattern}": Use directory separators with wildcards`,
+        'Change "*.swift" to "**/*.swift" for recursive matching',
+        'MISSING_DIRECTORY_SEPARATOR'
+      );
+    }
+    
+    if (pattern.endsWith('/')) {
+      throw new ConfigurationError(
+        `Invalid pattern "${pattern}": Patterns should not end with "/"`,
+        'Use "dirname/**" instead of "dirname/"',
+        'TRAILING_SLASH'
+      );
+    }
+    
+    // Validate against known problematic patterns
+    const problematicPatterns = ['.git/**', 'node_modules/**', '.build/**'];
+    if (problematicPatterns.some(p => pattern.includes(p))) {
+      this.logger.warn(
+        `Pattern "${pattern}" includes commonly excluded directory. ` +
+        `Consider if this is intentional.`
+      );
+    }
+  }
+
+  /**
+   * Generate comprehensive Watchman configuration
+   */
+  async generateWatchmanConfig(config: PoltergeistConfig): Promise<any> {
+    const projectType = config.projectType;
+    const watchmanConfig = config.watchman;
+    const performanceProfile = config.performance?.profile || 'balanced';
+    
+    // Get optimized exclusions
+    const exclusions = this.getOptimizedExclusions(
+      projectType,
+      performanceProfile,
+      watchmanConfig.excludeDirs
+    );
+    
+    // Process exclusion rules if provided
+    const ruleExclusions: string[] = [];
+    if (watchmanConfig.rules) {
+      for (const rule of watchmanConfig.rules) {
+        if (rule.enabled !== false && rule.action === 'ignore') {
+          ruleExclusions.push(rule.pattern);
+        }
+      }
+    }
+    
+    const allExclusions = [...exclusions, ...ruleExclusions];
+    
+    // Advanced Watchman configuration
+    const watchmanFileConfig = {
+      ignore_dirs: allExclusions,
+      ignore_vcs: ['.git', '.svn', '.hg', '.bzr'],
+      
+      // Performance tuning
+      idle_reap_age_seconds: 300,
+      gc_age_seconds: 259200, // 3 days
+      gc_interval_seconds: 86400, // 1 day
+      
+      // Limits based on project size
+      max_files: watchmanConfig.maxFileEvents,
+      
+      // Settling behavior
+      settle: watchmanConfig.settlingDelay,
+      
+      // Project-specific optimizations
+      ...(projectType === 'swift' && {
+        // Swift-specific optimizations
+        defer: ['*.xcodeproj/**', '*.xcworkspace/**'],
+      }),
+      
+      ...(projectType === 'node' && {
+        // Node-specific optimizations  
+        defer: ['package-lock.json', 'yarn.lock'],
+      }),
+    };
+    
+    return watchmanFileConfig;
+  }
+
+  /**
+   * Strict configuration validation - fail fast
+   */
+  validateConfiguration(config: PoltergeistConfig): void {
+    // Validate watch patterns
+    for (const target of config.targets) {
+      for (const pattern of target.watchPaths) {
+        this.validateWatchPattern(pattern);
+      }
+    }
+    
+    // Validate exclusion rules
+    if (config.watchman.rules) {
+      for (const rule of config.watchman.rules) {
+        this.validateWatchPattern(rule.pattern);
+      }
+    }
+    
+    this.logger.debug('✅ Configuration validation passed');
+  }
+
+  /**
+   * Write configuration with metadata and validation
+   */
+  async writeConfig(watchmanConfig: any, config: PoltergeistConfig): Promise<void> {
+    try {
+      const configWithMetadata = {
+        ...watchmanConfig,
+        // Add metadata for debugging
+        _metadata: {
+          generated_by: 'poltergeist',
+          project_type: config.projectType,
+          performance_profile: config.performance?.profile || 'balanced',
+          generated_at: new Date().toISOString(),
+          total_exclusions: watchmanConfig.ignore_dirs.length,
+        }
+      };
+      
+      const content = JSON.stringify(configWithMetadata, null, 2);
+      await fs.writeFile(this.configPath, content, 'utf-8');
+      
+      this.logger.info(
+        `✅ Generated .watchmanconfig with ${watchmanConfig.ignore_dirs.length} exclusions ` +
+        `(${config.projectType} project, ${config.performance?.profile || 'balanced'} profile)`
+      );
+      
+    } catch (error) {
+      this.logger.error(`Failed to write .watchmanconfig: ${error}`);
+      throw new ConfigurationError(
+        'Failed to write Watchman configuration',
+        'Check file permissions and disk space',
+        'WRITE_FAILED'
+      );
+    }
+  }
+
+  /**
+   * Ensure configuration is up to date
+   */
+  async ensureConfigUpToDate(config: PoltergeistConfig): Promise<void> {
+    // Strict validation first
+    this.validateConfiguration(config);
+    
+    // Generate new config
+    const watchmanConfig = await this.generateWatchmanConfig(config);
+    
+    // Always write fresh configuration
+    await this.writeConfig(watchmanConfig, config);
+    
+    // Log optimization summary
+    this.logOptimizationSummary(config, watchmanConfig);
+  }
+
+  /**
+   * Create exclusion expressions for subscriptions
+   */
+  createExclusionExpressions(config: PoltergeistConfig): Array<[string, string[]]> {
+    const exclusions = this.getOptimizedExclusions(
+      config.projectType,
+      config.performance?.profile || 'balanced',
+      config.watchman.excludeDirs
+    );
+    
+    return exclusions.map(exclusion => [
+      'not',
+      ['match', `**/${exclusion}/**`, 'wholename']
+    ] as [string, string[]]);
+  }
+
+  /**
+   * Comprehensive optimization summary
+   */
+  private logOptimizationSummary(config: PoltergeistConfig, watchmanConfig: any): void {
+    const profile = config.performance?.profile || 'balanced';
+    const projectType = config.projectType;
+    const totalExclusions = watchmanConfig.ignore_dirs.length;
+    const customExclusions = config.watchman.excludeDirs.length;
+    const ruleExclusions = config.watchman.rules?.filter(r => r.enabled !== false).length || 0;
+    
+    this.logger.info('🎯 Watchman Optimization Summary:');
+    this.logger.info(`  • Project Type: ${projectType}`);
+    this.logger.info(`  • Performance Profile: ${profile}`);
+    this.logger.info(`  • Total Exclusions: ${totalExclusions}`);
+    this.logger.info(`  • Custom Exclusions: ${customExclusions}`);
+    if (ruleExclusions > 0) {
+      this.logger.info(`  • Rule-based Exclusions: ${ruleExclusions}`);
+    }
+    this.logger.info(`  • Max File Events: ${config.watchman.maxFileEvents}`);
+    this.logger.info(`  • Recrawl Threshold: ${config.watchman.recrawlThreshold}`);
+    
+    if (config.performance?.autoOptimize) {
+      this.logger.info('  • Auto-optimization: Enabled');
+    }
+  }
+
+  /**
+   * Generate suggested optimizations based on project analysis
+   */
+  async suggestOptimizations(): Promise<string[]> {
+    const suggestions: string[] = [];
+    
+    try {
+      // Analyze project structure
+      const dirs = await fs.readdir(this.projectRoot, { withFileTypes: true });
+      const directories = dirs.filter(d => d.isDirectory()).map(d => d.name);
+      
+      // Look for common unexcluded directories that should be excluded
+      const commonProblematic = [
+        'coverage', 'tmp', 'logs', 'cache', 'artifacts', 'reports'
+      ];
+      
+      for (const dir of commonProblematic) {
+        if (directories.includes(dir)) {
+          suggestions.push(`Consider excluding "${dir}" directory for better performance`);
+        }
+      }
+      
+      // Check for large directories that might benefit from exclusion
+      for (const dir of directories) {
+        if (dir.startsWith('test_') || dir.startsWith('tmp_') || dir.includes('backup')) {
+          suggestions.push(`Consider excluding "${dir}" (appears to be temporary/test directory)`);
+        }
+      }
+      
+    } catch (error) {
+      this.logger.debug(`Could not analyze project structure: ${error}`);
+    }
+    
+    return suggestions;
+  }
+}

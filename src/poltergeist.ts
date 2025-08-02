@@ -1,4 +1,4 @@
-// Core Poltergeist class with unified state management
+// Poltergeist v1.0 - Clean, simple implementation
 
 import type { BaseBuilder } from './builders/index.js';
 import type {
@@ -12,6 +12,7 @@ import { BuildNotifier } from './notifier.js';
 import { type PoltergeistState, StateManager } from './state.js';
 import type { BuildStatus, PoltergeistConfig, Target } from './types.js';
 import { WatchmanClient } from './watchman.js';
+import { WatchmanConfigManager } from './watchman-config.js';
 
 interface TargetState {
   target: Target;
@@ -30,6 +31,7 @@ export class Poltergeist {
   private watchman?: IWatchmanClient;
   private notifier?: BuildNotifier;
   private builderFactory: IBuilderFactory;
+  private watchmanConfigManager: WatchmanConfigManager;
   private targetStates: Map<string, TargetState> = new Map();
   private isRunning = false;
 
@@ -48,6 +50,9 @@ export class Poltergeist {
     this.builderFactory = deps.builderFactory;
     this.notifier = deps.notifier;
     this.watchman = deps.watchmanClient;
+    
+    // Initialize Watchman config manager
+    this.watchmanConfigManager = new WatchmanConfigManager(projectRoot, logger);
   }
 
   public async start(targetName?: string): Promise<void> {
@@ -60,6 +65,9 @@ export class Poltergeist {
 
     // Start heartbeat
     this.stateManager.startHeartbeat();
+
+    // Setup Watchman configuration with exclusions
+    await this.setupWatchmanConfig();
 
     // Initialize notifier if enabled and not already injected
     if (this.config.notifications?.enabled && !this.notifier) {
@@ -141,7 +149,9 @@ export class Poltergeist {
     const pathToTargets = new Map<string, Set<string>>();
 
     for (const [name, state] of this.targetStates) {
+      this.logger.debug(`Target ${name} has ${state.target.watchPaths.length} watch paths: ${JSON.stringify(state.target.watchPaths)}`);
       for (const pattern of state.target.watchPaths) {
+        this.logger.debug(`Processing watch path: ${pattern}`);
         if (!pathToTargets.has(pattern)) {
           pathToTargets.set(pattern, new Set());
         }
@@ -149,23 +159,61 @@ export class Poltergeist {
       }
     }
 
-    // Create subscriptions
+    // Create subscriptions with strict validation
     for (const [pattern, targetNames] of pathToTargets) {
-      const subscriptionName = `poltergeist_${pattern.replace(/[^a-zA-Z0-9]/g, '_')}`;
+      this.logger.debug(`Creating subscription for pattern: "${pattern}"`);
+      
+      try {
+        // Strict pattern validation - no fixing hacks
+        this.watchmanConfigManager.validateWatchPattern(pattern);
+        
+        const subscriptionName = `poltergeist_${pattern.replace(/[^a-zA-Z0-9]/g, '_')}`;
 
-      await this.watchman.subscribe(
-        this.projectRoot,
-        subscriptionName,
-        {
-          expression: ['match', pattern, 'wholename'],
-          fields: ['name', 'exists', 'type'],
-        },
-        (files) => {
-          this.handleFileChanges(files, Array.from(targetNames));
-        }
-      );
+        // Get optimized exclusion expressions (no fallbacks)
+        const exclusionExpressions = this.watchmanConfigManager.createExclusionExpressions(this.config);
 
-      this.logger.info(`👻 Watching ${targetNames.size} target(s): ${pattern}`);
+        await this.watchman.subscribe(
+          this.projectRoot,
+          subscriptionName,
+          {
+            expression: ['match', pattern, 'wholename'],
+            fields: ['name', 'exists', 'type'],
+          },
+          (files) => {
+            this.handleFileChanges(files, Array.from(targetNames));
+          },
+          exclusionExpressions
+        );
+
+        this.logger.info(`👻 Watching ${targetNames.size} target(s): ${pattern}`);
+        
+      } catch (error) {
+        this.logger.error(`❌ Invalid watch pattern "${pattern}": ${error}`);
+        throw error; // Fail fast - no pattern fixing
+      }
+    }
+  }
+
+  /**
+   * Setup Watchman configuration - no backwards compatibility
+   */
+  private async setupWatchmanConfig(): Promise<void> {
+    this.logger.info('🔧 Setting up Watchman configuration...');
+    
+    try {
+      // Strict validation - fail fast if config is invalid
+      await this.watchmanConfigManager.ensureConfigUpToDate(this.config);
+      
+      // Suggest optimizations if available
+      const suggestions = await this.watchmanConfigManager.suggestOptimizations();
+      if (suggestions.length > 0) {
+        this.logger.info('💡 Optimization suggestions:');
+        suggestions.forEach(s => this.logger.info(`  • ${s}`));
+      }
+      
+    } catch (error) {
+      this.logger.error('❌ Watchman configuration setup failed');
+      throw error; // Fail fast - no fallbacks
     }
   }
 

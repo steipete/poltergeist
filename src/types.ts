@@ -1,4 +1,4 @@
-// New type definitions for generic target system
+// Poltergeist v1.0 - Clean, simple types
 import { z } from 'zod';
 
 // Target types
@@ -87,9 +87,48 @@ export type Target =
   | DockerTarget
   | CustomTarget;
 
-// Configuration interface
+// Project types for smart defaults
+export type ProjectType = 'swift' | 'node' | 'rust' | 'python' | 'mixed';
+
+// Performance profiles
+export type PerformanceProfile = 'conservative' | 'balanced' | 'aggressive';
+
+// Watchman exclusion rule
+export interface ExclusionRule {
+  pattern: string;
+  action: 'ignore';
+  reason: string;
+  enabled?: boolean;
+}
+
+// Performance configuration
+export interface PerformanceConfig {
+  profile: PerformanceProfile;
+  autoOptimize: boolean;
+  metrics: {
+    enabled: boolean;
+    reportInterval: number;
+  };
+}
+
+// Watchman configuration
+export interface WatchmanConfig {
+  useDefaultExclusions: boolean;
+  excludeDirs: string[];
+  projectType: ProjectType;
+  maxFileEvents: number;
+  recrawlThreshold: number;
+  settlingDelay: number;
+  rules?: ExclusionRule[];
+}
+
+// Main configuration interface - Version 1.0
 export interface PoltergeistConfig {
+  version: '1.0';
+  projectType: ProjectType;
   targets: Target[];
+  watchman: WatchmanConfig;
+  performance?: PerformanceConfig;
   notifications?: {
     enabled: boolean;
     successSound?: string;
@@ -98,9 +137,6 @@ export interface PoltergeistConfig {
   logging?: {
     file: string;
     level: 'debug' | 'info' | 'warn' | 'error';
-  };
-  watchman?: {
-    settlingDelay?: number;
   };
 }
 
@@ -173,8 +209,38 @@ export const TargetSchema = z.discriminatedUnion('type', [
   CustomTargetSchema,
 ]);
 
+export const ExclusionRuleSchema = z.object({
+  pattern: z.string(),
+  action: z.literal('ignore'),
+  reason: z.string(),
+  enabled: z.boolean().default(true),
+});
+
+export const PerformanceConfigSchema = z.object({
+  profile: z.enum(['conservative', 'balanced', 'aggressive']).default('balanced'),
+  autoOptimize: z.boolean().default(true),
+  metrics: z.object({
+    enabled: z.boolean().default(true),
+    reportInterval: z.number().default(300),
+  }),
+});
+
+export const WatchmanConfigSchema = z.object({
+  useDefaultExclusions: z.boolean().default(true),
+  excludeDirs: z.array(z.string()).default([]),
+  projectType: z.enum(['swift', 'node', 'rust', 'python', 'mixed']),
+  maxFileEvents: z.number().default(10000),
+  recrawlThreshold: z.number().default(5),
+  settlingDelay: z.number().default(1000),
+  rules: z.array(ExclusionRuleSchema).optional(),
+});
+
 export const PoltergeistConfigSchema = z.object({
+  version: z.literal('1.0'),
+  projectType: z.enum(['swift', 'node', 'rust', 'python', 'mixed']),
   targets: z.array(TargetSchema),
+  watchman: WatchmanConfigSchema,
+  performance: PerformanceConfigSchema.optional(),
   notifications: z
     .object({
       enabled: z.boolean(),
@@ -186,11 +252,6 @@ export const PoltergeistConfigSchema = z.object({
     .object({
       file: z.string(),
       level: z.enum(['debug', 'info', 'warn', 'error']),
-    })
-    .optional(),
-  watchman: z
-    .object({
-      settlingDelay: z.number().optional(),
     })
     .optional(),
 });
@@ -217,10 +278,6 @@ export interface CLIOptions {
   config?: string;
 }
 
-// Legacy compatibility types for migration
-export type BuildTarget = string; // Now just the target name
-export type BuildTargetConfig = Target; // Maps to new Target type
-
 // Build result interface
 export interface BuildResult {
   success: boolean;
@@ -238,4 +295,3 @@ export interface FileChange {
   size?: number;
   mode?: number;
 }
-// Force rebuild Wed Jul 30 20:27:46 CEST 2025

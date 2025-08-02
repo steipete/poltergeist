@@ -1,4 +1,4 @@
-// Updated Watchman client for generic target system
+// Poltergeist v1.0 - Watchman client for generic target system
 
 import { EventEmitter } from 'events';
 import watchman from 'fb-watchman';
@@ -45,13 +45,17 @@ export class WatchmanClient extends EventEmitter {
 
     this.client.on('error', (error: unknown) => {
       const err = error instanceof Error ? error : new Error(String(error));
-      this.logger.error('Watchman error:', err);
+      this.logger.error('Watchman client error:', err);
       this.emit('error', err);
     });
 
     this.client.on('end', () => {
-      this.logger.info('Watchman connection ended');
+      this.logger.error('Watchman connection ended unexpectedly');
       this.emit('disconnected');
+    });
+
+    this.client.on('subscription', (data: unknown) => {
+      this.logger.debug(`Raw subscription event received: ${JSON.stringify(data)}`);
     });
   }
 
@@ -91,7 +95,8 @@ export class WatchmanClient extends EventEmitter {
     projectRoot: string,
     subscriptionName: string,
     subscription: { expression: Array<string | Array<string>>; fields: string[] },
-    callback: (files: Array<{ name: string; exists: boolean; type?: string }>) => void
+    callback: (files: Array<{ name: string; exists: boolean; type?: string }>) => void,
+    exclusionExpressions?: Array<[string, string[]]>
   ): Promise<void> {
     if (!this.watchRoot) {
       throw new Error('No project is being watched');
@@ -99,21 +104,25 @@ export class WatchmanClient extends EventEmitter {
 
     this.logger.debug(`Creating subscription ${subscriptionName}`);
 
-    // Add common exclusions to the expression
-    const enhancedExpression = [
+    // Build the expression with provided exclusions
+    if (!exclusionExpressions || exclusionExpressions.length === 0) {
+      throw new Error('No exclusions provided - configuration error');
+    }
+
+    const enhancedExpression: Array<string | Array<string>> = [
       'allof',
-      subscription.expression,
-      // Exclude common build directories
-      ['not', ['match', '**/.build/**', 'wholename']],
-      ['not', ['match', '**/DerivedData/**', 'wholename']],
-      ['not', ['match', '**/node_modules/**', 'wholename']],
-      ['not', ['match', '**/.git/**', 'wholename']],
+      ...subscription.expression,
+      ...exclusionExpressions.map(expr => expr as Array<string>)
     ];
+
+    this.logger.debug(`Applied ${exclusionExpressions.length} exclusion expressions`);
 
     const enhancedSubscription = {
       ...subscription,
       expression: enhancedExpression,
     };
+
+    this.logger.debug(`Subscription expression: ${JSON.stringify(enhancedExpression)}`);
 
     return new Promise((resolve, reject) => {
       // Set up the subscription handler for this specific subscription
@@ -136,6 +145,7 @@ export class WatchmanClient extends EventEmitter {
             type: file.new ? 'new' : undefined,
           }));
 
+          this.logger.debug(`Subscription ${subscriptionName} received ${changes.length} file changes: ${changes.map(c => c.name).join(', ')}`);
           callback(changes);
         }
       };
@@ -144,15 +154,18 @@ export class WatchmanClient extends EventEmitter {
       this.client.on('subscription', handler);
 
       // Create the subscription
+      this.logger.debug(`Sending subscribe command: ${JSON.stringify(['subscribe', this.watchRoot, subscriptionName, enhancedSubscription])}`);
       this.client.command(
         ['subscribe', this.watchRoot, subscriptionName, enhancedSubscription],
-        (error: Error | null) => {
+        (error: Error | null, resp?: unknown) => {
           if (error) {
+            this.logger.error(`Subscription creation failed: ${error.message}`);
             this.client.removeListener('subscription', handler);
             reject(new Error(`Failed to create subscription: ${error.message}`));
             return;
           }
 
+          this.logger.debug(`Subscription response: ${JSON.stringify(resp)}`);
           this.subscriptions.set(subscriptionName, projectRoot);
           this.logger.info(`Subscription created: ${subscriptionName}`);
           resolve();

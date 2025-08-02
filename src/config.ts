@@ -208,11 +208,18 @@ export function migrateOldConfig(oldConfig: OldConfig): PoltergeistConfig {
   }
 
   return {
+    version: '1.0',
+    projectType: 'swift', // Default for legacy configs
     targets,
     notifications: oldConfig.notifications,
     logging: oldConfig.logging,
     watchman: {
-      settlingDelay: oldConfig.settlingDelay,
+      useDefaultExclusions: true,
+      excludeDirs: [],
+      projectType: 'swift', // Default for legacy configs
+      maxFileEvents: 10000,
+      recrawlThreshold: 5,
+      settlingDelay: oldConfig.settlingDelay || 1000,
     },
   };
 }

@@ -1,5 +1,4 @@
 import notifier from 'node-notifier';
-import type { BuildTarget } from './types.js';
 
 interface ExtendedNotification extends notifier.Notification {
   sound?: string | boolean;
@@ -20,7 +19,7 @@ export class BuildNotifier {
   ) {}
 
   async notifyBuildStart(
-    target: BuildTarget,
+    target: string,
     projectName: string,
     targetName?: string
   ): Promise<void> {

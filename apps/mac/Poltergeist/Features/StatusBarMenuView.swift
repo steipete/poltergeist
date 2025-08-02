@@ -134,6 +134,7 @@ struct StatusBarMenuView: View {
         .background(
             VisualEffectView()
         )
+        .edgesIgnoringSafeArea(.all)
         .onChange(of: currentProjectIds) { oldValue, newValue in
             // Remove expanded state for projects that no longer exist
             expandedProjectIds = expandedProjectIds.intersection(newValue)
@@ -471,8 +472,15 @@ struct ProjectContextMenu: View {
         Divider()
         
         Button(action: {
+            print("🔴 [ProjectContextMenu] Remove from Monitor clicked for project: \(project.name)")
+            print("🔴 [ProjectContextMenu] Project path: \(project.path)")
+            print("🔴 [ProjectContextMenu] Project hash: \(project.hash)")
+            print("🔴 [ProjectContextMenu] Project targets: \(project.targets.keys.joined(separator: ", "))")
+            
             Task { @MainActor in
+                print("🔴 [ProjectContextMenu] Calling projectMonitor.removeProject...")
                 projectMonitor.removeProject(project)
+                print("🔴 [ProjectContextMenu] removeProject call completed")
             }
         }) {
             Label("Remove from Monitor", systemImage: "trash")
