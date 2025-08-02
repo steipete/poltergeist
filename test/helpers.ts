@@ -73,16 +73,28 @@ export function createMockStateManager(): IStateManager {
 }
 
 /**
- * Create a mock builder
+ * Create a mock builder with configurable delay
  */
-export function createMockBuilder(targetName: string): BaseBuilder {
+export function createMockBuilder(
+  targetName: string, 
+  options: { 
+    delay?: number;
+    shouldFail?: boolean;
+    buildDuration?: number;
+  } = {}
+): BaseBuilder {
+  const { delay = 50, shouldFail = false, buildDuration = 100 } = options;
+  
   const mockBuilder = {
-    build: vi.fn().mockResolvedValue({
-      status: 'success',
-      targetName,
-      timestamp: new Date().toISOString(),
-      duration: 100,
-    } as BuildStatus),
+    build: vi.fn().mockImplementation(() => 
+      new Promise(resolve => setTimeout(() => resolve({
+        status: shouldFail ? 'failure' : 'success',
+        targetName,
+        timestamp: new Date().toISOString(),
+        duration: buildDuration,
+        ...(shouldFail && { error: 'Mock build failure' }),
+      } as BuildStatus), delay))
+    ),
     validate: vi.fn().mockResolvedValue(undefined),
     stop: vi.fn(),
     getOutputInfo: vi.fn().mockReturnValue(`Built ${targetName}`),
@@ -98,6 +110,68 @@ export function createMockBuilder(targetName: string): BaseBuilder {
   Object.setPrototypeOf(mockBuilder, Object.create(Object.getPrototypeOf({} as BaseBuilder)));
 
   return mockBuilder as BaseBuilder;
+}
+
+/**
+ * Create a mock builder that completes immediately (no delay)
+ */
+export function createInstantMockBuilder(targetName: string, shouldFail = false): BaseBuilder {
+  return createMockBuilder(targetName, { delay: 0, shouldFail });
+}
+
+/**
+ * Create a mock builder that can be manually controlled
+ */
+export function createControllableMockBuilder(targetName: string): {
+  builder: BaseBuilder;
+  complete: (result?: Partial<BuildStatus>) => void;
+  fail: (error?: string) => void;
+} {
+  let resolver: (value: BuildStatus) => void;
+  
+  const mockBuilder = {
+    build: vi.fn().mockImplementation(() => 
+      new Promise<BuildStatus>((resolve) => {
+        resolver = resolve;
+      })
+    ),
+    validate: vi.fn().mockResolvedValue(undefined),
+    stop: vi.fn(),
+    getOutputInfo: vi.fn().mockReturnValue(`Built ${targetName}`),
+    target: { name: targetName } as Target,
+    projectRoot: '/test/project',
+    logger: createMockLogger(),
+    stateManager: {} as IStateManager,
+    currentProcess: undefined,
+  };
+
+  Object.setPrototypeOf(mockBuilder, Object.create(Object.getPrototypeOf({} as BaseBuilder)));
+
+  return {
+    builder: mockBuilder as BaseBuilder,
+    complete: (result = {}) => {
+      if (resolver) {
+        resolver({
+          status: 'success',
+          targetName,
+          timestamp: new Date().toISOString(),
+          duration: 100,
+          ...result,
+        } as BuildStatus);
+      }
+    },
+    fail: (error = 'Mock build failure') => {
+      if (resolver) {
+        resolver({
+          status: 'failure',
+          targetName,
+          timestamp: new Date().toISOString(),
+          duration: 100,
+          error,
+        } as BuildStatus);
+      }
+    },
+  };
 }
 
 /**
