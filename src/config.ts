@@ -39,7 +39,7 @@ export class ConfigLoader {
     try {
       const content = readFileSync(this.configPath, 'utf-8');
       // Support both JSON and JSONC (with comments)
-      const jsonWithoutComments = content.replace(/\/\/.*$/gm, '').replace(/\/\*[\s\S]*?\*\//g, '');
+      const jsonWithoutComments = this.stripJSONComments(content);
       return JSON.parse(jsonWithoutComments);
     } catch (error) {
       if (error instanceof SyntaxError) {
@@ -47,6 +47,62 @@ export class ConfigLoader {
       }
       throw error;
     }
+  }
+
+  private stripJSONComments(content: string): string {
+    let result = '';
+    let inString = false;
+    let inSingleLineComment = false;
+    let inMultiLineComment = false;
+    let escaped = false;
+
+    for (let i = 0; i < content.length; i++) {
+      const char = content[i];
+      const nextChar = content[i + 1];
+
+      if (inSingleLineComment) {
+        if (char === '\n') {
+          inSingleLineComment = false;
+          result += char;
+        }
+        continue;
+      }
+
+      if (inMultiLineComment) {
+        if (char === '*' && nextChar === '/') {
+          inMultiLineComment = false;
+          i++; // Skip the '/'
+        }
+        continue;
+      }
+
+      if (inString) {
+        result += char;
+        if (escaped) {
+          escaped = false;
+        } else if (char === '\\') {
+          escaped = true;
+        } else if (char === '"') {
+          inString = false;
+        }
+        continue;
+      }
+
+      if (char === '"') {
+        inString = true;
+        result += char;
+      } else if (char === '/' && nextChar === '/') {
+        inSingleLineComment = true;
+        i++; // Skip the second '/'
+      } else if (char === '/' && nextChar === '*') {
+        inMultiLineComment = true;
+        i++; // Skip the '*'
+      } else {
+        result += char;
+      }
+    }
+
+    return result;
   }
 
   private checkForOldFormat(config: unknown): void {
@@ -123,8 +179,9 @@ export class ConfigLoader {
 
       // Resolve build command if it's a relative path
       if (
-        resolvedTarget.buildCommand.startsWith('./') ||
-        resolvedTarget.buildCommand.startsWith('../')
+        resolvedTarget.buildCommand &&
+        (resolvedTarget.buildCommand.startsWith('./') ||
+         resolvedTarget.buildCommand.startsWith('../'))
       ) {
         resolvedTarget.buildCommand = resolve(this.projectRoot, resolvedTarget.buildCommand);
       }

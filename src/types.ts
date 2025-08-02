@@ -16,7 +16,7 @@ export interface BaseTarget {
   name: string;
   type: TargetType;
   enabled: boolean;
-  buildCommand: string;
+  buildCommand?: string;
   watchPaths: string[];
   settlingDelay?: number;
   environment?: Record<string, string>;
@@ -29,12 +29,14 @@ export interface BaseTarget {
 // Executable target (CLI tools, binaries)
 export interface ExecutableTarget extends BaseTarget {
   type: 'executable';
+  buildCommand: string;
   outputPath: string;
 }
 
 // App bundle target (macOS, iOS apps)
 export interface AppBundleTarget extends BaseTarget {
   type: 'app-bundle';
+  buildCommand: string;
   platform?: 'macos' | 'ios' | 'tvos' | 'watchos' | 'visionos';
   bundleId: string;
   autoRelaunch?: boolean;
@@ -44,6 +46,7 @@ export interface AppBundleTarget extends BaseTarget {
 // Library target (static/dynamic libraries)
 export interface LibraryTarget extends BaseTarget {
   type: 'library';
+  buildCommand: string;
   outputPath: string;
   libraryType: 'static' | 'dynamic';
 }
@@ -51,6 +54,7 @@ export interface LibraryTarget extends BaseTarget {
 // Framework target (macOS/iOS frameworks)
 export interface FrameworkTarget extends BaseTarget {
   type: 'framework';
+  buildCommand: string;
   outputPath: string;
   platform?: 'macos' | 'ios' | 'tvos' | 'watchos' | 'visionos';
 }
@@ -65,6 +69,7 @@ export interface TestTarget extends BaseTarget {
 // Docker target
 export interface DockerTarget extends BaseTarget {
   type: 'docker';
+  buildCommand: string;
   imageName: string;
   dockerfile?: string;
   context?: string;
@@ -74,7 +79,8 @@ export interface DockerTarget extends BaseTarget {
 // Custom target (for extensibility)
 export interface CustomTarget extends BaseTarget {
   type: 'custom';
-  config: Record<string, unknown>;
+  buildCommand: string;
+  config?: Record<string, unknown>;
 }
 
 // Union type for all targets
@@ -145,7 +151,7 @@ export const BaseTargetSchema = z.object({
   name: z.string().min(1),
   type: z.enum(['executable', 'app-bundle', 'library', 'framework', 'test', 'docker', 'custom']),
   enabled: z.boolean(),
-  buildCommand: z.string(),
+  buildCommand: z.string().optional(),
   watchPaths: z.array(z.string()),
   settlingDelay: z.number().optional(),
   environment: z.record(z.string(), z.string()).optional(),
@@ -157,11 +163,13 @@ export const BaseTargetSchema = z.object({
 
 export const ExecutableTargetSchema = BaseTargetSchema.extend({
   type: z.literal('executable'),
+  buildCommand: z.string(),
   outputPath: z.string(),
 });
 
 export const AppBundleTargetSchema = BaseTargetSchema.extend({
   type: z.literal('app-bundle'),
+  buildCommand: z.string(),
   platform: z.enum(['macos', 'ios', 'tvos', 'watchos', 'visionos']).optional(),
   bundleId: z.string(),
   autoRelaunch: z.boolean().optional(),
@@ -170,12 +178,14 @@ export const AppBundleTargetSchema = BaseTargetSchema.extend({
 
 export const LibraryTargetSchema = BaseTargetSchema.extend({
   type: z.literal('library'),
+  buildCommand: z.string(),
   outputPath: z.string(),
   libraryType: z.enum(['static', 'dynamic']),
 });
 
 export const FrameworkTargetSchema = BaseTargetSchema.extend({
   type: z.literal('framework'),
+  buildCommand: z.string(),
   outputPath: z.string(),
   platform: z.enum(['macos', 'ios', 'tvos', 'watchos', 'visionos']).optional(),
 });
@@ -188,6 +198,7 @@ export const TestTargetSchema = BaseTargetSchema.extend({
 
 export const DockerTargetSchema = BaseTargetSchema.extend({
   type: z.literal('docker'),
+  buildCommand: z.string(),
   imageName: z.string(),
   dockerfile: z.string().optional(),
   context: z.string().optional(),
@@ -196,7 +207,8 @@ export const DockerTargetSchema = BaseTargetSchema.extend({
 
 export const CustomTargetSchema = BaseTargetSchema.extend({
   type: z.literal('custom'),
-  config: z.record(z.string(), z.any()),
+  buildCommand: z.string(),
+  config: z.record(z.string(), z.any()).optional(),
 });
 
 export const TargetSchema = z.discriminatedUnion('type', [

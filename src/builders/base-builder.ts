@@ -85,14 +85,27 @@ export abstract class BaseBuilder<T extends Target = Target> {
     return status;
   }
 
+  protected getExecutionCommand(): string {
+    if (this.target.type === 'test' && 'testCommand' in this.target) {
+      return this.target.testCommand;
+    }
+    return this.target.buildCommand || '';
+  }
+
   protected async executeBuild(): Promise<void> {
     return new Promise((resolve, reject) => {
+      const command = this.getExecutionCommand();
+      if (!command) {
+        reject(new Error(`No command defined for ${this.target.type} target: ${this.target.name}`));
+        return;
+      }
+
       const env = {
         ...process.env,
         ...this.target.environment,
       };
 
-      this.currentProcess = spawn(this.target.buildCommand, {
+      this.currentProcess = spawn(command, {
         cwd: this.projectRoot,
         env,
         shell: true,
