@@ -1,0 +1,127 @@
+{
+  "version": "1.0",
+  "projectType": "rust",
+  "targets": [
+    {
+      "name": "main-binary",
+      "type": "executable",
+      "enabled": true,
+      "buildCommand": "cargo build --release",
+      "outputPath": "./target/release/myapp",
+      "watchPaths": [
+        "src/**/*.rs",
+        "Cargo.toml",
+        "Cargo.lock"
+      ],
+      "settlingDelay": 1000,
+      "debounceInterval": 5000,
+      "maxRetries": 3,
+      "environment": {
+        "RUST_ENV": "development",
+        "RUST_LOG": "debug"
+      }
+    },
+    {
+      "name": "debug-build",
+      "type": "executable",
+      "enabled": false,
+      "buildCommand": "cargo build",
+      "outputPath": "./target/debug/myapp",
+      "watchPaths": [
+        "src/**/*.rs",
+        "Cargo.toml"
+      ],
+      "settlingDelay": 500,
+      "debounceInterval": 3000
+    },
+    {
+      "name": "tests",
+      "type": "test",
+      "enabled": true,
+      "testCommand": "cargo test",
+      "watchPaths": [
+        "src/**/*.rs",
+        "tests/**/*.rs",
+        "Cargo.toml"
+      ],
+      "settlingDelay": 800,
+      "debounceInterval": 4000
+    },
+    {
+      "name": "benchmarks",
+      "type": "test",
+      "enabled": false,
+      "testCommand": "cargo bench",
+      "watchPaths": [
+        "src/**/*.rs",
+        "benches/**/*.rs",
+        "Cargo.toml"
+      ],
+      "settlingDelay": 1000,
+      "debounceInterval": 6000
+    },
+    {
+      "name": "clippy-check",
+      "type": "custom",
+      "enabled": false,
+      "buildCommand": "cargo clippy -- -D warnings",
+      "watchPaths": [
+        "src/**/*.rs",
+        "Cargo.toml"
+      ],
+      "config": {
+        "lintLevel": "strict",
+        "failOnWarnings": true
+      }
+    }
+  ],
+  "watchman": {
+    "useDefaultExclusions": true,
+    "excludeDirs": [
+      "target/debug/incremental",
+      "target/release/incremental",
+      "logs"
+    ],
+    "projectType": "rust",
+    "maxFileEvents": 12000,
+    "recrawlThreshold": 3,
+    "settlingDelay": 1000,
+    "rules": [
+      {
+        "pattern": "**/target/**/*.rlib",
+        "action": "ignore",
+        "reason": "Rust library artifacts",
+        "enabled": true
+      },
+      {
+        "pattern": "**/target/**/*.rmeta",
+        "action": "ignore",
+        "reason": "Rust metadata files",
+        "enabled": true
+      },
+      {
+        "pattern": "**/*.rs.bk",
+        "action": "ignore",
+        "reason": "Backup files",
+        "enabled": true
+      }
+    ]
+  },
+  "performance": {
+    "profile": "balanced",
+    "autoOptimize": true,
+    "metrics": {
+      "enabled": true,
+      "reportInterval": 300
+    }
+  },
+  "notifications": {
+    "enabled": true,
+    "successSound": "Glass",
+    "failureSound": "Funk"
+  },
+  "logging": {
+    "file": ".poltergeist.log",
+    "level": "info"
+  }
+}

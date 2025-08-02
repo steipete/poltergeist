@@ -1,0 +1,120 @@
+{
+  "version": "1.0",
+  "projectType": "python",
+  "targets": [
+    {
+      "name": "package-build",
+      "type": "library",
+      "enabled": true,
+      "libraryType": "static",
+      "buildCommand": "python -m build",
+      "outputPath": "./dist",
+      "watchPaths": [
+        "src/**/*.py",
+        "pyproject.toml",
+        "setup.py",
+        "requirements.txt"
+      ],
+      "settlingDelay": 800,
+      "debounceInterval": 4000,
+      "environment": {
+        "PYTHONPATH": "src",
+        "BUILD_ENV": "development"
+      }
+    },
+    {
+      "name": "tests",
+      "type": "test",
+      "enabled": true,
+      "testCommand": "python -m pytest",
+      "watchPaths": [
+        "src/**/*.py",
+        "tests/**/*.py",
+        "conftest.py",
+        "pytest.ini"
+      ],
+      "settlingDelay": 500,
+      "debounceInterval": 3000
+    },
+    {
+      "name": "linting",
+      "type": "custom",
+      "enabled": false,
+      "buildCommand": "python -m ruff check src/",
+      "watchPaths": [
+        "src/**/*.py",
+        "ruff.toml",
+        "pyproject.toml"
+      ],
+      "config": {
+        "autoFix": false,
+        "checkOnly": true
+      }
+    },
+    {
+      "name": "type-check",
+      "type": "custom",
+      "enabled": false,
+      "buildCommand": "python -m mypy src/",
+      "watchPaths": [
+        "src/**/*.py",
+        "mypy.ini",
+        "pyproject.toml"
+      ],
+      "config": {
+        "strict": true
+      }
+    }
+  ],
+  "watchman": {
+    "useDefaultExclusions": true,
+    "excludeDirs": [
+      "venv",
+      ".venv",
+      "env",
+      ".pytest_cache",
+      "htmlcov"
+    ],
+    "projectType": "python",
+    "maxFileEvents": 10000,
+    "recrawlThreshold": 3,
+    "settlingDelay": 800,
+    "rules": [
+      {
+        "pattern": "**/__pycache__/**",
+        "action": "ignore",
+        "reason": "Python bytecode",
+        "enabled": true
+      },
+      {
+        "pattern": "**/*.pyc",
+        "action": "ignore",
+        "reason": "Compiled Python files",
+        "enabled": true
+      },
+      {
+        "pattern": "**/.coverage",
+        "action": "ignore",
+        "reason": "Coverage data",
+        "enabled": true
+      }
+    ]
+  },
+  "performance": {
+    "profile": "balanced",
+    "autoOptimize": true,
+    "metrics": {
+      "enabled": true,
+      "reportInterval": 300
+    }
+  },
+  "notifications": {
+    "enabled": true,
+    "successSound": "Glass",
+    "failureSound": "Ping"
+  },
+  "logging": {
+    "file": ".poltergeist.log",
+    "level": "info"
+  }
+}

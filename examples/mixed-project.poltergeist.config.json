@@ -1,0 +1,155 @@
+{
+  "version": "1.0",
+  "projectType": "mixed",
+  "targets": [
+    {
+      "name": "swift-backend",
+      "type": "executable",
+      "enabled": true,
+      "buildCommand": "./scripts/build-swift.sh",
+      "outputPath": "./bin/backend",
+      "watchPaths": [
+        "Backend/**/*.swift",
+        "Shared/**/*.swift",
+        "Package.swift"
+      ],
+      "settlingDelay": 1500,
+      "debounceInterval": 6000,
+      "maxRetries": 3,
+      "environment": {
+        "SWIFT_ENV": "development",
+        "LOG_LEVEL": "debug"
+      }
+    },
+    {
+      "name": "react-frontend",
+      "type": "executable",
+      "enabled": true,
+      "buildCommand": "npm run build",
+      "outputPath": "./frontend/dist",
+      "watchPaths": [
+        "frontend/src/**/*.{ts,tsx,js,jsx}",
+        "frontend/public/**/*",
+        "frontend/package.json",
+        "Shared/**/*.ts"
+      ],
+      "settlingDelay": 1000,
+      "debounceInterval": 4000,
+      "environment": {
+        "NODE_ENV": "development",
+        "REACT_APP_API_URL": "http://localhost:8080"
+      }
+    },
+    {
+      "name": "mac-app",
+      "type": "app-bundle",
+      "platform": "macos",
+      "enabled": true,
+      "bundleId": "com.example.myapp",
+      "buildCommand": "xcodebuild -scheme MyApp -configuration Debug build",
+      "autoRelaunch": true,
+      "watchPaths": [
+        "MacApp/**/*.swift",
+        "MacApp/**/*.storyboard",
+        "MacApp/**/*.xib",
+        "Shared/**/*.swift"
+      ],
+      "settlingDelay": 2000,
+      "debounceInterval": 8000,
+      "environment": {
+        "CONFIGURATION": "Debug"
+      }
+    },
+    {
+      "name": "api-docs",
+      "type": "custom",
+      "enabled": false,
+      "buildCommand": "npm run docs:generate",
+      "watchPaths": [
+        "Backend/**/*.swift",
+        "docs/**/*.md",
+        "api-spec.yaml"
+      ],
+      "config": {
+        "outputFormat": "openapi",
+        "includeExamples": true
+      }
+    },
+    {
+      "name": "integration-tests",
+      "type": "test",
+      "enabled": false,
+      "testCommand": "./scripts/run-integration-tests.sh",
+      "watchPaths": [
+        "Backend/**/*.swift",
+        "frontend/src/**/*.{ts,tsx}",
+        "tests/integration/**/*"
+      ],
+      "settlingDelay": 3000,
+      "debounceInterval": 10000
+    }
+  ],
+  "watchman": {
+    "useDefaultExclusions": true,
+    "excludeDirs": [
+      "logs",
+      "coverage",
+      "dist",
+      "tmp_*",
+      "build_artifacts"
+    ],
+    "projectType": "mixed",
+    "maxFileEvents": 20000,
+    "recrawlThreshold": 5,
+    "settlingDelay": 1500,
+    "rules": [
+      {
+        "pattern": "**/node_modules/**",
+        "action": "ignore",
+        "reason": "NPM dependencies",
+        "enabled": true
+      },
+      {
+        "pattern": "**/.build/**",
+        "action": "ignore",
+        "reason": "Swift build artifacts",
+        "enabled": true
+      },
+      {
+        "pattern": "**/DerivedData/**",
+        "action": "ignore",
+        "reason": "Xcode build artifacts",
+        "enabled": true
+      },
+      {
+        "pattern": "**/*.xcuserstate",
+        "action": "ignore",
+        "reason": "Xcode user state",
+        "enabled": true
+      },
+      {
+        "pattern": "**/frontend/dist/**",
+        "action": "ignore",
+        "reason": "Frontend build output",
+        "enabled": true
+      }
+    ]
+  },
+  "performance": {
+    "profile": "aggressive",
+    "autoOptimize": true,
+    "metrics": {
+      "enabled": true,
+      "reportInterval": 300
+    }
+  },
+  "notifications": {
+    "enabled": true,
+    "successSound": "Glass",
+    "failureSound": "Basso"
+  },
+  "logging": {
+    "file": ".poltergeist.log",
+    "level": "debug"
+  }
+}

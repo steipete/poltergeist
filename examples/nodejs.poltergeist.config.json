@@ -1,0 +1,123 @@
+{
+  "version": "1.0",
+  "projectType": "node",
+  "targets": [
+    {
+      "name": "webapp",
+      "type": "executable",
+      "enabled": true,
+      "buildCommand": "npm run build",
+      "outputPath": "./dist",
+      "watchPaths": [
+        "src/**/*.{ts,tsx,js,jsx}",
+        "public/**/*",
+        "package.json",
+        "tsconfig.json"
+      ],
+      "settlingDelay": 1000,
+      "debounceInterval": 5000,
+      "maxRetries": 3,
+      "environment": {
+        "NODE_ENV": "development",
+        "BUILD_MODE": "watch"
+      }
+    },
+    {
+      "name": "api-server",
+      "type": "executable",
+      "enabled": true,
+      "buildCommand": "npm run build:server",
+      "outputPath": "./dist/server",
+      "watchPaths": [
+        "server/**/*.ts",
+        "shared/**/*.ts",
+        "package.json"
+      ],
+      "settlingDelay": 800,
+      "debounceInterval": 3000,
+      "environment": {
+        "NODE_ENV": "development",
+        "API_PORT": "3001"
+      }
+    },
+    {
+      "name": "tests",
+      "type": "test",
+      "enabled": true,
+      "testCommand": "npm test",
+      "watchPaths": [
+        "src/**/*.{ts,js}",
+        "test/**/*.{ts,js}",
+        "**/*.test.{ts,js}",
+        "**/*.spec.{ts,js}"
+      ],
+      "settlingDelay": 500,
+      "debounceInterval": 2000
+    },
+    {
+      "name": "lint-check",
+      "type": "custom",
+      "enabled": false,
+      "buildCommand": "npm run lint",
+      "watchPaths": [
+        "src/**/*.{ts,tsx,js,jsx}",
+        ".eslintrc.*",
+        "package.json"
+      ],
+      "config": {
+        "autoFix": false,
+        "checkOnly": true
+      }
+    }
+  ],
+  "watchman": {
+    "useDefaultExclusions": true,
+    "excludeDirs": [
+      "coverage",
+      "logs",
+      ".cache",
+      "tmp"
+    ],
+    "projectType": "node",
+    "maxFileEvents": 15000,
+    "recrawlThreshold": 3,
+    "settlingDelay": 1000,
+    "rules": [
+      {
+        "pattern": "**/node_modules/**",
+        "action": "ignore",
+        "reason": "NPM dependencies",
+        "enabled": true
+      },
+      {
+        "pattern": "**/*.log",
+        "action": "ignore",
+        "reason": "Log files",
+        "enabled": true
+      },
+      {
+        "pattern": "**/dist/**/*.map",
+        "action": "ignore",
+        "reason": "Source maps",
+        "enabled": true
+      }
+    ]
+  },
+  "performance": {
+    "profile": "balanced",
+    "autoOptimize": true,
+    "metrics": {
+      "enabled": true,
+      "reportInterval": 300
+    }
+  },
+  "notifications": {
+    "enabled": true,
+    "successSound": "Glass",
+    "failureSound": "Submarine"
+  },
+  "logging": {
+    "file": ".poltergeist.log",
+    "level": "info"
+  }
+}

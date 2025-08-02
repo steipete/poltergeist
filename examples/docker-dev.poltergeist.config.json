@@ -1,0 +1,141 @@
+{
+  "version": "1.0",
+  "projectType": "node",
+  "targets": [
+    {
+      "name": "api-dev",
+      "type": "docker",
+      "enabled": true,
+      "imageName": "myapp/api",
+      "dockerfile": "./docker/Dockerfile.dev",
+      "context": ".",
+      "tags": ["dev", "latest"],
+      "buildCommand": "docker build -f docker/Dockerfile.dev -t myapp/api:dev .",
+      "watchPaths": [
+        "src/**/*.js",
+        "src/**/*.ts",
+        "package.json",
+        "docker/Dockerfile.dev",
+        "docker-compose.yml"
+      ],
+      "settlingDelay": 2000,
+      "debounceInterval": 8000,
+      "maxRetries": 2,
+      "environment": {
+        "DOCKER_BUILDKIT": "1",
+        "COMPOSE_DOCKER_CLI_BUILD": "1"
+      }
+    },
+    {
+      "name": "frontend-dev",
+      "type": "docker",
+      "enabled": true,
+      "imageName": "myapp/frontend",
+      "dockerfile": "./frontend/Dockerfile",
+      "context": "./frontend",
+      "buildCommand": "docker build -f frontend/Dockerfile -t myapp/frontend:dev ./frontend",
+      "watchPaths": [
+        "frontend/src/**/*",
+        "frontend/package.json",
+        "frontend/Dockerfile",
+        "frontend/nginx.conf"
+      ],
+      "settlingDelay": 1500,
+      "debounceInterval": 6000,
+      "environment": {
+        "NODE_ENV": "development"
+      }
+    },
+    {
+      "name": "database",
+      "type": "docker",
+      "enabled": false,
+      "imageName": "myapp/postgres",
+      "dockerfile": "./docker/Dockerfile.postgres",
+      "context": "./docker",
+      "buildCommand": "docker build -f docker/Dockerfile.postgres -t myapp/postgres:dev ./docker",
+      "watchPaths": [
+        "docker/Dockerfile.postgres",
+        "docker/init-scripts/**/*.sql",
+        "migrations/**/*.sql"
+      ],
+      "settlingDelay": 1000,
+      "debounceInterval": 5000
+    },
+    {
+      "name": "full-stack",
+      "type": "custom",
+      "enabled": false,
+      "buildCommand": "docker-compose up --build -d",
+      "watchPaths": [
+        "docker-compose.yml",
+        "docker-compose.override.yml",
+        "docker/**/*"
+      ],
+      "config": {
+        "composeFile": "docker-compose.yml",
+        "services": ["api", "frontend", "postgres"],
+        "detached": true
+      },
+      "settlingDelay": 3000,
+      "debounceInterval": 10000
+    }
+  ],
+  "watchman": {
+    "useDefaultExclusions": true,
+    "excludeDirs": [
+      "node_modules",
+      "logs",
+      "data",
+      "volumes",
+      ".docker"
+    ],
+    "projectType": "node",
+    "maxFileEvents": 15000,
+    "recrawlThreshold": 5,
+    "settlingDelay": 2000,
+    "rules": [
+      {
+        "pattern": "**/node_modules/**",
+        "action": "ignore",
+        "reason": "NPM dependencies",
+        "enabled": true
+      },
+      {
+        "pattern": "**/.docker/**",
+        "action": "ignore",
+        "reason": "Docker build cache",
+        "enabled": true
+      },
+      {
+        "pattern": "**/volumes/**",
+        "action": "ignore",
+        "reason": "Docker volumes",
+        "enabled": true
+      },
+      {
+        "pattern": "**/*.log",
+        "action": "ignore",
+        "reason": "Log files",
+        "enabled": true
+      }
+    ]
+  },
+  "performance": {
+    "profile": "conservative",
+    "autoOptimize": false,
+    "metrics": {
+      "enabled": true,
+      "reportInterval": 600
+    }
+  },
+  "notifications": {
+    "enabled": true,
+    "successSound": "Glass",
+    "failureSound": "Submarine"
+  },
+  "logging": {
+    "file": ".poltergeist.log",
+    "level": "debug"
+  }
+}

@@ -1,0 +1,89 @@
+{
+  "version": "1.0",
+  "projectType": "swift",
+  "targets": [
+    {
+      "name": "cli-tool",
+      "type": "executable",
+      "enabled": true,
+      "buildCommand": "swift build -c release",
+      "outputPath": "./.build/release/MyTool",
+      "watchPaths": [
+        "Sources/**/*.swift",
+        "Package.swift"
+      ],
+      "settlingDelay": 1000,
+      "debounceInterval": 5000,
+      "maxRetries": 3,
+      "environment": {
+        "SWIFT_ENV": "development"
+      }
+    },
+    {
+      "name": "tests",
+      "type": "test",
+      "enabled": true,
+      "testCommand": "swift test",
+      "watchPaths": [
+        "Sources/**/*.swift",
+        "Tests/**/*.swift",
+        "Package.swift"
+      ],
+      "settlingDelay": 500,
+      "debounceInterval": 3000
+    },
+    {
+      "name": "debug-build",
+      "type": "executable",
+      "enabled": false,
+      "buildCommand": "swift build -c debug",
+      "outputPath": "./.build/debug/MyTool",
+      "watchPaths": [
+        "Sources/**/*.swift"
+      ],
+      "settlingDelay": 500
+    }
+  ],
+  "watchman": {
+    "useDefaultExclusions": true,
+    "excludeDirs": [
+      "logs",
+      "tmp_*"
+    ],
+    "projectType": "swift",
+    "maxFileEvents": 10000,
+    "recrawlThreshold": 3,
+    "settlingDelay": 1000,
+    "rules": [
+      {
+        "pattern": "**/*.xcuserstate",
+        "action": "ignore",
+        "reason": "Xcode user state files",
+        "enabled": true
+      },
+      {
+        "pattern": "**/DerivedData/**",
+        "action": "ignore",
+        "reason": "Xcode build artifacts",
+        "enabled": true
+      }
+    ]
+  },
+  "performance": {
+    "profile": "balanced",
+    "autoOptimize": true,
+    "metrics": {
+      "enabled": true,
+      "reportInterval": 300
+    }
+  },
+  "notifications": {
+    "enabled": true,
+    "successSound": "Glass",
+    "failureSound": "Basso"
+  },
+  "logging": {
+    "file": ".poltergeist.log",
+    "level": "info"
+  }
+}
