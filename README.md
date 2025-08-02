@@ -16,6 +16,9 @@
 
 - **Universal Target System**: Support for executables, app bundles, libraries, frameworks, tests, Docker containers, and custom builds
 - **Efficient File Watching**: Powered by Facebook's Watchman with smart exclusions and performance optimization
+- **Intelligent Build Prioritization**: Automatic priority scoring based on focus patterns and user behavior
+- **Smart Build Queue Management**: Configurable parallelization with intelligent deduplication and scheduling
+- **Focus Pattern Detection**: Automatically detects which targets you're actively working on
 - **Intelligent Project Detection**: Automatically detects Swift, Node.js, Rust, Python, and mixed projects
 - **Smart Configuration**: Project-specific exclusions with performance profiles (conservative, balanced, aggressive)
 - **Native Notifications**: macOS notifications with customizable sounds for build status
@@ -127,6 +130,15 @@ Poltergeist v1.0 uses a clean, modern configuration schema with no backwards com
     "metrics": {
       "enabled": true,
       "reportInterval": 300
+    }
+  },
+  "buildScheduling": {
+    "parallelization": 2,
+    "prioritization": {
+      "enabled": true,
+      "focusDetectionWindow": 300000,
+      "priorityDecayTime": 1800000,
+      "buildTimeoutMultiplier": 2.0
     }
   },
   "notifications": {
@@ -278,6 +290,93 @@ Choose the right balance between file coverage and performance:
 | `conservative` | Maximum file coverage | 20 | Small projects, debugging |
 | `balanced` | Good performance/coverage balance | 50 | Most projects (default) |
 | `aggressive` | Maximum performance | 100 | Large projects, CI/CD |
+
+### Intelligent Build Prioritization
+
+Poltergeist v1.0 includes an intelligent build prioritization system that automatically optimizes build order based on your development patterns:
+
+```json
+{
+  "buildScheduling": {
+    "parallelization": 2,
+    "prioritization": {
+      "enabled": true,
+      "focusDetectionWindow": 300000,
+      "priorityDecayTime": 1800000,
+      "buildTimeoutMultiplier": 2.0
+    }
+  }
+}
+```
+
+#### Key Features
+
+- **Automatic Focus Detection**: Analyzes file change patterns to identify which targets you're actively working on
+- **Smart Priority Scoring**: Uses heuristics based on direct file changes, build success rates, and timing patterns
+- **Configurable Parallelization**: Control concurrent builds (1-10, default: 2)
+- **Dynamic Re-prioritization**: Adjusts build order in real-time as you work
+- **Build Queue Management**: Intelligent deduplication and pending rebuild tracking
+
+#### Configuration Options
+
+| Setting | Description | Default | Range |
+|---------|-------------|---------|-------|
+| `parallelization` | Number of concurrent builds | `2` | 1-10 |
+| `enabled` | Enable intelligent prioritization | `true` | boolean |
+| `focusDetectionWindow` | Time window for focus detection (ms) | `300000` | 60000-3600000 |
+| `priorityDecayTime` | Priority score decay period (ms) | `1800000` | 300000-7200000 |
+| `buildTimeoutMultiplier` | Timeout scaling factor | `2.0` | 1.0-10.0 |
+
+#### How It Works
+
+1. **File Change Classification**: Categorizes changes as direct, shared, or generated
+2. **Focus Pattern Detection**: Identifies recently active targets within the focus window
+3. **Priority Scoring**: Combines direct changes (100 points), focus multipliers (1x-2x), and success rates
+4. **Queue Management**: Orders builds by priority, respects parallelization limits
+5. **Real-time Adjustment**: Updates priorities as new changes occur
+
+#### Usage Examples
+
+**Serial Mode** (testing, debugging):
+```json
+{
+  "buildScheduling": {
+    "parallelization": 1,
+    "prioritization": { "enabled": true }
+  }
+}
+```
+
+**High Throughput** (large projects):
+```json
+{
+  "buildScheduling": {
+    "parallelization": 4,
+    "prioritization": {
+      "enabled": true,
+      "focusDetectionWindow": 180000,
+      "priorityDecayTime": 900000
+    }
+  }
+}
+```
+
+**Traditional Mode** (disable prioritization):
+```json
+{
+  "buildScheduling": {
+    "parallelization": 2,
+    "prioritization": { "enabled": false }
+  }
+}
+```
+
+#### Benefits
+
+- **Reduced Wait Times**: Builds what you're working on first
+- **Better Resource Utilization**: Optimizes parallel build scheduling
+- **Automatic Optimization**: No manual configuration required
+- **Development Efficiency**: Faster feedback loops for active work
 
 ### Smart Exclusions
 
@@ -672,6 +771,8 @@ poltergeist/
 │   ├── cli.ts             # Command line interface
 │   ├── config.ts          # Configuration loading & validation
 │   ├── poltergeist.ts     # Core application logic
+│   ├── priority-engine.ts # Intelligent priority scoring
+│   ├── build-queue.ts     # Smart build queue management
 │   ├── state.ts           # State management system
 │   ├── types.ts           # TypeScript type definitions
 │   ├── watchman.ts        # Watchman file watching
