@@ -414,10 +414,34 @@ export class WatchmanConfigManager {
       config.watchman.excludeDirs
     );
     
-    return exclusions.map(exclusion => [
-      'not',
-      ['match', `**/${exclusion}/**`, 'wholename']
-    ] as [string, string[]]);
+    // Limit subscription exclusions to prevent overly complex expressions
+    // Use only the most critical exclusions for subscriptions
+    const subscriptionLimit = 20;
+    const criticalExclusions = exclusions.slice(0, subscriptionLimit);
+    
+    if (exclusions.length > subscriptionLimit) {
+      this.logger.info(`Limiting subscription exclusions to ${subscriptionLimit} most critical (total: ${exclusions.length})`);
+    }
+    
+    // Convert exclusions to proper Watchman expressions
+    return criticalExclusions.map(exclusion => {
+      // Handle different exclusion patterns properly
+      let pattern = exclusion;
+      
+      // If exclusion already has wildcards, use as-is
+      // Otherwise, treat as directory and add /**
+      if (!pattern.includes('*') && !pattern.includes('/')) {
+        pattern = `**/${pattern}/**`;
+      } else if (pattern.startsWith('**/*.')) {
+        // For patterns like **/*.log, use as-is
+        pattern = exclusion;
+      } else if (!pattern.includes('**')) {
+        // Add ** prefix if missing
+        pattern = `**/${exclusion}/**`;
+      }
+      
+      return ['not', ['match', pattern, 'wholename']] as [string, string[]];
+    });
   }
 
   /**

@@ -109,10 +109,12 @@ export class WatchmanClient extends EventEmitter {
       throw new Error('No exclusions provided - configuration error');
     }
 
-    const enhancedExpression: Array<string | Array<string>> = [
+    // Build proper Watchman expression: ["allof", originalExpression, ...exclusions]
+    // Use any to handle complex nested Watchman expression structure
+    const enhancedExpression: any = [
       'allof',
-      ...subscription.expression,
-      ...exclusionExpressions.map(expr => expr as Array<string>)
+      subscription.expression,  // Original expression as single element
+      ...exclusionExpressions   // Exclusion expressions as separate elements
     ];
 
     this.logger.debug(`Applied ${exclusionExpressions.length} exclusion expressions`);
