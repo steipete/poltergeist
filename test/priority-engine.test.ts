@@ -34,7 +34,7 @@ describe('PriorityEngine', () => {
         enabled: true,
         buildCommand: 'npm run build',
         outputPath: './dist/frontend',
-        watchPaths: ['frontend/**/*.ts', 'frontend/**/*.tsx'],
+        watchPaths: ['frontend/**/*.ts', 'frontend/**/*.tsx', 'package.json', 'shared/**/*.ts'],
       },
       {
         name: 'backend',
@@ -42,7 +42,7 @@ describe('PriorityEngine', () => {
         enabled: true,
         buildCommand: 'cargo build',
         outputPath: './target/backend',
-        watchPaths: ['backend/**/*.rs'],
+        watchPaths: ['backend/**/*.rs', 'package.json'],
       },
       {
         name: 'shared',
@@ -89,7 +89,7 @@ describe('PriorityEngine', () => {
       expect(events).toHaveLength(1);
       expect(events[0]).toMatchObject({
         file: 'shared/utils.ts',
-        affectedTargets: ['shared'],
+        affectedTargets: ['frontend', 'shared'],
         changeType: 'shared',
         impactWeight: 0.7,
       });
@@ -426,7 +426,7 @@ describe('PriorityEngine', () => {
     });
 
     it('should handle malformed file paths', () => {
-      const events = priorityEngine.recordChange(['', '   ', '//', 'valid/file.ts'], targets);
+      const events = priorityEngine.recordChange(['', '   ', '//', 'frontend/src/valid.ts'], targets);
       
       // Should filter out invalid paths but process valid ones
       expect(events.length).toBeGreaterThan(0);

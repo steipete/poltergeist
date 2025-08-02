@@ -28,10 +28,7 @@ export class ExecutableBuilder extends BaseBuilder<ExecutableTarget> {
 
     this.logger.info(`[${this.target.name}] Executable built: ${outputPath}`);
 
-    // Update state with output info (store relative path, not absolute)
-    await this.stateManager.updateAppInfo(this.target.name, {
-      outputPath: this.target.outputPath,
-    });
+    // Note: Base builder will call getOutputInfo() to update app info
   }
 
   protected getBuilderName(): string {
@@ -39,6 +36,7 @@ export class ExecutableBuilder extends BaseBuilder<ExecutableTarget> {
   }
 
   public getOutputInfo(): string {
-    return this.target.outputPath;
+    // Return absolute path for output info
+    return join(this.projectRoot, this.target.outputPath);
   }
 }

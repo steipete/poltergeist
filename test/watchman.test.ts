@@ -145,7 +145,13 @@ describe('WatchmanClient', () => {
           expression: ['match', '**/*.js', 'wholename'],
           fields: ['name', 'exists', 'type'],
         },
-        callback
+        callback,
+        [
+          ['not', ['match', '**/.build/**', 'wholename']],
+          ['not', ['match', '**/DerivedData/**', 'wholename']],
+          ['not', ['match', '**/node_modules/**', 'wholename']],
+          ['not', ['match', '**/.git/**', 'wholename']],
+        ]
       );
 
       expect(mockWatchmanInstance.command).toHaveBeenCalledWith(
@@ -378,7 +384,7 @@ describe('WatchmanClient', () => {
       const testError = new Error('Test error');
       errorCallback?.(testError);
 
-      expect(mockLogger.error).toHaveBeenCalledWith('Watchman error:', testError);
+      expect(mockLogger.error).toHaveBeenCalledWith('Watchman client error:', testError);
       expect(errorHandler).toHaveBeenCalledWith(testError);
     });
 
@@ -391,7 +397,7 @@ describe('WatchmanClient', () => {
 
       endCallback?.();
 
-      expect(mockLogger.info).toHaveBeenCalledWith('Watchman connection ended');
+      expect(mockLogger.error).toHaveBeenCalledWith('Watchman connection ended unexpectedly');
       expect(disconnectHandler).toHaveBeenCalled();
     });
   });

@@ -4,7 +4,7 @@ import { mkdirSync, rmSync, writeFileSync } from 'fs';
 import { tmpdir } from 'os';
 import { dirname, join } from 'path';
 import { fileURLToPath } from 'url';
-import { beforeEach, describe, expect, it } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 import { ConfigLoader, ConfigurationError, migrateOldConfig } from '../src/config.js';
 
 const __filename = fileURLToPath(import.meta.url);
@@ -13,6 +13,22 @@ const __dirname = dirname(__filename);
 describe('ConfigLoader', () => {
   let tempDir: string;
   let configPath: string;
+
+  // Helper to create valid base config
+  const createValidConfig = (overrides = {}) => ({
+    version: '1.0',
+    projectType: 'swift',
+    targets: [],
+    watchman: {
+      useDefaultExclusions: true,
+      excludeDirs: [],
+      projectType: 'swift',
+      maxFileEvents: 10000,
+      recrawlThreshold: 5,
+      settlingDelay: 1000,
+    },
+    ...overrides,
+  });
 
   beforeEach(() => {
     // Create a temporary directory for test configs
@@ -32,7 +48,7 @@ describe('ConfigLoader', () => {
 
   describe('Configuration Format', () => {
     it('should load valid new format configuration', () => {
-      const config = {
+      const config = createValidConfig({
         targets: [
           {
             name: 'cli',
@@ -52,7 +68,7 @@ describe('ConfigLoader', () => {
             watchPaths: ['app/**/*.swift'],
           },
         ],
-      };
+      });
 
       writeFileSync(configPath, JSON.stringify(config, null, 2));
       const loader = new ConfigLoader(configPath);
@@ -130,7 +146,7 @@ describe('ConfigLoader', () => {
 
   describe('Target Validation', () => {
     it('should reject duplicate target names', () => {
-      const config = {
+      const config = createValidConfig({
         targets: [
           {
             name: 'my-target',
@@ -149,7 +165,7 @@ describe('ConfigLoader', () => {
             watchPaths: ['lib/**/*'],
           },
         ],
-      };
+      });
 
       writeFileSync(configPath, JSON.stringify(config, null, 2));
       const loader = new ConfigLoader(configPath);
@@ -158,7 +174,7 @@ describe('ConfigLoader', () => {
     });
 
     it('should validate required fields for executable target', () => {
-      const config = {
+      const config = createValidConfig({
         targets: [
           {
             name: 'cli',
@@ -168,7 +184,7 @@ describe('ConfigLoader', () => {
             watchPaths: ['src/**/*'],
           },
         ],
-      };
+      });
 
       writeFileSync(configPath, JSON.stringify(config, null, 2));
       const loader = new ConfigLoader(configPath);
@@ -177,7 +193,7 @@ describe('ConfigLoader', () => {
     });
 
     it('should validate required fields for app-bundle target', () => {
-      const config = {
+      const config = createValidConfig({
         targets: [
           {
             name: 'app',
@@ -189,7 +205,7 @@ describe('ConfigLoader', () => {
             watchPaths: ['app/**/*'],
           },
         ],
-      };
+      });
 
       writeFileSync(configPath, JSON.stringify(config, null, 2));
       const loader = new ConfigLoader(configPath);
@@ -198,7 +214,7 @@ describe('ConfigLoader', () => {
     });
 
     it('should validate platform values for app-bundle', () => {
-      const config = {
+      const config = createValidConfig({
         targets: [
           {
             name: 'app',
@@ -210,7 +226,7 @@ describe('ConfigLoader', () => {
             watchPaths: ['app/**/*'],
           },
         ],
-      };
+      });
 
       writeFileSync(configPath, JSON.stringify(config, null, 2));
       const loader = new ConfigLoader(configPath);
@@ -222,7 +238,7 @@ describe('ConfigLoader', () => {
       const platforms = ['macos', 'ios', 'tvos', 'watchos', 'visionos'];
 
       for (const platform of platforms) {
-        const config = {
+        const config = createValidConfig({
           targets: [
             {
               name: `app-${platform}`,
@@ -234,7 +250,7 @@ describe('ConfigLoader', () => {
               watchPaths: ['app/**/*'],
             },
           ],
-        };
+        });
 
         writeFileSync(configPath, JSON.stringify(config, null, 2));
         const loader = new ConfigLoader(configPath);
@@ -246,7 +262,7 @@ describe('ConfigLoader', () => {
 
   describe('Default Values', () => {
     it('should not have settling delay if not specified', () => {
-      const config = {
+      const config = createValidConfig({
         targets: [
           {
             name: 'cli',
@@ -258,7 +274,7 @@ describe('ConfigLoader', () => {
             // No settlingDelay specified
           },
         ],
-      };
+      });
 
       writeFileSync(configPath, JSON.stringify(config, null, 2));
       const loader = new ConfigLoader(configPath);
@@ -268,7 +284,7 @@ describe('ConfigLoader', () => {
     });
 
     it('should use custom settling delay when provided', () => {
-      const config = {
+      const config = createValidConfig({
         targets: [
           {
             name: 'cli',
@@ -280,7 +296,7 @@ describe('ConfigLoader', () => {
             settlingDelay: 1000,
           },
         ],
-      };
+      });
 
       writeFileSync(configPath, JSON.stringify(config, null, 2));
       const loader = new ConfigLoader(configPath);
@@ -290,7 +306,7 @@ describe('ConfigLoader', () => {
     });
 
     it('should not have autoRelaunch if not specified for app-bundle', () => {
-      const config = {
+      const config = createValidConfig({
         targets: [
           {
             name: 'app',
@@ -303,7 +319,7 @@ describe('ConfigLoader', () => {
             // No autoRelaunch specified
           },
         ],
-      };
+      });
 
       writeFileSync(configPath, JSON.stringify(config, null, 2));
       const loader = new ConfigLoader(configPath);
@@ -315,7 +331,7 @@ describe('ConfigLoader', () => {
 
   describe('Optional Features', () => {
     it('should load notifications config', () => {
-      const config = {
+      const config = createValidConfig({
         targets: [
           {
             name: 'cli',
@@ -332,7 +348,7 @@ describe('ConfigLoader', () => {
           successSound: 'Glass',
           failureSound: 'Basso',
         },
-      };
+      });
 
       writeFileSync(configPath, JSON.stringify(config, null, 2));
       const loader = new ConfigLoader(configPath);
@@ -346,7 +362,7 @@ describe('ConfigLoader', () => {
     });
 
     it('should load logging config', () => {
-      const config = {
+      const config = createValidConfig({
         targets: [
           {
             name: 'cli',
@@ -363,7 +379,7 @@ describe('ConfigLoader', () => {
           maxSize: '10m',
           maxFiles: 5,
         },
-      };
+      });
 
       writeFileSync(configPath, JSON.stringify(config, null, 2));
       const loader = new ConfigLoader(configPath);
@@ -407,9 +423,9 @@ describe('ConfigLoader', () => {
 
   describe('Edge Cases', () => {
     it('should handle empty targets array', () => {
-      const config = {
+      const config = createValidConfig({
         targets: [],
-      };
+      });
 
       writeFileSync(configPath, JSON.stringify(config, null, 2));
       const loader = new ConfigLoader(configPath);
@@ -420,7 +436,7 @@ describe('ConfigLoader', () => {
 
     it('should handle very long target names', () => {
       const longName = 'a'.repeat(100);
-      const config = {
+      const config = createValidConfig({
         targets: [
           {
             name: longName,
@@ -431,7 +447,7 @@ describe('ConfigLoader', () => {
             watchPaths: ['src/**/*'],
           },
         ],
-      };
+      });
 
       writeFileSync(configPath, JSON.stringify(config, null, 2));
       const loader = new ConfigLoader(configPath);
@@ -441,7 +457,7 @@ describe('ConfigLoader', () => {
     });
 
     it('should reject target names with special characters', () => {
-      const config = {
+      const config = createValidConfig({
         targets: [
           {
             name: 'my-target_v2.0',
@@ -452,7 +468,7 @@ describe('ConfigLoader', () => {
             watchPaths: ['src/**/*'],
           },
         ],
-      };
+      });
 
       writeFileSync(configPath, JSON.stringify(config, null, 2));
       const loader = new ConfigLoader(configPath);

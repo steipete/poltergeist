@@ -79,13 +79,32 @@ export class PriorityEngine {
     const now = Date.now();
     const events: ChangeEvent[] = [];
 
+    // Return empty if no targets provided
+    if (targets.length === 0) {
+      this.logger.debug('No targets provided, skipping change recording');
+      return events;
+    }
+
     for (const file of files) {
+      // Filter out malformed file paths
+      if (!file || file.trim().length === 0 || file.includes('//')) {
+        this.logger.debug(`Skipping malformed file path: "${file}"`);
+        continue;
+      }
+
       const affectedTargets = this.getAffectedTargets(file, targets);
+      
+      // Skip files that don't affect any targets
+      if (affectedTargets.length === 0) {
+        this.logger.debug(`File ${file} doesn't affect any targets, skipping`);
+        continue;
+      }
+
       const changeType = this.classifyChange(file, affectedTargets);
       const impactWeight = this.calculateImpactWeight(file, changeType);
 
       const event: ChangeEvent = {
-        file,
+        file: file.trim(),
         timestamp: now,
         affectedTargets: affectedTargets.map(t => t.name),
         changeType,
@@ -159,18 +178,22 @@ export class PriorityEngine {
   private calculateBaseScore(directChanges: ChangeEvent[], affectedFiles: string[], now: number): number {
     let score = 0;
     
-    // Base score from direct changes (100 points each)
-    score += directChanges.length * 100;
-    
-    // Recency bonus (0-50 points based on how recent)
+    // Base score from direct changes (100 points each) with decay
     if (directChanges.length > 0) {
       const mostRecent = Math.max(...directChanges.map(c => c.timestamp));
-      const recencyMinutes = (now - mostRecent) / (1000 * 60);
-      const recencyBonus = Math.max(0, 50 - recencyMinutes * 5); // Decay over 10 minutes
+      const ageMs = now - mostRecent;
+      const decayTime = this.config.prioritization.priorityDecayTime;
+      
+      // Apply exponential decay to the entire historical score
+      const decayFactor = Math.exp(-ageMs / decayTime);
+      score += directChanges.length * 100 * decayFactor;
+      
+      // Recency bonus also with decay
+      const recencyBonus = 50 * decayFactor;
       score += recencyBonus;
     }
 
-    // Current file trigger bonus
+    // Current file trigger bonus (no decay for immediate triggers)
     const currentChanges = affectedFiles.length;
     score += currentChanges * 25; // 25 points per current file
 
@@ -180,8 +203,18 @@ export class PriorityEngine {
   private calculateFocusMultiplier(targetName: string, recentHistory: ChangeEvent[]): number {
     if (recentHistory.length === 0) return 1.0;
 
-    const targetChanges = this.getTargetChanges(targetName, recentHistory);
-    const percentage = (targetChanges.length / recentHistory.length) * 100;
+    // Apply decay filtering for focus calculation too
+    const now = Date.now();
+    const decayTime = this.config.prioritization.priorityDecayTime;
+    const validHistory = recentHistory.filter(event => {
+      const ageMs = now - event.timestamp;
+      return ageMs <= decayTime; // Use same decay time for focus calculation
+    });
+
+    if (validHistory.length === 0) return 1.0;
+
+    const targetChanges = this.getTargetChanges(targetName, validHistory);
+    const percentage = (targetChanges.length / validHistory.length) * 100;
 
     if (percentage >= 80) return 2.0;      // Strong focus
     if (percentage >= 50) return 1.5;      // Moderate focus  

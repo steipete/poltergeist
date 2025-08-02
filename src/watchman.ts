@@ -105,19 +105,22 @@ export class WatchmanClient extends EventEmitter {
     this.logger.debug(`Creating subscription ${subscriptionName}`);
 
     // Build the expression with provided exclusions
-    if (!exclusionExpressions || exclusionExpressions.length === 0) {
-      throw new Error('No exclusions provided - configuration error');
+    let enhancedExpression: any;
+    
+    if (exclusionExpressions && exclusionExpressions.length > 0) {
+      // Build proper Watchman expression: ["allof", originalExpression, ...exclusions]
+      // Use any to handle complex nested Watchman expression structure
+      enhancedExpression = [
+        'allof',
+        subscription.expression,  // Original expression as single element
+        ...exclusionExpressions   // Exclusion expressions as separate elements
+      ];
+      this.logger.debug(`Applied ${exclusionExpressions.length} exclusion expressions`);
+    } else {
+      // No exclusions, use original expression
+      enhancedExpression = subscription.expression;
+      this.logger.debug('No exclusion expressions provided, using original expression');
     }
-
-    // Build proper Watchman expression: ["allof", originalExpression, ...exclusions]
-    // Use any to handle complex nested Watchman expression structure
-    const enhancedExpression: any = [
-      'allof',
-      subscription.expression,  // Original expression as single element
-      ...exclusionExpressions   // Exclusion expressions as separate elements
-    ];
-
-    this.logger.debug(`Applied ${exclusionExpressions.length} exclusion expressions`);
 
     const enhancedSubscription = {
       ...subscription,
