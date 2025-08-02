@@ -1,8 +1,8 @@
 // Priority Engine Tests - Intelligent Build Prioritization
 
-import { describe, expect, it, vi, beforeEach, afterEach } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { PriorityEngine } from '../src/priority-engine.js';
-import type { BuildSchedulingConfig, Target, BuildStatus } from '../src/types.js';
+import type { BuildSchedulingConfig, BuildStatus, Target } from '../src/types.js';
 import { createMockLogger, createTestConfig } from './helpers.js';
 
 describe('PriorityEngine', () => {
@@ -21,12 +21,12 @@ describe('PriorityEngine', () => {
       prioritization: {
         enabled: true,
         focusDetectionWindow: 300000, // 5 minutes
-        priorityDecayTime: 1800000,   // 30 minutes
+        priorityDecayTime: 1800000, // 30 minutes
         buildTimeoutMultiplier: 2.0,
       },
     };
 
-    const testConfig = createTestConfig();
+    const _testConfig = createTestConfig();
     targets = [
       {
         name: 'frontend',
@@ -38,7 +38,7 @@ describe('PriorityEngine', () => {
       },
       {
         name: 'backend',
-        type: 'executable', 
+        type: 'executable',
         enabled: true,
         buildCommand: 'cargo build',
         outputPath: './target/backend',
@@ -116,7 +116,7 @@ describe('PriorityEngine', () => {
     it('should calculate basic priority for direct file changes', () => {
       // Record some changes first
       priorityEngine.recordChange(['frontend/src/app.ts'], targets);
-      
+
       const priority = priorityEngine.calculatePriority(targets[0], ['frontend/src/app.ts']);
 
       expect(priority.target).toBe('frontend');
@@ -128,7 +128,7 @@ describe('PriorityEngine', () => {
       // Record changes to establish focus
       priorityEngine.recordChange(['frontend/src/app.ts'], targets);
       priorityEngine.recordChange(['frontend/src/component.tsx'], targets);
-      
+
       const priority = priorityEngine.calculatePriority(targets[0], ['frontend/src/new.ts']);
 
       expect(priority.focusMultiplier).toBeGreaterThan(1.0);
@@ -138,14 +138,14 @@ describe('PriorityEngine', () => {
     it('should decay focus over time', () => {
       // Record initial changes
       priorityEngine.recordChange(['frontend/src/app.ts'], targets);
-      
+
       const initialPriority = priorityEngine.calculatePriority(targets[0], ['frontend/src/app.ts']);
-      
+
       // Advance time beyond focus window
       vi.advanceTimersByTime(400000); // 6.67 minutes
-      
+
       const decayedPriority = priorityEngine.calculatePriority(targets[0], ['frontend/src/app.ts']);
-      
+
       expect(decayedPriority.focusMultiplier).toBeLessThan(initialPriority.focusMultiplier);
     });
 
@@ -155,7 +155,7 @@ describe('PriorityEngine', () => {
         parallelization: 1,
       };
       const serialEngine = new PriorityEngine(serialConfig, logger);
-      
+
       // Simulate a slow build target
       serialEngine.recordBuildResult('frontend', {
         status: 'success',
@@ -163,9 +163,9 @@ describe('PriorityEngine', () => {
         timestamp: new Date().toISOString(),
         duration: 45000, // 45 seconds
       });
-      
+
       const priority = serialEngine.calculatePriority(targets[0], ['frontend/src/app.ts']);
-      
+
       // Should apply penalty for slow builds in serial mode
       expect(priority.avgBuildTime).toBe(45000);
     });
@@ -179,17 +179,17 @@ describe('PriorityEngine', () => {
         duration: 5000,
         error: 'Build failed',
       });
-      
+
       priorityEngine.recordBuildResult('frontend', {
-        status: 'failure', 
+        status: 'failure',
         targetName: 'frontend',
         timestamp: new Date().toISOString(),
         duration: 5000,
         error: 'Build failed again',
       });
-      
+
       const priority = priorityEngine.calculatePriority(targets[0], ['frontend/src/app.ts']);
-      
+
       expect(priority.successRate).toBe(0); // 0% success rate
     });
   });
@@ -204,7 +204,7 @@ describe('PriorityEngine', () => {
       };
 
       priorityEngine.recordBuildResult('frontend', buildStatus);
-      
+
       const priority = priorityEngine.calculatePriority(targets[0], []);
       expect(priority.successRate).toBe(1.0);
       expect(priority.avgBuildTime).toBe(5000);
@@ -213,14 +213,14 @@ describe('PriorityEngine', () => {
     it('should record failed builds', () => {
       const buildStatus: BuildStatus = {
         status: 'failure',
-        targetName: 'frontend', 
+        targetName: 'frontend',
         timestamp: new Date().toISOString(),
         duration: 3000,
         error: 'Compilation error',
       };
 
       priorityEngine.recordBuildResult('frontend', buildStatus);
-      
+
       const priority = priorityEngine.calculatePriority(targets[0], []);
       expect(priority.successRate).toBe(0);
       expect(priority.avgBuildTime).toBe(3000);
@@ -235,7 +235,7 @@ describe('PriorityEngine', () => {
         { duration: 4000, status: 'success' as const },
       ];
 
-      builds.forEach(build => {
+      builds.forEach((build) => {
         priorityEngine.recordBuildResult('frontend', {
           status: build.status,
           targetName: 'frontend',
@@ -275,7 +275,7 @@ describe('PriorityEngine', () => {
       // Create focus on frontend
       priorityEngine.recordChange(['frontend/src/app.ts'], targets);
       priorityEngine.recordChange(['frontend/src/component.tsx'], targets);
-      
+
       const focusAfterChanges = priorityEngine.getFocusInfo();
       expect(focusAfterChanges).toContainEqual({
         target: 'frontend',
@@ -289,28 +289,28 @@ describe('PriorityEngine', () => {
       priorityEngine.recordChange(['frontend/src/app.ts'], targets);
       priorityEngine.recordChange(['frontend/src/component.tsx'], targets);
       priorityEngine.recordChange(['backend/src/main.rs'], targets);
-      
+
       const focusInfo = priorityEngine.getFocusInfo();
-      
+
       // Should show higher percentage for frontend (2/3 changes)
-      const frontendFocus = focusInfo.find(f => f.target === 'frontend');
-      const backendFocus = focusInfo.find(f => f.target === 'backend');
-      
+      const frontendFocus = focusInfo.find((f) => f.target === 'frontend');
+      const backendFocus = focusInfo.find((f) => f.target === 'backend');
+
       expect(frontendFocus?.percentage).toBeGreaterThan(backendFocus?.percentage || 0);
     });
 
     it('should ignore changes outside focus window', () => {
       // Record old changes
       priorityEngine.recordChange(['frontend/src/app.ts'], targets);
-      
+
       // Advance time beyond focus window
       vi.advanceTimersByTime(400000); // 6.67 minutes
-      
+
       // Record new changes
       priorityEngine.recordChange(['backend/src/main.rs'], targets);
-      
+
       const focusInfo = priorityEngine.getFocusInfo();
-      
+
       // Should only show backend focus (frontend changes are too old)
       expect(focusInfo).toHaveLength(1);
       expect(focusInfo[0].target).toBe('backend');
@@ -326,11 +326,11 @@ describe('PriorityEngine', () => {
           enabled: false,
         },
       };
-      
+
       const disabledEngine = new PriorityEngine(disabledConfig, logger);
-      
+
       const priority = disabledEngine.calculatePriority(targets[0], ['frontend/src/app.ts']);
-      
+
       // Should still calculate priority but with minimal scoring
       expect(priority.score).toBeGreaterThanOrEqual(0);
       expect(priority.focusMultiplier).toBe(1.0);
@@ -344,12 +344,12 @@ describe('PriorityEngine', () => {
           focusDetectionWindow: 0,
         },
       };
-      
+
       const noFocusEngine = new PriorityEngine(noFocusConfig, logger);
-      
+
       noFocusEngine.recordChange(['frontend/src/app.ts'], targets);
       const focusInfo = noFocusEngine.getFocusInfo();
-      
+
       expect(focusInfo).toHaveLength(0);
     });
 
@@ -361,15 +361,15 @@ describe('PriorityEngine', () => {
           priorityDecayTime: 1000, // 1 second
         },
       };
-      
+
       const fastDecayEngine = new PriorityEngine(fastDecayConfig, logger);
-      
+
       fastDecayEngine.recordChange(['frontend/src/app.ts'], targets);
-      
+
       vi.advanceTimersByTime(2000); // 2 seconds
-      
+
       const priority = fastDecayEngine.calculatePriority(targets[0], []);
-      
+
       // Priority should have decayed significantly
       expect(priority.score).toBeLessThan(50);
     });
@@ -380,7 +380,7 @@ describe('PriorityEngine', () => {
       // Simulate changes that affect multiple targets
       const sharedFiles = ['shared/types.ts'];
       const events = priorityEngine.recordChange(sharedFiles, targets);
-      
+
       // Should affect the shared target
       expect(events[0].affectedTargets).toContain('shared');
     });
@@ -391,14 +391,18 @@ describe('PriorityEngine', () => {
         priorityEngine.recordChange([`frontend/src/file${i}.ts`], targets);
         vi.advanceTimersByTime(10000); // 10 seconds between changes
       }
-      
+
       // Single change to backend
       priorityEngine.recordChange(['backend/src/main.rs'], targets);
-      
-      const frontendPriority = priorityEngine.calculatePriority(targets[0], ['frontend/src/new.ts']);
+
+      const frontendPriority = priorityEngine.calculatePriority(targets[0], [
+        'frontend/src/new.ts',
+      ]);
       const backendPriority = priorityEngine.calculatePriority(targets[1], ['backend/src/new.rs']);
-      
-      expect(frontendPriority.directChangeFrequency).toBeGreaterThan(backendPriority.directChangeFrequency);
+
+      expect(frontendPriority.directChangeFrequency).toBeGreaterThan(
+        backendPriority.directChangeFrequency
+      );
       expect(frontendPriority.score).toBeGreaterThan(backendPriority.score);
     });
   });
@@ -426,11 +430,14 @@ describe('PriorityEngine', () => {
     });
 
     it('should handle malformed file paths', () => {
-      const events = priorityEngine.recordChange(['', '   ', '//', 'frontend/src/valid.ts'], targets);
-      
+      const events = priorityEngine.recordChange(
+        ['', '   ', '//', 'frontend/src/valid.ts'],
+        targets
+      );
+
       // Should filter out invalid paths but process valid ones
       expect(events.length).toBeGreaterThan(0);
-      expect(events.every(e => e.file.trim().length > 0)).toBe(true);
+      expect(events.every((e) => e.file.trim().length > 0)).toBe(true);
     });
   });
 });

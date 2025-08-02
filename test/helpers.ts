@@ -7,6 +7,7 @@ import type {
   IBuilderFactory,
   IStateManager,
   IWatchmanClient,
+  IWatchmanConfigManager,
   PoltergeistDependencies,
 } from '../src/interfaces.js';
 import type { Logger } from '../src/logger.js';
@@ -38,6 +39,18 @@ export function createMockWatchmanClient(): IWatchmanClient & EventEmitter {
   client.unsubscribe = vi.fn().mockResolvedValue(undefined);
   client.isConnected = vi.fn().mockReturnValue(true);
   return client;
+}
+
+/**
+ * Create a mock Watchman config manager
+ */
+export function createMockWatchmanConfigManager(): IWatchmanConfigManager {
+  return {
+    ensureConfigUpToDate: vi.fn().mockResolvedValue(undefined),
+    suggestOptimizations: vi.fn().mockResolvedValue([]),
+    createExclusionExpressions: vi.fn().mockReturnValue([]),
+    validateWatchPattern: vi.fn().mockReturnValue(undefined),
+  };
 }
 
 /**
@@ -76,24 +89,31 @@ export function createMockStateManager(): IStateManager {
  * Create a mock builder with configurable delay
  */
 export function createMockBuilder(
-  targetName: string, 
-  options: { 
+  targetName: string,
+  options: {
     delay?: number;
     shouldFail?: boolean;
     buildDuration?: number;
   } = {}
 ): BaseBuilder {
   const { delay = 50, shouldFail = false, buildDuration = 100 } = options;
-  
+
   const mockBuilder = {
-    build: vi.fn().mockImplementation(() => 
-      new Promise(resolve => setTimeout(() => resolve({
-        status: shouldFail ? 'failure' : 'success',
-        targetName,
-        timestamp: new Date().toISOString(),
-        duration: buildDuration,
-        ...(shouldFail && { error: 'Mock build failure' }),
-      } as BuildStatus), delay))
+    build: vi.fn().mockImplementation(
+      () =>
+        new Promise((resolve) =>
+          setTimeout(
+            () =>
+              resolve({
+                status: shouldFail ? 'failure' : 'success',
+                targetName,
+                timestamp: new Date().toISOString(),
+                duration: buildDuration,
+                ...(shouldFail && { error: 'Mock build failure' }),
+              } as BuildStatus),
+            delay
+          )
+        )
     ),
     validate: vi.fn().mockResolvedValue(undefined),
     stop: vi.fn(),
@@ -128,12 +148,13 @@ export function createControllableMockBuilder(targetName: string): {
   fail: (error?: string) => void;
 } {
   let resolver: (value: BuildStatus) => void;
-  
+
   const mockBuilder = {
-    build: vi.fn().mockImplementation(() => 
-      new Promise<BuildStatus>((resolve) => {
-        resolver = resolve;
-      })
+    build: vi.fn().mockImplementation(
+      () =>
+        new Promise<BuildStatus>((resolve) => {
+          resolver = resolve;
+        })
     ),
     validate: vi.fn().mockResolvedValue(undefined),
     stop: vi.fn(),
@@ -237,6 +258,7 @@ export function createMockDependencies(): PoltergeistDependencies {
     watchmanClient: createMockWatchmanClient(),
     stateManager: createMockStateManager(),
     builderFactory: createMockBuilderFactory(),
+    watchmanConfigManager: createMockWatchmanConfigManager(),
     notifier: {
       config: { enabled: false },
       notifyBuildStart: vi.fn().mockResolvedValue(undefined),

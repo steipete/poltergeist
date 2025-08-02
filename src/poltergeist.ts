@@ -1,20 +1,21 @@
 // Poltergeist v1.0 - Clean, simple implementation
 
+import { IntelligentBuildQueue } from './build-queue.js';
 import type { BaseBuilder } from './builders/index.js';
 import type {
   IBuilderFactory,
   IStateManager,
   IWatchmanClient,
+  IWatchmanConfigManager,
   PoltergeistDependencies,
 } from './interfaces.js';
 import { createLogger, type Logger } from './logger.js';
 import { BuildNotifier } from './notifier.js';
+import { PriorityEngine } from './priority-engine.js';
 import { type PoltergeistState, StateManager } from './state.js';
-import type { BuildStatus, PoltergeistConfig, Target, BuildSchedulingConfig } from './types.js';
+import type { BuildSchedulingConfig, BuildStatus, PoltergeistConfig, Target } from './types.js';
 import { WatchmanClient } from './watchman.js';
 import { WatchmanConfigManager } from './watchman-config.js';
-import { IntelligentBuildQueue } from './build-queue.js';
-import { PriorityEngine } from './priority-engine.js';
 
 interface TargetState {
   target: Target;
@@ -33,10 +34,10 @@ export class Poltergeist {
   private watchman?: IWatchmanClient;
   private notifier?: BuildNotifier;
   private builderFactory: IBuilderFactory;
-  private watchmanConfigManager: WatchmanConfigManager;
+  private watchmanConfigManager: IWatchmanConfigManager;
   private targetStates: Map<string, TargetState> = new Map();
   private isRunning = false;
-  
+
   // Intelligent build scheduling
   private buildQueue?: IntelligentBuildQueue;
   private priorityEngine?: PriorityEngine;
@@ -57,30 +58,24 @@ export class Poltergeist {
     this.builderFactory = deps.builderFactory;
     this.notifier = deps.notifier;
     this.watchman = deps.watchmanClient;
-    
-    // Initialize Watchman config manager
-    this.watchmanConfigManager = new WatchmanConfigManager(projectRoot, logger);
-    
+    this.watchmanConfigManager =
+      deps.watchmanConfigManager || new WatchmanConfigManager(projectRoot, logger);
+
     // Initialize build scheduling configuration with defaults
     this.buildSchedulingConfig = {
       parallelization: 2,
       prioritization: {
         enabled: true,
         focusDetectionWindow: 300000, // 5 minutes
-        priorityDecayTime: 1800000,   // 30 minutes
+        priorityDecayTime: 1800000, // 30 minutes
         buildTimeoutMultiplier: 2.0,
       },
       ...config.buildScheduling,
     };
 
-    // Initialize intelligent build system if prioritization is enabled
+    // Initialize priority engine if needed - build queue will be initialized later in start()
     if (this.buildSchedulingConfig.prioritization.enabled) {
       this.priorityEngine = new PriorityEngine(this.buildSchedulingConfig, logger);
-      this.buildQueue = new IntelligentBuildQueue(
-        this.buildSchedulingConfig,
-        logger,
-        this.priorityEngine
-      );
     }
   }
 
@@ -101,6 +96,20 @@ export class Poltergeist {
     // Initialize notifier if enabled and not already injected
     if (this.config.notifications?.enabled && !this.notifier) {
       this.notifier = new BuildNotifier(this.config.notifications);
+    }
+
+    // Initialize intelligent build queue now that notifier is available
+    if (
+      this.buildSchedulingConfig.prioritization.enabled &&
+      this.priorityEngine &&
+      !this.buildQueue
+    ) {
+      this.buildQueue = new IntelligentBuildQueue(
+        this.buildSchedulingConfig,
+        this.logger,
+        this.priorityEngine,
+        this.notifier
+      );
     }
 
     // Determine which targets to build
@@ -183,7 +192,9 @@ export class Poltergeist {
     const pathToTargets = new Map<string, Set<string>>();
 
     for (const [name, state] of this.targetStates) {
-      this.logger.debug(`Target ${name} has ${state.target.watchPaths.length} watch paths: ${JSON.stringify(state.target.watchPaths)}`);
+      this.logger.debug(
+        `Target ${name} has ${state.target.watchPaths.length} watch paths: ${JSON.stringify(state.target.watchPaths)}`
+      );
       for (const pattern of state.target.watchPaths) {
         this.logger.debug(`Processing watch path: ${pattern}`);
         if (!pathToTargets.has(pattern)) {
@@ -196,15 +207,17 @@ export class Poltergeist {
     // Create subscriptions with strict validation
     for (const [pattern, targetNames] of pathToTargets) {
       this.logger.debug(`Creating subscription for pattern: "${pattern}"`);
-      
+
       try {
         // Strict pattern validation - no fixing hacks
         this.watchmanConfigManager.validateWatchPattern(pattern);
-        
+
         const subscriptionName = `poltergeist_${pattern.replace(/[^a-zA-Z0-9]/g, '_')}`;
 
         // Get optimized exclusion expressions (no fallbacks)
-        const exclusionExpressions = this.watchmanConfigManager.createExclusionExpressions(this.config);
+        const exclusionExpressions = this.watchmanConfigManager.createExclusionExpressions(
+          this.config
+        );
 
         await this.watchman.subscribe(
           this.projectRoot,
@@ -220,7 +233,6 @@ export class Poltergeist {
         );
 
         this.logger.info(`👻 Watching ${targetNames.size} target(s): ${pattern}`);
-        
       } catch (error) {
         this.logger.error(`❌ Invalid watch pattern "${pattern}": ${error}`);
         throw error; // Fail fast - no pattern fixing
@@ -233,18 +245,17 @@ export class Poltergeist {
    */
   private async setupWatchmanConfig(): Promise<void> {
     this.logger.info('🔧 Setting up Watchman configuration...');
-    
+
     try {
       // Strict validation - fail fast if config is invalid
       await this.watchmanConfigManager.ensureConfigUpToDate(this.config);
-      
+
       // Suggest optimizations if available
       const suggestions = await this.watchmanConfigManager.suggestOptimizations();
       if (suggestions.length > 0) {
         this.logger.info('💡 Optimization suggestions:');
-        suggestions.forEach(s => this.logger.info(`  • ${s}`));
+        suggestions.forEach((s) => this.logger.info(`  • ${s}`));
       }
-      
     } catch (error) {
       this.logger.error('❌ Watchman configuration setup failed');
       throw error; // Fail fast - no fallbacks
@@ -264,7 +275,7 @@ export class Poltergeist {
     // Use intelligent build queue if available
     if (this.buildQueue && this.buildSchedulingConfig.prioritization.enabled) {
       const affectedTargets = targetNames
-        .map(name => this.targetStates.get(name)?.target)
+        .map((name) => this.targetStates.get(name)?.target)
         .filter((target): target is Target => target !== undefined);
 
       this.buildQueue.onFileChanged(changedFiles, affectedTargets);
@@ -298,7 +309,7 @@ export class Poltergeist {
     // Use intelligent build queue if available
     if (this.buildQueue && this.buildSchedulingConfig.prioritization.enabled) {
       // Trigger initial builds through the queue
-      const allTargets = Array.from(this.targetStates.values()).map(state => state.target);
+      const allTargets = Array.from(this.targetStates.values()).map((state) => state.target);
       await this.buildQueue.onFileChanged(['initial build'], allTargets);
       return;
     }

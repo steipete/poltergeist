@@ -18,11 +18,7 @@ export class BuildNotifier {
     }
   ) {}
 
-  async notifyBuildStart(
-    target: string,
-    projectName: string,
-    targetName?: string
-  ): Promise<void> {
+  async notifyBuildStart(target: string, projectName: string, targetName?: string): Promise<void> {
     if (
       !this.config.enabled ||
       !this.config.buildStart ||

@@ -185,7 +185,7 @@ export class StateManager implements IStateManager {
           unlinkSync(tempFile);
         }
       } catch {}
-      
+
       // Re-throw to ensure callers know the operation failed
       throw err;
     }

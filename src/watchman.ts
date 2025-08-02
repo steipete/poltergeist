@@ -105,15 +105,15 @@ export class WatchmanClient extends EventEmitter {
     this.logger.debug(`Creating subscription ${subscriptionName}`);
 
     // Build the expression with provided exclusions
-    let enhancedExpression: any;
-    
+    let enhancedExpression: Array<string | unknown>;
+
     if (exclusionExpressions && exclusionExpressions.length > 0) {
       // Build proper Watchman expression: ["allof", originalExpression, ...exclusions]
       // Use any to handle complex nested Watchman expression structure
       enhancedExpression = [
         'allof',
-        subscription.expression,  // Original expression as single element
-        ...exclusionExpressions   // Exclusion expressions as separate elements
+        subscription.expression, // Original expression as single element
+        ...exclusionExpressions, // Exclusion expressions as separate elements
       ];
       this.logger.debug(`Applied ${exclusionExpressions.length} exclusion expressions`);
     } else {
@@ -150,7 +150,9 @@ export class WatchmanClient extends EventEmitter {
             type: file.new ? 'new' : undefined,
           }));
 
-          this.logger.debug(`Subscription ${subscriptionName} received ${changes.length} file changes: ${changes.map(c => c.name).join(', ')}`);
+          this.logger.debug(
+            `Subscription ${subscriptionName} received ${changes.length} file changes: ${changes.map((c) => c.name).join(', ')}`
+          );
           callback(changes);
         }
       };
@@ -159,7 +161,9 @@ export class WatchmanClient extends EventEmitter {
       this.client.on('subscription', handler);
 
       // Create the subscription
-      this.logger.debug(`Sending subscribe command: ${JSON.stringify(['subscribe', this.watchRoot, subscriptionName, enhancedSubscription])}`);
+      this.logger.debug(
+        `Sending subscribe command: ${JSON.stringify(['subscribe', this.watchRoot, subscriptionName, enhancedSubscription])}`
+      );
       this.client.command(
         ['subscribe', this.watchRoot, subscriptionName, enhancedSubscription],
         (error: Error | null, resp?: unknown) => {

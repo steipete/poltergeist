@@ -297,7 +297,7 @@ export const BuildSchedulingConfigSchema = z.object({
   prioritization: z.object({
     enabled: z.boolean().default(true),
     focusDetectionWindow: z.number().default(300000), // 5 minutes
-    priorityDecayTime: z.number().default(1800000),   // 30 minutes
+    priorityDecayTime: z.number().default(1800000), // 30 minutes
     buildTimeoutMultiplier: z.number().default(2.0),
   }),
 });

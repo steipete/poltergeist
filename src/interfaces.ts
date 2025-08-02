@@ -4,7 +4,7 @@ import type { BaseBuilder } from './builders/index.js';
 import type { Logger } from './logger.js';
 import type { BuildNotifier } from './notifier.js';
 import type { PoltergeistState } from './state.js';
-import type { BuildStatus, Target } from './types.js';
+import type { BuildStatus, PoltergeistConfig, Target } from './types.js';
 
 /**
  * Interface for Watchman client operations
@@ -63,4 +63,12 @@ export interface PoltergeistDependencies {
   stateManager: IStateManager;
   builderFactory: IBuilderFactory;
   notifier?: BuildNotifier;
+  watchmanConfigManager?: IWatchmanConfigManager;
+}
+
+export interface IWatchmanConfigManager {
+  ensureConfigUpToDate(config: PoltergeistConfig): Promise<void>;
+  suggestOptimizations(): Promise<string[]>;
+  createExclusionExpressions(config: PoltergeistConfig): Array<[string, string[]]>;
+  validateWatchPattern(pattern: string): void;
 }

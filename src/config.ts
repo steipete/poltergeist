@@ -181,7 +181,7 @@ export class ConfigLoader {
       if (
         resolvedTarget.buildCommand &&
         (resolvedTarget.buildCommand.startsWith('./') ||
-         resolvedTarget.buildCommand.startsWith('../'))
+          resolvedTarget.buildCommand.startsWith('../'))
       ) {
         resolvedTarget.buildCommand = resolve(this.projectRoot, resolvedTarget.buildCommand);
       }

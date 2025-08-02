@@ -1,23 +1,26 @@
 // Priority Scoring Engine for Intelligent Build Scheduling
 
-import type { 
-  Target, 
-  ChangeEvent, 
-  TargetPriority, 
-  BuildSchedulingConfig,
-  BuildStatus 
-} from './types.js';
 import type { Logger } from './logger.js';
+import type {
+  BuildSchedulingConfig,
+  BuildStatus,
+  ChangeEvent,
+  Target,
+  TargetPriority,
+} from './types.js';
 
 export class PriorityEngine {
   private config: BuildSchedulingConfig;
   private logger: Logger;
   private changeHistory: ChangeEvent[] = [];
-  private targetMetrics: Map<string, {
-    buildTimes: number[];
-    buildSuccesses: number;
-    buildAttempts: number;
-  }> = new Map();
+  private targetMetrics: Map<
+    string,
+    {
+      buildTimes: number[];
+      buildSuccesses: number;
+      buildAttempts: number;
+    }
+  > = new Map();
 
   constructor(config: BuildSchedulingConfig, logger: Logger) {
     this.config = config;
@@ -31,15 +34,14 @@ export class PriorityEngine {
     const now = Date.now();
     const focusWindow = this.config.prioritization.focusDetectionWindow;
     const recentHistory = this.getRecentHistory(focusWindow);
-    
+
     // Analyze changes for this target
     const targetChanges = this.getTargetChanges(target.name, recentHistory);
-    const directChanges = targetChanges.filter(c => c.changeType === 'direct');
-    
+    const directChanges = targetChanges.filter((c) => c.changeType === 'direct');
+
     // Calculate base metrics
-    const lastDirectChange = directChanges.length > 0 
-      ? Math.max(...directChanges.map(c => c.timestamp)) 
-      : 0;
+    const lastDirectChange =
+      directChanges.length > 0 ? Math.max(...directChanges.map((c) => c.timestamp)) : 0;
     const directChangeFrequency = directChanges.length;
     const focusMultiplier = this.calculateFocusMultiplier(target.name, recentHistory);
     const avgBuildTime = this.getAverageBuildTime(target.name);
@@ -48,8 +50,8 @@ export class PriorityEngine {
     // Calculate priority score
     let score = this.calculateBaseScore(directChanges, affectedFiles, now);
     score *= focusMultiplier;
-    score *= (0.5 + successRate * 0.5); // Build success factor
-    
+    score *= 0.5 + successRate * 0.5; // Build success factor
+
     // Apply build time penalty in serial mode
     if (this.config.parallelization === 1 && avgBuildTime > 30000) {
       score *= 0.8;
@@ -64,11 +66,13 @@ export class PriorityEngine {
       focusMultiplier,
       avgBuildTime,
       successRate,
-      recentChanges: targetChanges
+      recentChanges: targetChanges,
     };
 
-    this.logger.debug(`Priority for ${target.name}: ${score.toFixed(2)} (focus: ${focusMultiplier.toFixed(2)}x, success: ${(successRate * 100).toFixed(1)}%)`);
-    
+    this.logger.debug(
+      `Priority for ${target.name}: ${score.toFixed(2)} (focus: ${focusMultiplier.toFixed(2)}x, success: ${(successRate * 100).toFixed(1)}%)`
+    );
+
     return priority;
   }
 
@@ -93,7 +97,7 @@ export class PriorityEngine {
       }
 
       const affectedTargets = this.getAffectedTargets(file, targets);
-      
+
       // Skip files that don't affect any targets
       if (affectedTargets.length === 0) {
         this.logger.debug(`File ${file} doesn't affect any targets, skipping`);
@@ -106,9 +110,9 @@ export class PriorityEngine {
       const event: ChangeEvent = {
         file: file.trim(),
         timestamp: now,
-        affectedTargets: affectedTargets.map(t => t.name),
+        affectedTargets: affectedTargets.map((t) => t.name),
         changeType,
-        impactWeight
+        impactWeight,
       };
 
       events.push(event);
@@ -117,7 +121,7 @@ export class PriorityEngine {
 
     // Clean old history
     this.cleanOldHistory();
-    
+
     this.logger.debug(`Recorded ${events.length} change events`);
     return events;
   }
@@ -130,12 +134,13 @@ export class PriorityEngine {
       this.targetMetrics.set(targetName, {
         buildTimes: [],
         buildSuccesses: 0,
-        buildAttempts: 0
+        buildAttempts: 0,
       });
     }
 
-    const metrics = this.targetMetrics.get(targetName)!;
-    
+    const metrics = this.targetMetrics.get(targetName);
+    if (!metrics) return;
+
     if (buildStatus.duration) {
       metrics.buildTimes.push(buildStatus.duration);
       // Keep only last 10 build times
@@ -162,32 +167,38 @@ export class PriorityEngine {
    */
   public getFocusInfo(): { target: string; percentage: number; multiplier: number }[] {
     const recentHistory = this.getRecentHistory(this.config.prioritization.focusDetectionWindow);
-    const targets = new Set(recentHistory.flatMap(h => h.affectedTargets));
-    
-    return Array.from(targets).map(target => {
-      const targetChanges = this.getTargetChanges(target, recentHistory);
-      const percentage = (targetChanges.length / recentHistory.length) * 100;
-      const multiplier = this.calculateFocusMultiplier(target, recentHistory);
-      
-      return { target, percentage, multiplier };
-    }).sort((a, b) => b.percentage - a.percentage);
+    const targets = new Set(recentHistory.flatMap((h) => h.affectedTargets));
+
+    return Array.from(targets)
+      .map((target) => {
+        const targetChanges = this.getTargetChanges(target, recentHistory);
+        const percentage = (targetChanges.length / recentHistory.length) * 100;
+        const multiplier = this.calculateFocusMultiplier(target, recentHistory);
+
+        return { target, percentage, multiplier };
+      })
+      .sort((a, b) => b.percentage - a.percentage);
   }
 
   // Private methods
 
-  private calculateBaseScore(directChanges: ChangeEvent[], affectedFiles: string[], now: number): number {
+  private calculateBaseScore(
+    directChanges: ChangeEvent[],
+    affectedFiles: string[],
+    now: number
+  ): number {
     let score = 0;
-    
+
     // Base score from direct changes (100 points each) with decay
     if (directChanges.length > 0) {
-      const mostRecent = Math.max(...directChanges.map(c => c.timestamp));
+      const mostRecent = Math.max(...directChanges.map((c) => c.timestamp));
       const ageMs = now - mostRecent;
       const decayTime = this.config.prioritization.priorityDecayTime;
-      
+
       // Apply exponential decay to the entire historical score
       const decayFactor = Math.exp(-ageMs / decayTime);
       score += directChanges.length * 100 * decayFactor;
-      
+
       // Recency bonus also with decay
       const recencyBonus = 50 * decayFactor;
       score += recencyBonus;
@@ -206,7 +217,7 @@ export class PriorityEngine {
     // Apply decay filtering for focus calculation too
     const now = Date.now();
     const decayTime = this.config.prioritization.priorityDecayTime;
-    const validHistory = recentHistory.filter(event => {
+    const validHistory = recentHistory.filter((event) => {
       const ageMs = now - event.timestamp;
       return ageMs <= decayTime; // Use same decay time for focus calculation
     });
@@ -216,17 +227,15 @@ export class PriorityEngine {
     const targetChanges = this.getTargetChanges(targetName, validHistory);
     const percentage = (targetChanges.length / validHistory.length) * 100;
 
-    if (percentage >= 80) return 2.0;      // Strong focus
-    if (percentage >= 50) return 1.5;      // Moderate focus  
-    if (percentage >= 30) return 1.2;      // Weak focus
-    return 1.0;                            // No focus
+    if (percentage >= 80) return 2.0; // Strong focus
+    if (percentage >= 50) return 1.5; // Moderate focus
+    if (percentage >= 30) return 1.2; // Weak focus
+    return 1.0; // No focus
   }
 
   private getAffectedTargets(file: string, targets: Target[]): Target[] {
-    return targets.filter(target => 
-      target.watchPaths.some(pattern => 
-        this.matchesPattern(file, pattern)
-      )
+    return targets.filter((target) =>
+      target.watchPaths.some((pattern) => this.matchesPattern(file, pattern))
     );
   }
 
@@ -235,30 +244,35 @@ export class PriorityEngine {
     // Split pattern and file into segments
     const patternSegments = pattern.split('/');
     const fileSegments = file.split('/');
-    
+
     return this.matchSegments(fileSegments, patternSegments, 0, 0);
   }
 
-  private matchSegments(fileSegments: string[], patternSegments: string[], fileIndex: number, patternIndex: number): boolean {
+  private matchSegments(
+    fileSegments: string[],
+    patternSegments: string[],
+    fileIndex: number,
+    patternIndex: number
+  ): boolean {
     // If we've consumed all pattern segments
     if (patternIndex >= patternSegments.length) {
       return fileIndex >= fileSegments.length; // Should have consumed all file segments too
     }
-    
+
     // If we've consumed all file segments but have pattern left
     if (fileIndex >= fileSegments.length) {
       return false;
     }
-    
+
     const patternSegment = patternSegments[patternIndex];
-    
+
     // Handle ** (matches zero or more path segments)
     if (patternSegment === '**') {
       // Try matching zero segments (skip **)
       if (this.matchSegments(fileSegments, patternSegments, fileIndex, patternIndex + 1)) {
         return true;
       }
-      
+
       // Try matching one or more segments
       for (let i = fileIndex; i < fileSegments.length; i++) {
         if (this.matchSegments(fileSegments, patternSegments, i + 1, patternIndex + 1)) {
@@ -267,24 +281,24 @@ export class PriorityEngine {
       }
       return false;
     }
-    
+
     // Handle normal segments with * and ?
     if (this.matchWildcard(fileSegments[fileIndex], patternSegment)) {
       return this.matchSegments(fileSegments, patternSegments, fileIndex + 1, patternIndex + 1);
     }
-    
+
     return false;
   }
 
   private matchWildcard(text: string, pattern: string): boolean {
     // Convert single segment pattern to regex
     let regexPattern = pattern
-      .replace(/[.+^${}()|[\]\\]/g, '\\$&')  // Escape regex special chars
-      .replace(/\*/g, '.*')                  // * matches any characters
-      .replace(/\?/g, '.');                  // ? matches single char
-    
-    regexPattern = '^' + regexPattern + '$';
-    
+      .replace(/[.+^${}()|[\]\\]/g, '\\$&') // Escape regex special chars
+      .replace(/\*/g, '.*') // * matches any characters
+      .replace(/\?/g, '.'); // ? matches single char
+
+    regexPattern = `^${regexPattern}$`;
+
     try {
       return new RegExp(regexPattern).test(text);
     } catch {
@@ -292,12 +306,17 @@ export class PriorityEngine {
     }
   }
 
-  private classifyChange(file: string, affectedTargets: Target[]): 'direct' | 'shared' | 'generated' {
+  private classifyChange(
+    file: string,
+    affectedTargets: Target[]
+  ): 'direct' | 'shared' | 'generated' {
     // Check if it's a generated file
-    if (file.includes('Version.swift') || 
-        file.includes('.generated.') || 
-        file.includes('/build/') ||
-        file.includes('/.build/')) {
+    if (
+      file.includes('Version.swift') ||
+      file.includes('.generated.') ||
+      file.includes('/build/') ||
+      file.includes('/.build/')
+    ) {
       return 'generated';
     }
 
@@ -310,23 +329,27 @@ export class PriorityEngine {
     return 'shared';
   }
 
-  private calculateImpactWeight(_file: string, changeType: 'direct' | 'shared' | 'generated'): number {
+  private calculateImpactWeight(
+    _file: string,
+    changeType: 'direct' | 'shared' | 'generated'
+  ): number {
     switch (changeType) {
-      case 'direct': return 1.0;
-      case 'shared': return 0.7;
-      case 'generated': return 0.3;
+      case 'direct':
+        return 1.0;
+      case 'shared':
+        return 0.7;
+      case 'generated':
+        return 0.3;
     }
   }
 
   private getTargetChanges(targetName: string, history: ChangeEvent[]): ChangeEvent[] {
-    return history.filter(event => 
-      event.affectedTargets.includes(targetName)
-    );
+    return history.filter((event) => event.affectedTargets.includes(targetName));
   }
 
   private getRecentHistory(windowMs: number): ChangeEvent[] {
     const cutoff = Date.now() - windowMs;
-    return this.changeHistory.filter(event => event.timestamp > cutoff);
+    return this.changeHistory.filter((event) => event.timestamp > cutoff);
   }
 
   private getAverageBuildTime(targetName: string): number {
@@ -350,8 +373,6 @@ export class PriorityEngine {
 
   private cleanOldHistory(): void {
     const cutoff = Date.now() - this.config.prioritization.priorityDecayTime;
-    this.changeHistory = this.changeHistory.filter(event => 
-      event.timestamp > cutoff
-    );
+    this.changeHistory = this.changeHistory.filter((event) => event.timestamp > cutoff);
   }
 }
