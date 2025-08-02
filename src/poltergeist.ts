@@ -10,9 +10,11 @@ import type {
 import { createLogger, type Logger } from './logger.js';
 import { BuildNotifier } from './notifier.js';
 import { type PoltergeistState, StateManager } from './state.js';
-import type { BuildStatus, PoltergeistConfig, Target } from './types.js';
+import type { BuildStatus, PoltergeistConfig, Target, BuildSchedulingConfig } from './types.js';
 import { WatchmanClient } from './watchman.js';
 import { WatchmanConfigManager } from './watchman-config.js';
+import { IntelligentBuildQueue } from './build-queue.js';
+import { PriorityEngine } from './priority-engine.js';
 
 interface TargetState {
   target: Target;
@@ -34,6 +36,11 @@ export class Poltergeist {
   private watchmanConfigManager: WatchmanConfigManager;
   private targetStates: Map<string, TargetState> = new Map();
   private isRunning = false;
+  
+  // Intelligent build scheduling
+  private buildQueue?: IntelligentBuildQueue;
+  private priorityEngine?: PriorityEngine;
+  private buildSchedulingConfig: BuildSchedulingConfig;
 
   constructor(
     config: PoltergeistConfig,
@@ -53,6 +60,28 @@ export class Poltergeist {
     
     // Initialize Watchman config manager
     this.watchmanConfigManager = new WatchmanConfigManager(projectRoot, logger);
+    
+    // Initialize build scheduling configuration with defaults
+    this.buildSchedulingConfig = {
+      parallelization: 2,
+      prioritization: {
+        enabled: true,
+        focusDetectionWindow: 300000, // 5 minutes
+        priorityDecayTime: 1800000,   // 30 minutes
+        buildTimeoutMultiplier: 2.0,
+      },
+      ...config.buildScheduling,
+    };
+
+    // Initialize intelligent build system if prioritization is enabled
+    if (this.buildSchedulingConfig.prioritization.enabled) {
+      this.priorityEngine = new PriorityEngine(this.buildSchedulingConfig, logger);
+      this.buildQueue = new IntelligentBuildQueue(
+        this.buildSchedulingConfig,
+        logger,
+        this.priorityEngine
+      );
+    }
   }
 
   public async start(targetName?: string): Promise<void> {
@@ -98,6 +127,11 @@ export class Poltergeist {
         watching: false,
         pendingFiles: new Set(),
       });
+
+      // Register with intelligent build queue if enabled
+      if (this.buildQueue) {
+        this.buildQueue.registerTarget(target, builder);
+      }
 
       // Initialize state file
       await this.stateManager.initializeState(target);
@@ -227,7 +261,17 @@ export class Poltergeist {
 
     this.logger.debug(`Files changed: ${changedFiles.join(', ')}`);
 
-    // Add changed files to pending for each affected target
+    // Use intelligent build queue if available
+    if (this.buildQueue && this.buildSchedulingConfig.prioritization.enabled) {
+      const affectedTargets = targetNames
+        .map(name => this.targetStates.get(name)?.target)
+        .filter((target): target is Target => target !== undefined);
+
+      this.buildQueue.onFileChanged(changedFiles, affectedTargets);
+      return;
+    }
+
+    // Fallback to traditional immediate builds
     for (const targetName of targetNames) {
       const state = this.targetStates.get(targetName);
       if (!state) continue;
@@ -251,6 +295,15 @@ export class Poltergeist {
   }
 
   private async performInitialBuilds(): Promise<void> {
+    // Use intelligent build queue if available
+    if (this.buildQueue && this.buildSchedulingConfig.prioritization.enabled) {
+      // Trigger initial builds through the queue
+      const allTargets = Array.from(this.targetStates.values()).map(state => state.target);
+      await this.buildQueue.onFileChanged(['initial build'], allTargets);
+      return;
+    }
+
+    // Fallback to traditional builds
     const buildPromises: Promise<void>[] = [];
 
     for (const [name, state] of this.targetStates) {
@@ -414,6 +467,21 @@ export class Poltergeist {
           };
         }
       }
+    }
+
+    // Add intelligent build queue status if enabled
+    if (this.buildQueue && this.buildSchedulingConfig.prioritization.enabled) {
+      status._buildQueue = {
+        enabled: true,
+        config: this.buildSchedulingConfig,
+        queue: this.buildQueue.getQueueStatus(),
+        priority: this.buildQueue.getPriorityInfo(),
+      };
+    } else {
+      status._buildQueue = {
+        enabled: false,
+        config: this.buildSchedulingConfig,
+      };
     }
 
     return status;

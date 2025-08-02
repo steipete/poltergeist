@@ -128,6 +128,50 @@ export interface WatchmanConfig {
   rules?: ExclusionRule[];
 }
 
+// File change classification
+export type ChangeType = 'direct' | 'shared' | 'generated';
+
+// File change event
+export interface ChangeEvent {
+  file: string;
+  timestamp: number;
+  affectedTargets: string[];
+  changeType: ChangeType;
+  impactWeight: number;
+}
+
+// Target priority information
+export interface TargetPriority {
+  target: string;
+  score: number;
+  lastDirectChange: number;
+  directChangeFrequency: number;
+  focusMultiplier: number;
+  avgBuildTime: number;
+  successRate: number;
+  recentChanges: ChangeEvent[];
+}
+
+// Build request with priority
+export interface BuildRequest {
+  target: Target;
+  priority: number;
+  timestamp: number;
+  triggeringFiles: string[];
+  id: string;
+}
+
+// Build scheduling configuration
+export interface BuildSchedulingConfig {
+  parallelization: number;
+  prioritization: {
+    enabled: boolean;
+    focusDetectionWindow: number;
+    priorityDecayTime: number;
+    buildTimeoutMultiplier: number;
+  };
+}
+
 // Main configuration interface - Version 1.0
 export interface PoltergeistConfig {
   version: '1.0';
@@ -135,6 +179,7 @@ export interface PoltergeistConfig {
   targets: Target[];
   watchman: WatchmanConfig;
   performance?: PerformanceConfig;
+  buildScheduling?: BuildSchedulingConfig;
   notifications?: {
     enabled: boolean;
     successSound?: string;
@@ -247,12 +292,23 @@ export const WatchmanConfigSchema = z.object({
   rules: z.array(ExclusionRuleSchema).optional(),
 });
 
+export const BuildSchedulingConfigSchema = z.object({
+  parallelization: z.number().min(1).max(10).default(2),
+  prioritization: z.object({
+    enabled: z.boolean().default(true),
+    focusDetectionWindow: z.number().default(300000), // 5 minutes
+    priorityDecayTime: z.number().default(1800000),   // 30 minutes
+    buildTimeoutMultiplier: z.number().default(2.0),
+  }),
+});
+
 export const PoltergeistConfigSchema = z.object({
   version: z.literal('1.0'),
   projectType: z.enum(['swift', 'node', 'rust', 'python', 'mixed']),
   targets: z.array(TargetSchema),
   watchman: WatchmanConfigSchema,
   performance: PerformanceConfigSchema.optional(),
+  buildScheduling: BuildSchedulingConfigSchema.optional(),
   notifications: z
     .object({
       enabled: z.boolean(),
