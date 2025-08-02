@@ -1,4 +1,6 @@
 {
+  "version": "1.0",
+  "projectType": "node",
   "targets": [
     {
       "name": "test-cli",
@@ -6,9 +8,7 @@
       "enabled": true,
       "buildCommand": "echo 'Building CLI...' && sleep 1 && echo 'CLI build complete'",
       "outputPath": "./test-output/cli",
-      "watchPaths": ["src/**/*.js", "lib/**/*.js"],
-      "statusFile": "/tmp/test-cli-status.json",
-      "lockFile": "/tmp/test-cli.lock"
+      "watchPaths": ["src/**/*.js", "lib/**/*.js"]
     },
     {
       "name": "test-app",
@@ -17,11 +17,17 @@
       "enabled": true,
       "buildCommand": "echo 'Building App...' && sleep 1 && echo 'App build complete'",
       "bundleId": "com.test.app",
-      "watchPaths": ["app/**/*.js", "app/**/*.html"],
-      "statusFile": "/tmp/test-app-status.json",
-      "lockFile": "/tmp/test-app.lock"
+      "watchPaths": ["app/**/*.js", "app/**/*.html"]
     }
   ],
+  "watchman": {
+    "useDefaultExclusions": true,
+    "excludeDirs": [],
+    "projectType": "node",
+    "maxFileEvents": 10000,
+    "recrawlThreshold": 5,
+    "settlingDelay": 1000
+  },
   "notifications": {
     "enabled": true,
     "successSound": "Glass",
