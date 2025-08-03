@@ -1,12 +1,12 @@
 import AppKit
+import Foundation
+
 //
 //  Project.swift
 //  Poltergeist
 //
 //  Created by Poltergeist on 2025.
 //
-
-import Foundation
 
 struct Project: Identifiable, Equatable {
     let path: String

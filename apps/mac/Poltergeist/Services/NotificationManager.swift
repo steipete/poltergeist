@@ -1,14 +1,14 @@
 import AppKit
+import Foundation
+import UserNotifications
+import os.log
+
 //
 //  NotificationManager.swift
 //  Poltergeist
 //
 //  Created by Poltergeist on 2025.
 //
-
-import Foundation
-import UserNotifications
-import os.log
 
 @MainActor
 class NotificationManager {

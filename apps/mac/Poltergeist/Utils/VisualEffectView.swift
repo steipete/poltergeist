@@ -1,12 +1,12 @@
 import AppKit
+import SwiftUI
+
 //
 //  VisualEffectView.swift
 //  Poltergeist
 //
 //  Created by Poltergeist on 2025.
 //
-
-import SwiftUI
 
 struct VisualEffectView: NSViewRepresentable {
     var material: NSVisualEffectView.Material = .hudWindow

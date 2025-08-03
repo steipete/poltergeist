@@ -1,13 +1,13 @@
 import Combine
+import Foundation
+import SwiftUI
+
 //
 //  Preferences.swift
 //  Poltergeist
 //
 //  Created by Poltergeist on 2025.
 //
-
-import Foundation
-import SwiftUI
 
 @MainActor
 class Preferences: ObservableObject {

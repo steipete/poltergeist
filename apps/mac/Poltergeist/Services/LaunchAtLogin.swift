@@ -1,13 +1,13 @@
 import Foundation
+import ServiceManagement
+import os.log
+
 //
 //  LaunchAtLogin.swift
 //  Poltergeist
 //
 //  Created by Poltergeist on 2025.
 //
-
-import ServiceManagement
-import os.log
 
 class LaunchAtLogin {
     static let shared = LaunchAtLogin()
