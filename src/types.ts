@@ -2,7 +2,16 @@
 // Testing queue management and build deduplication
 import { z } from 'zod';
 
-// Target types
+/**
+ * Supported target types for different build outputs:
+ * - executable: CLI tools, binaries, standalone applications
+ * - app-bundle: macOS/iOS/tvOS/watchOS apps with bundle structure
+ * - library: Static or dynamic libraries
+ * - framework: Apple frameworks for macOS/iOS platforms
+ * - test: Test suites and testing targets
+ * - docker: Container images and Docker builds
+ * - custom: User-defined targets with custom build logic
+ */
 export type TargetType =
   | 'executable'
   | 'app-bundle'
@@ -84,7 +93,11 @@ export interface CustomTarget extends BaseTarget {
   config?: Record<string, unknown>;
 }
 
-// Union type for all targets
+/**
+ * Union type encompassing all supported target types.
+ * Each target type has specific properties for its build requirements.
+ * Used throughout the system for type-safe target handling.
+ */
 export type Target =
   | ExecutableTarget
   | AppBundleTarget
@@ -162,30 +175,50 @@ export interface BuildRequest {
   id: string;
 }
 
-// Build scheduling configuration
+/**
+ * Configuration for intelligent build scheduling and prioritization.
+ * Controls how builds are queued, prioritized, and executed concurrently.
+ */
 export interface BuildSchedulingConfig {
+  /** Number of concurrent builds (1-10, default: 2) */
   parallelization: number;
   prioritization: {
+    /** Enable intelligent priority scoring */
     enabled: boolean;
+    /** Time window for focus detection in ms (default: 300000 = 5min) */
     focusDetectionWindow: number;
+    /** Priority score decay period in ms (default: 1800000 = 30min) */
     priorityDecayTime: number;
+    /** Timeout scaling factor for build timeouts (default: 2.0) */
     buildTimeoutMultiplier: number;
   };
 }
 
-// Main configuration interface - Version 1.0
+/**
+ * Main Poltergeist configuration interface for v1.0 schema.
+ * Defines all aspects of file watching, build scheduling, and notifications.
+ * Validates against strict schema to prevent configuration errors.
+ */
 export interface PoltergeistConfig {
+  /** Configuration schema version (must be '1.0') */
   version: '1.0';
+  /** Project type for intelligent defaults and optimizations */
   projectType: ProjectType;
+  /** Array of build targets to watch and build */
   targets: Target[];
+  /** Watchman file watching configuration */
   watchman: WatchmanConfig;
+  /** Performance optimization settings */
   performance?: PerformanceConfig;
+  /** Build queue and prioritization settings */
   buildScheduling?: BuildSchedulingConfig;
+  /** macOS notification preferences */
   notifications?: {
     enabled: boolean;
     successSound?: string;
     failureSound?: string;
   };
+  /** Logging configuration */
   logging?: {
     file: string;
     level: 'debug' | 'info' | 'warn' | 'error';

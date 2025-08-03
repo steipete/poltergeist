@@ -258,7 +258,9 @@ export class WatchmanConfigManager {
   }
 
   /**
-   * Get optimized exclusions based on project type and performance profile
+   * Generates optimized exclusion list based on project type and performance profile.
+   * Combines universal patterns, project-specific patterns, and custom exclusions.
+   * Applies performance limits and deduplication for optimal Watchman performance.
    */
   getOptimizedExclusions(
     projectType: ProjectType,
@@ -271,9 +273,9 @@ export class WatchmanConfigManager {
 
     let exclusions = [...universal, ...projectSpecific, ...customExclusions];
 
-    // Apply performance profile limits
+    // Performance optimization: filter exclusions based on profile strategy
     if (profileConfig.excludeOnlyEssential) {
-      // Keep only the most critical exclusions for conservative profile
+      // Conservative profile: keep only essential exclusions to maximize coverage
       exclusions = exclusions.filter(
         (pattern) =>
           pattern.includes('.git') ||
@@ -283,7 +285,7 @@ export class WatchmanConfigManager {
       );
     }
 
-    // Limit total exclusions based on profile
+    // Enforce maximum exclusions limit for Watchman performance
     if (exclusions.length > profileConfig.maxExclusions) {
       this.logger.warn(
         `Exclusion count (${exclusions.length}) exceeds profile limit (${profileConfig.maxExclusions}). ` +

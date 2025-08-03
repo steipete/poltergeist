@@ -28,7 +28,14 @@ export class PriorityEngine {
   }
 
   /**
-   * Calculate priority score for a target based on recent activity
+   * Calculates dynamic priority score for build scheduling based on:
+   * - Recent file change frequency (base score with exponential decay)
+   * - Focus detection (developer attention patterns over time)
+   * - Build success rate (reliability factor 0.5-1.0x)
+   * - Build time penalties (for serial execution mode)
+   * 
+   * Higher scores indicate higher priority in the build queue.
+   * Score typically ranges from 0-500+ depending on activity.
    */
   public calculatePriority(target: Target, affectedFiles: string[]): TargetPriority {
     const now = Date.now();
@@ -39,7 +46,7 @@ export class PriorityEngine {
     const targetChanges = this.getTargetChanges(target.name, recentHistory);
     const directChanges = targetChanges.filter((c) => c.changeType === 'direct');
 
-    // Calculate base metrics
+    // Calculate base metrics for priority algorithm
     const lastDirectChange =
       directChanges.length > 0 ? Math.max(...directChanges.map((c) => c.timestamp)) : 0;
     const directChangeFrequency = directChanges.length;
@@ -47,10 +54,13 @@ export class PriorityEngine {
     const avgBuildTime = this.getAverageBuildTime(target.name);
     const successRate = this.getBuildSuccessRate(target.name);
 
-    // Calculate priority score
+    // Calculate priority score using weighted algorithm:
+    // 1. Base score from file changes (with exponential decay)
+    // 2. Focus multiplier (1.0x - 2.0x based on developer attention)
+    // 3. Success rate factor (50% base + 50% based on build reliability)
     let score = this.calculateBaseScore(directChanges, affectedFiles, now);
     score *= focusMultiplier;
-    score *= 0.5 + successRate * 0.5; // Build success factor
+    score *= 0.5 + successRate * 0.5; // Ensures minimum 50% weight even for failing builds
 
     // Apply build time penalty in serial mode
     if (this.config.parallelization === 1 && avgBuildTime > 30000) {
@@ -182,6 +192,15 @@ export class PriorityEngine {
 
   // Private methods
 
+  /**
+   * Calculates base priority score using exponential decay formula:
+   * - Direct changes: 100 points each * decay_factor
+   * - Recency bonus: 50 points * decay_factor
+   * - Current files: 25 points each (no decay)
+   * 
+   * Decay factor = e^(-age_ms / decay_time) ensures recent changes
+   * have higher priority than older ones.
+   */
   private calculateBaseScore(
     directChanges: ChangeEvent[],
     affectedFiles: string[],
@@ -195,11 +214,12 @@ export class PriorityEngine {
       const ageMs = now - mostRecent;
       const decayTime = this.config.prioritization.priorityDecayTime;
 
-      // Apply exponential decay to the entire historical score
+      // Apply exponential decay: score decreases as changes get older
+      // Formula: e^(-age_ms / decay_time_ms)
       const decayFactor = Math.exp(-ageMs / decayTime);
       score += directChanges.length * 100 * decayFactor;
 
-      // Recency bonus also with decay
+      // Recency bonus rewards recent activity (also decayed)
       const recencyBonus = 50 * decayFactor;
       score += recencyBonus;
     }
@@ -211,6 +231,14 @@ export class PriorityEngine {
     return score;
   }
 
+  /**
+   * Calculates focus multiplier based on developer attention patterns.
+   * Analyzes what percentage of recent changes affected this target:
+   * - 80%+ activity: 2.0x (strong focus)
+   * - 50%+ activity: 1.5x (moderate focus) 
+   * - 30%+ activity: 1.2x (weak focus)
+   * - <30% activity: 1.0x (no focus)
+   */
   private calculateFocusMultiplier(targetName: string, recentHistory: ChangeEvent[]): number {
     if (recentHistory.length === 0) return 1.0;
 
@@ -239,9 +267,15 @@ export class PriorityEngine {
     );
   }
 
+  /**
+   * Matches file paths against glob patterns (e.g., "src/**/*.ts").
+   * Implements minimatch-style logic with support for:
+   * - ** : matches zero or more path segments
+   * - *  : matches any characters within a segment
+   * - ?  : matches single character
+   */
   private matchesPattern(file: string, pattern: string): boolean {
-    // Simple glob matching using minimatch-style logic
-    // Split pattern and file into segments
+    // Split pattern and file into path segments for recursive matching
     const patternSegments = pattern.split('/');
     const fileSegments = file.split('/');
 
@@ -266,14 +300,14 @@ export class PriorityEngine {
 
     const patternSegment = patternSegments[patternIndex];
 
-    // Handle ** (matches zero or more path segments)
+    // Handle ** globstar (matches zero or more path segments)
     if (patternSegment === '**') {
-      // Try matching zero segments (skip **)
+      // Try matching zero segments first (skip ** entirely)
       if (this.matchSegments(fileSegments, patternSegments, fileIndex, patternIndex + 1)) {
         return true;
       }
 
-      // Try matching one or more segments
+      // Try matching one or more segments recursively
       for (let i = fileIndex; i < fileSegments.length; i++) {
         if (this.matchSegments(fileSegments, patternSegments, i + 1, patternIndex + 1)) {
           return true;
@@ -306,6 +340,12 @@ export class PriorityEngine {
     }
   }
 
+  /**
+   * Classifies file changes to determine impact weight:
+   * - direct: affects single target (weight: 1.0)
+   * - shared: affects multiple targets (weight: 0.7) 
+   * - generated: build artifacts, auto-generated files (weight: 0.3)
+   */
   private classifyChange(
     file: string,
     affectedTargets: Target[]

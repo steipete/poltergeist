@@ -7,7 +7,9 @@ import type { PoltergeistState } from './state.js';
 import type { BuildStatus, PoltergeistConfig, Target } from './types.js';
 
 /**
- * Interface for Watchman client operations
+ * Interface for Watchman client operations.
+ * Abstracts Facebook's Watchman file watching service for testability.
+ * Handles project subscriptions and file change notifications.
  */
 export interface IWatchmanClient {
   connect(): Promise<void>;
@@ -28,7 +30,9 @@ export interface IWatchmanClient {
 }
 
 /**
- * Interface for state management operations
+ * Interface for state management operations.
+ * Handles persistent state files for inter-process coordination.
+ * Manages build status, process liveness, and target metadata.
  */
 export interface IStateManager {
   initializeState(target: Target): Promise<PoltergeistState>;
@@ -44,7 +48,9 @@ export interface IStateManager {
 }
 
 /**
- * Interface for builder factory operations
+ * Interface for builder factory operations.
+ * Creates appropriate builder instances based on target type.
+ * Supports executable, app-bundle, library, framework, test, docker, and custom targets.
  */
 export interface IBuilderFactory {
   createBuilder(
@@ -56,7 +62,9 @@ export interface IBuilderFactory {
 }
 
 /**
- * Dependencies that must be injected into Poltergeist
+ * Dependencies that must be injected into Poltergeist for operation.
+ * Uses dependency injection pattern for better testability and modularity.
+ * All dependencies except stateManager and builderFactory are optional.
  */
 export interface PoltergeistDependencies {
   watchmanClient?: IWatchmanClient;
@@ -66,9 +74,18 @@ export interface PoltergeistDependencies {
   watchmanConfigManager?: IWatchmanConfigManager;
 }
 
+/**
+ * Interface for Watchman configuration management.
+ * Handles automatic .watchmanconfig generation with smart exclusions.
+ * Optimizes file watching performance based on project type and size.
+ */
 export interface IWatchmanConfigManager {
+  /** Ensures .watchmanconfig is current with optimal exclusions */
   ensureConfigUpToDate(config: PoltergeistConfig): Promise<void>;
+  /** Analyzes project and suggests performance optimizations */
   suggestOptimizations(): Promise<string[]>;
+  /** Converts exclusion rules to Watchman expression format */
   createExclusionExpressions(config: PoltergeistConfig): Array<[string, string[]]>;
+  /** Validates glob pattern syntax */
   validateWatchPattern(pattern: string): void;
 }

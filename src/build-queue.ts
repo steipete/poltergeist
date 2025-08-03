@@ -62,7 +62,9 @@ export class IntelligentBuildQueue {
   }
 
   /**
-   * Schedule builds for changed files
+   * Handles file change events and schedules builds for affected targets.
+   * Uses priority engine to record changes and calculate build priorities.
+   * Ensures deduplication - multiple changes to same target merge into single build.
    */
   public async onFileChanged(files: string[], targets: Target[]): Promise<void> {
     // Record change events for priority calculation
@@ -98,7 +100,8 @@ export class IntelligentBuildQueue {
   private async scheduleTargetBuild(target: Target, triggeringFiles: string[]): Promise<void> {
     const targetName = target.name;
 
-    // If already building, mark for rebuild
+    // Concurrent build protection: if target already building, 
+    // mark for rebuild instead of queuing duplicate
     if (this.runningBuilds.has(targetName)) {
       this.pendingRebuilds.add(targetName);
       this.logger.debug(`Target ${targetName} already building, marked for rebuild`);
@@ -112,13 +115,14 @@ export class IntelligentBuildQueue {
     const existingIndex = this.pendingQueue.findIndex((req) => req.target.name === targetName);
 
     if (existingIndex >= 0) {
-      // Update existing request with new priority
+      // Build deduplication: merge multiple change events for same target
+      // Update priority and combine triggering files
       const existing = this.pendingQueue[existingIndex];
       existing.priority = priority.score;
       existing.triggeringFiles = [...new Set([...existing.triggeringFiles, ...triggeringFiles])];
       existing.timestamp = Date.now();
 
-      // Re-sort queue by priority
+      // Re-sort queue to maintain priority order
       this.sortQueue();
 
       this.logger.debug(
@@ -152,7 +156,9 @@ export class IntelligentBuildQueue {
   }
 
   /**
-   * Process the build queue respecting parallelization limits
+   * Processes build queue respecting parallelization limits.
+   * Queue is maintained in priority order (highest first).
+   * Starts builds until hitting max concurrent limit or queue empty.
    */
   private processQueue(): void {
     while (this.pendingQueue.length > 0 && this.runningBuilds.size < this.config.parallelization) {
@@ -260,11 +266,11 @@ export class IntelligentBuildQueue {
       }
     }
 
-    // Check for pending rebuild
+    // Handle pending rebuilds: files changed while target was building
     if (this.pendingRebuilds.has(targetName)) {
       this.pendingRebuilds.delete(targetName);
 
-      // Find target and reschedule
+      // Find target and reschedule with latest changes
       const target = Array.from(this.targetBuilders.keys()).find((name) => name === targetName);
 
       if (target) {
@@ -380,8 +386,9 @@ export class IntelligentBuildQueue {
     }
 
     if (result.duration) {
-      // Update rolling average build time
-      const alpha = 0.1; // Exponential moving average factor
+      // Update rolling average using exponential moving average
+      // α=0.1 gives 90% weight to historical data, 10% to new measurement
+      const alpha = 0.1; 
       this.queueStats.avgBuildTime =
         this.queueStats.avgBuildTime * (1 - alpha) + result.duration * alpha;
     }

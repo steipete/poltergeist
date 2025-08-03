@@ -58,7 +58,9 @@ export class StateManager implements IStateManager {
   }
 
   /**
-   * Generate unique state file name for a target
+   * Generates unique state filename using project name + path hash + target.
+   * Format: {projectName}-{pathHash}-{targetName}.state
+   * Path hash prevents collisions between projects with same name.
    */
   private getStateFileName(targetName: string): string {
     const projectName = this.projectRoot.split('/').pop() || 'unknown';
@@ -149,14 +151,16 @@ export class StateManager implements IStateManager {
   }
 
   /**
-   * Write state to file atomically
+   * Writes state to file using atomic temp-file + rename pattern.
+   * This prevents corruption during concurrent writes from multiple processes.
+   * Uses PID and timestamp in temp filename for uniqueness.
    */
   private async writeState(targetName: string): Promise<void> {
     const state = this.states.get(targetName);
     if (!state) return;
 
     const stateFile = this.getStateFilePath(targetName);
-    // Use a unique temp file to avoid concurrent write conflicts
+    // Use unique temp file to prevent concurrent write conflicts
     const tempFile = `${stateFile}.${process.pid}.${Date.now()}.tmp`;
 
     try {
@@ -168,10 +172,10 @@ export class StateManager implements IStateManager {
       // Update heartbeat
       state.process.lastHeartbeat = new Date().toISOString();
 
-      // Write to temp file
+      // Write to temp file first
       writeFileSync(tempFile, JSON.stringify(state, null, 2));
 
-      // Atomic rename
+      // Atomic rename ensures state file is never corrupted/partial
       renameSync(tempFile, stateFile);
 
       this.logger.debug(`State updated for ${targetName}`);
@@ -224,23 +228,29 @@ export class StateManager implements IStateManager {
   }
 
   /**
-   * Check if target is already being built by another process
+   * Checks if target is locked by another active Poltergeist process.
+   * Uses multi-layer validation:
+   * 1. Process ownership (same PID = not locked)
+   * 2. Process active flag
+   * 3. Heartbeat freshness (5 minute timeout for stale detection)
+   * 
+   * This prevents duplicate builds across multiple Poltergeist instances.
    */
   public async isLocked(targetName: string): Promise<boolean> {
     const state = await this.readState(targetName);
     if (!state) return false;
 
-    // Check if it's our own process
+    // Not locked if it's our own process
     if (state.process.pid === process.pid) {
       return false;
     }
 
-    // Check if the process is still active
+    // Not locked if process marked as inactive
     if (!state.process.isActive) {
       return false;
     }
 
-    // Check heartbeat age (5 minutes timeout)
+    // Check heartbeat age - process may have crashed without cleanup
     const heartbeatAge = Date.now() - new Date(state.process.lastHeartbeat).getTime();
     if (heartbeatAge > 5 * 60 * 1000) {
       this.logger.info(`Stale state detected for ${targetName}, considering unlocked`);
