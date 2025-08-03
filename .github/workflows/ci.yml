@@ -101,6 +101,11 @@ jobs:
         ./scripts/format.sh
         git diff --exit-code || (echo "Swift code is not formatted. Please run './scripts/format.sh' locally." && exit 1)
         
+    - name: Validate Swift Testing tests
+      run: |
+        cd apps/mac
+        ./scripts/test.sh
+        
     - name: Archive macOS app (Release build)
       if: github.event_name == 'push' && github.ref == 'refs/heads/main'
       run: |
