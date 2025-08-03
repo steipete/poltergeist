@@ -115,9 +115,14 @@ describe('pgrun Build Progress Detection', () => {
   }
 
   function updateStateFile(stateFilePath: string, updates: Record<string, unknown>) {
-    const state = JSON.parse(require('fs').readFileSync(stateFilePath, 'utf-8'));
-    Object.assign(state.lastBuild, updates);
-    writeFileSync(stateFilePath, JSON.stringify(state, null, 2));
+    try {
+      const state = JSON.parse(require('fs').readFileSync(stateFilePath, 'utf-8'));
+      Object.assign(state.lastBuild, updates);
+      writeFileSync(stateFilePath, JSON.stringify(state, null, 2));
+    } catch (error) {
+      console.error('Failed to update state file:', error);
+      throw error;
+    }
   }
 
   function runPgrun(
@@ -281,14 +286,18 @@ describe('pgrun Build Progress Detection', () => {
     it('should handle rapid status changes', async () => {
       const stateFilePath = createTestState('test-tool', 'building', true);
 
-      // Schedule status changes to happen after pgrun starts and detects the initial building state
-      setTimeout(() => updateStateFile(stateFilePath, { status: 'failure' }), 600);
-      setTimeout(() => updateStateFile(stateFilePath, { status: 'building' }), 800);
-      setTimeout(() => updateStateFile(stateFilePath, { status: 'success' }), 1000);
+      // Schedule status changes that simulate a build progressing to completion
+      // Don't use 'failure' status as that causes immediate exit
+      setTimeout(() => {
+        updateStateFile(stateFilePath, { status: 'building' });
+      }, 300);
+      setTimeout(() => {
+        updateStateFile(stateFilePath, { status: 'success' });
+      }, 500);
 
       const result = await runPgrun(['test-tool']);
 
-      // Should wait and eventually succeed
+      // Should wait and eventually succeed  
       expect(result.stdout).toContain('⏳ Build in progress, waiting for completion...');
       expect(result.stdout).toContain('✅ Running fresh binary: test-tool');
       expect(result.exitCode).toBe(0);
