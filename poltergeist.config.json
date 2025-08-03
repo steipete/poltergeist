@@ -1,0 +1,75 @@
+{
+  "version": "1.0",
+  "projectType": "node",
+  "targets": [
+    {
+      "name": "poltergeist-cli",
+      "type": "executable",
+      "enabled": true,
+      "buildCommand": "npm run build",
+      "outputPath": "./dist/cli.js",
+      "watchPaths": [
+        "src/**/*.ts",
+        "test/**/*.ts", 
+        "package.json",
+        "tsconfig.json",
+        "vitest.config.ts"
+      ],
+      "settlingDelay": 1000,
+      "environment": {
+        "NODE_ENV": "development"
+      }
+    },
+    {
+      "name": "poltergeist-tests",
+      "type": "test",
+      "enabled": true,
+      "testCommand": "npm test",
+      "watchPaths": [
+        "src/**/*.ts",
+        "test/**/*.ts"
+      ],
+      "settlingDelay": 500
+    }
+  ],
+  "watchman": {
+    "useDefaultExclusions": true,
+    "excludeDirs": [
+      "coverage",
+      ".poltergeist.log"
+    ],
+    "projectType": "node",
+    "maxFileEvents": 10000,
+    "recrawlThreshold": 5,
+    "settlingDelay": 1000
+  },
+  "buildScheduling": {
+    "parallelization": 2,
+    "prioritization": {
+      "enabled": true,
+      "focusDetectionWindow": 300000,
+      "priorityDecayTime": 1800000,
+      "buildTimeoutMultiplier": 2.0
+    }
+  },
+  "notifications": {
+    "enabled": true,
+    "buildStart": false,
+    "buildSuccess": true,
+    "buildFailed": true,
+    "successSound": "Glass",
+    "failureSound": "Basso"
+  },
+  "performance": {
+    "profile": "balanced",
+    "autoOptimize": true,
+    "metrics": {
+      "enabled": true,
+      "reportInterval": 300
+    }
+  },
+  "logging": {
+    "level": "info",
+    "file": ".poltergeist.log"
+  }
+}
