@@ -67,6 +67,72 @@ struct BuildInfo: Equatable {
     let errorSummary: String?
     let buildTime: Double?
     let gitHash: String?
+    let startTime: Date?
+    
+    var isBuilding: Bool {
+        status == "building"
+    }
+    
+    var buildProgress: Double? {
+        guard isBuilding, let start = startTime else { return nil }
+        let elapsed = Date().timeIntervalSince(start)
+        // Rough estimate: most builds complete within 30 seconds
+        return min(elapsed / 30.0, 0.95) // Cap at 95% to show indeterminate state
+    }
+}
+
+// Enhanced build queue information
+struct BuildQueueInfo: Equatable {
+    let queuedBuilds: [QueuedBuild]
+    let activeBuilds: [ActiveBuild]
+    let recentBuilds: [CompletedBuild]
+    
+    var totalQueueLength: Int {
+        queuedBuilds.count + activeBuilds.count
+    }
+    
+    var hasActivity: Bool {
+        !activeBuilds.isEmpty || !queuedBuilds.isEmpty
+    }
+}
+
+struct QueuedBuild: Equatable, Identifiable {
+    let id = UUID()
+    let target: String
+    let project: String
+    let queuedAt: Date
+    let priority: Int
+    let reason: String // "file-change", "manual", "dependency"
+}
+
+struct ActiveBuild: Equatable, Identifiable {
+    let id = UUID()
+    let target: String
+    let project: String
+    let startedAt: Date
+    let estimatedDuration: TimeInterval?
+    let progress: Double? // 0.0 to 1.0, nil for indeterminate
+    let currentPhase: String? // "compiling", "linking", "testing"
+}
+
+struct CompletedBuild: Equatable, Identifiable {
+    let id = UUID()
+    let target: String
+    let project: String
+    let startedAt: Date
+    let completedAt: Date
+    let status: String
+    let duration: TimeInterval
+    let errorSummary: String?
+    let gitHash: String?
+    
+    var wasSuccessful: Bool {
+        status == "success"
+    }
+    
+    var timeSinceCompletion: TimeInterval {
+        Date().timeIntervalSince(completedAt)
+    }
 }
 
 // State file models matching Poltergeist's output
@@ -90,10 +156,13 @@ struct PoltergeistState: Codable {
     struct BuildStatus: Codable {
         let status: String
         let timestamp: String
+        let startTime: String? // When build started (for progress calculation)
         let gitHash: String?
         let errorSummary: String?
         let buildTime: Double?
         let fullError: String?
+        let currentPhase: String? // Current build phase for active builds
+        let estimatedDuration: Double? // Estimated total duration
     }
     
     struct AppInfo: Codable {

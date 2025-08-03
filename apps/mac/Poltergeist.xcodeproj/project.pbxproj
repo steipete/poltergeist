@@ -28,6 +28,49 @@
 		};
 /* End PBXFrameworksBuildPhase section */
 
+/* Begin PBXShellScriptBuildPhase section */
+		7814F1142E1BD4CA000995F8 /* SwiftLint */ = {
+			isa = PBXShellScriptBuildPhase;
+			alwaysOutOfDate = 1;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			inputFileListPaths = (
+			);
+			inputPaths = (
+			);
+			name = SwiftLint;
+			outputFileListPaths = (
+			);
+			outputPaths = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+			shellPath = /bin/sh;
+			shellScript = "# SwiftLint Script for Swift 6\nif [[ \"$(uname -m)\" == arm64 ]]; then\n    export PATH=\"/opt/homebrew/bin:$PATH\"\nfi\n\nif which swiftlint >/dev/null; then\n    # Create logs directory if it doesn't exist\n    mkdir -p \"${SRCROOT}/logs\"\n    \n    # Run SwiftLint with configuration\n    swiftlint --config \"${SRCROOT}/.swiftlint.yml\" 2>&1 | tee \"${SRCROOT}/logs/swiftlint.log\"\nelse\n    echo \"warning: SwiftLint not installed, download from https://github.com/realm/SwiftLint\"\nfi\n";
+			showEnvVarsInLog = 0;
+		};
+		7814F1152E1BD4CA000995F8 /* SwiftFormat */ = {
+			isa = PBXShellScriptBuildPhase;
+			alwaysOutOfDate = 1;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			inputFileListPaths = (
+			);
+			inputPaths = (
+			);
+			name = SwiftFormat;
+			outputFileListPaths = (
+			);
+			outputPaths = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+			shellPath = /bin/sh;
+			shellScript = "# SwiftFormat Script for Swift 6\nif [[ \"$(uname -m)\" == arm64 ]]; then\n    export PATH=\"/opt/homebrew/bin:$PATH\"\nfi\n\nif which swift-format >/dev/null; then\n    # Create logs directory if it doesn't exist\n    mkdir -p \"${SRCROOT}/logs\"\n    \n    # Check if we should format (only in Debug builds by default)\n    if [ \"$CONFIGURATION\" = \"Debug\" ]; then\n        echo \"Running swift-format...\"\n        # Format all Swift files in place\n        find \"${SRCROOT}/Poltergeist\" -name \"*.swift\" -type f | while read file; do\n            swift-format --configuration \"${SRCROOT}/.swift-format\" --in-place \"$file\" 2>&1 | tee -a \"${SRCROOT}/logs/swift-format.log\"\n        done\n    else\n        echo \"Skipping swift-format in Release build\"\n    fi\nelse\n    echo \"warning: swift-format not installed, install via: brew install swift-format\"\nfi\n";
+			showEnvVarsInLog = 0;
+		};
+/* End PBXShellScriptBuildPhase section */
+
 /* Begin PBXGroup section */
 		7814F0FD2E1BD4C8000995F8 = {
 			isa = PBXGroup;
@@ -52,6 +95,8 @@
 			isa = PBXNativeTarget;
 			buildConfigurationList = 7814F1112E1BD4CA000995F8 /* Build configuration list for PBXNativeTarget "Poltergeist" */;
 			buildPhases = (
+				7814F1142E1BD4CA000995F8 /* SwiftLint */,
+				7814F1152E1BD4CA000995F8 /* SwiftFormat */,
 				7814F1022E1BD4C8000995F8 /* Sources */,
 				7814F1032E1BD4C8000995F8 /* Frameworks */,
 				7814F1042E1BD4C8000995F8 /* Resources */,
@@ -287,8 +332,9 @@
 				SUPPORTS_MACCATALYST = NO;
 				SWIFT_DEFAULT_ACTOR_ISOLATION = MainActor;
 				SWIFT_EMIT_LOC_STRINGS = YES;
+				SWIFT_STRICT_CONCURRENCY = complete;
 				SWIFT_UPCOMING_FEATURE_MEMBER_IMPORT_VISIBILITY = YES;
-				SWIFT_VERSION = 5.0;
+				SWIFT_VERSION = 6.0;
 				XROS_DEPLOYMENT_TARGET = 26.0;
 			};
 			name = Debug;
@@ -333,8 +379,9 @@
 				SUPPORTS_MACCATALYST = NO;
 				SWIFT_DEFAULT_ACTOR_ISOLATION = MainActor;
 				SWIFT_EMIT_LOC_STRINGS = YES;
+				SWIFT_STRICT_CONCURRENCY = complete;
 				SWIFT_UPCOMING_FEATURE_MEMBER_IMPORT_VISIBILITY = YES;
-				SWIFT_VERSION = 5.0;
+				SWIFT_VERSION = 6.0;
 				XROS_DEPLOYMENT_TARGET = 26.0;
 			};
 			name = Release;

@@ -27,8 +27,36 @@ struct StatusBarMenuView: View {
                     .frame(width: 18, height: 18)
                     .foregroundStyle(.primary)
                 
-                Text("Poltergeist Monitor")
-                    .font(.system(size: 15, weight: .semibold))
+                VStack(alignment: .leading, spacing: 2) {
+                    Text("Poltergeist Monitor")
+                        .font(.system(size: 15, weight: .semibold))
+                    
+                    // Build queue status
+                    if projectMonitor.buildQueue.hasActivity {
+                        HStack(spacing: 4) {
+                            if !projectMonitor.buildQueue.activeBuilds.isEmpty {
+                                Image(systemName: "arrow.triangle.2.circlepath")
+                                    .font(.system(size: 10))
+                                    .foregroundColor(.blue)
+                                    .symbolEffect(.rotate, isActive: true)
+                                Text("\(projectMonitor.buildQueue.activeBuilds.count) building")
+                                    .font(.system(size: 11))
+                                    .foregroundColor(.blue)
+                            }
+                            
+                            if !projectMonitor.buildQueue.queuedBuilds.isEmpty {
+                                if !projectMonitor.buildQueue.activeBuilds.isEmpty {
+                                    Text("•")
+                                        .font(.system(size: 8))
+                                        .foregroundColor(.secondary)
+                                }
+                                Text("\(projectMonitor.buildQueue.queuedBuilds.count) queued")
+                                    .font(.system(size: 11))
+                                    .foregroundColor(.orange)
+                            }
+                        }
+                    }
+                }
                 
                 Spacer()
                 
@@ -85,10 +113,42 @@ struct StatusBarMenuView: View {
             } else {
                 ScrollView {
                     LazyVStack(spacing: 10) {
+                        // Active builds section (when present)
+                        if !projectMonitor.buildQueue.activeBuilds.isEmpty {
+                            BuildQueueSectionView(
+                                title: "Active Builds",
+                                icon: "arrow.triangle.2.circlepath",
+                                color: .blue,
+                                builds: projectMonitor.buildQueue.activeBuilds.map { .active($0) }
+                            )
+                        }
+                        
+                        // Queued builds section (when present)
+                        if !projectMonitor.buildQueue.queuedBuilds.isEmpty {
+                            BuildQueueSectionView(
+                                title: "Build Queue",
+                                icon: "clock",
+                                color: .orange,
+                                builds: projectMonitor.buildQueue.queuedBuilds.map { .queued($0) }
+                            )
+                        }
+                        
+                        // Recent builds section (when present and no active builds)
+                        if projectMonitor.buildQueue.activeBuilds.isEmpty && !projectMonitor.buildQueue.recentBuilds.isEmpty {
+                            BuildQueueSectionView(
+                                title: "Recent Builds",
+                                icon: "clock.arrow.circlepath",
+                                color: .secondary,
+                                builds: Array(projectMonitor.buildQueue.recentBuilds.prefix(3)).map { .completed($0) }
+                            )
+                        }
+                        
+                        // Project list
                         ForEach(projectMonitor.projects) { project in
                             VStack(spacing: 0) {
                                 ModernProjectRow(
                                     project: project,
+                                    buildQueue: projectMonitor.buildQueue,
                                     isHovered: hoveredProjectId == project.id,
                                     isExpanded: expandedProjectIds.contains(project.id)
                                 )
@@ -115,7 +175,11 @@ struct StatusBarMenuView: View {
                                 
                                 // Inline expanded detail view
                                 if expandedProjectIds.contains(project.id) {
-                                    InlineProjectDetailView(project: project)
+                                    InlineProjectDetailView(
+                                        project: project,
+                                        buildQueue: projectMonitor.buildQueue,
+                                        buildStatistics: projectMonitor.getBuildStatistics()
+                                    )
                                         .transition(.asymmetric(
                                             insertion: .opacity.combined(with: .move(edge: .top)),
                                             removal: .opacity.combined(with: .scale)
@@ -186,8 +250,270 @@ struct EmptyStateView: View {
     }
 }
 
+// New build queue section view
+struct BuildQueueSectionView: View {
+    let title: String
+    let icon: String
+    let color: Color
+    let builds: [BuildDisplayItem]
+    
+    enum BuildDisplayItem {
+        case active(ActiveBuild)
+        case queued(QueuedBuild) 
+        case completed(CompletedBuild)
+    }
+    
+    var body: some View {
+        VStack(alignment: .leading, spacing: 8) {
+            // Section header
+            HStack(spacing: 8) {
+                Image(systemName: icon)
+                    .font(.system(size: 14, weight: .medium))
+                    .foregroundColor(color)
+                    .symbolEffect(.rotate, isActive: icon.contains("circlepath"))
+                
+                Text(title)
+                    .font(.system(size: 14, weight: .semibold))
+                    .foregroundColor(.primary)
+                    
+                Spacer()
+                
+                Text("\(builds.count)")
+                    .font(.system(size: 12, weight: .medium))
+                    .foregroundColor(.secondary)
+                    .padding(.horizontal, 8)
+                    .padding(.vertical, 2)
+                    .background(color.opacity(0.2))
+                    .cornerRadius(8)
+            }
+            
+            // Build items
+            ForEach(builds.indices, id: \.self) { index in
+                let build = builds[index]
+                BuildQueueItemView(build: build)
+            }
+        }
+        .padding(12)
+        .background(.regularMaterial)
+        .cornerRadius(10)
+    }
+}
+
+// Build queue item view
+struct BuildQueueItemView: View {
+    let build: BuildQueueSectionView.BuildDisplayItem
+    
+    var body: some View {
+        HStack(spacing: 12) {
+            // Status indicator
+            buildStatusIndicator
+            
+            VStack(alignment: .leading, spacing: 2) {
+                // Project and target
+                HStack(spacing: 4) {
+                    Text(buildProjectName)
+                        .font(.system(size: 13, weight: .semibold))
+                        .foregroundColor(.primary)
+                    
+                    Text(":")
+                        .font(.system(size: 13))
+                        .foregroundColor(.secondary)
+                    
+                    Text(buildTargetName)
+                        .font(.system(size: 13, weight: .medium))
+                        .foregroundColor(.secondary)
+                }
+                
+                // Additional info
+                buildAdditionalInfo
+            }
+            
+            Spacer()
+            
+            // Progress or duration
+            buildRightInfo
+        }
+        .padding(.vertical, 6)
+        .padding(.horizontal, 8)
+        .background(buildBackgroundColor)
+        .cornerRadius(6)
+    }
+    
+    @ViewBuilder
+    private var buildStatusIndicator: some View {
+        switch build {
+        case .active(_):
+            ZStack {
+                Circle()
+                    .fill(Color.blue.opacity(0.2))
+                    .frame(width: 24, height: 24)
+                
+                Image(systemName: "arrow.triangle.2.circlepath")
+                    .font(.system(size: 12, weight: .medium))
+                    .foregroundColor(.blue)
+                    .symbolEffect(.rotate, isActive: true)
+            }
+            
+        case .queued(_):
+            ZStack {
+                Circle()
+                    .fill(Color.orange.opacity(0.2))
+                    .frame(width: 24, height: 24)
+                
+                Image(systemName: "clock")
+                    .font(.system(size: 12, weight: .medium))
+                    .foregroundColor(.orange)
+            }
+            
+        case .completed(let completedBuild):
+            ZStack {
+                Circle()
+                    .fill((completedBuild.wasSuccessful ? Color.green : Color.red).opacity(0.2))
+                    .frame(width: 24, height: 24)
+                
+                Image(systemName: completedBuild.wasSuccessful ? "checkmark.circle.fill" : "xmark.circle.fill")
+                    .font(.system(size: 12, weight: .medium))
+                    .foregroundColor(completedBuild.wasSuccessful ? .green : .red)
+            }
+        }
+    }
+    
+    private var buildProjectName: String {
+        switch build {
+        case .active(let activeBuild): return activeBuild.project
+        case .queued(let queuedBuild): return queuedBuild.project
+        case .completed(let completedBuild): return completedBuild.project
+        }
+    }
+    
+    private var buildTargetName: String {
+        switch build {
+        case .active(let activeBuild): return activeBuild.target
+        case .queued(let queuedBuild): return queuedBuild.target
+        case .completed(let completedBuild): return completedBuild.target
+        }
+    }
+    
+    @ViewBuilder
+    private var buildAdditionalInfo: some View {
+        switch build {
+        case .active(let activeBuild):
+            if let phase = activeBuild.currentPhase {
+                Text(phase.capitalized)
+                    .font(.system(size: 11))
+                    .foregroundColor(.blue)
+            }
+            
+        case .queued(let queuedBuild):
+            Text(queuedBuild.reason.replacingOccurrences(of: "-", with: " ").capitalized)
+                .font(.system(size: 11))
+                .foregroundColor(.orange)
+                
+        case .completed(let completedBuild):
+            HStack(spacing: 4) {
+                Text(timeAgoString(from: completedBuild.completedAt))
+                    .font(.system(size: 11))
+                    .foregroundColor(.secondary)
+                
+                if let gitHash = completedBuild.gitHash {
+                    Text("•")
+                        .font(.system(size: 8))
+                        .foregroundColor(.secondary)
+                    
+                    Text(String(gitHash.prefix(7)))
+                        .font(.system(size: 10, design: .monospaced))
+                        .foregroundColor(.secondary)
+                }
+            }
+        }
+    }
+    
+    @ViewBuilder
+    private var buildRightInfo: some View {
+        switch build {
+        case .active(let activeBuild):
+            VStack(alignment: .trailing, spacing: 2) {
+                if let progress = activeBuild.progress {
+                    // Progress bar
+                    ProgressView(value: progress, total: 1.0)
+                        .progressViewStyle(LinearProgressViewStyle())
+                        .frame(width: 60)
+                        .scaleEffect(0.8)
+                    
+                    Text("\(Int(progress * 100))%")
+                        .font(.system(size: 10, weight: .medium))
+                        .foregroundColor(.blue)
+                } else {
+                    // Elapsed time
+                    Text(elapsedTimeString(from: activeBuild.startedAt))
+                        .font(.system(size: 11, weight: .medium))
+                        .foregroundColor(.blue)
+                }
+            }
+            
+        case .queued(let queuedBuild):
+            VStack(alignment: .trailing, spacing: 2) {
+                Text("Priority \(queuedBuild.priority)")
+                    .font(.system(size: 10))
+                    .foregroundColor(.secondary)
+                
+                Text(timeAgoString(from: queuedBuild.queuedAt))
+                    .font(.system(size: 11))
+                    .foregroundColor(.orange)
+            }
+            
+        case .completed(let completedBuild):
+            VStack(alignment: .trailing, spacing: 2) {
+                Text(StatusBarMenuView.buildDurationFormatter.string(from: completedBuild.duration) ?? String(format: "%.1fs", completedBuild.duration))
+                    .font(.system(size: 11, weight: .medium))
+                    .foregroundColor(.secondary)
+                
+                Text(completedBuild.status.capitalized)
+                    .font(.system(size: 10))
+                    .foregroundColor(completedBuild.wasSuccessful ? .green : .red)
+            }
+        }
+    }
+    
+    private var buildBackgroundColor: Color {
+        switch build {
+        case .active(_): return Color.blue.opacity(0.05)
+        case .queued(_): return Color.orange.opacity(0.05)
+        case .completed(let completedBuild): 
+            return (completedBuild.wasSuccessful ? Color.green : Color.red).opacity(0.05)
+        }
+    }
+    
+    private func elapsedTimeString(from startTime: Date) -> String {
+        let elapsed = Date().timeIntervalSince(startTime)
+        if elapsed < 60 {
+            return String(format: "%.0fs", elapsed)
+        } else {
+            let minutes = Int(elapsed / 60)
+            let seconds = Int(elapsed) % 60
+            return "\(minutes)m\(seconds)s"
+        }
+    }
+    
+    private func timeAgoString(from date: Date) -> String {
+        let elapsed = Date().timeIntervalSince(date)
+        if elapsed < 0 {
+            return "now"
+        } else if elapsed < 60 {
+            return "\(Int(elapsed))s ago"
+        } else if elapsed < 3600 {
+            return "\(Int(elapsed / 60))m ago"
+        } else if elapsed < 86400 {
+            return "\(Int(elapsed / 3600))h ago"
+        } else {
+            return "\(Int(elapsed / 86400))d ago"
+        }
+    }
+}
+
 struct ModernProjectRow: View {
     let project: Project
+    let buildQueue: BuildQueueInfo
     let isHovered: Bool
     let isExpanded: Bool
     
@@ -353,15 +679,32 @@ struct ModernTargetBadge: View {
 
 struct InlineProjectDetailView: View {
     let project: Project
+    let buildQueue: BuildQueueInfo
+    let buildStatistics: BuildStatistics
     
     var body: some View {
         VStack(alignment: .leading, spacing: 12) {
+            // Build statistics dashboard
+            if buildStatistics.totalBuilds24h > 0 {
+                BuildStatisticsDashboard(statistics: buildStatistics)
+            }
+            
             ForEach(project.sortedTargets, id: \.key) { target, state in
                 VStack(alignment: .leading, spacing: 8) {
-                    // Target header
+                    // Target header with build progress
                     HStack {
                         Label(target, systemImage: "target")
                             .font(.system(size: 14, weight: .semibold))
+                        
+                        // Show active build progress if available
+                        if let activeBuild = buildQueue.activeBuilds.first(where: { $0.target == target && $0.project == project.name }) {
+                            if let progress = activeBuild.progress {
+                                ProgressView(value: progress, total: 1.0)
+                                    .progressViewStyle(LinearProgressViewStyle())
+                                    .frame(width: 80)
+                                    .scaleEffect(0.8)
+                            }
+                        }
                         
                         Spacer()
                         
@@ -431,10 +774,61 @@ struct InlineProjectDetailView: View {
                 .background(.regularMaterial)
                 .cornerRadius(8)
             }
+            
+            // Recent builds for this project
+            let projectBuilds = buildQueue.recentBuilds.filter { $0.project == project.name }
+            if !projectBuilds.isEmpty {
+                VStack(alignment: .leading, spacing: 8) {
+                    Text("Recent Builds")
+                        .font(.system(size: 13, weight: .semibold))
+                        .foregroundColor(.primary)
+                    
+                    ForEach(Array(projectBuilds.prefix(5)), id: \.id) { build in
+                        HStack(spacing: 8) {
+                            // Status indicator
+                            Image(systemName: build.wasSuccessful ? "checkmark.circle.fill" : "xmark.circle.fill")
+                                .font(.system(size: 12))
+                                .foregroundColor(build.wasSuccessful ? .green : .red)
+                            
+                            Text(build.target)
+                                .font(.system(size: 12, weight: .medium))
+                                .foregroundColor(.primary)
+                            
+                            Text(StatusBarMenuView.buildDurationFormatter.string(from: build.duration) ?? String(format: "%.1fs", build.duration))
+                                .font(.system(size: 11))
+                                .foregroundColor(.secondary)
+                            
+                            Spacer()
+                            
+                            Text(timeAgoString(from: build.completedAt))
+                                .font(.system(size: 11))
+                                .foregroundColor(.secondary)
+                        }
+                    }
+                }
+                .padding(12)
+                .background(.regularMaterial)
+                .cornerRadius(8)
+            }
         }
         .padding(.horizontal, 14)
         .padding(.vertical, 12)
         .background(Color.primary.opacity(0.02))
+    }
+    
+    private func timeAgoString(from date: Date) -> String {
+        let elapsed = Date().timeIntervalSince(date)
+        if elapsed < 0 {
+            return "now"
+        } else if elapsed < 60 {
+            return "\(Int(elapsed))s ago"
+        } else if elapsed < 3600 {
+            return "\(Int(elapsed / 60))m ago"
+        } else if elapsed < 86400 {
+            return "\(Int(elapsed / 3600))h ago"
+        } else {
+            return "\(Int(elapsed / 86400))d ago"
+        }
     }
 }
 
@@ -486,5 +880,83 @@ struct ProjectContextMenu: View {
             Label("Remove from Monitor", systemImage: "trash")
         }
         .foregroundColor(.red)
+    }
+}
+
+// Build statistics dashboard
+struct BuildStatisticsDashboard: View {
+    let statistics: BuildStatistics
+    
+    var body: some View {
+        VStack(alignment: .leading, spacing: 12) {
+            Text("Build Statistics (24h)")
+                .font(.system(size: 13, weight: .semibold))
+                .foregroundColor(.primary)
+            
+            // Statistics grid
+            LazyVGrid(columns: Array(repeating: GridItem(.flexible()), count: 2), spacing: 12) {
+                StatCard(
+                    title: "Total Builds",
+                    value: "\(statistics.totalBuilds24h)",
+                    icon: "hammer.fill",
+                    color: .blue
+                )
+                
+                StatCard(
+                    title: "Success Rate",
+                    value: String(format: "%.0f%%", statistics.successRate * 100),
+                    icon: "checkmark.shield.fill",
+                    color: statistics.successRate >= 0.8 ? .green : (statistics.successRate >= 0.5 ? .orange : .red)
+                )
+                
+                StatCard(
+                    title: "Avg Build Time",
+                    value: StatusBarMenuView.buildDurationFormatter.string(from: statistics.averageBuildTime) ?? String(format: "%.1fs", statistics.averageBuildTime),
+                    icon: "clock.fill",
+                    color: .purple
+                )
+                
+                StatCard(
+                    title: "Active Now",
+                    value: "\(statistics.currentActiveBuilds)",
+                    icon: "arrow.triangle.2.circlepath",
+                    color: statistics.currentActiveBuilds > 0 ? .blue : .gray
+                )
+            }
+        }
+        .padding(12)
+        .background(.regularMaterial)
+        .cornerRadius(8)
+    }
+}
+
+// Individual stat card
+struct StatCard: View {
+    let title: String
+    let value: String
+    let icon: String
+    let color: Color
+    
+    var body: some View {
+        VStack(alignment: .leading, spacing: 4) {
+            HStack(spacing: 4) {
+                Image(systemName: icon)
+                    .font(.system(size: 12, weight: .medium))
+                    .foregroundColor(color)
+                
+                Text(title)
+                    .font(.system(size: 11))
+                    .foregroundColor(.secondary)
+                    .lineLimit(1)
+            }
+            
+            Text(value)
+                .font(.system(size: 16, weight: .bold))
+                .foregroundColor(.primary)
+        }
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .padding(8)
+        .background(color.opacity(0.1))
+        .cornerRadius(6)
     }
 }

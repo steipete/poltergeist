@@ -1,0 +1,224 @@
+# SwiftLint Configuration for Swift 6 - Poltergeist macOS App
+# Updated for Swift 6 features and best practices
+
+# List of directories and files to include and exclude
+included:
+  - Poltergeist/
+
+excluded:
+  - Poltergeist.xcodeproj/
+  - DerivedData/
+  - .build/
+  - Pods/
+  - build/
+
+# Analyzer rules (require full compilation)
+analyzer_rules:
+  - capture_variable
+  - explicit_self
+  - unused_import
+  - unused_declaration
+
+# Rules to enable
+opt_in_rules:
+  
+  # Code quality rules
+  - array_init
+  - attributes
+  - closure_body_length
+  - closure_end_indentation
+  - closure_spacing
+  - collection_alignment
+  - contains_over_filter_count
+  - contains_over_filter_is_empty
+  - contains_over_first_not_nil
+  - contains_over_range_nil_comparison
+  - convenience_type
+  - discouraged_object_literal
+  - empty_collection_literal
+  - empty_count
+  - empty_string
+  - empty_xctest_method
+  - enum_case_associated_values_count
+  - explicit_init
+  - extension_access_modifier
+  - fallthrough
+  - fatal_error_message
+  - file_header
+  - file_name
+  - file_name_no_space
+  - first_where
+  - flatmap_over_map_reduce
+  - force_unwrapping
+  - function_default_parameter_at_end
+  - identical_operands
+  - implicit_return
+  - joined_default_parameter
+  - last_where
+  - legacy_random
+  - literal_expression_end_indentation
+  - lower_acl_than_parent
+  - modifier_order
+  - multiline_arguments
+  - multiline_arguments_brackets
+  - multiline_function_chains
+  - multiline_literal_brackets
+  - multiline_parameters
+  - multiline_parameters_brackets
+  - nimble_operator
+  - nslocalizedstring_key
+  - nslocalizedstring_require_bundle
+  - number_separator
+  - object_literal
+  - operator_usage_whitespace
+  - optional_enum_case_matching
+  - overridden_super_call
+  - override_in_extension
+  - pattern_matching_keywords
+  - prefer_self_type_over_type_of_self
+  - prefer_zero_over_explicit_init
+  - prefixed_toplevel_constant
+  - prohibited_interface_builder
+  - prohibited_super_call
+  - quick_discouraged_call
+  - quick_discouraged_focused_test
+  - quick_discouraged_pending_test
+  - reduce_into
+  - redundant_nil_coalescing
+  - redundant_type_annotation
+  - single_test_class
+  - sorted_first_last
+  - static_operator
+  - strong_iboutlet
+  - toggle_bool
+  - trailing_closure
+  - unavailable_function
+  - unneeded_parentheses_in_closure_argument
+  - unowned_variable_capture
+  - untyped_error_in_catch
+  - vertical_parameter_alignment_on_call
+  - vertical_whitespace_closing_braces
+  - vertical_whitespace_opening_braces
+  - weak_delegate
+  - xct_specific_matcher
+  - yoda_condition
+
+# Rules to disable
+disabled_rules:
+  - todo # Allow TODO comments during development
+  - type_name # Allow longer type names for clarity
+  - identifier_name # Allow longer identifiers for clarity
+
+# Rule configurations
+line_length:
+  warning: 120
+  error: 150
+  ignores_comments: true
+  ignores_urls: true
+  ignores_function_declarations: true
+  ignores_interpolated_strings: true
+
+function_body_length:
+  warning: 60
+  error: 100
+
+function_parameter_count:
+  warning: 6
+  error: 8
+
+type_body_length:
+  warning: 300
+  error: 400
+
+file_length:
+  warning: 400
+  error: 500
+  ignore_comment_only_lines: true
+
+cyclomatic_complexity:
+  warning: 10
+  error: 20
+  ignores_case_statements: true
+
+nesting:
+  type_level:
+    warning: 3
+    error: 6
+  statement_level:
+    warning: 5
+    error: 10
+
+# Configuration for rules
+
+# SwiftUI specific configurations
+type_name:
+  min_length:
+    warning: 3
+    error: 2
+  max_length:
+    warning: 50
+    error: 60
+  excluded:
+    - iPhone # Allow iPhone as type name
+    - URL    # Allow URL as type name
+    - UUID   # Allow UUID as type name
+
+identifier_name:
+  min_length:
+    warning: 2
+    error: 1
+  max_length:
+    warning: 40
+    error: 60
+  excluded:
+    - id  # Allow 'id' as identifier
+    - url # Allow 'url' as identifier
+    - uri # Allow 'uri' as identifier
+
+# Force unwrapping allowed in specific cases
+force_unwrapping:
+  severity: warning
+
+# Trailing whitespace
+trailing_whitespace:
+  ignores_empty_lines: false
+  ignores_comments: true
+
+# File header template
+file_header:
+  severity: warning
+  required_pattern: |
+                    \/\/
+                    \/\/ .*\.swift
+                    \/\/ Poltergeist
+                    \/\/
+                    \/\/ Created by .* on \d{1,2}\/\d{1,2}\/\d{4}\.
+                    \/\/
+
+# Multiline arguments
+multiline_arguments:
+  first_argument_location: next_line
+  only_enforce_after_first_closure_on_first_line: true
+
+# Custom rules for SwiftUI
+custom_rules:
+  swiftui_state_private:
+    name: "SwiftUI @State should be private"
+    regex: '^(?!.*private).*@State\s'
+    message: "@State properties should be private"
+    severity: warning
+    
+  swiftui_observedobject_not_private:
+    name: "SwiftUI @ObservedObject should not be private"
+    regex: 'private.*@ObservedObject'
+    message: "@ObservedObject should not be private"
+    severity: warning
+    
+  swiftui_environmentobject_not_private:
+    name: "SwiftUI @EnvironmentObject should not be private"
+    regex: 'private.*@EnvironmentObject'
+    message: "@EnvironmentObject should not be private"
+    severity: warning
+
+# Reporter type
+reporter: "xcode"

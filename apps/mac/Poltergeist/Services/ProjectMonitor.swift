@@ -11,9 +11,18 @@ class ProjectMonitor: ObservableObject {
     private let poltergeistDirectory = "/tmp/poltergeist"
     
     @Published private(set) var projects: [Project] = []
+    @Published private(set) var buildQueue: BuildQueueInfo = BuildQueueInfo(
+        queuedBuilds: [],
+        activeBuilds: [],
+        recentBuilds: []
+    )
     
     private var fileWatcher: FileWatcher?
     private var updateTimer: Timer?
+    
+    // Track build history for enhanced features
+    private var buildHistory: [CompletedBuild] = []
+    private let maxHistorySize = 50
     
     private init() {}
     
@@ -133,6 +142,8 @@ class ProjectMonitor: ObservableObject {
                     
                     let icon = IconLoader.shared.loadIcon(from: state, projectPath: state.projectPath)
                     
+                    let buildStartTime = state.lastBuild?.startTime.flatMap { ISO8601DateFormatter().date(from: $0) }
+                    
                     let targetState = TargetState(
                         target: state.target,
                         isActive: state.process.isActive && !isProcessStale(heartbeat: heartbeat),
@@ -143,11 +154,15 @@ class ProjectMonitor: ObservableObject {
                                 timestamp: buildTimestamp ?? Date(),
                                 errorSummary: build.errorSummary?.isEmpty == true ? nil : build.errorSummary,
                                 buildTime: build.buildTime,
-                                gitHash: build.gitHash
+                                gitHash: build.gitHash,
+                                startTime: buildStartTime
                             )
                         },
                         icon: icon
                     )
+                    
+                    // Update build queue information
+                    updateBuildQueue(from: state, targetState: targetState)
                     
                     // Check for status changes and send notifications
                     if let existingProject = projects.first(where: { $0.path == state.projectPath }),
@@ -287,5 +302,124 @@ class ProjectMonitor: ObservableObject {
     func refreshProjects() {
         logger.info("Refreshing projects...")
         scanForProjects()
+    }
+    
+    // MARK: - Build Queue Management
+    
+    private func updateBuildQueue(from state: PoltergeistState, targetState: TargetState) {
+        let projectName = state.projectName
+        let targetName = state.target
+        
+        // Track active builds
+        var activeBuilds = buildQueue.activeBuilds
+        if let build = targetState.lastBuild, build.isBuilding {
+            // Update or add active build
+            if let existingIndex = activeBuilds.firstIndex(where: { $0.target == targetName && $0.project == projectName }) {
+                // Update existing active build
+                activeBuilds[existingIndex] = ActiveBuild(
+                    target: targetName,
+                    project: projectName,
+                    startedAt: build.startTime ?? build.timestamp,
+                    estimatedDuration: state.lastBuild?.estimatedDuration,
+                    progress: build.buildProgress,
+                    currentPhase: state.lastBuild?.currentPhase
+                )
+            } else {
+                // Add new active build
+                activeBuilds.append(ActiveBuild(
+                    target: targetName,
+                    project: projectName,
+                    startedAt: build.startTime ?? build.timestamp,
+                    estimatedDuration: state.lastBuild?.estimatedDuration,
+                    progress: build.buildProgress,
+                    currentPhase: state.lastBuild?.currentPhase
+                ))
+            }
+        } else {
+            // Remove from active builds if no longer building
+            activeBuilds.removeAll { $0.target == targetName && $0.project == projectName }
+            
+            // Add to completed builds if we have build info
+            if let build = targetState.lastBuild {
+                addCompletedBuild(
+                    target: targetName,
+                    project: projectName,
+                    build: build
+                )
+            }
+        }
+        
+        // Update build queue
+        buildQueue = BuildQueueInfo(
+            queuedBuilds: buildQueue.queuedBuilds, // TODO: Parse queue info from state files
+            activeBuilds: activeBuilds,
+            recentBuilds: Array(buildHistory.prefix(10)) // Show 10 most recent
+        )
+    }
+    
+    private func addCompletedBuild(target: String, project: String, build: BuildInfo) {
+        // Don't add duplicates
+        let isDuplicate = buildHistory.contains { completedBuild in
+            completedBuild.target == target &&
+            completedBuild.project == project &&
+            abs(completedBuild.completedAt.timeIntervalSince(build.timestamp)) < 1.0
+        }
+        
+        if !isDuplicate {
+            let completedBuild = CompletedBuild(
+                target: target,
+                project: project,
+                startedAt: build.startTime ?? build.timestamp,
+                completedAt: build.timestamp,
+                status: build.status,
+                duration: build.buildTime ?? 0,
+                errorSummary: build.errorSummary,
+                gitHash: build.gitHash
+            )
+            
+            buildHistory.insert(completedBuild, at: 0)
+            
+            // Limit history size
+            if buildHistory.count > maxHistorySize {
+                buildHistory = Array(buildHistory.prefix(maxHistorySize))
+            }
+            
+            logger.debug("Added completed build: \(project):\(target) - \(build.status)")
+        }
+    }
+    
+    // MARK: - Build Statistics
+    
+    func getBuildStatistics() -> BuildStatistics {
+        let now = Date()
+        let last24Hours = now.addingTimeInterval(-24 * 60 * 60)
+        let recentBuilds = buildHistory.filter { $0.completedAt > last24Hours }
+        
+        let successful = recentBuilds.filter { $0.wasSuccessful }.count
+        let failed = recentBuilds.count - successful
+        let averageDuration = recentBuilds.isEmpty ? 0 : recentBuilds.map { $0.duration }.reduce(0, +) / Double(recentBuilds.count)
+        
+        return BuildStatistics(
+            totalBuilds24h: recentBuilds.count,
+            successfulBuilds24h: successful,
+            failedBuilds24h: failed,
+            averageBuildTime: averageDuration,
+            currentActiveBuilds: buildQueue.activeBuilds.count,
+            queueLength: buildQueue.totalQueueLength
+        )
+    }
+}
+
+// Build statistics for dashboard display
+struct BuildStatistics {
+    let totalBuilds24h: Int
+    let successfulBuilds24h: Int
+    let failedBuilds24h: Int
+    let averageBuildTime: TimeInterval
+    let currentActiveBuilds: Int
+    let queueLength: Int
+    
+    var successRate: Double {
+        totalBuilds24h == 0 ? 1.0 : Double(successfulBuilds24h) / Double(totalBuilds24h)
     }
 }

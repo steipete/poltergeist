@@ -23,6 +23,33 @@ Poltergeist Monitor is a companion app for the Poltergeist build system. It prov
 - Xcode 16.0+
 - Swift 6.0
 
+## Code Quality Tools
+
+This project uses SwiftLint and swift-format with Swift 6 configurations:
+
+### SwiftLint
+- Configuration: `.swiftlint.yml`
+- Runs automatically during build
+- Manual execution: `./scripts/lint.sh`
+
+### swift-format
+- Configuration: `.swift-format`
+- Runs automatically during Debug builds
+- Manual execution: `./scripts/format.sh`
+
+### Combined Check
+Run both tools together:
+```bash
+./scripts/check.sh
+```
+
+### Swift 6 Configuration
+The project is configured for Swift 6 with:
+- **Swift Version**: 6.0
+- **Actor Isolation**: MainActor (default)
+- **Strict Concurrency**: Complete
+- **Upcoming Features**: Member import visibility
+
 ## Building
 
 ### Using Xcode
