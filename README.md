@@ -1,7 +1,7 @@
 <div align="center">
   <img src="assets/poltergeist-logo.png" alt="Poltergeist Logo" width="200">
   
-  # Poltergeist v1.0
+  # Poltergeist
 
   [![CI](https://github.com/steipete/poltergeist/actions/workflows/ci.yml/badge.svg)](https://github.com/steipete/poltergeist/actions/workflows/ci.yml)
   [![Node.js Version](https://img.shields.io/node/v/@steipete/poltergeist)](https://nodejs.org)
@@ -79,14 +79,14 @@ poltergeist haunt
 ## Requirements
 
 - **Node.js 20.0.0** or higher
-- **[Watchman](https://facebook.github.io/watchman/)** (automatically installed as dependency)
+- **[Watchman](https://facebook.github.io/watchman/)** (must be installed separately)
 - **macOS** for notification features (optional)
 
 ## Configuration
 
-### Configuration Schema v1.0
+### Configuration Schema
 
-Poltergeist v1.0 uses a clean, modern configuration schema with no backwards compatibility:
+Poltergeist uses a clean, modern configuration schema:
 
 ```json
 {
@@ -293,7 +293,7 @@ Choose the right balance between file coverage and performance:
 
 ### Intelligent Build Prioritization
 
-Poltergeist v1.0 includes an intelligent build prioritization system that automatically optimizes build order based on your development patterns:
+Poltergeist includes an intelligent build prioritization system that automatically optimizes build order based on your development patterns:
 
 ```json
 {
@@ -702,7 +702,7 @@ Target: my-cli
 
 ### Unified State System
 
-Poltergeist v1.0 uses a lock-free state management system with atomic operations:
+Poltergeist uses a lock-free state management system with atomic operations:
 
 - **Single state file per target**: `/tmp/poltergeist/target-{name}.state.json`
 - **Atomic writes**: Temp file + rename for consistency
@@ -825,7 +825,7 @@ Contributions welcome! Please ensure:
 2. **Code is formatted**: `npm run format`
 3. **Linting passes**: `npm run lint`
 4. **Types check**: `npm run typecheck`
-5. **Follow v1.0 philosophy**: No backwards compatibility, clean modern code
+5. **Clean modern code**: Focus on maintainable, type-safe implementations
 
 ### Development Philosophy
 
