@@ -112,7 +112,7 @@ export class BuildStatusManager {
    */
   public static isSuccess(status: BuildStatus | string): boolean {
     const statusValue = typeof status === 'string' ? status : status.status;
-    return statusValue === BuildStatusType.SUCCESS;
+    return BuildStatusManager.normalizeStatus(statusValue) === BuildStatusType.SUCCESS;
   }
 
   /**
@@ -120,7 +120,7 @@ export class BuildStatusManager {
    */
   public static isFailure(status: BuildStatus | string): boolean {
     const statusValue = typeof status === 'string' ? status : status.status;
-    return statusValue === BuildStatusType.FAILED;
+    return BuildStatusManager.normalizeStatus(statusValue) === BuildStatusType.FAILED;
   }
 
   /**
@@ -128,7 +128,7 @@ export class BuildStatusManager {
    */
   public static isBuilding(status: BuildStatus | string): boolean {
     const statusValue = typeof status === 'string' ? status : status.status;
-    return statusValue === BuildStatusType.BUILDING;
+    return BuildStatusManager.normalizeStatus(statusValue) === BuildStatusType.BUILDING;
   }
 
   /**
