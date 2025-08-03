@@ -19,17 +19,6 @@
       "environment": {
         "NODE_ENV": "development"
       }
-    },
-    {
-      "name": "poltergeist-tests",
-      "type": "test",
-      "enabled": true,
-      "testCommand": "npm test",
-      "watchPaths": [
-        "src/**/*.ts",
-        "test/**/*.ts"
-      ],
-      "settlingDelay": 500
     }
   ],
   "watchman": {

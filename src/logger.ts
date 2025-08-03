@@ -1,4 +1,5 @@
 // Enhanced logger with target-specific logging support
+// Testing Poltergeist self-monitoring capabilities
 
 import chalk from 'chalk';
 import winston from 'winston';

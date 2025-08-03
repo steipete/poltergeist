@@ -1,4 +1,5 @@
 // Poltergeist v1.0 - Clean, simple implementation
+// Live testing: Poltergeist watching itself!
 
 import { IntelligentBuildQueue } from './build-queue.js';
 import type { BaseBuilder } from './builders/index.js';

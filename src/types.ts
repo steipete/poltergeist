@@ -1,4 +1,5 @@
 // Poltergeist v1.0 - Clean, simple types
+// Testing queue management and build deduplication
 import { z } from 'zod';
 
 // Target types
