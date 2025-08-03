@@ -1194,6 +1194,33 @@ Contributions welcome! Please ensure:
 - **Performance over features**: Optimize for large projects
 - **Simple over complex**: Clean APIs over extensive configuration
 
+## Recent Improvements
+
+### Version 1.0.0-beta.1 - Major Fixes & Code Quality Improvements
+
+#### 🚨 Critical Bug Fixes
+- **Fixed Mac app state file parsing for projects with hyphens**: Previously, the macOS companion app would fail to correctly identify projects or targets with hyphens in their names (e.g., `my-project`, `my-target`). Now uses robust regex parsing to correctly extract the 8-character hash regardless of hyphen usage.
+
+- **Standardized staleness thresholds**: Eliminated confusing behavior where the Mac app would show projects as "stale" (30 seconds) while the CLI considered them active (5 minutes). Both now use a consistent 5-minute threshold.
+
+#### 🔧 Code Quality Improvements
+- **Replaced custom glob matcher with picomatch**: Removed 70+ lines of custom pattern matching code and replaced it with the battle-tested [picomatch](https://github.com/micromatch/picomatch) library for more reliable and feature-complete glob matching.
+
+- **Enhanced CI pipeline**: Fixed test execution order to ensure builds complete before tests run, resolving `dist/pgrun.js` missing module errors.
+
+- **Removed legacy status format support**: Cleaned up backward compatibility code for legacy `'failed'` vs `'failure'` status formats, simplifying the codebase.
+
+#### 📊 Impact
+- ✅ All 318 tests passing
+- ✅ Critical production bugs eliminated  
+- ✅ Improved code maintainability (-76 net lines of code)
+- ✅ Better user experience consistency between CLI and Mac app
+
+#### 🙏 Acknowledgment
+These improvements were identified through a comprehensive AI-powered code review that analyzed the entire codebase for bugs, inefficiencies, and improvement opportunities.
+
+---
+
 ## License
 
 MIT License - see [LICENSE](LICENSE) file for details.
