@@ -17,7 +17,8 @@ extension Tag {
 
 // MARK: - File System Helper Tests
 @Suite("File System Helper Tests", .tags(.utils, .fileSystem))
-struct FileSystemHelpersTests {
+@MainActor
+final class FileSystemHelpersTests {
     
     let tempDirectory: URL
     
@@ -207,7 +208,7 @@ struct FileSystemHelpersTests {
     }
     
     @Test("File modification time tracking")
-    func testFileModificationTimeTracking() throws {
+    func testFileModificationTimeTracking() async throws {
         let testFile = tempDirectory.appendingPathComponent("mod-test.txt")
         
         // Create file
@@ -288,7 +289,8 @@ private struct TestJSONData: Codable, Equatable {
 
 // MARK: - State File Parsing Tests
 @Suite("State File Parsing Tests", .tags(.utils, .fileSystem))
-struct StateFileParsingTests {
+@MainActor
+final class StateFileParsingTests {
     
     let tempDirectory: URL
     
@@ -317,7 +319,7 @@ struct StateFileParsingTests {
     func testStateFileNameParsing(
         filename: String,
         expected: (projectName: String, hash: String, target: String)
-    ) {
+    ) throws {
         // Extract components using regex pattern matching
         let pattern = #"^(.+)-([a-f0-9]{8})-(.+)\.state$"#
         

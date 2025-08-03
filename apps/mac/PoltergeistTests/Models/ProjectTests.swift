@@ -18,6 +18,7 @@ extension Tag {
 
 // MARK: - Project Model Tests
 @Suite("Project Model Tests", .tags(.models, .fast, .unit))
+@MainActor
 struct ProjectTests {
     
     // MARK: - Basic Properties Tests
@@ -138,6 +139,7 @@ struct ProjectTests {
 
 // MARK: - Build Status Tests
 @Suite("Build Status Tests", .tags(.models, .fast))
+@MainActor
 struct BuildStatusTests {
     
     @Test("Build status icon mapping", arguments: [
@@ -161,6 +163,7 @@ struct BuildStatusTests {
 
 // MARK: - Target State Tests
 @Suite("Target State Tests", .tags(.models, .fast))
+@MainActor
 struct TargetStateTests {
     
     @Test("Target state initialization")
@@ -229,6 +232,7 @@ struct TargetStateTests {
 
 // MARK: - Build Info Tests
 @Suite("Build Info Tests", .tags(.models, .fast))
+@MainActor
 struct BuildInfoTests {
     
     @Test("Build info initialization")
@@ -274,7 +278,7 @@ struct BuildInfoTests {
     }
     
     @Test("Build progress calculation")
-    func testBuildProgressCalculation() {
+    func testBuildProgressCalculation() throws {
         let now = Date()
         
         // Non-building status should return nil
@@ -319,6 +323,7 @@ struct BuildInfoTests {
 
 // MARK: - Build Queue Tests
 @Suite("Build Queue Tests", .tags(.models, .fast))
+@MainActor
 struct BuildQueueTests {
     
     @Test("Build queue initialization")
@@ -397,6 +402,7 @@ struct BuildQueueTests {
 
 // MARK: - Completed Build Tests
 @Suite("Completed Build Tests", .tags(.models, .fast))
+@MainActor
 struct CompletedBuildTests {
     
     @Test("Completed build success detection", arguments: [
@@ -443,6 +449,7 @@ struct CompletedBuildTests {
 
 // MARK: - Poltergeist State Model Tests
 @Suite("Poltergeist State Model Tests", .tags(.models, .unit))
+@MainActor
 struct PoltergeistStateTests {
     
     @Test("Poltergeist state JSON decoding")

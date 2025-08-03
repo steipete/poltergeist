@@ -14,7 +14,6 @@ import os.log
 extension Tag {
     @Tag static var services: Self
     @Tag static var integration: Self
-    @Tag static var fileSystem: Self
 }
 
 // MARK: - Project Monitor Tests

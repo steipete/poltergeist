@@ -68,8 +68,8 @@ final class NotificationManagerTests {
         let failureError = "Compilation failed: missing symbol"
         
         #expect(failureStatus == "failed")
-        #expect(failureError != nil)
-        #expect(failureError?.contains("Compilation failed") == true)
+        #expect(!failureError.isEmpty)
+        #expect(failureError.contains("Compilation failed"))
     }
     
     @Test("Notification title generation", arguments: [
@@ -227,6 +227,7 @@ private func generateNotificationTitle(for status: String) -> String {
     }
 }
 
+@MainActor
 private func generateNotificationBody(
     project: Project,
     target: String,
@@ -242,6 +243,7 @@ private func generateNotificationBody(
     return body
 }
 
+@MainActor
 private func shouldShowNotification(
     project: Project,
     target: String,
@@ -272,6 +274,7 @@ private func getNotificationSound(for status: String) -> String? {
     }
 }
 
+@MainActor
 private func shouldPlaySound(preferences: Preferences) -> Bool {
     return preferences.soundEnabled
 }
@@ -304,8 +307,10 @@ final class NotificationManagerIntegrationTests {
             #expect(settings.authorizationStatus == .authorized)
         case .provisional:
             #expect(settings.authorizationStatus == .provisional)
+#if os(iOS)
         case .ephemeral:
             #expect(settings.authorizationStatus == .ephemeral)
+#endif
         @unknown default:
             // Handle future authorization states
             #expect(true) // Test passes for unknown states

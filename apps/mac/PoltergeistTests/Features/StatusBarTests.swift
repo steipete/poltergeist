@@ -263,19 +263,19 @@ struct StatusBarTests {
         menuItem.title = project.name
         menuItem.toolTip = "Project at \(project.path)"
         
-        // Set accessibility properties
-        menuItem.accessibilityLabel = "Project \(project.name)"
-        menuItem.accessibilityHelp = "Poltergeist project monitoring"
+        // Set accessibility properties  
+        menuItem.setAccessibilityLabel("Project \(project.name)")
+        menuItem.setAccessibilityHelp("Poltergeist project monitoring")
         
-        #expect(menuItem.accessibilityLabel == "Project AccessibilityTest")
-        #expect(menuItem.accessibilityHelp == "Poltergeist project monitoring")
+        #expect(menuItem.accessibilityLabel() == "Project AccessibilityTest")
+        #expect(menuItem.accessibilityHelp() == "Poltergeist project monitoring")
         #expect(menuItem.toolTip?.contains("/test") == true)
     }
     
     // MARK: - Build Progress Display Tests
     
     @Test("Build progress indicator in menu")
-    func testBuildProgressIndicatorInMenu() {
+    func testBuildProgressIndicatorInMenu() throws {
         let buildInfo = BuildInfo(
             status: "building",
             timestamp: Date(),

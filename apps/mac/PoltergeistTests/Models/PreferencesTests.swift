@@ -235,23 +235,19 @@ struct PreferencesObservableObjectTests {
         let preferences = Preferences.shared
         preferences.reset()
         
-        // Create a confirmation to track objectWillChange notifications
-        let changeConfirmation = confirmation("objectWillChange was published", expectedCount: 1)
-        
-        // Subscribe to objectWillChange
-        let cancellable = preferences.objectWillChange.sink {
-            Task { @MainActor in
-                await changeConfirmation.fulfill()
+        // Use confirmation to verify objectWillChange is published
+        await confirmation("objectWillChange was published", expectedCount: 1) { changeConfirmation in
+            // Subscribe to objectWillChange
+            let cancellable = preferences.objectWillChange.sink {
+                changeConfirmation()
             }
+            
+            // Trigger a change
+            preferences.showNotifications = false
+            
+            // Keep cancellable alive
+            defer { cancellable.cancel() }
         }
-        
-        // Trigger a change
-        preferences.showNotifications = false
-        
-        // Wait for the notification
-        try await fulfillment(of: [changeConfirmation], timeout: .seconds(1))
-        
-        cancellable.cancel()
         preferences.reset()
     }
     
@@ -260,22 +256,19 @@ struct PreferencesObservableObjectTests {
         let preferences = Preferences.shared  
         preferences.reset()
         
-        let changeConfirmation = confirmation("objectWillChange was published", expectedCount: 3)
-        
-        let cancellable = preferences.objectWillChange.sink {
-            Task { @MainActor in
-                await changeConfirmation.fulfill()
+        await confirmation("objectWillChange was published", expectedCount: 3) { changeConfirmation in
+            let cancellable = preferences.objectWillChange.sink {
+                changeConfirmation()
             }
+            
+            // Trigger multiple changes
+            preferences.showNotifications = false
+            preferences.soundEnabled = false  
+            preferences.launchAtLogin = true
+            
+            // Keep cancellable alive
+            defer { cancellable.cancel() }
         }
-        
-        // Trigger multiple changes
-        preferences.showNotifications = false
-        preferences.soundEnabled = false  
-        preferences.launchAtLogin = true
-        
-        try await fulfillment(of: [changeConfirmation], timeout: .seconds(1))
-        
-        cancellable.cancel()
         preferences.reset()
     }
 }
