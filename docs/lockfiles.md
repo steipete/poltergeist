@@ -164,13 +164,14 @@ private func setupFileWatcher() {
 ```
 
 ### Staleness Detection
-The Mac app considers processes stale after 30 seconds (more lenient than CLI):
+The Mac app uses the same 5-minute staleness threshold as the CLI for consistency:
 
 ```swift
-// ProjectMonitor.swift:138-141
+// ProjectMonitor.swift
 private func isProcessStale(heartbeat: Date?) -> Bool {
     guard let heartbeat = heartbeat else { return true }
-    return Date().timeIntervalSince(heartbeat) > 30
+    // Use same staleness threshold as CLI (5 minutes = 300 seconds)
+    return Date().timeIntervalSince(heartbeat) > 300
 }
 ```
 
@@ -289,16 +290,6 @@ Write failures are logged but don't crash:
 ### Poltergeist State Files
 - **Pros**: Self-contained, rich info, automatic recovery, no dependencies
 - **Cons**: Local only, relies on file system atomicity
-
-## Future Enhancements
-
-Potential improvements to the state file system:
-
-1. **Distributed Coordination**: Support for network file systems
-2. **State History**: Keep recent build history in state files
-3. **Compression**: Compress old state data to save space
-4. **Encryption**: Encrypt sensitive build information
-5. **Metrics**: Export state data for monitoring systems
 
 ## Conclusion
 
