@@ -119,8 +119,10 @@ async function waitForBuildCompletion(
         // Build process died or status changed - check the actual final status
         clearInterval(interval);
         process.stdout.write(`\r${' '.repeat(50)}\r`); // Clear spinner line
-        
-        const finalStatus = await getBuildStatus(projectRoot, target, { checkProcessForBuilding: true });
+
+        const finalStatus = await getBuildStatus(projectRoot, target, {
+          checkProcessForBuilding: true,
+        });
         if (finalStatus === 'success') {
           return 'success';
         } else if (finalStatus === 'failed') {
@@ -172,7 +174,7 @@ function executeTarget(target: Target, projectRoot: string, args: string[]): Pro
     // Determine how to execute based on file extension
     let command: string;
     let commandArgs: string[];
-    
+
     const ext = binaryPath.toLowerCase();
     if (ext.endsWith('.js') || ext.endsWith('.mjs')) {
       command = 'node';

@@ -88,7 +88,7 @@ jobs:
     - name: Build macOS app
       run: |
         cd apps/mac
-        xcodebuild -project Poltergeist.xcodeproj -scheme Poltergeist -configuration Debug build
+        xcodebuild -project Poltergeist.xcodeproj -scheme Poltergeist -configuration Debug build CODE_SIGN_IDENTITY="" CODE_SIGNING_REQUIRED=NO
         
     - name: Run SwiftLint
       run: |
@@ -110,9 +110,9 @@ jobs:
       run: |
         cd apps/mac
         # First try to build the main app, then run tests if successful
-        if xcodebuild -project Poltergeist.xcodeproj -scheme Poltergeist -configuration Debug build -quiet; then
+        if xcodebuild -project Poltergeist.xcodeproj -scheme Poltergeist -configuration Debug build CODE_SIGN_IDENTITY="" CODE_SIGNING_REQUIRED=NO -quiet; then
           echo "✅ Main app builds successfully, running tests..."
-          xcodebuild test -project Poltergeist.xcodeproj -scheme PoltergeistTests -destination 'platform=macOS,arch=arm64' -quiet || echo "⚠️  Tests had issues but test target is configured correctly"
+          xcodebuild test -project Poltergeist.xcodeproj -scheme PoltergeistTests -destination 'platform=macOS,arch=arm64' CODE_SIGN_IDENTITY="" CODE_SIGNING_REQUIRED=NO -quiet || echo "⚠️  Tests had issues but test target is configured correctly"
         else
           echo "⚠️  Main app has build issues, skipping test execution"
         fi
@@ -121,7 +121,7 @@ jobs:
       if: github.event_name == 'push' && github.ref == 'refs/heads/main'
       run: |
         cd apps/mac
-        xcodebuild -project Poltergeist.xcodeproj -scheme Poltergeist -configuration Release archive -archivePath Poltergeist.xcarchive
+        xcodebuild -project Poltergeist.xcodeproj -scheme Poltergeist -configuration Release archive -archivePath Poltergeist.xcarchive CODE_SIGN_IDENTITY="" CODE_SIGNING_REQUIRED=NO
         
     - name: Upload macOS app artifact
       if: github.event_name == 'push' && github.ref == 'refs/heads/main'

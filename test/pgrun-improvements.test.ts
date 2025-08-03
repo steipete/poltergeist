@@ -1,8 +1,7 @@
-import { describe, it, expect, beforeEach, vi, afterEach } from 'vitest';
 import { spawn } from 'child_process';
 import { existsSync } from 'fs';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import type { PoltergeistState } from '../src/state.js';
-import type { Target } from '../src/types.js';
 import { FileSystemUtils } from '../src/utils/filesystem.js';
 
 // Mock modules
@@ -12,15 +11,6 @@ vi.mock('../src/utils/filesystem.js');
 vi.mock('../src/utils/config-manager.js');
 
 describe('pgrun improvements', () => {
-  const mockTarget: Target = {
-    name: 'test-app',
-    type: 'executable',
-    buildCommand: 'echo "build"',
-    outputPath: './test.js',
-    watchPaths: ['**/*.js'],
-    enabled: true,
-  };
-
   const mockState: PoltergeistState = {
     version: '1.0',
     projectPath: '/test/project',
@@ -61,30 +51,30 @@ describe('pgrun improvements', () => {
     it('should check lastBuild.status for building state, not watcher process', async () => {
       // The old logic incorrectly checked if process.pid is alive to determine if building
       // The correct logic checks lastBuild.status === 'building'
-      
+
       const buildingState = {
         ...mockState,
         lastBuild: {
-          ...mockState.lastBuild!,
+          ...(mockState.lastBuild || { timestamp: '2024-01-01T00:00:00Z', status: 'success' }),
           status: 'building' as const,
         },
       };
-      
+
       vi.mocked(existsSync).mockReturnValue(true);
       vi.mocked(FileSystemUtils.readJsonFileStrict).mockReturnValue(buildingState);
       vi.mocked(FileSystemUtils.isProcessAlive).mockReturnValue(true); // Watcher is alive
-      
+
       const getBuildStatus = async () => {
         const state = FileSystemUtils.readJsonFileStrict<PoltergeistState>('');
         if (!state) return 'unknown';
-        
+
         // Correct logic: Check lastBuild status
         if (state.lastBuild?.status === 'building') return 'building';
         if (state.lastBuild?.status === 'success') return 'success';
         if (state.lastBuild?.status === 'failure') return 'failed';
         return 'unknown';
       };
-      
+
       const status = await getBuildStatus();
       expect(status).toBe('building'); // Should detect building state from lastBuild
     });
@@ -92,17 +82,17 @@ describe('pgrun improvements', () => {
     it('should return success when build is complete', async () => {
       vi.mocked(existsSync).mockReturnValue(true);
       vi.mocked(FileSystemUtils.readJsonFileStrict).mockReturnValue(mockState);
-      
+
       const getBuildStatus = async () => {
         const state = FileSystemUtils.readJsonFileStrict<PoltergeistState>('');
         if (!state) return 'unknown';
-        
+
         if (state.lastBuild?.status === 'building') return 'building';
         if (state.lastBuild?.status === 'success') return 'success';
         if (state.lastBuild?.status === 'failure') return 'failed';
         return 'unknown';
       };
-      
+
       const status = await getBuildStatus();
       expect(status).toBe('success');
     });
@@ -110,7 +100,7 @@ describe('pgrun improvements', () => {
 
   describe('execution based on file type', () => {
     const mockSpawn = vi.mocked(spawn);
-    
+
     beforeEach(() => {
       mockSpawn.mockImplementation(() => {
         const child = {
@@ -124,8 +114,8 @@ describe('pgrun improvements', () => {
           stdin: null,
           pid: 12345,
           kill: vi.fn(),
-        } as any;
-        return child;
+        };
+        return child as ReturnType<typeof spawn>;
       });
     });
 
@@ -134,7 +124,7 @@ describe('pgrun improvements', () => {
         const ext = binaryPath.toLowerCase();
         let command: string;
         let commandArgs: string[];
-        
+
         if (ext.endsWith('.js') || ext.endsWith('.mjs')) {
           command = 'node';
           commandArgs = [binaryPath, ...args];
@@ -142,17 +132,15 @@ describe('pgrun improvements', () => {
           command = binaryPath;
           commandArgs = args;
         }
-        
+
         spawn(command, commandArgs, { stdio: 'inherit' });
       };
-      
+
       executeTarget('/path/to/app.js', ['--arg1', '--arg2']);
-      
-      expect(mockSpawn).toHaveBeenCalledWith(
-        'node',
-        ['/path/to/app.js', '--arg1', '--arg2'],
-        { stdio: 'inherit' }
-      );
+
+      expect(mockSpawn).toHaveBeenCalledWith('node', ['/path/to/app.js', '--arg1', '--arg2'], {
+        stdio: 'inherit',
+      });
     });
 
     it('should execute .py files with python', () => {
@@ -160,7 +148,7 @@ describe('pgrun improvements', () => {
         const ext = binaryPath.toLowerCase();
         let command: string;
         let commandArgs: string[];
-        
+
         if (ext.endsWith('.py')) {
           command = 'python';
           commandArgs = [binaryPath, ...args];
@@ -168,17 +156,15 @@ describe('pgrun improvements', () => {
           command = binaryPath;
           commandArgs = args;
         }
-        
+
         spawn(command, commandArgs, { stdio: 'inherit' });
       };
-      
+
       executeTarget('/path/to/script.py', ['--help']);
-      
-      expect(mockSpawn).toHaveBeenCalledWith(
-        'python',
-        ['/path/to/script.py', '--help'],
-        { stdio: 'inherit' }
-      );
+
+      expect(mockSpawn).toHaveBeenCalledWith('python', ['/path/to/script.py', '--help'], {
+        stdio: 'inherit',
+      });
     });
 
     it('should execute .sh files with sh', () => {
@@ -186,7 +172,7 @@ describe('pgrun improvements', () => {
         const ext = binaryPath.toLowerCase();
         let command: string;
         let commandArgs: string[];
-        
+
         if (ext.endsWith('.sh')) {
           command = 'sh';
           commandArgs = [binaryPath, ...args];
@@ -194,17 +180,15 @@ describe('pgrun improvements', () => {
           command = binaryPath;
           commandArgs = args;
         }
-        
+
         spawn(command, commandArgs, { stdio: 'inherit' });
       };
-      
+
       executeTarget('/path/to/script.sh', ['-v']);
-      
-      expect(mockSpawn).toHaveBeenCalledWith(
-        'sh',
-        ['/path/to/script.sh', '-v'],
-        { stdio: 'inherit' }
-      );
+
+      expect(mockSpawn).toHaveBeenCalledWith('sh', ['/path/to/script.sh', '-v'], {
+        stdio: 'inherit',
+      });
     });
 
     it('should execute binary files directly', () => {
@@ -212,7 +196,7 @@ describe('pgrun improvements', () => {
         const ext = binaryPath.toLowerCase();
         let command: string;
         let commandArgs: string[];
-        
+
         if (ext.endsWith('.js') || ext.endsWith('.py') || ext.endsWith('.sh')) {
           command = 'node'; // Won't match
           commandArgs = [binaryPath, ...args];
@@ -220,29 +204,27 @@ describe('pgrun improvements', () => {
           command = binaryPath;
           commandArgs = args;
         }
-        
+
         spawn(command, commandArgs, { stdio: 'inherit' });
       };
-      
+
       executeTarget('/path/to/binary', ['run', '--fast']);
-      
-      expect(mockSpawn).toHaveBeenCalledWith(
-        '/path/to/binary',
-        ['run', '--fast'],
-        { stdio: 'inherit' }
-      );
+
+      expect(mockSpawn).toHaveBeenCalledWith('/path/to/binary', ['run', '--fast'], {
+        stdio: 'inherit',
+      });
     });
   });
 
   describe('status handling', () => {
     it('should handle unknown status gracefully', async () => {
       vi.mocked(existsSync).mockReturnValue(false); // No state file
-      
+
       const getBuildStatus = async () => {
         if (!existsSync('')) return 'unknown';
         return 'success';
       };
-      
+
       const status = await getBuildStatus();
       expect(status).toBe('unknown');
     });
@@ -251,21 +233,21 @@ describe('pgrun improvements', () => {
       const failedState = {
         ...mockState,
         lastBuild: {
-          ...mockState.lastBuild!,
+          ...(mockState.lastBuild || { timestamp: '2024-01-01T00:00:00Z', status: 'success' }),
           status: 'failure' as const,
         },
       };
-      
+
       vi.mocked(existsSync).mockReturnValue(true);
       vi.mocked(FileSystemUtils.readJsonFileStrict).mockReturnValue(failedState);
-      
+
       const getBuildStatus = async () => {
         const state = FileSystemUtils.readJsonFileStrict<PoltergeistState>('');
         if (!state) return 'unknown';
         if (state.lastBuild?.status === 'failure') return 'failed';
         return 'unknown';
       };
-      
+
       const status = await getBuildStatus();
       expect(status).toBe('failed');
     });

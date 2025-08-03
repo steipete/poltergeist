@@ -325,23 +325,31 @@ export class WatchmanConfigManager {
     // Convert *.ext to **/*.ext for recursive matching (but not **/*.ext)
     if (/^\*\.[a-zA-Z0-9]+$/.test(pattern)) {
       normalized = `**/${pattern}`;
-      this.logger.debug(`Normalized pattern "${pattern}" to "${normalized}" for recursive matching`);
+      this.logger.debug(
+        `Normalized pattern "${pattern}" to "${normalized}" for recursive matching`
+      );
     }
     // Convert ./*.ext to **/*.ext for better matching
     else if (/^\.\/\*\.[a-zA-Z0-9]+$/.test(pattern)) {
       normalized = `**/*${pattern.substring(3)}`;
-      this.logger.debug(`Normalized pattern "${pattern}" to "${normalized}" for recursive matching`);
+      this.logger.debug(
+        `Normalized pattern "${pattern}" to "${normalized}" for recursive matching`
+      );
     }
     // Convert somedir/*.ext to somedir/**/*.ext (but not patterns already containing **)
     else if (/^[^/]+\/\*\.[a-zA-Z0-9]+$/.test(pattern) && !pattern.includes('**')) {
       const parts = pattern.split('/');
       normalized = `${parts[0]}/**/${parts[1]}`;
-      this.logger.debug(`Normalized pattern "${pattern}" to "${normalized}" for recursive matching`);
+      this.logger.debug(
+        `Normalized pattern "${pattern}" to "${normalized}" for recursive matching`
+      );
     }
     // Remove trailing slash
     else if (pattern.endsWith('/')) {
       normalized = `${pattern.slice(0, -1)}/**`;
-      this.logger.debug(`Normalized pattern "${pattern}" to "${normalized}" (removed trailing slash)`);
+      this.logger.debug(
+        `Normalized pattern "${pattern}" to "${normalized}" (removed trailing slash)`
+      );
     }
 
     return normalized;

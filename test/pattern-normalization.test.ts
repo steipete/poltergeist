@@ -1,20 +1,12 @@
-import { describe, it, expect, beforeEach, vi } from 'vitest';
+import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { WatchmanConfigManager } from '../src/watchman-config.js';
-import type { PoltergeistConfig } from '../src/interfaces.js';
 import { createMockLogger } from './helpers.js';
 
 describe('Pattern Normalization', () => {
   let manager: WatchmanConfigManager;
-  let config: PoltergeistConfig;
-
   beforeEach(() => {
     const logger = createMockLogger();
     manager = new WatchmanConfigManager('/tmp/test-project', logger);
-    config = {
-      version: '1.0',
-      projectType: 'node',
-      targets: [],
-    };
   });
 
   describe('normalizeWatchPattern', () => {
@@ -62,12 +54,18 @@ describe('Pattern Normalization', () => {
     });
 
     it('should throw on empty pattern', () => {
-      expect(() => manager.normalizeWatchPattern('')).toThrow('Watch pattern must be a non-empty string');
+      expect(() => manager.normalizeWatchPattern('')).toThrow(
+        'Watch pattern must be a non-empty string'
+      );
     });
 
     it('should throw on non-string pattern', () => {
-      expect(() => manager.normalizeWatchPattern(null as any)).toThrow('Watch pattern must be a non-empty string');
-      expect(() => manager.normalizeWatchPattern(undefined as any)).toThrow('Watch pattern must be a non-empty string');
+      expect(() => manager.normalizeWatchPattern(null as unknown as string)).toThrow(
+        'Watch pattern must be a non-empty string'
+      );
+      expect(() => manager.normalizeWatchPattern(undefined as unknown as string)).toThrow(
+        'Watch pattern must be a non-empty string'
+      );
     });
   });
 
@@ -82,10 +80,10 @@ describe('Pattern Normalization', () => {
       const logger = createMockLogger();
       const warnSpy = vi.spyOn(logger, 'warn');
       const testManager = new WatchmanConfigManager('/tmp/test-project', logger);
-      
+
       testManager.validateWatchPattern('.git/**');
       expect(warnSpy).toHaveBeenCalledWith(expect.stringContaining('commonly excluded directory'));
-      
+
       testManager.validateWatchPattern('node_modules/**');
       expect(warnSpy).toHaveBeenCalledWith(expect.stringContaining('commonly excluded directory'));
     });

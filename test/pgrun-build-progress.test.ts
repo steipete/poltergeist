@@ -204,13 +204,13 @@ describe('pgrun Build Progress Detection', () => {
     it('should fail immediately with --no-wait when building', async () => {
       createTestBinary('dist/test-tool');
       const stateFile = createTestState('test-tool', 'building', true);
-      
+
       // Verify state file was created
       expect(existsSync(stateFile)).toBe(true);
-      
+
       try {
         const result = await runPgrun(['test-tool', '--no-wait']);
-        
+
         expect(result.stderr).toContain('❌ Build in progress and --no-wait specified');
         expect(result.exitCode).toBe(1);
       } catch (error) {
@@ -409,7 +409,7 @@ describe('pgrun Build Progress Detection', () => {
         },
       ]);
       createTestBinary('dist/test-tool');
-      
+
       // Create state with building status but no active process
       // This tests that we check lastBuild.status, not process.isActive
       createTestState('test-tool', 'building', false);
@@ -431,7 +431,7 @@ describe('pgrun Build Progress Detection', () => {
         },
       ]);
       createTestBinary('dist/test-tool');
-      
+
       // Create state with success status but active process
       // This tests that build status is based on lastBuild.status, not process state
       createTestState('test-tool', 'success', true);
