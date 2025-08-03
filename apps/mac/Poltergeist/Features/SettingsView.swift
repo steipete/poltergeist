@@ -1,9 +1,16 @@
+//
+//  SettingsView.swift
+//  Poltergeist
+//
+//  Created by Poltergeist on 2025.
+//
+
 import SwiftUI
 
 struct SettingsView: View {
     @ObservedObject var preferences = Preferences.shared
     @State private var selectedTab = "general"
-    
+
     var body: some View {
         TabView(selection: $selectedTab) {
             GeneralSettingsView()
@@ -11,13 +18,13 @@ struct SettingsView: View {
                     Label("General", systemImage: "gear")
                 }
                 .tag("general")
-            
+
             NotificationSettingsView()
                 .tabItem {
                     Label("Notifications", systemImage: "bell")
                 }
                 .tag("notifications")
-            
+
             AdvancedSettingsView()
                 .tabItem {
                     Label("Advanced", systemImage: "wrench.and.screwdriver")
@@ -30,7 +37,7 @@ struct SettingsView: View {
 
 struct GeneralSettingsView: View {
     @ObservedObject var preferences = Preferences.shared
-    
+
     var body: some View {
         Form {
             Section {
@@ -38,9 +45,9 @@ struct GeneralSettingsView: View {
                     .onChange(of: preferences.launchAtLogin) { oldValue, newValue in
                         LaunchAtLogin.shared.isEnabled = newValue
                     }
-                
+
                 Toggle("Show Build Time in Badges", isOn: $preferences.showBuildTimeInBadges)
-                
+
                 HStack {
                     Text("Status Check Interval:")
                     Picker("", selection: $preferences.statusCheckInterval) {
@@ -51,7 +58,7 @@ struct GeneralSettingsView: View {
                     }
                     .pickerStyle(.segmented)
                 }
-                
+
                 HStack {
                     Text("Auto-cleanup inactive projects after:")
                     Picker("", selection: $preferences.autoCleanupInactiveDays) {
@@ -70,26 +77,28 @@ struct GeneralSettingsView: View {
 
 struct NotificationSettingsView: View {
     @ObservedObject var preferences = Preferences.shared
-    
+
     var body: some View {
         Form {
             Section {
                 Toggle("Show Notifications", isOn: $preferences.showNotifications)
-                
+
                 Toggle("Only Notify on Build Failures", isOn: $preferences.notifyOnlyOnFailure)
                     .disabled(!preferences.showNotifications)
-                
+
                 Toggle("Play Sound", isOn: $preferences.soundEnabled)
                     .disabled(!preferences.showNotifications)
             }
-            
+
             Section {
                 Text("Notifications require permission from System Settings > Notifications")
                     .font(.caption)
                     .foregroundColor(.secondary)
-                
+
                 Button("Open System Settings") {
-                    if let url = URL(string: "x-apple.systempreferences:com.apple.preference.notifications") {
+                    if let url = URL(
+                        string: "x-apple.systempreferences:com.apple.preference.notifications")
+                    {
                         NSWorkspace.shared.open(url)
                     }
                 }
@@ -102,7 +111,7 @@ struct NotificationSettingsView: View {
 struct AdvancedSettingsView: View {
     @ObservedObject var preferences = Preferences.shared
     @State private var showingResetAlert = false
-    
+
     var body: some View {
         Form {
             Section {
@@ -111,23 +120,24 @@ struct AdvancedSettingsView: View {
                     Text("/tmp/poltergeist/")
                         .font(.system(.body, design: .monospaced))
                         .foregroundColor(.secondary)
-                    
+
                     Button("Show in Finder") {
-                        NSWorkspace.shared.selectFile(nil, inFileViewerRootedAtPath: "/tmp/poltergeist/")
+                        NSWorkspace.shared.selectFile(
+                            nil, inFileViewerRootedAtPath: "/tmp/poltergeist/")
                     }
                 }
-                
+
                 HStack {
                     Button("Clear Icon Cache") {
                         IconLoader.shared.clearCache()
                     }
-                    
+
                     Button("Clean Up All Inactive Projects") {
                         ProjectMonitor.shared.cleanupInactiveProjects()
                     }
                 }
             }
-            
+
             Section {
                 Button("Reset All Settings") {
                     showingResetAlert = true
@@ -137,7 +147,7 @@ struct AdvancedSettingsView: View {
         }
         .padding()
         .alert("Reset All Settings?", isPresented: $showingResetAlert) {
-            Button("Cancel", role: .cancel) { }
+            Button("Cancel", role: .cancel) {}
             Button("Reset", role: .destructive) {
                 preferences.reset()
             }

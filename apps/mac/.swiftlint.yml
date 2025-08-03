@@ -192,7 +192,7 @@ file_header:
                     \/\/ .*\.swift
                     \/\/ Poltergeist
                     \/\/
-                    \/\/ Created by .* on \d{1,2}\/\d{1,2}\/\d{4}\.
+                    \/\/ Created by .* on \d{4}\.
                     \/\/
 
 # Multiline arguments

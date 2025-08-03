@@ -1,3 +1,10 @@
+//
+//  NSMenuItem+Extensions.swift
+//  Poltergeist
+//
+//  Created by Poltergeist on 2025.
+//
+
 import AppKit
 
 extension NSMenuItem {

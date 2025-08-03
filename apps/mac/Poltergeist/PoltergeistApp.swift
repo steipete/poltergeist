@@ -1,11 +1,19 @@
-import SwiftUI
+//
+//  PoltergeistApp.swift
+//  Poltergeist
+//
+//  Created by Poltergeist on 2025.
+//
+
 import AppKit
+import SwiftUI
 import os.log
 
 @main
 struct PoltergeistApp: App {
-    @NSApplicationDelegateAdaptor(AppDelegate.self) var appDelegate
-    
+    @NSApplicationDelegateAdaptor(AppDelegate.self)
+    var appDelegate
+
     var body: some Scene {
         WindowGroup {
             EmptyView()
@@ -14,7 +22,7 @@ struct PoltergeistApp: App {
                     NSApp.windows.forEach { $0.close() }
                 }
         }
-        
+
         Settings {
             SettingsView()
         }
@@ -25,19 +33,18 @@ struct PoltergeistApp: App {
 final class AppDelegate: NSObject, NSApplicationDelegate {
     private let logger = Logger(subsystem: "com.poltergeist.monitor", category: "AppDelegate")
     private var statusBarController: StatusBarController?
-    
+
     func applicationDidFinishLaunching(_ notification: Notification) {
         logger.info("Poltergeist Monitor starting...")
-        
+
         // Initialize the status bar controller
         statusBarController = StatusBarController()
-        
+
         // Hide dock icon
         NSApp.setActivationPolicy(.accessory)
     }
-    
+
     func applicationShouldTerminateAfterLastWindowClosed(_ sender: NSApplication) -> Bool {
-        return false
+        false
     }
 }
-

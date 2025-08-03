@@ -1,11 +1,18 @@
+import Combine
+//
+//  Preferences.swift
+//  Poltergeist
+//
+//  Created by Poltergeist on 2025.
+//
+
 import Foundation
 import SwiftUI
-import Combine
 
 @MainActor
 class Preferences: ObservableObject {
     static let shared = Preferences()
-    
+
     @AppStorage("showNotifications") var showNotifications: Bool = true {
         didSet { objectWillChange.send() }
     }
@@ -27,9 +34,9 @@ class Preferences: ObservableObject {
     @AppStorage("showBuildTimeInBadges") var showBuildTimeInBadges: Bool = true {
         didSet { objectWillChange.send() }
     }
-    
+
     private init() {}
-    
+
     func reset() {
         showNotifications = true
         notifyOnlyOnFailure = false
