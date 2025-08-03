@@ -3,12 +3,10 @@
   
   # Poltergeist
 
-  [![CI](https://github.com/steipete/poltergeist/actions/workflows/ci.yml/badge.svg)](https://github.com/steipete/poltergeist/actions/workflows/ci.yml)
-  [![Release](https://github.com/steipete/poltergeist/actions/workflows/release.yml/badge.svg)](https://github.com/steipete/poltergeist/actions/workflows/release.yml)
-  [![Coverage](https://github.com/steipete/poltergeist/actions/workflows/coverage.yml/badge.svg)](https://github.com/steipete/poltergeist/actions/workflows/coverage.yml)
-  [![Node.js Version](https://img.shields.io/node/v/@steipete/poltergeist)](https://nodejs.org)
-  [![npm version](https://img.shields.io/npm/v/@steipete/poltergeist)](https://www.npmjs.com/package/@steipete/poltergeist)
-  [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
+  <a href="https://nodejs.org"><img src="https://img.shields.io/badge/Node.js-20%2B-339933?style=for-the-badge&logo=node.js&logoColor=white" alt="Node.js 20+"></a>
+  <a href="https://github.com/steipete/poltergeist"><img src="https://img.shields.io/badge/platforms-macOS%20%7C%20Linux%20%7C%20Windows-blue?style=for-the-badge" alt="Platforms"></a>
+  <a href="LICENSE"><img src="https://img.shields.io/badge/license-MIT-green?style=for-the-badge" alt="MIT License"></a>
+  <a href="https://github.com/steipete/poltergeist/actions/workflows/ci.yml"><img src="https://img.shields.io/badge/tests-passing-brightgreen?style=for-the-badge" alt="Tests"></a>
 
   **The ghost that keeps your builds fresh** 👻  
   A universal file watcher with auto-rebuild for any language or build system
