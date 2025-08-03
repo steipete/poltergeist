@@ -268,7 +268,7 @@ export class PriorityEngine {
   }
 
   /**
-   * Matches file paths against glob patterns (e.g., "src/**/*.ts").
+   * Matches file paths against glob patterns (e.g., "src/**\/*.ts").
    * Implements minimatch-style logic with support for:
    * - ** : matches zero or more path segments
    * - *  : matches any characters within a segment
