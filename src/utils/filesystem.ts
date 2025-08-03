@@ -33,8 +33,8 @@ export class FileSystemUtils {
    * Get full path to state file for a target
    */
   public static getStateFilePath(projectRoot: string, targetName: string): string {
-    const fileName = this.generateStateFileName(projectRoot, targetName);
-    return join(this.getStateDirectory(), fileName);
+    const fileName = FileSystemUtils.generateStateFileName(projectRoot, targetName);
+    return join(FileSystemUtils.getStateDirectory(), fileName);
   }
 
   /**
@@ -94,13 +94,13 @@ export class FileSystemUtils {
    * @param fileName File name to search for
    * @returns Full path to found file, or null if not found
    */
-  public static findFileUpTree(startDir: string = process.cwd(), fileName: string): string | null {
+  public static findFileUpTree(fileName: string, startDir: string = process.cwd()): string | null {
     let currentDir = resolvePath(startDir);
     const root = resolvePath('/');
 
     while (currentDir !== root) {
       const filePath = resolvePath(currentDir, fileName);
-      
+
       if (existsSync(filePath)) {
         return filePath;
       }
@@ -115,7 +115,7 @@ export class FileSystemUtils {
    * Get project root directory containing the configuration file
    */
   public static findProjectRoot(startDir: string = process.cwd()): string | null {
-    const configPath = this.findFileUpTree(startDir, 'poltergeist.config.json');
+    const configPath = FileSystemUtils.findFileUpTree('poltergeist.config.json', startDir);
     return configPath ? dirname(configPath) : null;
   }
 }

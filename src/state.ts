@@ -6,8 +6,7 @@ import type { IStateManager } from './interfaces.js';
 import type { Logger } from './logger.js';
 import type { BuildStatus, Target } from './types.js';
 import { FileSystemUtils } from './utils/filesystem.js';
-import { ProcessManager, type ProcessInfo } from './utils/process-manager.js';
-
+import { type ProcessInfo, ProcessManager } from './utils/process-manager.js';
 
 // Re-export ProcessInfo for compatibility
 export type { ProcessInfo } from './utils/process-manager.js';
@@ -55,7 +54,6 @@ export class StateManager implements IStateManager {
       mkdirSync(this.stateDir, { recursive: true });
     }
   }
-
 
   /**
    * Get full path to state file

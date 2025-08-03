@@ -515,79 +515,315 @@ Target: my-cli
 
 ## Smart Execution with pgrun
 
-Never run stale or failed builds again! The `pgrun` command is a smart wrapper that ensures you always execute fresh binaries.
+Never run stale or failed builds again! The `pgrun` command is a smart wrapper that ensures you always execute fresh binaries. It's like having a build-aware shell that prevents you from running outdated code.
 
-### Basic Usage
+### The Problem pgrun Solves
 
-Instead of running your executables directly:
+Without pgrun, you might accidentally:
 ```bash
-# Instead of this (might run stale/failed builds):
-./dist/my-tool --args
+# 😱 These could run stale/broken builds:
+./dist/my-tool deploy --production   # Disaster if using old code!
+./bin/myapp --critical-operation     # Fails silently with stale binary
+yarn start                           # Might serve old frontend build
+```
 
-# Use this (always fresh and validated):
-pgrun my-tool --args
+### The pgrun Solution
+
+```bash
+# ✅ These always use fresh, validated builds:
+pgrun my-tool deploy --production    # Waits for build, guarantees fresh code
+pgrun myapp --critical-operation     # Fails fast if build broken
+pgrun frontend-dev                   # Only serves latest build
 ```
 
 ### How It Works
 
-`pgrun` automatically:
-- ✅ **Checks build status** before execution
-- ⏳ **Waits for in-progress builds** with progress indication  
-- ❌ **Fails fast** on build errors with clear messages
-- 🚀 **Executes only fresh binaries** when builds succeed
-- 📦 **Passes through all arguments** transparently
+`pgrun` acts as an intelligent build-aware executor:
 
-### Usage Examples
+1. **🔍 State Discovery**: Finds your project's poltergeist configuration
+2. **📊 Build Status Check**: Reads current build state from `/tmp/poltergeist/`
+3. **⏳ Smart Waiting**: Waits for in-progress builds with live progress
+4. **❌ Fail Fast**: Immediately exits on build failures with clear messages
+5. **🚀 Fresh Execution**: Only runs executables when builds are confirmed fresh
+6. **📦 Transparent Proxy**: Passes all arguments through seamlessly
+
+### Real-World Examples
+
+#### Development Workflow
+```bash
+# Traditional workflow (error-prone):
+# 1. Edit code
+# 2. Wait for build... (did it finish? succeed?)
+# 3. ./my-tool test  # Might run old version!
+
+# pgrun workflow (bulletproof):
+# 1. Edit code  
+# 2. pgrun my-tool test  # Automatically waits for fresh build
+```
+
+#### CI/CD Integration
+```bash
+# In your deployment script:
+pgrun my-api deploy --production
+
+# If build failed, deployment stops immediately
+# If build is fresh, deployment uses latest code
+# If build is in progress, waits automatically
+```
+
+#### Development Servers
+```bash
+# Start dev server with fresh build
+pgrun frontend-dev --port 3000
+
+# API server with latest backend
+pgrun api-server --env development
+```
+
+### Command Usage
 
 ```bash
-# Run a tool (waits if building, fails if build failed)
-pgrun my-cli compile --verbose
+pgrun <target-name> [target-arguments...]
 
-# Force run even if build failed
-pgrun my-cli --force test
-
-# Don't wait for builds (fail immediately if building)
-pgrun my-cli --no-wait status
-
-# Verbose output showing build status
-pgrun my-cli --verbose --help
-
-# Custom timeout for build completion (default: 30 seconds)
-pgrun my-cli --timeout 60000 deploy
+# Target name matches your poltergeist.config.json targets
+# All arguments after target name are passed through
 ```
 
 ### Command Options
 
 ```bash
-pgrun <target> [args...]
-
 Options:
   -t, --timeout <ms>    Build wait timeout in milliseconds (default: 30000)
-  -f, --force          Run even if build failed
-  -n, --no-wait        Don't wait for builds, fail if building  
-  -v, --verbose        Show detailed status information
-  -h, --help           Display help
+  -f, --force          Run even if build failed (bypass safety check)
+  -n, --no-wait        Don't wait for builds, fail immediately if building  
+  -v, --verbose        Show detailed status and progress information
+  -h, --help           Display help message
+
+Examples:
+  pgrun my-cli --help              # Show help for my-cli tool
+  pgrun api --force deploy         # Force deploy even if build failed
+  pgrun frontend --timeout 60000   # Wait up to 60 seconds for build
+  pgrun worker --no-wait           # Fail immediately if build in progress
 ```
 
-### Integration Tips
+### Status Messages
 
-Add to your shell aliases for seamless workflow:
+pgrun provides clear feedback about what's happening:
+
+```bash
+# Build in progress:
+🔨 Waiting for build to complete... (8s elapsed)
+⏳ Still building... (20s elapsed, max 10s remaining)
+
+# Build failures:
+❌ Build failed! Cannot execute stale binary.
+💡 Run 'poltergeist logs' to see build errors
+💡 Fix the build errors and try again
+
+# Success:
+✅ Build completed successfully! Executing fresh binary...
+[your program output here]
+```
+
+### Integration Patterns
+
+#### Shell Aliases
+Create convenient aliases for your tools:
 ```bash
 # In your .bashrc/.zshrc
-alias build-and-run="pgrun my-tool"
-alias dev="pgrun my-cli --dev"
+alias myapp="pgrun my-app-target"
+alias dev="pgrun dev-server --watch"
+alias test="pgrun test-runner"
+alias deploy="pgrun deployment-tool"
+
+# Now you can just type:
+myapp --version    # Always fresh!
+dev               # Waits for build automatically
+test --verbose    # Runs latest test binary
 ```
 
-Or use in npm scripts:
+#### npm/yarn Scripts
+Integrate with package.json scripts:
 ```json
 {
   "scripts": {
-    "dev": "pgrun my-tool --dev-mode",
-    "test": "pgrun my-tool test",
-    "deploy": "pgrun my-tool deploy --production"
+    "start": "pgrun web-server --port 3000",
+    "dev": "pgrun dev-server --hot-reload",
+    "test": "pgrun test-suite --coverage",
+    "build": "poltergeist haunt",
+    "deploy:staging": "pgrun deploy-tool --env staging",
+    "deploy:prod": "pgrun deploy-tool --env production"
   }
 }
 ```
+
+#### IDE Integration
+Configure your IDE to use pgrun for run configurations:
+```bash
+# VS Code tasks.json
+{
+  "version": "2.0.0", 
+  "tasks": [
+    {
+      "label": "Run with pgrun",
+      "type": "shell",
+      "command": "pgrun",
+      "args": ["my-app", "${input:args}"],
+      "group": "build"
+    }
+  ]
+}
+```
+
+#### Docker Development
+Use with containerized development:
+```bash
+# Dockerfile.dev
+FROM node:20
+# ... setup ...
+CMD ["pgrun", "api-server", "--docker-mode"]
+
+# docker-compose.yml
+services:
+  api:
+    build: .
+    command: pgrun api-server --env development
+    volumes:
+      - ./:/app
+```
+
+### Configuration Examples
+
+#### Multi-Service Project
+```json
+{
+  "targets": [
+    {
+      "name": "api",
+      "type": "executable", 
+      "buildCommand": "go build -o ./bin/api ./cmd/api",
+      "outputPath": "./bin/api"
+    },
+    {
+      "name": "worker",
+      "type": "executable",
+      "buildCommand": "go build -o ./bin/worker ./cmd/worker", 
+      "outputPath": "./bin/worker"
+    },
+    {
+      "name": "frontend",
+      "type": "executable",
+      "buildCommand": "npm run build",
+      "outputPath": "./dist"
+    }
+  ]
+}
+```
+
+Usage:
+```bash
+pgrun api --port 8080        # Runs fresh API server
+pgrun worker --queue jobs    # Runs fresh worker process  
+pgrun frontend --serve       # Serves fresh frontend build
+```
+
+#### Testing Workflow
+```json
+{
+  "targets": [
+    {
+      "name": "test-runner",
+      "type": "executable",
+      "buildCommand": "cargo build --bin test-runner",
+      "outputPath": "./target/debug/test-runner"
+    },
+    {
+      "name": "integration-tests", 
+      "type": "test",
+      "testCommand": "cargo test --test integration",
+      "buildCommand": "cargo build --tests"
+    }
+  ]
+}
+```
+
+Usage:
+```bash
+pgrun test-runner unit               # Run unit tests with fresh binary
+pgrun test-runner integration       # Run integration tests  
+pgrun test-runner --coverage        # Generate coverage with latest code
+```
+
+### Troubleshooting
+
+#### Build Timeout
+```bash
+# Increase timeout for slow builds
+pgrun my-app --timeout 120000   # 2 minutes
+
+# Or set in environment
+export PGRUN_DEFAULT_TIMEOUT=60000
+pgrun my-app
+```
+
+#### Force Running Failed Builds
+```bash
+# Sometimes you need to run despite build failures
+pgrun my-app --force --debug-mode
+
+# Useful for:
+# - Debugging build issues
+# - Running partially working builds
+# - Emergency deployments (use with caution!)
+```
+
+#### Configuration Issues
+```bash
+# Check if poltergeist config is found
+pgrun --verbose my-app 2>&1 | grep "Config"
+
+# Verify target exists
+poltergeist list
+
+# Check build status
+poltergeist status --target my-app
+```
+
+### Advanced Use Cases
+
+#### Multi-Platform Builds
+```bash
+# Build different versions for different platforms
+pgrun my-app-linux --platform linux
+pgrun my-app-windows --platform windows
+pgrun my-app-macos --platform darwin
+```
+
+#### Environment-Specific Builds
+```bash
+# Development vs production builds
+pgrun my-app-dev --env development
+pgrun my-app-prod --env production --optimized
+```
+
+#### Parallel Development
+```bash
+# Multiple developers can use pgrun safely
+# Each waits for their own builds, no conflicts
+pgrun feature-branch-build --feature my-feature
+pgrun main-branch-build --branch main
+```
+
+#### Why pgrun is Essential
+
+1. **🛡️ Safety First**: Prevents running stale code in production
+2. **⚡ Developer Efficiency**: No more manual build checking
+3. **🔄 Seamless Workflow**: Transparent integration with existing scripts
+4. **📊 Build Awareness**: Always know your build status
+5. **🚀 Team Coordination**: Consistent behavior across team members
+6. **🐛 Debug Friendly**: Clear error messages and status reporting
+
+> **Pro Tip**: Make pgrun your default way to run any built executable. Your future self will thank you when you avoid running a stale build in production!
 
 ## Examples
 

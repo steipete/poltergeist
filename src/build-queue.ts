@@ -5,6 +5,7 @@ import type { Logger } from './logger.js';
 import type { BuildNotifier } from './notifier.js';
 import type { PriorityEngine } from './priority-engine.js';
 import type { BuildRequest, BuildSchedulingConfig, BuildStatus, Target } from './types.js';
+import { BuildStatusManager } from './utils/build-status-manager.js';
 
 interface QueuedBuild extends BuildRequest {
   builder: BaseBuilder;
@@ -100,7 +101,7 @@ export class IntelligentBuildQueue {
   private async scheduleTargetBuild(target: Target, triggeringFiles: string[]): Promise<void> {
     const targetName = target.name;
 
-    // Concurrent build protection: if target already building, 
+    // Concurrent build protection: if target already building,
     // mark for rebuild instead of queuing duplicate
     if (this.runningBuilds.has(targetName)) {
       this.pendingRebuilds.add(targetName);
@@ -249,20 +250,14 @@ export class IntelligentBuildQueue {
       const target = this.targets.get(targetName);
       const builder = this.targetBuilders.get(targetName);
 
-      if (result.status === 'success') {
-        const duration = result.duration ? `${(result.duration / 1000).toFixed(1)}s` : '';
+      if (BuildStatusManager.isSuccess(result)) {
         const outputInfo = builder?.getOutputInfo();
-        const message = outputInfo
-          ? `Built: ${outputInfo}${duration ? ` in ${duration}` : ''}`
-          : `Build completed${duration ? ` in ${duration}` : ''}`;
+        const message = BuildStatusManager.formatNotificationMessage(result, outputInfo);
 
         await this.notifier.notifyBuildComplete(`${targetName} Built`, message, target?.icon);
-      } else if (result.status === 'failure') {
-        await this.notifier.notifyBuildFailed(
-          `${targetName} Failed`,
-          result.errorSummary || result.error || 'Build failed',
-          target?.icon
-        );
+      } else if (BuildStatusManager.isFailure(result)) {
+        const errorMessage = BuildStatusManager.getErrorMessage(result);
+        await this.notifier.notifyBuildFailed(`${targetName} Failed`, errorMessage, target?.icon);
       }
     }
 
@@ -379,7 +374,7 @@ export class IntelligentBuildQueue {
   private updateStats(result: BuildStatus, _startTime: number): void {
     this.queueStats.totalBuilds++;
 
-    if (result.status === 'success') {
+    if (BuildStatusManager.isSuccess(result)) {
       this.queueStats.successfulBuilds++;
     } else {
       this.queueStats.failedBuilds++;
@@ -388,7 +383,7 @@ export class IntelligentBuildQueue {
     if (result.duration) {
       // Update rolling average using exponential moving average
       // α=0.1 gives 90% weight to historical data, 10% to new measurement
-      const alpha = 0.1; 
+      const alpha = 0.1;
       this.queueStats.avgBuildTime =
         this.queueStats.avgBuildTime * (1 - alpha) + result.duration * alpha;
     }

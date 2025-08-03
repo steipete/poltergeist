@@ -3,7 +3,7 @@
  * Consolidates process lifecycle, PID management, heartbeat, and inter-process coordination
  */
 
-import { spawn, type ChildProcess } from 'child_process';
+import { type ChildProcess, type SpawnOptions, spawn } from 'child_process';
 import { hostname } from 'os';
 import type { Logger } from '../logger.js';
 
@@ -36,7 +36,7 @@ export class ProcessManager {
   private managedProcesses: Map<string, ManagedProcess> = new Map();
   private shutdownHandlersRegistered = false;
   private logger?: Logger;
-  
+
   public readonly options: Required<ProcessOptions>;
 
   constructor(
@@ -100,7 +100,7 @@ export class ProcessManager {
     const lastHeartbeat = new Date(processInfo.lastHeartbeat);
     const now = new Date();
     const timeSinceHeartbeat = now.getTime() - lastHeartbeat.getTime();
-    
+
     return timeSinceHeartbeat > this.options.staleThreshold;
   }
 
@@ -148,7 +148,7 @@ export class ProcessManager {
     id: string,
     command: string,
     args: string[] = [],
-    options: any = {}
+    options: SpawnOptions = {}
   ): Promise<ManagedProcess> {
     return new Promise((resolve, reject) => {
       const childProcess = spawn(command, args, {
@@ -229,7 +229,7 @@ export class ProcessManager {
 
     const gracefulShutdown = async (signal: string) => {
       this.logger?.info(`Received ${signal}, shutting down gracefully...`);
-      
+
       try {
         await cleanup();
         await this.cleanupAllProcesses();
@@ -266,8 +266,8 @@ export class ProcessManager {
    * Clean up all managed processes
    */
   public async cleanupAllProcesses(): Promise<void> {
-    const cleanupPromises = Array.from(this.managedProcesses.values()).map(
-      (managed) => managed.cleanup()
+    const cleanupPromises = Array.from(this.managedProcesses.values()).map((managed) =>
+      managed.cleanup()
     );
 
     await Promise.allSettled(cleanupPromises);
@@ -296,7 +296,7 @@ export class ProcessManager {
   public formatHeartbeatAge(processInfo: ProcessInfo): string {
     const ageMs = this.getHeartbeatAge(processInfo);
     const seconds = Math.floor(ageMs / 1000);
-    
+
     if (seconds < 60) {
       return `${seconds}s ago`;
     } else if (seconds < 3600) {

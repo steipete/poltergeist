@@ -8,6 +8,7 @@ import type {
   Target,
   TargetPriority,
 } from './types.js';
+import { BuildStatusManager } from './utils/build-status-manager.js';
 
 export class PriorityEngine {
   private config: BuildSchedulingConfig;
@@ -33,7 +34,7 @@ export class PriorityEngine {
    * - Focus detection (developer attention patterns over time)
    * - Build success rate (reliability factor 0.5-1.0x)
    * - Build time penalties (for serial execution mode)
-   * 
+   *
    * Higher scores indicate higher priority in the build queue.
    * Score typically ranges from 0-500+ depending on activity.
    */
@@ -160,7 +161,7 @@ export class PriorityEngine {
     }
 
     metrics.buildAttempts++;
-    if (buildStatus.status === 'success') {
+    if (BuildStatusManager.isSuccess(buildStatus)) {
       metrics.buildSuccesses++;
     }
 
@@ -197,7 +198,7 @@ export class PriorityEngine {
    * - Direct changes: 100 points each * decay_factor
    * - Recency bonus: 50 points * decay_factor
    * - Current files: 25 points each (no decay)
-   * 
+   *
    * Decay factor = e^(-age_ms / decay_time) ensures recent changes
    * have higher priority than older ones.
    */
@@ -235,7 +236,7 @@ export class PriorityEngine {
    * Calculates focus multiplier based on developer attention patterns.
    * Analyzes what percentage of recent changes affected this target:
    * - 80%+ activity: 2.0x (strong focus)
-   * - 50%+ activity: 1.5x (moderate focus) 
+   * - 50%+ activity: 1.5x (moderate focus)
    * - 30%+ activity: 1.2x (weak focus)
    * - <30% activity: 1.0x (no focus)
    */
@@ -343,7 +344,7 @@ export class PriorityEngine {
   /**
    * Classifies file changes to determine impact weight:
    * - direct: affects single target (weight: 1.0)
-   * - shared: affects multiple targets (weight: 0.7) 
+   * - shared: affects multiple targets (weight: 0.7)
    * - generated: build artifacts, auto-generated files (weight: 0.3)
    */
   private classifyChange(

@@ -15,6 +15,7 @@ import { BuildNotifier } from './notifier.js';
 import { PriorityEngine } from './priority-engine.js';
 import { type PoltergeistState, StateManager } from './state.js';
 import type { BuildSchedulingConfig, BuildStatus, PoltergeistConfig, Target } from './types.js';
+import { BuildStatusManager } from './utils/build-status-manager.js';
 import { ProcessManager } from './utils/process-manager.js';
 import { WatchmanClient } from './watchman.js';
 import { WatchmanConfigManager } from './watchman-config.js';
@@ -360,22 +361,20 @@ export class Poltergeist {
 
       // Send notification
       if (this.notifier) {
-        if (status.status === 'success') {
-          const duration = status.duration ? `${(status.duration / 1000).toFixed(1)}s` : '';
+        if (BuildStatusManager.isSuccess(status)) {
           const outputInfo = state.builder.getOutputInfo();
-          const message = outputInfo
-            ? `Built: ${outputInfo}${duration ? ` in ${duration}` : ''}`
-            : `Build completed${duration ? ` in ${duration}` : ''}`;
+          const message = BuildStatusManager.formatNotificationMessage(status, outputInfo);
 
           await this.notifier.notifyBuildComplete(
             `${targetName} Built`,
             message,
             state.target.icon
           );
-        } else if (status.status === 'failure') {
+        } else if (BuildStatusManager.isFailure(status)) {
+          const errorMessage = BuildStatusManager.getErrorMessage(status);
           await this.notifier.notifyBuildFailed(
             `${targetName} Failed`,
-            status.errorSummary || status.error || 'Build failed',
+            errorMessage,
             state.target.icon
           );
         }

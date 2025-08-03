@@ -15,13 +15,11 @@ import { spawn } from 'child_process';
 import { Command } from 'commander';
 import { existsSync } from 'fs';
 import { resolve as resolvePath } from 'path';
+import type { PoltergeistState } from './state.js';
 import type { Target } from './types.js';
-import { FileSystemUtils } from './utils/filesystem.js';
+import { BuildStatusManager } from './utils/build-status-manager.js';
 import { ConfigurationManager } from './utils/config-manager.js';
-
-
-
-
+import { FileSystemUtils } from './utils/filesystem.js';
 
 /**
  * Gets build status for a target by reading state file directly
@@ -37,7 +35,7 @@ async function getBuildStatus(
       return 'unknown';
     }
 
-    const state = FileSystemUtils.readJsonFileStrict<any>(stateFilePath);
+    const state = FileSystemUtils.readJsonFileStrict<PoltergeistState>(stateFilePath);
 
     if (!state) {
       return 'unknown';
@@ -48,13 +46,15 @@ async function getBuildStatus(
       return 'building';
     }
 
-    // Check build status
-    if (state.lastBuild?.status === 'failed') {
-      return 'failed';
-    }
+    // Check build status using BuildStatusManager
+    if (state.lastBuild) {
+      if (BuildStatusManager.isFailure(state.lastBuild)) {
+        return 'failed';
+      }
 
-    if (state.lastBuild?.status === 'success') {
-      return 'success';
+      if (BuildStatusManager.isSuccess(state.lastBuild)) {
+        return 'success';
+      }
     }
 
     return 'unknown';
@@ -198,8 +198,7 @@ async function runWrapper(
     const target = ConfigurationManager.findTarget(config, targetName);
     if (!target) {
       console.error(chalk.red(`❌ Target '${targetName}' not found in config`));
-      const availableTargets = ConfigurationManager.getExecutableTargets(config)
-        .map((t) => t.name);
+      const availableTargets = ConfigurationManager.getExecutableTargets(config).map((t) => t.name);
 
       if (availableTargets.length > 0) {
         console.error(chalk.yellow('Available executable targets:'));

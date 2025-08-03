@@ -3,6 +3,7 @@ import { type ChildProcess, execSync, spawn } from 'child_process';
 import type { Logger } from '../logger.js';
 import type { StateManager } from '../state.js';
 import type { BuildStatus, Target } from '../types.js';
+import { BuildStatusManager } from '../utils/build-status-manager.js';
 
 export abstract class BaseBuilder<T extends Target = Target> {
   protected target: T;
@@ -24,28 +25,24 @@ export abstract class BaseBuilder<T extends Target = Target> {
     // Check if already building using state manager
     if (await this.stateManager.isLocked(this.target.name)) {
       this.logger.warn(`[${this.target.name}] Build already in progress, skipping`);
-      return {
-        targetName: this.target.name,
-        status: 'building',
-        timestamp: new Date().toISOString(),
-      };
+      return BuildStatusManager.createBuildingStatus(this.target.name, {
+        gitHash: this.getGitHash(),
+        builder: this.getBuilderName(),
+      });
     }
 
     const startTime = Date.now();
-    const status: BuildStatus = {
-      targetName: this.target.name,
-      status: 'building',
-      timestamp: new Date().toISOString(),
+    const buildingStatus = BuildStatusManager.createBuildingStatus(this.target.name, {
       gitHash: this.getGitHash(),
       builder: this.getBuilderName(),
-    };
+    });
 
     try {
       // Initialize state for this target
       await this.stateManager.initializeState(this.target);
 
       // Update build status to building
-      await this.stateManager.updateBuildStatus(this.target.name, status);
+      await this.stateManager.updateBuildStatus(this.target.name, buildingStatus);
 
       // Pre-build hook
       await this.preBuild(changedFiles);
@@ -56,12 +53,16 @@ export abstract class BaseBuilder<T extends Target = Target> {
       // Post-build hook
       await this.postBuild();
 
-      // Update status to success
-      status.status = 'success';
-      status.duration = Date.now() - startTime;
-      status.buildTime = status.duration / 1000; // seconds
+      // Create success metrics and status
+      const metrics = BuildStatusManager.createMetrics(startTime, Date.now());
+      const successStatus = BuildStatusManager.createSuccessStatus(this.target.name, metrics, {
+        gitHash: this.getGitHash(),
+        builder: this.getBuilderName(),
+      });
 
-      this.logger.info(`[${this.target.name}] Build completed in ${status.duration}ms`);
+      this.logger.info(
+        `[${this.target.name}] Build completed in ${BuildStatusManager.formatDuration(metrics.duration)}`
+      );
 
       // Update app info if available
       const outputInfo = this.getOutputInfo();
@@ -70,19 +71,31 @@ export abstract class BaseBuilder<T extends Target = Target> {
           outputPath: outputInfo,
         });
       }
-    } catch (error) {
-      status.status = 'failure';
-      status.error = error instanceof Error ? error.message : String(error);
-      status.errorSummary = this.extractErrorSummary(status.error);
-      status.duration = Date.now() - startTime;
 
-      this.logger.error(`[${this.target.name}] Build failed: ${status.error}`);
-    } finally {
       // Update final build status
-      await this.stateManager.updateBuildStatus(this.target.name, status);
-    }
+      await this.stateManager.updateBuildStatus(this.target.name, successStatus);
+      return successStatus;
+    } catch (error) {
+      const errorMessage = error instanceof Error ? error.message : String(error);
+      const buildError = BuildStatusManager.createError(errorMessage);
+      const metrics = BuildStatusManager.createMetrics(startTime, Date.now());
 
-    return status;
+      const failureStatus = BuildStatusManager.createFailureStatus(
+        this.target.name,
+        buildError,
+        metrics,
+        {
+          gitHash: this.getGitHash(),
+          builder: this.getBuilderName(),
+        }
+      );
+
+      this.logger.error(`[${this.target.name}] Build failed: ${buildError.message}`);
+
+      // Update final build status
+      await this.stateManager.updateBuildStatus(this.target.name, failureStatus);
+      return failureStatus;
+    }
   }
 
   protected getExecutionCommand(): string {
@@ -142,30 +155,6 @@ export abstract class BaseBuilder<T extends Target = Target> {
   protected getBuilderName(): string {
     // Override in subclasses for specific builder names
     return this.target.type;
-  }
-
-  protected extractErrorSummary(error: string): string {
-    // Extract the most relevant part of the error message
-    const lines = error.split('\n');
-
-    // Look for common error patterns
-    for (const line of lines) {
-      // TypeScript errors
-      if (line.includes('error TS')) {
-        return line.trim();
-      }
-      // Swift errors
-      if (line.includes('error:') || line.includes('Error:')) {
-        return line.trim();
-      }
-      // Generic compilation errors
-      if (line.toLowerCase().includes('compilation failed')) {
-        return line.trim();
-      }
-    }
-
-    // Return first non-empty line if no specific pattern found
-    return lines.find((l) => l.trim().length > 0)?.trim() || error.substring(0, 100);
   }
 
   public stop(): void {

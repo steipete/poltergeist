@@ -3,9 +3,9 @@
  * Consolidates config loading, discovery, and validation logic
  */
 
+import chalk from 'chalk';
 import { readFile } from 'fs/promises';
 import { dirname, resolve as resolvePath } from 'path';
-import chalk from 'chalk';
 import type { PoltergeistConfig } from '../types.js';
 import { FileSystemUtils } from './filesystem.js';
 
@@ -26,7 +26,7 @@ export class ConfigurationManager {
     try {
       const configContent = await readFile(configPath, 'utf-8');
       const config = JSON.parse(configContent) as PoltergeistConfig;
-      
+
       // Validate basic structure
       if (!config.targets || !Array.isArray(config.targets)) {
         throw new Error('Configuration must have a "targets" array');
@@ -42,17 +42,19 @@ export class ConfigurationManager {
   /**
    * Discover and load configuration by walking up the directory tree
    */
-  public static async discoverAndLoadConfig(startDir: string = process.cwd()): Promise<ConfigDiscoveryResult | null> {
-    const configPath = FileSystemUtils.findFileUpTree(startDir, 'poltergeist.config.json');
-    
+  public static async discoverAndLoadConfig(
+    startDir: string = process.cwd()
+  ): Promise<ConfigDiscoveryResult | null> {
+    const configPath = FileSystemUtils.findFileUpTree('poltergeist.config.json', startDir);
+
     if (!configPath) {
       return null;
     }
 
     try {
-      const config = await this.loadConfigFromPath(configPath);
+      const config = await ConfigurationManager.loadConfigFromPath(configPath);
       const projectRoot = dirname(configPath);
-      
+
       return {
         config,
         configPath,
@@ -77,30 +79,32 @@ export class ConfigurationManager {
       // If it looks like a config file path, try loading it directly
       if (configPathOrStartDir.endsWith('.json')) {
         try {
-          const config = await this.loadConfigFromPath(configPathOrStartDir);
+          const config = await ConfigurationManager.loadConfigFromPath(configPathOrStartDir);
           const projectRoot = dirname(resolvePath(configPathOrStartDir));
-          
+
           result = {
             config,
             configPath: resolvePath(configPathOrStartDir),
             projectRoot,
           };
         } catch (error) {
-          throw new Error(`Failed to load config: ${error instanceof Error ? error.message : error}`);
+          throw new Error(
+            `Failed to load config: ${error instanceof Error ? error.message : error}`
+          );
         }
       } else {
         // Otherwise treat it as a starting directory
-        result = await this.discoverAndLoadConfig(configPathOrStartDir);
+        result = await ConfigurationManager.discoverAndLoadConfig(configPathOrStartDir);
       }
     } else {
       // Default: discover from current directory
-      result = await this.discoverAndLoadConfig();
+      result = await ConfigurationManager.discoverAndLoadConfig();
     }
 
     if (!result) {
       throw new Error(
         'No poltergeist.config.json found in current directory or parents.\n' +
-        '🔧 Run this command from within a Poltergeist-managed project'
+          '🔧 Run this command from within a Poltergeist-managed project'
       );
     }
 
