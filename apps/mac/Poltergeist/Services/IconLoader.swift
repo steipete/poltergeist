@@ -9,7 +9,8 @@ import AppKit
 import Foundation
 import os.log
 
-class IconLoader {
+@MainActor
+final class IconLoader: @unchecked Sendable {
     static let shared = IconLoader()
     private let logger = Logger(subsystem: "com.poltergeist.monitor", category: "IconLoader")
     private var iconCache: [String: NSImage] = [:]

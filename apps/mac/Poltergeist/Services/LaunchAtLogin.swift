@@ -9,7 +9,8 @@ import os.log
 //  Created by Poltergeist on 2025.
 //
 
-class LaunchAtLogin {
+@MainActor
+final class LaunchAtLogin: @unchecked Sendable {
     static let shared = LaunchAtLogin()
     private let logger = Logger(subsystem: "com.poltergeist.monitor", category: "LaunchAtLogin")
 
