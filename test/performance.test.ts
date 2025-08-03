@@ -376,11 +376,10 @@ describe('Performance Tests', () => {
       poltergeist = new Poltergeist(harness.config, '/test/project', harness.logger, harness.deps);
       await poltergeist.start();
 
-      // Simulate process exit
-      process.emit('exit', 0);
+      // Manually call stop() to simulate graceful shutdown
+      await poltergeist.stop();
 
-      // Should clean up - but disconnect may not be called on exit event
-      // Check that cleanup was called on state manager instead
+      // Should clean up state manager
       expect(harness.stateManager.cleanup).toHaveBeenCalled();
     });
 

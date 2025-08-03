@@ -9,7 +9,11 @@ import { dirname, join, resolve as resolvePath } from 'path';
 
 /**
  * Centralized file system utilities for Poltergeist operations
+ *
+ * Note: Uses static-only class for namespacing and API organization.
+ * This provides clear boundaries for filesystem-related functionality.
  */
+// biome-ignore lint/complexity/noStaticOnlyClass: Intentional design for API organization
 export class FileSystemUtils {
   /**
    * Get the default state directory path

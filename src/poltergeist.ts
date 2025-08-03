@@ -428,6 +428,7 @@ export class Poltergeist {
 
   private async cleanup(): Promise<void> {
     await this.stateManager.cleanup();
+    this.processManager.cleanupEventListeners();
   }
 
   public async getStatus(targetName?: string): Promise<Record<string, unknown>> {

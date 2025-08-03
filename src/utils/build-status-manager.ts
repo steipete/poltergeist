@@ -32,7 +32,11 @@ export interface BuildError {
 
 /**
  * Centralized build status management and error handling
+ *
+ * Note: Uses static-only class for namespacing and API organization.
+ * This provides clear boundaries and logical grouping of related functions.
  */
+// biome-ignore lint/complexity/noStaticOnlyClass: Intentional design for API organization
 export class BuildStatusManager {
   /**
    * Create a successful build status

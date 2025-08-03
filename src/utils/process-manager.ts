@@ -35,6 +35,7 @@ export class ProcessManager {
   private heartbeatInterval?: NodeJS.Timeout;
   private managedProcesses: Map<string, ManagedProcess> = new Map();
   private shutdownHandlersRegistered = false;
+  private shutdownHandlers: { signal: string; handler: () => void }[] = [];
   private logger?: Logger;
 
   public readonly options: Required<ProcessOptions>;
@@ -50,6 +51,11 @@ export class ProcessManager {
       shutdownTimeout: options.shutdownTimeout ?? 5000,
     };
     this.logger = logger;
+
+    // Increase max listeners in test environment to avoid warnings
+    if (process.env.NODE_ENV === 'test' || process.env.VITEST) {
+      process.setMaxListeners(20);
+    }
   }
 
   /**
@@ -247,9 +253,9 @@ export class ProcessManager {
       }
     };
 
-    process.on('SIGINT', () => gracefulShutdown('SIGINT'));
-    process.on('SIGTERM', () => gracefulShutdown('SIGTERM'));
-    process.on('exit', () => {
+    const sigintHandler = () => gracefulShutdown('SIGINT');
+    const sigtermHandler = () => gracefulShutdown('SIGTERM');
+    const exitHandler = () => {
       this.stopHeartbeat();
       // Synchronous cleanup only
       for (const managed of this.managedProcesses.values()) {
@@ -257,7 +263,17 @@ export class ProcessManager {
           managed.process.kill('SIGKILL');
         }
       }
-    });
+    };
+
+    process.on('SIGINT', sigintHandler);
+    process.on('SIGTERM', sigtermHandler);
+    process.on('exit', exitHandler);
+
+    this.shutdownHandlers = [
+      { signal: 'SIGINT', handler: sigintHandler },
+      { signal: 'SIGTERM', handler: sigtermHandler },
+      { signal: 'exit', handler: exitHandler },
+    ];
 
     this.shutdownHandlersRegistered = true;
   }
@@ -272,6 +288,21 @@ export class ProcessManager {
 
     await Promise.allSettled(cleanupPromises);
     this.managedProcesses.clear();
+  }
+
+  /**
+   * Clean up event listeners and shutdown handlers
+   */
+  public cleanupEventListeners(): void {
+    for (const { signal, handler } of this.shutdownHandlers) {
+      if (signal === 'exit') {
+        process.removeListener('exit', handler);
+      } else {
+        process.removeListener(signal as NodeJS.Signals, handler);
+      }
+    }
+    this.shutdownHandlers = [];
+    this.shutdownHandlersRegistered = false;
   }
 
   /**

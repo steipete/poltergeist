@@ -17,7 +17,11 @@ export interface ConfigDiscoveryResult {
 
 /**
  * Centralized configuration management for all Poltergeist operations
+ *
+ * Note: Uses static-only class for namespacing and API organization.
+ * This provides clear boundaries for configuration-related functionality.
  */
+// biome-ignore lint/complexity/noStaticOnlyClass: Intentional design for API organization
 export class ConfigurationManager {
   /**
    * Load configuration from a specific file path
