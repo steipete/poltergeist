@@ -34,7 +34,8 @@
   "main": "dist/index.js",
   "type": "module",
   "bin": {
-    "poltergeist": "./dist/cli.js"
+    "poltergeist": "./dist/cli.js",
+    "pgrun": "./dist/pgrun.js"
   },
   "files": [
     "dist/**/*",

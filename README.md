@@ -15,6 +15,7 @@
 ## Features
 
 - **Universal Target System**: Support for executables, app bundles, libraries, frameworks, tests, Docker containers, and custom builds
+- **Smart Execution Wrapper**: `pgrun` command ensures you never run stale or failed builds
 - **Efficient File Watching**: Powered by Facebook's Watchman with smart exclusions and performance optimization
 - **Intelligent Build Prioritization**: Automatic priority scoring based on focus patterns and user behavior
 - **Smart Build Queue Management**: Configurable parallelization with intelligent deduplication and scheduling
@@ -510,6 +511,82 @@ Target: my-cli
   Git Hash: abc123f
   Builder: Executable
   Output: ./bin/mycli
+```
+
+## Smart Execution with pgrun
+
+Never run stale or failed builds again! The `pgrun` command is a smart wrapper that ensures you always execute fresh binaries.
+
+### Basic Usage
+
+Instead of running your executables directly:
+```bash
+# Instead of this (might run stale/failed builds):
+./dist/my-tool --args
+
+# Use this (always fresh and validated):
+pgrun my-tool --args
+```
+
+### How It Works
+
+`pgrun` automatically:
+- ✅ **Checks build status** before execution
+- ⏳ **Waits for in-progress builds** with progress indication  
+- ❌ **Fails fast** on build errors with clear messages
+- 🚀 **Executes only fresh binaries** when builds succeed
+- 📦 **Passes through all arguments** transparently
+
+### Usage Examples
+
+```bash
+# Run a tool (waits if building, fails if build failed)
+pgrun my-cli compile --verbose
+
+# Force run even if build failed
+pgrun my-cli --force test
+
+# Don't wait for builds (fail immediately if building)
+pgrun my-cli --no-wait status
+
+# Verbose output showing build status
+pgrun my-cli --verbose --help
+
+# Custom timeout for build completion (default: 30 seconds)
+pgrun my-cli --timeout 60000 deploy
+```
+
+### Command Options
+
+```bash
+pgrun <target> [args...]
+
+Options:
+  -t, --timeout <ms>    Build wait timeout in milliseconds (default: 30000)
+  -f, --force          Run even if build failed
+  -n, --no-wait        Don't wait for builds, fail if building  
+  -v, --verbose        Show detailed status information
+  -h, --help           Display help
+```
+
+### Integration Tips
+
+Add to your shell aliases for seamless workflow:
+```bash
+# In your .bashrc/.zshrc
+alias build-and-run="pgrun my-tool"
+alias dev="pgrun my-cli --dev"
+```
+
+Or use in npm scripts:
+```json
+{
+  "scripts": {
+    "dev": "pgrun my-tool --dev-mode",
+    "test": "pgrun my-tool test",
+    "deploy": "pgrun my-tool deploy --production"
+  }
+}
 ```
 
 ## Examples
