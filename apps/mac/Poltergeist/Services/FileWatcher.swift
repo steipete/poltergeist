@@ -16,7 +16,7 @@ final class FileWatcher: @unchecked Sendable {
     private let path: String
     private let callback: @MainActor @Sendable () -> Void
     private let queue = DispatchQueue(label: "com.poltergeist.filewatcher", qos: .background)
-    
+
     private var directoryFileDescriptor: CInt = -1
     private var directorySource: DispatchSourceFileSystemObject?
     private let lock = NSLock()
@@ -29,31 +29,31 @@ final class FileWatcher: @unchecked Sendable {
     func start() {
         lock.lock()
         defer { lock.unlock() }
-        
+
         // Don't start if already running
         guard directorySource == nil else { return }
-        
+
         // Open the directory to get a file descriptor
         directoryFileDescriptor = open(path, O_EVTONLY)
         guard directoryFileDescriptor >= 0 else {
             logger.error("Failed to open directory: \(self.path)")
             return
         }
-        
+
         // Create dispatch source to monitor the directory
         let source = DispatchSource.makeFileSystemObjectSource(
             fileDescriptor: directoryFileDescriptor,
             eventMask: [.write, .delete, .extend, .attrib, .link, .rename, .revoke],
             queue: queue
         )
-        
+
         source.setEventHandler { [weak self] in
             guard let self = self else { return }
             Task { @MainActor in
                 self.callback()
             }
         }
-        
+
         source.setCancelHandler { [weak self] in
             guard let self = self else { return }
             if self.directoryFileDescriptor >= 0 {
@@ -61,17 +61,17 @@ final class FileWatcher: @unchecked Sendable {
                 self.directoryFileDescriptor = -1
             }
         }
-        
+
         directorySource = source
         source.resume()
-        
+
         logger.debug("Started watching: \(self.path)")
     }
 
     func stop() {
         lock.lock()
         defer { lock.unlock() }
-        
+
         if let source = directorySource {
             source.cancel()
             directorySource = nil
