@@ -221,10 +221,11 @@ export class Poltergeist {
       this.logger.debug(`Creating subscription for pattern: "${pattern}"`);
 
       try {
-        // Strict pattern validation - no fixing hacks
-        this.watchmanConfigManager.validateWatchPattern(pattern);
+        // Normalize and validate pattern
+        const normalizedPattern = this.watchmanConfigManager.normalizeWatchPattern(pattern);
+        this.watchmanConfigManager.validateWatchPattern(normalizedPattern);
 
-        const subscriptionName = `poltergeist_${pattern.replace(/[^a-zA-Z0-9]/g, '_')}`;
+        const subscriptionName = `poltergeist_${normalizedPattern.replace(/[^a-zA-Z0-9]/g, '_')}`;
 
         // Get optimized exclusion expressions (no fallbacks)
         const exclusionExpressions = this.watchmanConfigManager.createExclusionExpressions(
@@ -235,7 +236,7 @@ export class Poltergeist {
           this.projectRoot,
           subscriptionName,
           {
-            expression: ['match', pattern, 'wholename'],
+            expression: ['match', normalizedPattern, 'wholename'],
             fields: ['name', 'exists', 'type'],
           },
           (files) => {
@@ -244,7 +245,7 @@ export class Poltergeist {
           exclusionExpressions
         );
 
-        this.logger.info(`👻 Watching ${targetNames.size} target(s): ${pattern}`);
+        this.logger.info(`👻 Watching ${targetNames.size} target(s): ${normalizedPattern}`);
       } catch (error) {
         this.logger.error(`❌ Invalid watch pattern "${pattern}": ${error}`);
         throw error; // Fail fast - no pattern fixing

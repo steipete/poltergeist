@@ -1,0 +1,9 @@
+{
+  "name": "nodejs-example",
+  "version": "1.0.0",
+  "type": "module",
+  "scripts": {
+    "build": "echo 'Building Node.js app...' && sleep 1 && echo 'Build complete!' && node -e \"console.log('Build timestamp:', new Date().toISOString())\"",
+    "start": "node index.js"
+  }
+}

@@ -1,0 +1,9 @@
+{
+  "name": "typescript-example",
+  "version": "1.0.0",
+  "type": "module",
+  "scripts": {
+    "build": "echo 'Building TypeScript...' && mkdir -p dist && echo 'export function greet(name) { return `Hello, ${name}!`; }' > dist/index.js && echo 'TypeScript build complete!'",
+    "start": "node dist/index.js"
+  }
+}

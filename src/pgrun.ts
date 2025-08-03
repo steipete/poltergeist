@@ -26,7 +26,8 @@ import { FileSystemUtils } from './utils/filesystem.js';
  */
 async function getBuildStatus(
   projectRoot: string,
-  target: Target
+  target: Target,
+  options?: { checkProcessForBuilding?: boolean }
 ): Promise<'building' | 'failed' | 'success' | 'unknown'> {
   try {
     const stateFilePath = FileSystemUtils.getStateFilePath(projectRoot, target.name);
@@ -41,13 +42,20 @@ async function getBuildStatus(
       return 'unknown';
     }
 
-    // Check if process is still alive (building)
-    if (state.process && FileSystemUtils.isProcessAlive(state.process.pid)) {
-      return 'building';
-    }
+    // Note: state.process is the Poltergeist watcher process, not build process
+    // Check the lastBuild status to see if a build is in progress
 
     // Check build status using BuildStatusManager
     if (state.lastBuild) {
+      if (BuildStatusManager.isBuilding(state.lastBuild)) {
+        // If build status is 'building' but process is not active and we're checking for waiting,
+        // treat as unknown since the build process is likely dead
+        if (options?.checkProcessForBuilding && state.process && !state.process.isActive) {
+          return 'unknown';
+        }
+        return 'building';
+      }
+
       if (BuildStatusManager.isFailure(state.lastBuild)) {
         return 'failed';
       }
@@ -93,7 +101,7 @@ async function waitForBuildCompletion(
 
   try {
     while (Date.now() - startTime < timeoutMs) {
-      const status = await getBuildStatus(projectRoot, target);
+      const status = await getBuildStatus(projectRoot, target, { checkProcessForBuilding: true });
 
       if (status === 'success') {
         clearInterval(interval);
@@ -108,10 +116,19 @@ async function waitForBuildCompletion(
       }
 
       if (status !== 'building') {
-        // Build process died, assume completion
+        // Build process died or status changed - check the actual final status
         clearInterval(interval);
         process.stdout.write(`\r${' '.repeat(50)}\r`); // Clear spinner line
-        return (await getBuildStatus(projectRoot, target)) === 'success' ? 'success' : 'failed';
+        
+        const finalStatus = await getBuildStatus(projectRoot, target, { checkProcessForBuilding: true });
+        if (finalStatus === 'success') {
+          return 'success';
+        } else if (finalStatus === 'failed') {
+          return 'failed';
+        } else {
+          // If status is unknown (e.g., file deleted), assume build process died and proceed
+          return 'success';
+        }
       }
 
       // Short sleep to avoid busy polling
@@ -152,7 +169,27 @@ function executeTarget(target: Target, projectRoot: string, args: string[]): Pro
 
     console.log(chalk.green(`✅ Running fresh binary: ${target.name}`));
 
-    const child = spawn(binaryPath, args, {
+    // Determine how to execute based on file extension
+    let command: string;
+    let commandArgs: string[];
+    
+    const ext = binaryPath.toLowerCase();
+    if (ext.endsWith('.js') || ext.endsWith('.mjs')) {
+      command = 'node';
+      commandArgs = [binaryPath, ...args];
+    } else if (ext.endsWith('.py')) {
+      command = 'python';
+      commandArgs = [binaryPath, ...args];
+    } else if (ext.endsWith('.sh')) {
+      command = 'sh';
+      commandArgs = [binaryPath, ...args];
+    } else {
+      // Assume it's a binary executable
+      command = binaryPath;
+      commandArgs = args;
+    }
+
+    const child = spawn(command, commandArgs, {
       stdio: 'inherit',
       cwd: projectRoot,
     });
@@ -233,6 +270,7 @@ async function runWrapper(
     // Handle different build states
     switch (status) {
       case 'building': {
+        // Build is in progress - lastBuild.status === 'building'
         if (options.noWait) {
           console.error(chalk.red('❌ Build in progress and --no-wait specified'));
           process.exit(1);
@@ -255,6 +293,10 @@ async function runWrapper(
             chalk.yellow('🔧 Run `poltergeist logs` for details or use --force to run anyway')
           );
           process.exit(1);
+        }
+
+        if (result === 'failed' && options.force) {
+          console.warn(chalk.yellow('⚠️  Running despite build failure (--force specified)'));
         }
         break;
       }
@@ -307,14 +349,14 @@ program
   .argument('[args...]', 'Arguments to pass to the target executable')
   .option('-t, --timeout <ms>', 'Build wait timeout in milliseconds', '30000')
   .option('-f, --force', 'Run even if build failed', false)
-  .option('-n, --no-wait', "Don't wait for builds, fail if building", false)
+  .option('-n, --no-wait', "Don't wait for builds, fail if building")
   .option('-v, --verbose', 'Show detailed status information', false)
   .allowUnknownOption()
   .action(async (target: string, args: string[], options) => {
     const parsedOptions = {
       timeout: Number.parseInt(options.timeout, 10),
       force: options.force,
-      noWait: options.noWait,
+      noWait: !options.wait, // --no-wait sets wait=false
       verbose: options.verbose,
     };
 

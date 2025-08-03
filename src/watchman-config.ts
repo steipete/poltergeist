@@ -307,6 +307,46 @@ export class WatchmanConfigManager {
   /**
    * Validate watch patterns with strict checking
    */
+  /**
+   * Normalize a watch pattern to be more lenient and user-friendly
+   */
+  normalizeWatchPattern(pattern: string): string {
+    if (!pattern || typeof pattern !== 'string') {
+      throw new ConfigurationError(
+        'Watch pattern must be a non-empty string',
+        'Use glob patterns like "**/*.swift" or "src/**/*.ts"',
+        'INVALID_PATTERN'
+      );
+    }
+
+    let normalized = pattern;
+
+    // Auto-fix common patterns
+    // Convert *.ext to **/*.ext for recursive matching (but not **/*.ext)
+    if (/^\*\.[a-zA-Z0-9]+$/.test(pattern)) {
+      normalized = `**/${pattern}`;
+      this.logger.debug(`Normalized pattern "${pattern}" to "${normalized}" for recursive matching`);
+    }
+    // Convert ./*.ext to **/*.ext for better matching
+    else if (/^\.\/\*\.[a-zA-Z0-9]+$/.test(pattern)) {
+      normalized = `**/*${pattern.substring(3)}`;
+      this.logger.debug(`Normalized pattern "${pattern}" to "${normalized}" for recursive matching`);
+    }
+    // Convert somedir/*.ext to somedir/**/*.ext (but not patterns already containing **)
+    else if (/^[^/]+\/\*\.[a-zA-Z0-9]+$/.test(pattern) && !pattern.includes('**')) {
+      const parts = pattern.split('/');
+      normalized = `${parts[0]}/**/${parts[1]}`;
+      this.logger.debug(`Normalized pattern "${pattern}" to "${normalized}" for recursive matching`);
+    }
+    // Remove trailing slash
+    else if (pattern.endsWith('/')) {
+      normalized = `${pattern.slice(0, -1)}/**`;
+      this.logger.debug(`Normalized pattern "${pattern}" to "${normalized}" (removed trailing slash)`);
+    }
+
+    return normalized;
+  }
+
   validateWatchPattern(pattern: string): void {
     if (!pattern || typeof pattern !== 'string') {
       throw new ConfigurationError(
@@ -316,24 +356,7 @@ export class WatchmanConfigManager {
       );
     }
 
-    // Check for common mistakes
-    if (pattern.includes('*') && !pattern.includes('/')) {
-      throw new ConfigurationError(
-        `Invalid pattern "${pattern}": Use directory separators with wildcards`,
-        'Change "*.swift" to "**/*.swift" for recursive matching',
-        'MISSING_DIRECTORY_SEPARATOR'
-      );
-    }
-
-    if (pattern.endsWith('/')) {
-      throw new ConfigurationError(
-        `Invalid pattern "${pattern}": Patterns should not end with "/"`,
-        'Use "dirname/**" instead of "dirname/"',
-        'TRAILING_SLASH'
-      );
-    }
-
-    // Validate against known problematic patterns
+    // After normalization, only check for truly problematic patterns
     const problematicPatterns = ['.git/**', 'node_modules/**', '.build/**'];
     if (problematicPatterns.some((p) => pattern.includes(p))) {
       this.logger.warn(

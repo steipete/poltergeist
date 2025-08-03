@@ -49,6 +49,7 @@ export function createMockWatchmanConfigManager(): IWatchmanConfigManager {
     ensureConfigUpToDate: vi.fn().mockResolvedValue(undefined),
     suggestOptimizations: vi.fn().mockResolvedValue([]),
     createExclusionExpressions: vi.fn().mockReturnValue([]),
+    normalizeWatchPattern: vi.fn().mockImplementation((pattern: string) => pattern),
     validateWatchPattern: vi.fn().mockReturnValue(undefined),
   };
 }

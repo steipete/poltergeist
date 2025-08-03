@@ -86,6 +86,8 @@ export interface IWatchmanConfigManager {
   suggestOptimizations(): Promise<string[]>;
   /** Converts exclusion rules to Watchman expression format */
   createExclusionExpressions(config: PoltergeistConfig): Array<[string, string[]]>;
+  /** Normalizes watch patterns to be more lenient */
+  normalizeWatchPattern(pattern: string): string;
   /** Validates glob pattern syntax */
   validateWatchPattern(pattern: string): void;
 }
