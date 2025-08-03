@@ -513,6 +513,53 @@ Target: my-cli
   Output: ./bin/mycli
 ```
 
+### Configuration Changes and Reloading
+
+**Important**: Poltergeist loads configuration once at startup and does **not** hot-reload configuration changes. To apply configuration updates, you must restart Poltergeist.
+
+#### How Configuration Loading Works
+
+1. **Load Once at Startup**: Configuration is read from `poltergeist.config.json` when Poltergeist starts
+2. **Stored in Memory**: All settings (targets, notifications, build commands) are cached in memory for performance
+3. **No File Watching**: Poltergeist only watches your source files, not the configuration file itself
+4. **Restart Required**: Changes to `poltergeist.config.json` require a restart to take effect
+
+#### When to Restart
+
+Restart Poltergeist after changing any of these settings:
+- Target configurations (build commands, watch paths, output paths)
+- Notification settings (sounds, enabled/disabled status)
+- Watchman configuration (exclusions, performance settings)
+- Build scheduling and parallelization options
+
+```bash
+# Stop current instance
+poltergeist stop
+
+# Start with new configuration
+poltergeist haunt
+```
+
+#### Why No Hot Reloading?
+
+This design choice ensures:
+- **Reliability**: Prevents configuration corruption during live builds
+- **Performance**: Avoids file watching overhead for rarely-changed config
+- **Simplicity**: Clear separation between source code changes and configuration changes
+- **Consistency**: Predictable behavior across different development workflows
+
+#### Quick Configuration Test
+
+To verify configuration changes are loaded:
+
+```bash
+# After restarting, check status to confirm new settings
+poltergeist status
+
+# Enable debug logging to see configuration details
+POLTERGEIST_LOG_LEVEL=debug poltergeist haunt
+```
+
 ## Smart Execution with pgrun
 
 Never run stale or failed builds again! The `pgrun` command is a smart wrapper that ensures you always execute fresh binaries. It's like having a build-aware shell that prevents you from running outdated code.
