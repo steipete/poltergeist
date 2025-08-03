@@ -60,18 +60,8 @@ final class StatusBarController: NSObject {
     private func startMonitoring() {
         projectMonitor.startMonitoring()
 
-        // Update icon when project status changes
-        NotificationCenter.default.addObserver(
-            self,
-            selector: #selector(projectsUpdated),
-            name: ProjectMonitor.projectsDidUpdateNotification,
-            object: nil
-        )
-    }
-
-    @objc private func projectsUpdated() {
-        // Do nothing - we don't need to update the icon on every project change
-        // This was likely causing the icon to disappear
+        // Note: We don't observe project status changes to avoid unnecessary status bar updates
+        // The status bar icon remains static while the menu provides dynamic content
     }
 
     private func updateIcon() {
