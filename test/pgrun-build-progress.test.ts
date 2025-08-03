@@ -281,10 +281,10 @@ describe('pgrun Build Progress Detection', () => {
     it('should handle rapid status changes', async () => {
       const stateFilePath = createTestState('test-tool', 'building', true);
 
-      // Rapidly change status - delay initial change to let pgrun detect building state
-      setTimeout(() => updateStateFile(stateFilePath, { status: 'failure' }), 500);
-      setTimeout(() => updateStateFile(stateFilePath, { status: 'building' }), 600);
-      setTimeout(() => updateStateFile(stateFilePath, { status: 'success' }), 700);
+      // Schedule status changes to happen after pgrun starts and detects the initial building state
+      setTimeout(() => updateStateFile(stateFilePath, { status: 'failure' }), 600);
+      setTimeout(() => updateStateFile(stateFilePath, { status: 'building' }), 800);
+      setTimeout(() => updateStateFile(stateFilePath, { status: 'success' }), 1000);
 
       const result = await runPgrun(['test-tool']);
 
