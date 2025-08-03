@@ -9,8 +9,8 @@ permissions:
   contents: write
 
 jobs:
-  build:
-    name: Build Release
+  build-cli:
+    name: Build CLI Release
     runs-on: ubuntu-latest
     
     steps:
@@ -29,34 +29,133 @@ jobs:
     - name: Run tests
       run: npm test
       
-    - name: Build project
+    - name: Run linter
+      run: npm run lint
+      
+    - name: Run type check
+      run: npm run typecheck
+      
+    - name: Build CLI project
       run: npm run build
       
     - name: Package for npm
       run: npm pack
       
-    - name: Upload artifacts
+    - name: Upload CLI artifacts
       uses: actions/upload-artifact@v4
       with:
-        name: npm-package
+        name: poltergeist-cli
         path: '*.tgz'
         
+  build-macos:
+    name: Build macOS App Release
+    runs-on: macos-latest
+    
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+      
+    - name: Setup Xcode
+      uses: maxim-lobanov/setup-xcode@v1
+      with:
+        xcode-version: latest-stable
+        
+    - name: Install SwiftLint and swift-format
+      run: |
+        brew install swiftlint swift-format
+        
+    - name: Run SwiftLint
+      run: |
+        cd apps/mac
+        ./scripts/lint.sh
+        
+    - name: Build macOS app (Release)
+      run: |
+        cd apps/mac
+        xcodebuild -project Poltergeist.xcodeproj -scheme Poltergeist -configuration Release archive -archivePath Poltergeist.xcarchive
+        
+    - name: Export macOS app
+      run: |
+        cd apps/mac
+        # Create export options plist
+        cat > ExportOptions.plist << EOF
+        <?xml version="1.0" encoding="UTF-8"?>
+        <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+        <plist version="1.0">
+        <dict>
+            <key>method</key>
+            <string>mac-application</string>
+            <key>destination</key>
+            <string>export</string>
+        </dict>
+        </plist>
+        EOF
+        
+        # Export the app
+        xcodebuild -exportArchive -archivePath Poltergeist.xcarchive -exportPath . -exportOptionsPlist ExportOptions.plist
+        
+        # Create DMG (if available) or zip the app
+        if command -v create-dmg &> /dev/null; then
+          create-dmg --volname "Poltergeist" --window-pos 200 120 --window-size 600 300 --icon-size 100 --app-drop-link 425 120 "Poltergeist-${{ github.ref_name }}.dmg" "Poltergeist.app"
+        else
+          zip -r "Poltergeist-${{ github.ref_name }}-macOS.zip" "Poltergeist.app"
+        fi
+        
+    - name: Upload macOS app artifacts
+      uses: actions/upload-artifact@v4
+      with:
+        name: poltergeist-macos
+        path: |
+          apps/mac/*.dmg
+          apps/mac/*.zip
+        
   release:
-    name: Create Release
-    needs: build
+    name: Create GitHub Release
+    needs: [build-cli, build-macos]
     runs-on: ubuntu-latest
     
     steps:
     - name: Checkout code
       uses: actions/checkout@v4
       
-    - name: Download artifacts
+    - name: Download CLI artifacts
       uses: actions/download-artifact@v4
       with:
-        name: npm-package
+        name: poltergeist-cli
+        path: ./cli/
+        
+    - name: Download macOS artifacts
+      uses: actions/download-artifact@v4
+      with:
+        name: poltergeist-macos
+        path: ./macos/
         
     - name: Create Release
       uses: softprops/action-gh-release@v2
       with:
-        files: '*.tgz'
+        files: |
+          cli/*.tgz
+          macos/*.dmg
+          macos/*.zip
         generate_release_notes: true
+        body: |
+          ## 🚀 Poltergeist ${{ github.ref_name }}
+          
+          This release includes both the CLI tool and the macOS companion app.
+          
+          ### 📦 Installation Options
+          
+          **CLI Tool (Node.js):**
+          ```bash
+          npm install -g @steipete/poltergeist
+          ```
+          
+          **macOS App:**
+          Download and install the `.dmg` or `.zip` file below.
+          
+          ### 🔧 Requirements
+          - **CLI**: Node.js 20+ 
+          - **macOS App**: macOS 12.0+ (Apple Silicon & Intel)
+          
+          ### ✨ What's New
+          See the full changelog in [CHANGELOG.md](https://github.com/steipete/poltergeist/blob/main/CHANGELOG.md)
