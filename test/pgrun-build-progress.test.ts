@@ -297,7 +297,7 @@ describe('pgrun Build Progress Detection', () => {
 
       const result = await runPgrun(['test-tool']);
 
-      // Should wait and eventually succeed  
+      // Should wait and eventually succeed
       expect(result.stdout).toContain('⏳ Build in progress, waiting for completion...');
       expect(result.stdout).toContain('✅ Running fresh binary: test-tool');
       expect(result.exitCode).toBe(0);
