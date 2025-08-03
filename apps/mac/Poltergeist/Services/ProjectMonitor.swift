@@ -67,10 +67,8 @@ class ProjectMonitor: ObservableObject {
 
     private func setupFileWatcher() {
         fileWatcher = FileWatcher(path: poltergeistDirectory) { [weak self] in
-            // FileWatcher guarantees callback is on main thread
-            Task { @MainActor in
-                self?.scanForProjects()
-            }
+            // FileWatcher callback is @MainActor annotated
+            self?.scanForProjects()
         }
         fileWatcher?.start()
     }
