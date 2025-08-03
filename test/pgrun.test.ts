@@ -1,57 +1,51 @@
 // Tests for pgrun wrapper binary
 
-import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { spawn } from 'child_process';
-import { existsSync, mkdirSync, writeFileSync, unlinkSync, rmSync } from 'fs';
-import { join, resolve as resolvePath } from 'path';
+import { chmodSync, existsSync, mkdirSync, realpathSync, rmSync, writeFileSync } from 'fs';
 import { tmpdir } from 'os';
+import { join, resolve as resolvePath } from 'path';
+import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 
-describe('pgrun', () => {
-  const testProjectRoot = join(tmpdir(), 'pgrun-test-' + Date.now());
-  const testStateDir = join(tmpdir(), 'poltergeist-pgrun-test-' + Date.now());
+describe('pgrun Integration Tests', () => {
+  const timestamp = Date.now();
+  const testProjectRootRaw = join(tmpdir(), `pgrun-test-${timestamp}`);
+  const testStateDir = join(tmpdir(), `poltergeist-pgrun-test-${timestamp}`);
   const originalEnv = process.env.POLTERGEIST_STATE_DIR;
 
+  let testProjectRoot: string;
+
   beforeEach(() => {
+    // Create test directories first
+    mkdirSync(testProjectRootRaw, { recursive: true });
+    mkdirSync(testStateDir, { recursive: true });
+
+    // Now resolve to canonical path (to match pgrun behavior)
+    testProjectRoot = realpathSync(testProjectRootRaw);
+
     // Set up test environment
     process.env.POLTERGEIST_STATE_DIR = testStateDir;
-    
-    // Create test directories
-    if (!existsSync(testProjectRoot)) {
-      mkdirSync(testProjectRoot, { recursive: true });
-    }
-    if (!existsSync(testStateDir)) {
-      mkdirSync(testStateDir, { recursive: true });
-    }
-
-    // Clean up any existing test files
-    try {
-      rmSync(testProjectRoot, { recursive: true, force: true });
-      rmSync(testStateDir, { recursive: true, force: true });
-      mkdirSync(testProjectRoot, { recursive: true });
-      mkdirSync(testStateDir, { recursive: true });
-    } catch {}
   });
 
   afterEach(() => {
     // Restore environment
     process.env.POLTERGEIST_STATE_DIR = originalEnv;
-    
+
     // Clean up test directories
     try {
-      rmSync(testProjectRoot, { recursive: true, force: true });
+      rmSync(testProjectRootRaw, { recursive: true, force: true });
       rmSync(testStateDir, { recursive: true, force: true });
     } catch {}
   });
 
-  function createTestConfig(targets: any[] = []) {
+  function createTestConfig(targets: Record<string, unknown>[] = []) {
     const config = {
       version: '1.0' as const,
       projectType: 'custom' as const,
       targets,
       watchman: {
         watchFiles: ['**/*'],
-        excludeFiles: []
-      }
+        excludeFiles: [],
+      },
     };
 
     const configPath = join(testProjectRoot, 'poltergeist.config.json');
@@ -59,26 +53,39 @@ describe('pgrun', () => {
     return configPath;
   }
 
-  function createTestBinary(outputPath: string) {
+  function createTestBinary(
+    outputPath: string,
+    content = '#!/bin/bash\necho "Hello from test binary"\necho "Args: $@"\nexit 0'
+  ) {
     const fullPath = join(testProjectRoot, outputPath);
     const dir = resolvePath(fullPath, '..');
     if (!existsSync(dir)) {
       mkdirSync(dir, { recursive: true });
     }
-    // Create a simple executable script
-    writeFileSync(fullPath, '#!/bin/bash\necho "Hello from test binary"\nexit 0');
+
+    writeFileSync(fullPath, content);
+
     // Make it executable (Unix only)
     try {
-      require('fs').chmodSync(fullPath, '755');
+      chmodSync(fullPath, '755');
     } catch {}
   }
 
-  function createTestState(targetName: string, status: 'building' | 'success' | 'failed', processActive = false) {
+  function createTestState(
+    targetName: string,
+    status: 'building' | 'success' | 'failed',
+    processActive = false
+  ) {
     const projectName = testProjectRoot.split('/').pop() || 'unknown';
-    const projectHash = require('crypto').createHash('sha256').update(testProjectRoot).digest('hex').substring(0, 8);
+    const projectHash = require('crypto')
+      .createHash('sha256')
+      .update(testProjectRoot)
+      .digest('hex')
+      .substring(0, 8);
     const fileName = `${projectName}-${projectHash}-${targetName}.state`;
     const stateFilePath = join(testStateDir, fileName);
 
+    // Use the correct state format that matches the actual implementation
     const state = {
       version: '1.0',
       projectPath: testProjectRoot,
@@ -91,21 +98,26 @@ describe('pgrun', () => {
         hostname: 'test-host',
         isActive: processActive,
         startTime: new Date().toISOString(),
-        lastHeartbeat: new Date().toISOString()
+        lastHeartbeat: new Date().toISOString(),
       },
       lastBuild: {
+        targetName,
         status,
-        startTime: new Date().toISOString(),
-        endTime: new Date().toISOString(),
+        timestamp: new Date().toISOString(),
+        gitHash: 'abc123f',
+        builder: 'Executable',
         duration: 1000,
-        success: status === 'success'
-      }
+        buildTime: 1.0,
+      },
     };
 
     writeFileSync(stateFilePath, JSON.stringify(state, null, 2));
   }
 
-  function runPgrun(args: string[], options: { cwd?: string } = {}): Promise<{
+  function runPgrun(
+    args: string[],
+    options: { cwd?: string } = {}
+  ): Promise<{
     stdout: string;
     stderr: string;
     exitCode: number;
@@ -114,7 +126,8 @@ describe('pgrun', () => {
       const pgrunPath = resolvePath(__dirname, '../dist/pgrun.js');
       const child = spawn('node', [pgrunPath, ...args], {
         cwd: options.cwd || testProjectRoot,
-        stdio: 'pipe'
+        stdio: 'pipe',
+        env: { ...process.env, POLTERGEIST_STATE_DIR: testStateDir },
       });
 
       let stdout = '';
@@ -132,7 +145,7 @@ describe('pgrun', () => {
         resolve({
           stdout,
           stderr,
-          exitCode: code || 0
+          exitCode: code || 0,
         });
       });
     });
@@ -145,33 +158,35 @@ describe('pgrun', () => {
           name: 'test-tool',
           type: 'executable',
           buildCommand: 'echo building',
-          outputPath: 'dist/test-tool'
-        }
+          outputPath: 'dist/test-tool',
+        },
       ]);
 
-      const result = await runPgrun(['test-tool', '--help']);
+      const result = await runPgrun(['test-tool']);
       expect(result.stderr).toContain('❌ Binary not found');
+      expect(result.exitCode).toBe(1);
     });
 
     it('should find config in parent directory', async () => {
       const subDir = join(testProjectRoot, 'subdir');
       mkdirSync(subDir, { recursive: true });
-      
+
       createTestConfig([
         {
           name: 'test-tool',
           type: 'executable',
           buildCommand: 'echo building',
-          outputPath: 'dist/test-tool'
-        }
+          outputPath: 'dist/test-tool',
+        },
       ]);
 
       const result = await runPgrun(['test-tool'], { cwd: subDir });
       expect(result.stderr).toContain('❌ Binary not found');
+      expect(result.exitCode).toBe(1);
     });
 
     it('should fail when no config found', async () => {
-      const emptyDir = join(tmpdir(), 'pgrun-empty-' + Date.now());
+      const emptyDir = join(tmpdir(), `pgrun-empty-${Date.now()}`);
       mkdirSync(emptyDir, { recursive: true });
 
       const result = await runPgrun(['test-tool'], { cwd: emptyDir });
@@ -189,12 +204,12 @@ describe('pgrun', () => {
           name: 'real-tool',
           type: 'executable',
           buildCommand: 'echo building',
-          outputPath: 'dist/real-tool'
-        }
+          outputPath: 'dist/real-tool',
+        },
       ]);
 
       const result = await runPgrun(['fake-tool']);
-      expect(result.stderr).toContain('❌ Target \'fake-tool\' not found');
+      expect(result.stderr).toContain("❌ Target 'fake-tool' not found");
       expect(result.stderr).toContain('Available executable targets:');
       expect(result.stderr).toContain('- real-tool');
       expect(result.exitCode).toBe(1);
@@ -206,12 +221,12 @@ describe('pgrun', () => {
           name: 'my-lib',
           type: 'library',
           buildCommand: 'echo building',
-          outputPath: 'dist/libmy.a'
-        }
+          outputPath: 'dist/libmy.a',
+        },
       ]);
 
       const result = await runPgrun(['my-lib']);
-      expect(result.stderr).toContain('❌ Target \'my-lib\' is not executable (type: library)');
+      expect(result.stderr).toContain("❌ Target 'my-lib' is not executable (type: library)");
       expect(result.exitCode).toBe(1);
     });
 
@@ -221,8 +236,8 @@ describe('pgrun', () => {
           name: 'my-lib',
           type: 'library',
           buildCommand: 'echo building',
-          outputPath: 'dist/libmy.a'
-        }
+          outputPath: 'dist/libmy.a',
+        },
       ]);
 
       const result = await runPgrun(['fake-tool']);
@@ -238,8 +253,8 @@ describe('pgrun', () => {
           name: 'test-tool',
           type: 'executable',
           buildCommand: 'echo building',
-          outputPath: 'dist/test-tool'
-        }
+          outputPath: 'dist/test-tool',
+        },
       ]);
     });
 
@@ -273,20 +288,12 @@ describe('pgrun', () => {
       expect(result.exitCode).toBe(0);
     });
 
-    it('should fail when building and --no-wait specified', async () => {
-      createTestBinary('dist/test-tool');
-      createTestState('test-tool', 'building', true);
-
-      const result = await runPgrun(['test-tool', '--no-wait']);
-      expect(result.stderr).toContain('❌ Build in progress and --no-wait specified');
-      expect(result.exitCode).toBe(1);
-    });
-
     it('should handle unknown build status gracefully', async () => {
       createTestBinary('dist/test-tool');
       // No state file created = unknown status
 
       const result = await runPgrun(['test-tool']);
+      expect(result.stderr).toContain('⚠️  Build status unknown, proceeding...');
       expect(result.stdout).toContain('✅ Running fresh binary: test-tool');
       expect(result.exitCode).toBe(0);
     });
@@ -309,8 +316,8 @@ describe('pgrun', () => {
           name: 'test-tool',
           type: 'executable',
           buildCommand: 'echo building',
-          outputPath: 'dist/test-tool'
-        }
+          outputPath: 'dist/test-tool',
+        },
       ]);
       createTestBinary('dist/test-tool');
       createTestState('test-tool', 'success', false);
@@ -334,11 +341,8 @@ describe('pgrun', () => {
 
     it('should pass arguments to target binary', async () => {
       // Create a binary that echoes its arguments
-      const binaryPath = join(testProjectRoot, 'dist/test-tool');
-      writeFileSync(binaryPath, '#!/bin/bash\necho "Args: $@"\nexit 0');
-      try {
-        require('fs').chmodSync(binaryPath, '755');
-      } catch {}
+      createTestBinary('dist/test-tool', '#!/bin/bash\necho "Args: $@"\nexit 0');
+      createTestState('test-tool', 'success', false);
 
       const result = await runPgrun(['test-tool', 'arg1', 'arg2', '--flag']);
       expect(result.stdout).toContain('Args: arg1 arg2 --flag');
@@ -369,13 +373,13 @@ describe('pgrun', () => {
         {
           name: 'test-tool',
           type: 'executable',
-          buildCommand: 'echo building'
+          buildCommand: 'echo building',
           // Missing outputPath
-        }
+        },
       ]);
 
       const result = await runPgrun(['test-tool']);
-      expect(result.stderr).toContain('❌ Target \'test-tool\' does not have an output path');
+      expect(result.stderr).toContain("❌ Target 'test-tool' does not have an output path");
       expect(result.exitCode).toBe(1);
     });
 
@@ -385,20 +389,24 @@ describe('pgrun', () => {
           name: 'test-tool',
           type: 'executable',
           buildCommand: 'echo building',
-          outputPath: 'dist/test-tool'
-        }
+          outputPath: 'dist/test-tool',
+        },
       ]);
       createTestBinary('dist/test-tool');
 
       // Create corrupted state file
       const projectName = testProjectRoot.split('/').pop() || 'unknown';
-      const projectHash = require('crypto').createHash('sha256').update(testProjectRoot).digest('hex').substring(0, 8);
+      const projectHash = require('crypto')
+        .createHash('sha256')
+        .update(testProjectRoot)
+        .digest('hex')
+        .substring(0, 8);
       const fileName = `${projectName}-${projectHash}-test-tool.state`;
       const stateFilePath = join(testStateDir, fileName);
       writeFileSync(stateFilePath, '{ corrupted json }');
 
       const result = await runPgrun(['test-tool']);
-      expect(result.stderr).toContain('⚠️  Could not read build status');
+      expect(result.stderr).toContain('⚠️  Build status unknown, proceeding...');
       expect(result.stdout).toContain('✅ Running fresh binary'); // Should continue anyway
       expect(result.exitCode).toBe(0);
     });

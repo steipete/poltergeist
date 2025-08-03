@@ -1,24 +1,16 @@
 // Unified state management for Poltergeist
 
-import { createHash } from 'crypto';
 import { existsSync, mkdirSync, readFileSync, renameSync, unlinkSync, writeFileSync } from 'fs';
-import { hostname } from 'os';
 import { join } from 'path';
 import type { IStateManager } from './interfaces.js';
 import type { Logger } from './logger.js';
 import type { BuildStatus, Target } from './types.js';
+import { FileSystemUtils } from './utils/filesystem.js';
+import { ProcessManager, type ProcessInfo } from './utils/process-manager.js';
 
-// Default state directory
-const DEFAULT_STATE_DIR = '/tmp/poltergeist';
 
-// Unified state interface
-export interface ProcessInfo {
-  pid: number;
-  hostname: string;
-  isActive: boolean;
-  startTime: string;
-  lastHeartbeat: string;
-}
+// Re-export ProcessInfo for compatibility
+export type { ProcessInfo } from './utils/process-manager.js';
 
 export interface AppInfo {
   bundleId?: string;
@@ -42,14 +34,21 @@ export interface PoltergeistState {
 export class StateManager implements IStateManager {
   private logger: Logger;
   private projectRoot: string;
-  private heartbeatInterval?: NodeJS.Timeout;
+  private processManager: ProcessManager;
   private states: Map<string, PoltergeistState> = new Map();
   private stateDir: string;
 
   constructor(projectRoot: string, logger: Logger) {
     this.logger = logger;
     this.projectRoot = projectRoot;
-    this.stateDir = process.env.POLTERGEIST_STATE_DIR || DEFAULT_STATE_DIR;
+    this.stateDir = FileSystemUtils.getStateDirectory();
+
+    // Initialize ProcessManager with heartbeat callback
+    this.processManager = new ProcessManager(
+      () => this.updateHeartbeat(),
+      {}, // Use default options
+      logger
+    );
 
     // Ensure state directory exists
     if (!existsSync(this.stateDir)) {
@@ -57,23 +56,12 @@ export class StateManager implements IStateManager {
     }
   }
 
-  /**
-   * Generates unique state filename using project name + path hash + target.
-   * Format: {projectName}-{pathHash}-{targetName}.state
-   * Path hash prevents collisions between projects with same name.
-   */
-  private getStateFileName(targetName: string): string {
-    const projectName = this.projectRoot.split('/').pop() || 'unknown';
-    const projectHash = createHash('sha256').update(this.projectRoot).digest('hex').substring(0, 8);
-
-    return `${projectName}-${projectHash}-${targetName}.state`;
-  }
 
   /**
    * Get full path to state file
    */
   private getStateFilePath(targetName: string): string {
-    return join(this.stateDir, this.getStateFileName(targetName));
+    return FileSystemUtils.getStateFilePath(this.projectRoot, targetName);
   }
 
   /**
@@ -90,13 +78,7 @@ export class StateManager implements IStateManager {
       targetType: target.type,
       configPath,
 
-      process: {
-        pid: process.pid,
-        hostname: hostname(),
-        isActive: true,
-        startTime: new Date().toISOString(),
-        lastHeartbeat: new Date().toISOString(),
-      },
+      process: ProcessManager.createProcessInfo(),
     };
 
     // Add app info if available
@@ -155,7 +137,7 @@ export class StateManager implements IStateManager {
    * This prevents corruption during concurrent writes from multiple processes.
    * Uses PID and timestamp in temp filename for uniqueness.
    */
-  private async writeState(targetName: string): Promise<void> {
+  private async writeState(targetName: string, updateProcessInfo = true): Promise<void> {
     const state = this.states.get(targetName);
     if (!state) return;
 
@@ -169,8 +151,10 @@ export class StateManager implements IStateManager {
         mkdirSync(this.stateDir, { recursive: true });
       }
 
-      // Update heartbeat
-      state.process.lastHeartbeat = new Date().toISOString();
+      // Update heartbeat and process info (if requested)
+      if (updateProcessInfo) {
+        state.process = ProcessManager.updateProcessInfo(state.process);
+      }
 
       // Write to temp file first
       writeFileSync(tempFile, JSON.stringify(state, null, 2));
@@ -211,13 +195,8 @@ export class StateManager implements IStateManager {
 
       // Check if process is still active
       if (state.process.pid !== process.pid) {
-        try {
-          // Check if process exists
-          process.kill(state.process.pid, 0);
-          state.process.isActive = true;
-        } catch {
-          state.process.isActive = false;
-        }
+        // Check if process exists
+        state.process.isActive = ProcessManager.isProcessAlive(state.process.pid);
       }
 
       return state;
@@ -233,7 +212,7 @@ export class StateManager implements IStateManager {
    * 1. Process ownership (same PID = not locked)
    * 2. Process active flag
    * 3. Heartbeat freshness (5 minute timeout for stale detection)
-   * 
+   *
    * This prevents duplicate builds across multiple Poltergeist instances.
    */
   public async isLocked(targetName: string): Promise<boolean> {
@@ -251,8 +230,7 @@ export class StateManager implements IStateManager {
     }
 
     // Check heartbeat age - process may have crashed without cleanup
-    const heartbeatAge = Date.now() - new Date(state.process.lastHeartbeat).getTime();
-    if (heartbeatAge > 5 * 60 * 1000) {
+    if (this.processManager.isProcessStale(state.process)) {
       this.logger.info(`Stale state detected for ${targetName}, considering unlocked`);
       return false;
     }
@@ -264,22 +242,22 @@ export class StateManager implements IStateManager {
    * Start heartbeat updates
    */
   public startHeartbeat(): void {
-    if (this.heartbeatInterval) return;
-
-    this.heartbeatInterval = setInterval(async () => {
-      for (const targetName of this.states.keys()) {
-        await this.writeState(targetName);
-      }
-    }, 10000); // Update every 10 seconds
+    this.processManager.startHeartbeat();
   }
 
   /**
    * Stop heartbeat updates
    */
   public stopHeartbeat(): void {
-    if (this.heartbeatInterval) {
-      clearInterval(this.heartbeatInterval);
-      this.heartbeatInterval = undefined;
+    this.processManager.stopHeartbeat();
+  }
+
+  /**
+   * Update heartbeat for all active states (called by ProcessManager)
+   */
+  private async updateHeartbeat(): Promise<void> {
+    for (const targetName of this.states.keys()) {
+      await this.writeState(targetName);
     }
   }
 
@@ -333,7 +311,7 @@ export class StateManager implements IStateManager {
 
     for (const [targetName, state] of this.states.entries()) {
       state.process.isActive = false;
-      await this.writeState(targetName);
+      await this.writeState(targetName, false); // Don't update process info during cleanup
     }
   }
 
@@ -358,7 +336,7 @@ export class StateManager implements IStateManager {
    */
   public static async listAllStates(): Promise<string[]> {
     const fs = await import('fs/promises');
-    const stateDir = process.env.POLTERGEIST_STATE_DIR || DEFAULT_STATE_DIR;
+    const stateDir = FileSystemUtils.getStateDirectory();
 
     try {
       if (!existsSync(stateDir)) {

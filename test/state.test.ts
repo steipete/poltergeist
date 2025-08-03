@@ -6,6 +6,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import type { Logger } from '../src/logger.js';
 import { StateManager } from '../src/state.js';
 import type { BaseTarget } from '../src/types.js';
+import { FileSystemUtils } from '../src/utils/filesystem.js';
 
 // Mock logger
 const mockLogger: Logger = {
@@ -40,8 +41,8 @@ describe('StateManager', () => {
 
   describe('State File Naming', () => {
     it('should generate unique state file names', () => {
-      const fileName1 = stateManager.getStateFileName('cli');
-      const fileName2 = stateManager.getStateFileName('macApp');
+      const fileName1 = FileSystemUtils.generateStateFileName(projectRoot, 'cli');
+      const fileName2 = FileSystemUtils.generateStateFileName(projectRoot, 'macApp');
 
       expect(fileName1).toMatch(/^test-app-[a-f0-9]{8}-cli\.state$/);
       expect(fileName2).toMatch(/^test-app-[a-f0-9]{8}-macApp\.state$/);
@@ -49,8 +50,8 @@ describe('StateManager', () => {
     });
 
     it('should use consistent hash for same project', () => {
-      const fileName1 = stateManager.getStateFileName('cli');
-      const fileName2 = stateManager.getStateFileName('cli');
+      const fileName1 = FileSystemUtils.generateStateFileName(projectRoot, 'cli');
+      const fileName2 = FileSystemUtils.generateStateFileName(projectRoot, 'cli');
 
       expect(fileName1).toBe(fileName2);
     });

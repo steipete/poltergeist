@@ -15,6 +15,7 @@ import { BuildNotifier } from './notifier.js';
 import { PriorityEngine } from './priority-engine.js';
 import { type PoltergeistState, StateManager } from './state.js';
 import type { BuildSchedulingConfig, BuildStatus, PoltergeistConfig, Target } from './types.js';
+import { ProcessManager } from './utils/process-manager.js';
 import { WatchmanClient } from './watchman.js';
 import { WatchmanConfigManager } from './watchman-config.js';
 
@@ -32,6 +33,7 @@ export class Poltergeist {
   private projectRoot: string;
   private logger: Logger;
   private stateManager: IStateManager;
+  private processManager: ProcessManager;
   private watchman?: IWatchmanClient;
   private notifier?: BuildNotifier;
   private builderFactory: IBuilderFactory;
@@ -61,6 +63,13 @@ export class Poltergeist {
     this.watchman = deps.watchmanClient;
     this.watchmanConfigManager =
       deps.watchmanConfigManager || new WatchmanConfigManager(projectRoot, logger);
+
+    // Initialize ProcessManager for shutdown handling
+    this.processManager = new ProcessManager(
+      () => {}, // No heartbeat callback needed here (StateManager handles it)
+      {},
+      logger
+    );
 
     // Initialize build scheduling configuration with defaults
     this.buildSchedulingConfig = {
@@ -164,10 +173,11 @@ export class Poltergeist {
 
     this.logger.info('👻 [Poltergeist] is now watching for changes...');
 
-    // Handle graceful shutdown
-    process.on('SIGINT', () => this.stop());
-    process.on('SIGTERM', () => this.stop());
-    process.on('exit', () => this.cleanup());
+    // Handle graceful shutdown using ProcessManager
+    this.processManager.registerShutdownHandlers(async () => {
+      await this.stop();
+      await this.cleanup();
+    });
   }
 
   private getTargetsToWatch(targetName?: string): Target[] {

@@ -6,10 +6,11 @@ import { Command } from 'commander';
 import { existsSync } from 'fs';
 import packageJson from '../package.json' with { type: 'json' };
 // import { Poltergeist } from './poltergeist.js';
-import { ConfigLoader, ConfigurationError } from './config.js';
+import { ConfigurationError } from './config.js';
 import { createPoltergeist } from './factories.js';
 import { createLogger } from './logger.js';
 import type { PoltergeistConfig } from './types.js';
+import { ConfigurationManager } from './utils/config-manager.js';
 
 const { version } = packageJson;
 
@@ -22,12 +23,11 @@ program
 
 // Helper function to load config and handle errors
 async function loadConfiguration(
-  configPath: string
+  configPath?: string
 ): Promise<{ config: PoltergeistConfig; projectRoot: string }> {
   try {
-    const loader = new ConfigLoader(configPath);
-    const config = loader.loadConfig();
-    return { config, projectRoot: loader.getProjectRoot() };
+    const result = await ConfigurationManager.getConfig(configPath);
+    return { config: result.config, projectRoot: result.projectRoot };
   } catch (error) {
     if (error instanceof ConfigurationError) {
       console.error(chalk.red(error.message));
@@ -57,7 +57,7 @@ program
   .alias('start')
   .description('Start watching and auto-building your project')
   .option('-t, --target <name>', 'Target to build (omit to build all enabled targets)')
-  .option('-c, --config <path>', 'Path to config file', './poltergeist.config.json')
+  .option('-c, --config <path>', 'Path to config file')
   .option('-v, --verbose', 'Enable verbose logging')
   .action(async (options) => {
     console.log(chalk.gray('👻 [Poltergeist] Summoning Poltergeist to watch your project...'));
@@ -105,7 +105,7 @@ program
   .alias('rest')
   .description('Stop Poltergeist')
   .option('-t, --target <name>', 'Stop specific target only')
-  .option('-c, --config <path>', 'Path to config file', './poltergeist.config.json')
+  .option('-c, --config <path>', 'Path to config file')
   .action(async (options) => {
     console.log(chalk.gray('👻 [Poltergeist] Putting Poltergeist to rest...'));
 
@@ -126,7 +126,7 @@ program
   .command('status')
   .description('Check Poltergeist status')
   .option('-t, --target <name>', 'Check specific target status')
-  .option('-c, --config <path>', 'Path to config file', './poltergeist.config.json')
+  .option('-c, --config <path>', 'Path to config file')
   .option('--json', 'Output status as JSON')
   .action(async (options) => {
     const { config, projectRoot } = await loadConfiguration(options.config);
@@ -284,7 +284,7 @@ program
   .option('-t, --target <name>', 'Show logs for specific target')
   .option('-n, --lines <number>', 'Number of lines to show', '50')
   .option('-f, --follow', 'Follow log output')
-  .option('-c, --config <path>', 'Path to config file', './poltergeist.config.json')
+  .option('-c, --config <path>', 'Path to config file')
   .action(async (options) => {
     const { config } = await loadConfiguration(options.config);
 
@@ -301,7 +301,7 @@ program
 program
   .command('list')
   .description('List all configured targets')
-  .option('-c, --config <path>', 'Path to config file', './poltergeist.config.json')
+  .option('-c, --config <path>', 'Path to config file')
   .action(async (options) => {
     const { config } = await loadConfiguration(options.config);
 
