@@ -86,23 +86,32 @@ class ProjectMonitor: ObservableObject {
                     }
                     
                     // Extract project hash from filename
-                    // Format: projectName-hash-target.state
+                    // Format: projectName-hash-target.state (hash is always 8 hex chars)
                     let fileWithoutExtension = String(file.dropLast(6)) // Remove .state
-                    let components = fileWithoutExtension.split(separator: "-")
                     
                     logger.debug("📝 Parsing state file: \(file)")
-                    logger.debug("📝 Components after splitting: \(components)")
                     
-                    guard components.count >= 3 else {
-                        logger.warning("Invalid state file name format: \(file) (only \(components.count) components)")
+                    // Find the 8-character hex hash using regex
+                    let hashPattern = #"-([a-f0-9]{8})-"#
+                    guard let regex = try? NSRegularExpression(pattern: hashPattern, options: []),
+                          let match = regex.firstMatch(in: fileWithoutExtension, options: [], 
+                                                     range: NSRange(location: 0, length: fileWithoutExtension.count)) else {
+                        logger.warning("Invalid state file name format: \(file) (no 8-char hash found)")
                         continue
                     }
                     
-                    // The hash is the second-to-last component
-                    let projectHash = String(components[components.count - 2])
-                    let targetName = String(components[components.count - 1])
+                    let hashRange = Range(match.range(at: 1), in: fileWithoutExtension)!
+                    let projectHash = String(fileWithoutExtension[hashRange])
                     
-                    logger.debug("📝 Extracted hash: \(projectHash), target: \(targetName)")
+                    // Extract project name (everything before -hash-)
+                    let hashStartRange = Range(match.range(at: 0), in: fileWithoutExtension)!
+                    let projectName = String(fileWithoutExtension[..<hashStartRange.lowerBound])
+                    
+                    // Extract target name (everything after -hash-)
+                    let hashEndIndex = hashStartRange.upperBound
+                    let targetName = String(fileWithoutExtension[hashEndIndex...])
+                    
+                    logger.debug("📝 Parsed - Project: \(projectName), Hash: \(projectHash), Target: \(targetName)")
                     
                     let projectKey = "\(state.projectPath)-\(projectHash)"
                     
@@ -187,7 +196,8 @@ class ProjectMonitor: ObservableObject {
     
     private func isProcessStale(heartbeat: Date?) -> Bool {
         guard let heartbeat = heartbeat else { return true }
-        return Date().timeIntervalSince(heartbeat) > 30
+        // Use same staleness threshold as CLI (5 minutes = 300 seconds)
+        return Date().timeIntervalSince(heartbeat) > 300
     }
     
     func removeProject(_ project: Project) {

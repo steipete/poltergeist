@@ -1,5 +1,6 @@
 // Priority Scoring Engine for Intelligent Build Scheduling
 
+import picomatch from 'picomatch';
 import type { Logger } from './logger.js';
 import type {
   BuildSchedulingConfig,
@@ -264,81 +265,8 @@ export class PriorityEngine {
 
   private getAffectedTargets(file: string, targets: Target[]): Target[] {
     return targets.filter((target) =>
-      target.watchPaths.some((pattern) => this.matchesPattern(file, pattern))
+      target.watchPaths.some((pattern) => picomatch(pattern)(file))
     );
-  }
-
-  /**
-   * Matches file paths against glob patterns (e.g., "src/**\/*.ts").
-   * Implements minimatch-style logic with support for:
-   * - ** : matches zero or more path segments
-   * - *  : matches any characters within a segment
-   * - ?  : matches single character
-   */
-  private matchesPattern(file: string, pattern: string): boolean {
-    // Split pattern and file into path segments for recursive matching
-    const patternSegments = pattern.split('/');
-    const fileSegments = file.split('/');
-
-    return this.matchSegments(fileSegments, patternSegments, 0, 0);
-  }
-
-  private matchSegments(
-    fileSegments: string[],
-    patternSegments: string[],
-    fileIndex: number,
-    patternIndex: number
-  ): boolean {
-    // If we've consumed all pattern segments
-    if (patternIndex >= patternSegments.length) {
-      return fileIndex >= fileSegments.length; // Should have consumed all file segments too
-    }
-
-    // If we've consumed all file segments but have pattern left
-    if (fileIndex >= fileSegments.length) {
-      return false;
-    }
-
-    const patternSegment = patternSegments[patternIndex];
-
-    // Handle ** globstar (matches zero or more path segments)
-    if (patternSegment === '**') {
-      // Try matching zero segments first (skip ** entirely)
-      if (this.matchSegments(fileSegments, patternSegments, fileIndex, patternIndex + 1)) {
-        return true;
-      }
-
-      // Try matching one or more segments recursively
-      for (let i = fileIndex; i < fileSegments.length; i++) {
-        if (this.matchSegments(fileSegments, patternSegments, i + 1, patternIndex + 1)) {
-          return true;
-        }
-      }
-      return false;
-    }
-
-    // Handle normal segments with * and ?
-    if (this.matchWildcard(fileSegments[fileIndex], patternSegment)) {
-      return this.matchSegments(fileSegments, patternSegments, fileIndex + 1, patternIndex + 1);
-    }
-
-    return false;
-  }
-
-  private matchWildcard(text: string, pattern: string): boolean {
-    // Convert single segment pattern to regex
-    let regexPattern = pattern
-      .replace(/[.+^${}()|[\]\\]/g, '\\$&') // Escape regex special chars
-      .replace(/\*/g, '.*') // * matches any characters
-      .replace(/\?/g, '.'); // ? matches single char
-
-    regexPattern = `^${regexPattern}$`;
-
-    try {
-      return new RegExp(regexPattern).test(text);
-    } catch {
-      return false;
-    }
   }
 
   /**

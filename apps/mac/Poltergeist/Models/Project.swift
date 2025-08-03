@@ -56,7 +56,8 @@ struct TargetState: Equatable {
     
     var isStale: Bool {
         guard let heartbeat = lastHeartbeat else { return true }
-        return Date().timeIntervalSince(heartbeat) > 30
+        // Use same staleness threshold as CLI (5 minutes = 300 seconds)
+        return Date().timeIntervalSince(heartbeat) > 300
     }
 }
 
