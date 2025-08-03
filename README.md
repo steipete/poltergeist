@@ -4,6 +4,8 @@
   # Poltergeist
 
   [![CI](https://github.com/steipete/poltergeist/actions/workflows/ci.yml/badge.svg)](https://github.com/steipete/poltergeist/actions/workflows/ci.yml)
+  [![Release](https://github.com/steipete/poltergeist/actions/workflows/release.yml/badge.svg)](https://github.com/steipete/poltergeist/actions/workflows/release.yml)
+  [![Coverage](https://github.com/steipete/poltergeist/actions/workflows/coverage.yml/badge.svg)](https://github.com/steipete/poltergeist/actions/workflows/coverage.yml)
   [![Node.js Version](https://img.shields.io/node/v/@steipete/poltergeist)](https://nodejs.org)
   [![npm version](https://img.shields.io/npm/v/@steipete/poltergeist)](https://www.npmjs.com/package/@steipete/poltergeist)
   [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
@@ -11,6 +13,21 @@
   **The ghost that keeps your builds fresh** 👻  
   A universal file watcher with auto-rebuild for any language or build system
 </div>
+
+## 🎯 Dual Platform Support
+
+Poltergeist offers both a **Node.js CLI** for universal development and a **native macOS app** for enhanced monitoring:
+
+### CLI Tool (Cross-Platform)
+- **Universal**: Works on macOS, Linux, and Windows
+- **Node.js 20+** required
+- Install: `npm install -g @steipete/poltergeist`
+
+### macOS App (Native)
+- **Native performance** with Swift 6
+- **Real-time monitoring** in menu bar
+- **System notifications** with build status
+- **Download**: Get the latest `.dmg` from [releases](https://github.com/steipete/poltergeist/releases)</div>
 
 ## Features
 
@@ -79,9 +96,15 @@ poltergeist haunt
 
 ## Requirements
 
+### CLI Tool
 - **Node.js 20.0.0** or higher
 - **[Watchman](https://facebook.github.io/watchman/)** (must be installed separately)
-- **macOS** for notification features (optional)
+- Cross-platform: macOS, Linux, Windows
+
+### macOS App
+- **macOS 12.0+** (Monterey or later)
+- **Apple Silicon & Intel** both supported
+- **Automatic CLI integration** when installed
 
 ## Configuration
 
@@ -553,6 +576,12 @@ Poltergeist uses a lock-free state management system with atomic operations:
 
 ## Development
 
+### Prerequisites
+- **Node.js 20+** for CLI development
+- **Xcode 15+** for macOS app development
+- **Watchman** for file watching
+
+### CLI Development
 ```bash
 # Build from source
 git clone https://github.com/steipete/poltergeist.git
@@ -564,6 +593,30 @@ npm run dev                 # Auto-rebuild mode
 npm run lint                # Code quality checks
 npm run typecheck           # Type validation
 ```
+
+### macOS App Development
+```bash
+# Navigate to macOS app
+cd apps/mac
+
+# Build and run
+xcodebuild -project Poltergeist.xcodeproj -scheme Poltergeist build
+open Poltergeist.xcodeproj
+
+# Code quality
+./scripts/lint.sh           # SwiftLint checks
+./scripts/format.sh         # swift-format fixes
+```
+
+### CI/CD Pipeline
+
+Our comprehensive CI/CD pipeline ensures code quality across both platforms:
+
+- **Multi-platform testing**: Node.js 20/22 on Ubuntu and macOS
+- **Swift 6 validation**: Strict concurrency checking and modern Swift practices
+- **Code quality**: SwiftLint, swift-format, Biome, and TypeScript checks
+- **Automated releases**: Dual-platform releases with both CLI (.tgz) and macOS app (.dmg/.zip)
+- **Test coverage**: Comprehensive coverage reporting with Codecov
 
 <details>
 <summary>Project structure and contributing guidelines</summary>
