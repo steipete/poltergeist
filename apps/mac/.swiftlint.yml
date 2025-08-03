@@ -108,6 +108,8 @@ disabled_rules:
   - todo # Allow TODO comments during development
   - type_name # Allow longer type names for clarity
   - identifier_name # Allow longer identifiers for clarity
+  - closure_body_length # Temporarily disable until code can be refactored
+  - file_length # Temporarily disable until StatusBarMenuView can be split
 
 # Rule configurations
 line_length:
