@@ -73,7 +73,7 @@ describe('pgrun Integration Tests', () => {
 
   function createTestState(
     targetName: string,
-    status: 'building' | 'success' | 'failed',
+    status: 'building' | 'success' | 'failure',
     processActive = false
   ) {
     const projectName = testProjectRoot.split('/').pop() || 'unknown';
@@ -270,7 +270,7 @@ describe('pgrun Integration Tests', () => {
 
     it('should fail when build failed and no --force', async () => {
       createTestBinary('dist/test-tool');
-      createTestState('test-tool', 'failed', false);
+      createTestState('test-tool', 'failure', false);
 
       const result = await runPgrun(['test-tool']);
       expect(result.stderr).toContain('❌ Last build failed');
@@ -280,7 +280,7 @@ describe('pgrun Integration Tests', () => {
 
     it('should execute when build failed but --force specified', async () => {
       createTestBinary('dist/test-tool');
-      createTestState('test-tool', 'failed', false);
+      createTestState('test-tool', 'failure', false);
 
       const result = await runPgrun(['test-tool', '--force']);
       expect(result.stderr).toContain('⚠️  Running despite build failure (--force specified)');

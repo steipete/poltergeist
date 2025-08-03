@@ -6,7 +6,7 @@
 import type { BuildStatus } from '../types.js';
 
 /**
- * Standardized build status values (resolves inconsistency between 'failure' vs 'failed')
+ * Standardized build status values
  */
 export enum BuildStatusType {
   SUCCESS = 'success',
@@ -112,7 +112,7 @@ export class BuildStatusManager {
    */
   public static isSuccess(status: BuildStatus | string): boolean {
     const statusValue = typeof status === 'string' ? status : status.status;
-    return BuildStatusManager.normalizeStatus(statusValue) === BuildStatusType.SUCCESS;
+    return statusValue === BuildStatusType.SUCCESS;
   }
 
   /**
@@ -120,7 +120,7 @@ export class BuildStatusManager {
    */
   public static isFailure(status: BuildStatus | string): boolean {
     const statusValue = typeof status === 'string' ? status : status.status;
-    return BuildStatusManager.normalizeStatus(statusValue) === BuildStatusType.FAILED;
+    return statusValue === BuildStatusType.FAILED;
   }
 
   /**
@@ -128,7 +128,7 @@ export class BuildStatusManager {
    */
   public static isBuilding(status: BuildStatus | string): boolean {
     const statusValue = typeof status === 'string' ? status : status.status;
-    return BuildStatusManager.normalizeStatus(statusValue) === BuildStatusType.BUILDING;
+    return statusValue === BuildStatusType.BUILDING;
   }
 
   /**
@@ -311,24 +311,6 @@ export class BuildStatusManager {
    */
   public static isValidStatus(status: string): status is BuildStatusType {
     return Object.values(BuildStatusType).includes(status as BuildStatusType);
-  }
-
-  /**
-   * Normalize status string to standard enum value
-   */
-  public static normalizeStatus(status: string): BuildStatusType {
-    // Handle legacy 'failed' status (normalize to 'failure')
-    if (status === 'failed') {
-      return BuildStatusType.FAILED;
-    }
-
-    // Validate and return known status
-    if (BuildStatusManager.isValidStatus(status)) {
-      return status;
-    }
-
-    // Default to unknown for unrecognized status
-    return BuildStatusType.UNKNOWN;
   }
 
   /**
