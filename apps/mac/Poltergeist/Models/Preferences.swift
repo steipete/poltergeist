@@ -1,4 +1,3 @@
-import Combine
 import Foundation
 import SwiftUI
 
@@ -9,30 +8,49 @@ import SwiftUI
 //  Created by Poltergeist on 2025.
 //
 
+/// Modern preferences using @Observable with proper @AppStorage integration
 @MainActor
-class Preferences: ObservableObject {
+@Observable
+final class Preferences {
     static let shared = Preferences()
 
-    @AppStorage("showNotifications") var showNotifications: Bool = true {
-        didSet { objectWillChange.send() }
+    // @Observable doesn't work directly with @AppStorage, so we use computed properties
+    var showNotifications: Bool {
+        get { UserDefaults.standard.object(forKey: "showNotifications") as? Bool ?? true }
+        set { UserDefaults.standard.set(newValue, forKey: "showNotifications") }
     }
-    @AppStorage("notifyOnlyOnFailure") var notifyOnlyOnFailure: Bool = false {
-        didSet { objectWillChange.send() }
+    
+    var notifyOnlyOnFailure: Bool {
+        get { UserDefaults.standard.object(forKey: "notifyOnlyOnFailure") as? Bool ?? false }
+        set { UserDefaults.standard.set(newValue, forKey: "notifyOnlyOnFailure") }
     }
-    @AppStorage("launchAtLogin") var launchAtLogin: Bool = false {
-        didSet { objectWillChange.send() }
+    
+    var launchAtLogin: Bool {
+        get { UserDefaults.standard.object(forKey: "launchAtLogin") as? Bool ?? false }
+        set { UserDefaults.standard.set(newValue, forKey: "launchAtLogin") }
     }
-    @AppStorage("statusCheckInterval") var statusCheckInterval: TimeInterval = 5.0 {
-        didSet { objectWillChange.send() }
+    
+    var statusCheckInterval: TimeInterval {
+        get { 
+            let value = UserDefaults.standard.object(forKey: "statusCheckInterval") as? Double
+            return value ?? 5.0
+        }
+        set { UserDefaults.standard.set(newValue, forKey: "statusCheckInterval") }
     }
-    @AppStorage("soundEnabled") var soundEnabled: Bool = true {
-        didSet { objectWillChange.send() }
+    
+    var soundEnabled: Bool {
+        get { UserDefaults.standard.object(forKey: "soundEnabled") as? Bool ?? true }
+        set { UserDefaults.standard.set(newValue, forKey: "soundEnabled") }
     }
-    @AppStorage("autoCleanupInactiveDays") var autoCleanupInactiveDays: Int = 7 {
-        didSet { objectWillChange.send() }
+    
+    var autoCleanupInactiveDays: Int {
+        get { UserDefaults.standard.object(forKey: "autoCleanupInactiveDays") as? Int ?? 7 }
+        set { UserDefaults.standard.set(newValue, forKey: "autoCleanupInactiveDays") }
     }
-    @AppStorage("showBuildTimeInBadges") var showBuildTimeInBadges: Bool = true {
-        didSet { objectWillChange.send() }
+    
+    var showBuildTimeInBadges: Bool {
+        get { UserDefaults.standard.object(forKey: "showBuildTimeInBadges") as? Bool ?? true }
+        set { UserDefaults.standard.set(newValue, forKey: "showBuildTimeInBadges") }
     }
 
     private init() {}

@@ -7,8 +7,9 @@
 
 import SwiftUI
 
+/// Modern settings view using environment injection
 struct SettingsView: View {
-    @ObservedObject var preferences = Preferences.shared
+    @Environment(Preferences.self) private var preferences
     @State private var selectedTab = "general"
 
     var body: some View {
@@ -36,9 +37,10 @@ struct SettingsView: View {
 }
 
 struct GeneralSettingsView: View {
-    @ObservedObject var preferences = Preferences.shared
+    @Environment(Preferences.self) private var preferences
 
     var body: some View {
+        @Bindable var preferences = preferences
         Form {
             Section {
                 Toggle("Launch at Login", isOn: $preferences.launchAtLogin)
@@ -76,9 +78,10 @@ struct GeneralSettingsView: View {
 }
 
 struct NotificationSettingsView: View {
-    @ObservedObject var preferences = Preferences.shared
+    @Environment(Preferences.self) private var preferences
 
     var body: some View {
+        @Bindable var preferences = preferences
         Form {
             Section {
                 Toggle("Show Notifications", isOn: $preferences.showNotifications)
@@ -109,7 +112,7 @@ struct NotificationSettingsView: View {
 }
 
 struct AdvancedSettingsView: View {
-    @ObservedObject var preferences = Preferences.shared
+    @Environment(Preferences.self) private var preferences
     @State private var showingResetAlert = false
 
     var body: some View {

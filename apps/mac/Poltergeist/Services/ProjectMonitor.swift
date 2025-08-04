@@ -5,20 +5,20 @@
 //  Created by Poltergeist on 2025.
 //
 
-import Combine
 import Foundation
 import os.log
 
 @MainActor
-class ProjectMonitor: ObservableObject {
+@Observable
+final class ProjectMonitor {
     static let shared = ProjectMonitor()
     static let projectsDidUpdateNotification = Notification.Name("ProjectsDidUpdate")
 
     private let logger = Logger(subsystem: "com.poltergeist.monitor", category: "ProjectMonitor")
     private let poltergeistDirectory = "/tmp/poltergeist"
 
-    @Published private(set) var projects: [Project] = []
-    @Published private(set) var buildQueue = BuildQueueInfo(
+    private(set) var projects: [Project] = []
+    private(set) var buildQueue = BuildQueueInfo(
         queuedBuilds: [],
         activeBuilds: [],
         recentBuilds: []

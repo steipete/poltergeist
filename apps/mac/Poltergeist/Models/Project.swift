@@ -8,7 +8,8 @@ import Foundation
 //  Created by Poltergeist on 2025.
 //
 
-struct Project: Identifiable, Equatable {
+/// Modern project model with Swift 6 Sendable compliance
+struct Project: Identifiable, Equatable, Sendable {
     let path: String
     let name: String
     let hash: String
@@ -31,7 +32,7 @@ struct Project: Identifiable, Equatable {
         return .success
     }
 
-    enum BuildStatus {
+    enum BuildStatus: Sendable {
         case idle, building, success, failed
 
         var icon: String {
@@ -54,12 +55,12 @@ struct Project: Identifiable, Equatable {
     }
 }
 
-struct TargetState: Equatable {
+struct TargetState: Equatable, @unchecked Sendable {
     let target: String
     let isActive: Bool
     let lastHeartbeat: Date?
     let lastBuild: BuildInfo?
-    var icon: NSImage?
+    var icon: NSImage?  // @unchecked Sendable due to NSImage
 
     var isStale: Bool {
         guard let heartbeat = lastHeartbeat else { return true }
@@ -68,7 +69,7 @@ struct TargetState: Equatable {
     }
 }
 
-struct BuildInfo: Equatable {
+struct BuildInfo: Equatable, Sendable {
     let status: String
     let timestamp: Date
     let errorSummary: String?
@@ -89,7 +90,7 @@ struct BuildInfo: Equatable {
 }
 
 // Enhanced build queue information
-struct BuildQueueInfo: Equatable {
+struct BuildQueueInfo: Equatable, Sendable {
     let queuedBuilds: [QueuedBuild]
     let activeBuilds: [ActiveBuild]
     let recentBuilds: [CompletedBuild]
@@ -103,7 +104,7 @@ struct BuildQueueInfo: Equatable {
     }
 }
 
-struct QueuedBuild: Equatable, Identifiable {
+struct QueuedBuild: Equatable, Identifiable, Sendable {
     let id = UUID()
     let target: String
     let project: String
@@ -112,7 +113,7 @@ struct QueuedBuild: Equatable, Identifiable {
     let reason: String  // "file-change", "manual", "dependency"
 }
 
-struct ActiveBuild: Equatable, Identifiable {
+struct ActiveBuild: Equatable, Identifiable, Sendable {
     let id = UUID()
     let target: String
     let project: String
@@ -122,7 +123,7 @@ struct ActiveBuild: Equatable, Identifiable {
     let currentPhase: String?  // "compiling", "linking", "testing"
 }
 
-struct CompletedBuild: Equatable, Identifiable {
+struct CompletedBuild: Equatable, Identifiable, Sendable {
     let id = UUID()
     let target: String
     let project: String
@@ -143,7 +144,7 @@ struct CompletedBuild: Equatable, Identifiable {
 }
 
 // State file models matching Poltergeist's output
-struct PoltergeistState: Codable {
+struct PoltergeistState: Codable, Sendable {
     let version: String
     let projectPath: String
     let projectName: String
@@ -153,14 +154,14 @@ struct PoltergeistState: Codable {
     let lastBuild: BuildStatus?
     let appInfo: AppInfo
 
-    struct ProcessInfo: Codable {
+    struct ProcessInfo: Codable, Sendable {
         let pid: Int
         let isActive: Bool
         let startTime: String
         let lastHeartbeat: String
     }
 
-    struct BuildStatus: Codable {
+    struct BuildStatus: Codable, Sendable {
         let status: String
         let timestamp: String
         let startTime: String?  // When build started (for progress calculation)
@@ -172,7 +173,7 @@ struct PoltergeistState: Codable {
         let estimatedDuration: Double?  // Estimated total duration
     }
 
-    struct AppInfo: Codable {
+    struct AppInfo: Codable, Sendable {
         let bundleId: String?
         let outputPath: String?
         let iconPath: String?

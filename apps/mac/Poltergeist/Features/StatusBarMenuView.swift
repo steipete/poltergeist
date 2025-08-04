@@ -7,8 +7,12 @@
 
 import SwiftUI
 
+/// Modern status bar menu view using environment injection and @Observable patterns
 struct StatusBarMenuView: View {
-    @ObservedObject var projectMonitor: ProjectMonitor
+    // Modern dependency injection using environment
+    @Environment(ProjectMonitor.self) private var projectMonitor
+    @Environment(Preferences.self) private var preferences
+    
     let onDismiss: () -> Void
 
     @State private var expandedProjectIds: Set<String> = []

@@ -9,6 +9,7 @@ import AppKit
 import SwiftUI
 import os.log
 
+/// Modern status bar controller with proper Swift 6 concurrency support
 @MainActor
 final class StatusBarController: NSObject {
     private let logger = Logger(subsystem: "com.poltergeist.monitor", category: "StatusBar")
@@ -19,11 +20,13 @@ final class StatusBarController: NSObject {
     override init() {
         super.init()
         logger.info("🚀 Initializing StatusBarController")
-        setupStatusBar()
-        startMonitoring()
+        Task {
+            await setupStatusBar()
+            await startMonitoring()
+        }
     }
 
-    private func setupStatusBar() {
+    private func setupStatusBar() async {
         logger.info("📌 Setting up status bar item")
 
         // Create status item with fixed length to prevent resizing issues
@@ -32,63 +35,51 @@ final class StatusBarController: NSObject {
         // Mark as visible to prevent automatic removal
         statusItem?.isVisible = true
 
-        if let button = statusItem?.button {
-            logger.debug("✅ Status bar button created successfully")
-
-            // Set icon immediately
-            if let image = NSImage(named: "StatusBarIcon") {
-                image.isTemplate = true
-                button.image = image
-            } else if let image = NSImage(
-                systemSymbolName: "ghost.fill", accessibilityDescription: "Poltergeist")
-            {
-                image.isTemplate = true
-                button.image = image
-            }
-
-            button.action = #selector(statusItemClicked)
-            button.target = self
-            button.sendAction(on: [.leftMouseUp, .rightMouseUp])
-
-            // Ensure the button stays in the status bar
-            button.appearsDisabled = false
-        } else {
-            logger.error("❌ Failed to create status bar button!")
-        }
-    }
-
-    private func startMonitoring() {
-        projectMonitor.startMonitoring()
-
-        // Note: We don't observe project status changes to avoid unnecessary status bar updates
-        // The status bar icon remains static while the menu provides dynamic content
-    }
-
-    private func updateIcon() {
         guard let button = statusItem?.button else {
-            logger.error("❌ No status bar button available!")
+            logger.error("❌ Failed to create status bar button!")
             return
         }
-
-        // Simply set the icon once - no dynamic updates
-        if button.image == nil {
-            // Try to use the StatusBarIcon from Assets
-            if let image = NSImage(named: "StatusBarIcon") {
-                image.isTemplate = true
-                button.image = image
-                logger.debug("✅ Set StatusBarIcon from assets")
-            } else {
-                // Fallback to SF Symbol
-                if let image = NSImage(
-                    systemSymbolName: "ghost.fill", accessibilityDescription: "Poltergeist")
-                {
-                    image.isTemplate = true
-                    button.image = image
-                    logger.debug("✅ Set SF Symbol ghost icon")
-                }
-            }
-        }
+        
+        logger.debug("✅ Status bar button created successfully")
+        await configureButton(button)
     }
+    
+    private func configureButton(_ button: NSStatusBarButton) async {
+        // Configure icon with modern async pattern
+        let icon = await loadStatusBarIcon()
+        button.image = icon
+        
+        // Configure button behavior
+        button.action = #selector(statusItemClicked)
+        button.target = self
+        button.sendAction(on: [.leftMouseUp, .rightMouseUp])
+        button.appearsDisabled = false
+    }
+    
+    private func loadStatusBarIcon() async -> NSImage? {
+        // Try custom icon first
+        if let image = NSImage(named: "StatusBarIcon") {
+            image.isTemplate = true
+            logger.debug("✅ Loaded custom StatusBarIcon")
+            return image
+        }
+        
+        // Fallback to SF Symbol
+        if let image = NSImage(systemSymbolName: "ghost.fill", accessibilityDescription: "Poltergeist") {
+            image.isTemplate = true
+            logger.debug("✅ Loaded SF Symbol ghost icon")
+            return image
+        }
+        
+        logger.warning("⚠️ No status bar icon available")
+        return nil
+    }
+
+    private func startMonitoring() async {
+        projectMonitor.startMonitoring()
+        logger.debug("✅ Project monitoring started")
+    }
+
 
     @objc private func statusItemClicked(_ sender: NSStatusBarButton?) {
         guard let event = NSApp.currentEvent else { return }
@@ -120,9 +111,11 @@ final class StatusBarController: NSObject {
         popover.behavior = .transient
         popover.animates = true
 
-        let contentView = StatusBarMenuView(projectMonitor: projectMonitor) {
+        let contentView = StatusBarMenuView {
             popover.performClose(nil)
         }
+        .environment(projectMonitor)
+        .environment(Preferences.shared)
 
         popover.contentViewController = NSHostingController(rootView: contentView)
         popover.show(relativeTo: button.bounds, of: button, preferredEdge: .minY)
