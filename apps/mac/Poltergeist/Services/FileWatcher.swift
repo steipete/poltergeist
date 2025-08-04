@@ -41,9 +41,10 @@ final class FileWatcher: @unchecked Sendable {
         }
 
         // Create dispatch source to monitor the directory
+        // Only monitor writes and deletes to reduce noise from metadata changes
         let source = DispatchSource.makeFileSystemObjectSource(
             fileDescriptor: directoryFileDescriptor,
-            eventMask: [.write, .delete, .extend, .attrib, .link, .rename, .revoke],
+            eventMask: [.write, .delete],
             queue: DispatchQueue.main
         )
 
