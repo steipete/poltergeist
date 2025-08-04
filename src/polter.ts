@@ -22,6 +22,11 @@ import { BuildStatusManager } from './utils/build-status-manager.js';
 import { ConfigurationManager } from './utils/config-manager.js';
 import { FileSystemUtils } from './utils/filesystem.js';
 
+interface LogOptions {
+  showLogs: boolean;
+  logLines: number;
+}
+
 /**
  * Gets build status for a target by reading state file directly
  */
@@ -83,7 +88,8 @@ async function getBuildStatus(
 async function waitForBuildCompletion(
   projectRoot: string,
   target: Target,
-  timeoutMs = 300000
+  timeoutMs = 300000,
+  logOptions: LogOptions = { showLogs: true, logLines: 5 }
 ): Promise<'success' | 'failed' | 'timeout'> {
   const startTime = Date.now();
   
@@ -97,10 +103,25 @@ async function waitForBuildCompletion(
   // Start spinner (automatically handles TTY detection and cursor hiding)
   spinner.start();
 
-  // Update elapsed time periodically
+  // Update elapsed time and build logs periodically
   const timeInterval = setInterval(() => {
     const elapsed = Date.now() - startTime;
-    spinner.text = `Build in progress... ${Math.round(elapsed / 100) / 10}s`;
+    
+    if (logOptions.showLogs) {
+      // TODO: Replace with actual log tailing
+      const mockLogs = [
+        '[INFO] Compiling TypeScript files...',
+        '[INFO] Processing src/polter.ts',
+        '[WARN] Unused import in utils.ts',
+        '[INFO] Generating type definitions',
+        '[INFO] Build in progress...'
+      ].slice(-logOptions.logLines);
+      
+      const logText = mockLogs.map(line => `│ ${line}`).join('\n');
+      spinner.text = `Build in progress... ${Math.round(elapsed / 100) / 10}s\n${logText}`;
+    } else {
+      spinner.text = `Build in progress... ${Math.round(elapsed / 100) / 10}s`;
+    }
   }, 100);
 
   try {
@@ -344,6 +365,8 @@ async function runWrapper(
     force: boolean;
     noWait: boolean;
     verbose: boolean;
+    showLogs: boolean;
+    logLines: number;
   }
 ) {
   try {
@@ -418,8 +441,10 @@ async function runWrapper(
           process.exit(1);
         }
 
-        console.log(chalk.cyan('⏳ Build in progress, waiting for completion...'));
-        const result = await waitForBuildCompletion(projectRoot, target, options.timeout);
+        const result = await waitForBuildCompletion(projectRoot, target, options.timeout, {
+          showLogs: options.showLogs,
+          logLines: options.logLines
+        });
 
         if (result === 'timeout') {
           console.error(chalk.red(`❌ Build timeout after ${options.timeout}ms`));
@@ -498,12 +523,14 @@ program
   .name('polter')
   .description('Smart wrapper for running executables managed by Poltergeist')
   .version('1.0.0')
-  .argument('<target>', 'Name of the target to run')
+  .argument('[target]', 'Name of the target to run (defaults to first configured target)')
   .argument('[args...]', 'Arguments to pass to the target executable')
   .option('-t, --timeout <ms>', 'Build wait timeout in milliseconds', '300000')
   .option('-f, --force', 'Run even if build failed', false)
   .option('-n, --no-wait', "Don't wait for builds, fail if building")
   .option('-v, --verbose', 'Show detailed status information', false)
+  .option('--no-logs', 'Disable build log streaming during progress')
+  .option('--log-lines <number>', 'Number of log lines to show', '5')
   .allowUnknownOption()
   .action(async (target: string, args: string[], options) => {
     const parsedOptions = {
@@ -511,6 +538,8 @@ program
       force: options.force,
       noWait: !options.wait, // --no-wait sets wait=false
       verbose: options.verbose,
+      showLogs: options.logs !== false, // --no-logs sets logs=false
+      logLines: Number.parseInt(options.logLines, 10),
     };
 
     await runWrapper(target, args, parsedOptions);
