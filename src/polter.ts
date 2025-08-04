@@ -162,8 +162,13 @@ async function executeStaleWithWarning(
     resolvePath(projectRoot, `./${targetName}`),
     resolvePath(projectRoot, `./build/${targetName}`),
     resolvePath(projectRoot, `./dist/${targetName}`),
+    resolvePath(projectRoot, `./${targetName}.js`), // Cross-platform Node.js scripts
+    resolvePath(projectRoot, `./build/${targetName}.js`),
+    resolvePath(projectRoot, `./dist/${targetName}.js`),
     resolvePath(projectRoot, `./${targetName.replace('-cli', '')}`), // Handle cli suffix
+    resolvePath(projectRoot, `./${targetName.replace('-cli', '')}.js`), // Handle cli suffix with .js
     resolvePath(projectRoot, `./${targetName.replace('-app', '')}`), // Handle app suffix
+    resolvePath(projectRoot, `./${targetName.replace('-app', '')}.js`), // Handle app suffix with .js
   ];
 
   let binaryPath: string | null = null;
