@@ -8,7 +8,7 @@ describe('polter fallback behavior', () => {
   // Use a unique temporary directory outside the Poltergeist project
   const testDir = join(os.tmpdir(), `pgrun-test-${Date.now()}`);
   const configPath = join(testDir, 'poltergeist.config.json');
-  const binaryPath = join(testDir, 'test-cli');
+  const binaryPath = join(testDir, 'test-cli.js');
 
   beforeEach(() => {
     // Clean up from previous tests
@@ -30,11 +30,11 @@ describe('polter fallback behavior', () => {
     writeFileSync(binaryPath, 'console.log("test-output");', { mode: 0o755 });
 
     // Run polter from test directory (no config) - don't pass --help as it exits early
-    const result = await runPolter(testDir, 'test-cli', [], { expectSuccess: true });
+    const result = await runPolter(testDir, 'test-cli.js', [], { expectSuccess: true });
 
     expect(result.stderr).toContain('POLTERGEIST NOT RUNNING');
     expect(result.stderr).toContain('npm run poltergeist:haunt');
-    expect(result.stdout).toContain('Running binary: test-cli (potentially stale)');
+    expect(result.stdout).toContain('Running binary: test-cli.js (potentially stale)');
     expect(result.stdout).toContain('test-output');
   });
 
@@ -77,7 +77,7 @@ describe('polter fallback behavior', () => {
     // Create a cross-platform mock binary (Node.js script)
     writeFileSync(binaryPath, 'console.log("fallback-output");', { mode: 0o755 });
 
-    const result = await runPolter(testDir, 'test-cli', [], { expectSuccess: true });
+    const result = await runPolter(testDir, 'test-cli.js', [], { expectSuccess: true });
 
     expect(result.stderr).toContain('POLTERGEIST NOT RUNNING');
     expect(result.stderr).toContain('Available configured targets:');
@@ -99,7 +99,7 @@ describe('polter fallback behavior', () => {
     // Create a cross-platform mock binary (Node.js script)
     writeFileSync(binaryPath, 'console.log("verbose-test");', { mode: 0o755 });
 
-    const result = await runPolter(testDir, 'test-cli', [], {
+    const result = await runPolter(testDir, 'test-cli.js', [], {
       expectSuccess: true,
       verbose: true,
     });
@@ -123,11 +123,11 @@ describe('polter fallback behavior', () => {
   });
 
   it('should try multiple binary discovery paths', async () => {
-    // Create binary in build subdirectory
+    // Create binary in build subdirectory - polter looks for exact name match
     const buildDir = join(testDir, 'build');
     mkdirSync(buildDir);
     const buildBinaryPath = join(buildDir, 'test-cli');
-    writeFileSync(buildBinaryPath, 'console.log("build-output");', { mode: 0o755 });
+    writeFileSync(buildBinaryPath, '#!/usr/bin/env node\nconsole.log("build-output");', { mode: 0o755 });
 
     const result = await runPolter(testDir, 'test-cli', [], { expectSuccess: true });
 
@@ -136,9 +136,9 @@ describe('polter fallback behavior', () => {
   });
 
   it('should handle cli suffix removal for binary discovery', async () => {
-    // Create binary without -cli suffix
+    // Create binary without -cli suffix - polter looks for exact name match after suffix removal
     const baseBinaryPath = join(testDir, 'myapp');
-    writeFileSync(baseBinaryPath, 'console.log("base-app-output");', { mode: 0o755 });
+    writeFileSync(baseBinaryPath, '#!/usr/bin/env node\nconsole.log("base-app-output");', { mode: 0o755 });
 
     const result = await runPolter(testDir, 'myapp-cli', [], { expectSuccess: true });
 
