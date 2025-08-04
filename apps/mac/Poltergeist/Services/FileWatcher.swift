@@ -49,8 +49,10 @@ final class FileWatcher: @unchecked Sendable {
 
         source.setEventHandler { [weak self] in
             guard let self = self else { return }
-            // Since we're already on the main queue, we can call the @MainActor callback directly
-            self.callback()
+            // Call @MainActor callback using Task with @MainActor context
+            Task { @MainActor in
+                self.callback()
+            }
         }
 
         source.setCancelHandler { [weak self] in
