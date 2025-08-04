@@ -114,7 +114,7 @@ struct NotificationSettingsView: View {
 struct AdvancedSettingsView: View {
     @Environment(Preferences.self) private var preferences
     @State private var showingResetAlert = false
-    
+
     private var poltergeistDirectory: String {
         if let customDir = ProcessInfo.processInfo.environment["POLTERGEIST_STATE_DIR"] {
             return customDir

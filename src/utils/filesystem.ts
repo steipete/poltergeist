@@ -101,7 +101,8 @@ export class FileSystemUtils {
    */
   public static findFileUpTree(fileName: string, startDir: string = process.cwd()): string | null {
     let currentDir = resolvePath(startDir);
-    const root = process.platform === 'win32' ? resolvePath(currentDir.split(sep)[0] + sep) : resolvePath('/');
+    const root =
+      process.platform === 'win32' ? resolvePath(currentDir.split(sep)[0] + sep) : resolvePath('/');
 
     while (currentDir !== root) {
       const filePath = resolvePath(currentDir, fileName);

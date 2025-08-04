@@ -39,12 +39,12 @@ final class ProjectMonitor {
 
     // Debouncing to avoid excessive scans
     private let debounceInterval: TimeInterval = 1.0
-    
+
     // Build state debouncing to prevent UI flicker
     private var lastBuildQueueUpdate: Date = Date.distantPast
     private let buildStateDebounceInterval: TimeInterval = 2.0
     private var previousBuildQueue: BuildQueueInfo?
-    
+
     // Prevent concurrent scans
     private var isScanning: Bool = false
 
@@ -109,10 +109,10 @@ final class ProjectMonitor {
             logger.debug("⏸️ Scan already in progress, skipping")
             return
         }
-        
+
         isScanning = true
         defer { isScanning = false }
-        
+
         logger.info("🔍 Starting project scan in \(self.poltergeistDirectory)")
 
         do {
@@ -524,42 +524,50 @@ final class ProjectMonitor {
             activeBuilds: activeBuilds,
             recentBuilds: Array(buildHistory.prefix(10))  // Show 10 most recent
         )
-        
+
         // Apply debounced build queue update to prevent UI flicker
         updateBuildQueueWithDebouncing(newBuildQueue)
     }
 
     private func updateBuildQueueWithDebouncing(_ newBuildQueue: BuildQueueInfo) {
         let now = Date()
-        
+
         // Check if this is a significant change worth updating immediately
-        let hasSignificantChange = buildQueueHasSignificantChange(from: buildQueue, to: newBuildQueue)
-        
+        let hasSignificantChange = buildQueueHasSignificantChange(
+            from: buildQueue, to: newBuildQueue)
+
         // If there's a significant change or enough time has passed, update immediately
-        if hasSignificantChange || now.timeIntervalSince(lastBuildQueueUpdate) >= buildStateDebounceInterval {
+        if hasSignificantChange
+            || now.timeIntervalSince(lastBuildQueueUpdate) >= buildStateDebounceInterval
+        {
             buildQueue = newBuildQueue
             previousBuildQueue = newBuildQueue
             lastBuildQueueUpdate = now
-            logger.debug("🔄 Build queue updated - Active: \(newBuildQueue.activeBuilds.count), Recent: \(newBuildQueue.recentBuilds.count)")
+            logger.debug(
+                "🔄 Build queue updated - Active: \(newBuildQueue.activeBuilds.count), Recent: \(newBuildQueue.recentBuilds.count)"
+            )
         } else {
             // Minor change within debounce period - ignore to prevent flicker
             logger.debug("⏸️ Build queue update debounced - preventing flicker")
         }
     }
-    
-    private func buildQueueHasSignificantChange(from old: BuildQueueInfo, to new: BuildQueueInfo) -> Bool {
+
+    private func buildQueueHasSignificantChange(from old: BuildQueueInfo, to new: BuildQueueInfo)
+        -> Bool
+    {
         // Significant changes that should update immediately:
         // 1. Number of active builds changed (most important for UI)
         // 2. First time seeing any build activity
         // 3. All activity stopped
-        
+
         let activeCountChanged = old.activeBuilds.count != new.activeBuilds.count
         let hadNoActivity = !old.hasActivity
         let hasNoActivity = !new.hasActivity
-        
-        return activeCountChanged || (hadNoActivity && new.hasActivity) || (old.hasActivity && hasNoActivity)
+
+        return activeCountChanged || (hadNoActivity && new.hasActivity)
+            || (old.hasActivity && hasNoActivity)
     }
-    
+
     private func addCompletedBuild(target: String, project: String, build: BuildInfo) {
         // Don't add duplicates
         let isDuplicate = buildHistory.contains { completedBuild in

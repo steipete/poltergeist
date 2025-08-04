@@ -208,8 +208,7 @@ export class ProcessManager {
     }
 
     // Windows taskkill is less graceful than Unix SIGTERM, use shorter timeout
-    const effectiveTimeout = process.platform === 'win32' ? 
-      Math.min(timeoutMs, 3000) : timeoutMs;
+    const effectiveTimeout = process.platform === 'win32' ? Math.min(timeoutMs, 3000) : timeoutMs;
 
     return new Promise((resolve) => {
       const timeout = setTimeout(() => {
