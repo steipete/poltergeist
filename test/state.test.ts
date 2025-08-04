@@ -45,12 +45,14 @@ describe('StateManager', () => {
       const fileName2 = FileSystemUtils.generateStateFileName(projectRoot, 'macApp');
 
       // Extract just the filename if it's a full path (cross-platform compatibility)
-      const baseName1 = fileName1.includes('/') || fileName1.includes('\\') 
-        ? fileName1.split(/[/\\]/).pop() || fileName1
-        : fileName1;
-      const baseName2 = fileName2.includes('/') || fileName2.includes('\\')
-        ? fileName2.split(/[/\\]/).pop() || fileName2  
-        : fileName2;
+      const baseName1 =
+        fileName1.includes('/') || fileName1.includes('\\')
+          ? fileName1.split(/[/\\]/).pop() || fileName1
+          : fileName1;
+      const baseName2 =
+        fileName2.includes('/') || fileName2.includes('\\')
+          ? fileName2.split(/[/\\]/).pop() || fileName2
+          : fileName2;
 
       expect(baseName1).toMatch(/^test-app-[a-f0-9]{8}-cli\.state$/);
       expect(baseName2).toMatch(/^test-app-[a-f0-9]{8}-macApp\.state$/);
