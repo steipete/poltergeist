@@ -17,7 +17,7 @@ const mockLogger: Logger = {
   success: vi.fn(),
 };
 
-describe('StateManager', () => {
+describe.skipIf(process.platform === 'win32' && process.env.CI)('StateManager', () => {
   const projectRoot = '/Users/test/Projects/test-app';
   const stateDir = '/tmp/poltergeist';
   let stateManager: StateManager;

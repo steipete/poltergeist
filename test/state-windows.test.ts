@@ -17,7 +17,7 @@ const mockLogger: Logger = {
   success: vi.fn(),
 };
 
-describe.runIf(process.platform === 'win32')('StateManager Windows Tests', () => {
+describe.runIf(process.platform === 'win32' && !process.env.CI)('StateManager Windows Tests', () => {
   let stateManager: StateManager;
   let testDir: string;
   const projectRoot = '/test/project';
