@@ -43,16 +43,137 @@ Poltergeist is a file watcher and auto-builder for development projects. It uses
 - Implemented heartbeat mechanism for process liveness detection
 - Added atomic file operations for reliability
 
-## Development Guidelines
+## Development Commands
+
+### CLI Development
+```bash
+# Core development workflow
+npm run build              # Compile TypeScript to dist/
+npm test                   # Run Vitest test suite
+npm run dev               # Development mode with hot reload
+npm run typecheck         # TypeScript type checking
+npm run lint              # Biome linting and formatting checks
+npm run lint:fix          # Auto-fix linting issues
+npm run format            # Format code with Biome
+
+# Documentation generation
+npm run docs:build        # Generate all documentation (TypeScript + Swift)
+npm run docs:api          # Generate TypeScript API docs only
+npm run docs:swift        # Generate Swift API docs only
+npm run docs:serve        # Serve documentation on localhost:8080
+
+# Single test execution
+npm test -- --run <test-name>     # Run specific test file
+npm test -- --watch              # Watch mode for tests
+```
+
+### macOS App Development
+```bash
+cd apps/mac
+
+# Building and testing
+./scripts/build.sh        # Build the macOS app
+./scripts/test.sh         # Run Swift tests
+./scripts/lint.sh         # SwiftLint checks
+./scripts/format.sh       # swift-format code formatting
+
+# Xcode development
+open Poltergeist.xcodeproj
+# Or build via command line:
+xcodebuild -project Poltergeist.xcodeproj -scheme Poltergeist build
+```
+
+## Architecture Overview
+
+### Dual-Platform Design
+Poltergeist consists of two complementary applications:
+
+1. **Node.js CLI Tool** (`src/`): Cross-platform file watcher and build engine
+2. **macOS Native App** (`apps/mac/`): SwiftUI status bar monitor and GUI
+
+Communication happens through **shared state files** in `/tmp/poltergeist/` - not direct IPC.
+
+### Core CLI Components
+
+#### Central Engine (`src/poltergeist.ts`)
+- Orchestrates file watching, build queue, and target management
+- Uses dependency injection pattern with `PoltergeistDependencies`
+- Manages target lifecycle and state coordination
+
+#### Build System Architecture
+- **IntelligentBuildQueue** (`src/build-queue.ts`): Manages parallel builds with priority scoring
+- **PriorityEngine** (`src/priority-engine.ts`): Analyzes user focus patterns for smart build ordering
+- **Builder Factory** (`src/factories.ts`): Creates target-specific builders (executable, app-bundle, library, etc.)
+- **Individual Builders** (`src/builders/`): Handle target-specific build logic and validation
+
+#### File Watching & Configuration
+- **WatchmanClient** (`src/watchman.ts`): Facebook Watchman integration with subscription management
+- **WatchmanConfigManager** (`src/watchman-config.ts`): Auto-generates `.watchmanconfig` with smart exclusions
+- **ConfigLoader** (`src/config.ts`): Zod-based schema validation and configuration migration
+
+#### State Management System
+- **StateManager** (`src/state.ts`): Atomic file operations for inter-process coordination
+- **Unified state files**: `/tmp/poltergeist/{projectName}-{hash}-{target}.state`
+- **Lock-free design**: Uses atomic write operations (temp file + rename)
+- **Heartbeat monitoring**: Process liveness detection with automatic cleanup
+
+### macOS App Architecture
+
+#### SwiftUI + Observable Pattern
+- **ProjectMonitor** (`Services/ProjectMonitor.swift`): Main actor that watches state directory
+- **@Observable** pattern throughout for reactive UI updates
+- **@MainActor** classes ensure thread safety
+
+#### Key Components
+- **StatusBarController**: Menu bar integration and user interaction
+- **FileWatcher**: Monitors `/tmp/poltergeist/` for state file changes
+- **NotificationManager**: Native macOS notifications for build events
+- **IconLoader**: Dynamically loads app icons from project configurations
+
+### Target System Architecture
+
+#### Target Types & Builders
+The system supports 7 target types, each with specialized builders:
+
+- **executable**: CLI tools, binaries (`ExecutableBuilder`)
+- **app-bundle**: macOS/iOS apps with bundle management (`AppBundleBuilder`) 
+- **library**: Static/dynamic libraries (`LibraryBuilder`)
+- **framework**: Apple frameworks (`FrameworkBuilder`)
+- **test**: Test suites (`TestBuilder`)
+- **docker**: Container images (`DockerBuilder`)
+- **custom**: User-defined builds (`CustomBuilder`)
+
+Each builder implements `BaseBuilder` interface with target-specific validation and execution logic.
 
 ### State File Format
-All state is stored in unified JSON files at `/tmp/poltergeist/{projectName}-{hash}-{target}.state`
+All state is stored in unified JSON files at `/tmp/poltergeist/{projectName}-{hash}-{target}.state`:
 
-### Testing
-Run tests with: `npm test`
-
-### Building
-Build with: `npm run build`
+```json
+{
+  "version": "1.0",
+  "projectPath": "/path/to/project",
+  "projectName": "my-project", 
+  "target": "my-target",
+  "process": {
+    "pid": 12345,
+    "isActive": true,
+    "startTime": "2024-01-01T00:00:00.000Z",
+    "lastHeartbeat": "2024-01-01T00:01:00.000Z"
+  },
+  "lastBuild": {
+    "status": "success|failure|building|idle",
+    "timestamp": "2024-01-01T00:00:30.000Z",
+    "gitHash": "abc123",
+    "buildTime": 2.5,
+    "errorSummary": "Optional error message"
+  },
+  "appInfo": {
+    "bundleId": "com.example.myapp",
+    "outputPath": "/path/to/output",
+    "iconPath": "/path/to/icon.png"
+  }
+}
+```
 
 ## Poltergeist Mac App Usage
 
