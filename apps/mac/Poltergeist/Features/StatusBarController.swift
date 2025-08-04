@@ -259,9 +259,11 @@ final class StatusBarController: NSObject {
     
     deinit {
         logger.info("🗑️ StatusBarController deallocating")
-        cleanupStatusBar()
+        // Note: UI cleanup happens automatically when object deallocates
+        // Cannot access @MainActor properties from nonisolated deinit in Swift 6
     }
     
+    @MainActor
     private func cleanupStatusBar() {
         popover?.performClose(nil)
         popover = nil
