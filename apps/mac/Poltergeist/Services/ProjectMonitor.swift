@@ -220,8 +220,10 @@ final class ProjectMonitor {
             lastHeartbeat: heartbeat,
             lastBuild: state.lastBuild.map { build in
                 let buildTimestamp = ISO8601DateFormatter().date(from: build.timestamp)
-                let buildStartTime = build.startTime.flatMap { ISO8601DateFormatter().date(from: $0) }
-                
+                let buildStartTime = build.startTime.flatMap {
+                    ISO8601DateFormatter().date(from: $0)
+                }
+
                 return BuildInfo(
                     status: build.status,
                     timestamp: buildTimestamp ?? Date(),
