@@ -31,7 +31,7 @@ Poltergeist offers both a **Node.js CLI** for universal development and a **nati
 ## Features
 
 - **Universal Target System**: Support for executables, app bundles, libraries, frameworks, tests, Docker containers, and custom builds
-- **Smart Execution Wrapper**: `pgrun` command ensures you never run stale or failed builds
+- **Smart Execution Wrapper**: `polter` command ensures you never run stale or failed builds
 - **Efficient File Watching**: Powered by Facebook's Watchman with smart exclusions and performance optimization
 - **Intelligent Build Prioritization**: Automatic priority scoring based on focus patterns and user behavior
 - **Smart Build Queue Management**: Configurable parallelization with intelligent deduplication and scheduling
@@ -368,18 +368,18 @@ poltergeist status
 POLTERGEIST_LOG_LEVEL=debug poltergeist haunt
 ```
 
-## Smart Execution with pgrun
+## Smart Execution with polter
 
-Never run stale or failed builds again! The `pgrun` command is a smart wrapper that ensures you always execute fresh binaries.
+Never run stale or failed builds again! The `polter` command is a smart wrapper that ensures you always execute fresh binaries.
 
 ### The Problem & Solution
 
 ```bash
-# 😱 Without pgrun - might run stale builds:
+# 😱 Without polter - might run stale builds:
 ./dist/my-tool deploy --production   # Disaster if using old code!
 
-# ✅ With pgrun - always fresh builds:
-pgrun my-tool deploy --production    # Waits for build, guarantees fresh code
+# ✅ With polter - always fresh builds:
+polter my-tool deploy --production    # Waits for build, guarantees fresh code
 ```
 
 ### How It Works
@@ -393,7 +393,7 @@ pgrun my-tool deploy --production    # Waits for build, guarantees fresh code
 
 ### Fallback Behavior
 
-When Poltergeist is not running or configuration is missing, `pgrun` gracefully falls back to stale execution:
+When Poltergeist is not running or configuration is missing, `polter` gracefully falls back to stale execution:
 
 ```bash
 ⚠️  POLTERGEIST NOT RUNNING - EXECUTING POTENTIALLY STALE BINARY
@@ -410,7 +410,7 @@ When Poltergeist is not running or configuration is missing, `pgrun` gracefully 
 4. **Smart execution**: Detects file type (`.js`, `.py`, `.sh`) and uses appropriate interpreter
 5. **Clear warnings**: Always warns when running without build verification
 
-This ensures `pgrun` never completely blocks your workflow, while clearly indicating when builds might be stale.
+This ensures `polter` never completely blocks your workflow, while clearly indicating when builds might be stale.
 
 ### Installation & Basic Usage
 
@@ -418,18 +418,18 @@ This ensures `pgrun` never completely blocks your workflow, while clearly indica
 # Global installation (recommended)
 npm install -g @steipete/poltergeist
 
-# Now pgrun is available globally
-pgrun <target-name> [target-arguments...]
+# Now polter is available globally
+polter <target-name> [target-arguments...]
 
 # Examples:
-pgrun my-app --timeout 60000    # Wait up to 60 seconds
-pgrun my-app --force            # Run even if build failed
-pgrun my-app --no-wait          # Fail immediately if building
-pgrun my-app --verbose          # Show detailed progress
+polter my-app --timeout 60000    # Wait up to 60 seconds
+polter my-app --force            # Run even if build failed
+polter my-app --no-wait          # Fail immediately if building
+polter my-app --verbose          # Show detailed progress
 
 # Create convenient aliases
-alias myapp="pgrun my-app"
-alias dev="pgrun dev-server --watch"
+alias myapp="polter my-app"
+alias dev="polter dev-server --watch"
 ```
 
 ### Status Messages
@@ -446,19 +446,19 @@ alias dev="pgrun dev-server --watch"
 #### Shell Integration
 ```bash
 # .bashrc/.zshrc aliases (after global install)
-alias myapp="pgrun my-app-target"
-alias dev="pgrun dev-server --watch"
-alias pb="pgrun peekaboo"  # For Peekaboo users
+alias myapp="polter my-app-target"
+alias dev="polter dev-server --watch"
+alias pb="polter peekaboo"  # For Peekaboo users
 
 # package.json scripts
 {
   "scripts": {
-    "start": "pgrun web-server --port 3000",
-    "deploy:prod": "pgrun deploy-tool --env production"
+    "start": "polter web-server --port 3000",
+    "deploy:prod": "polter deploy-tool --env production"
   }
 }
 
-# No wrapper scripts needed - use pgrun directly!
+# No wrapper scripts needed - use polter directly!
 ```
 
 #### Multi-Service Configuration
@@ -473,19 +473,19 @@ alias pb="pgrun peekaboo"  # For Peekaboo users
 ```
 
 ```bash
-pgrun api --port 8080        # Fresh API server
-pgrun worker --queue jobs    # Fresh worker process
-pgrun frontend --serve       # Fresh frontend build
+polter api --port 8080        # Fresh API server
+polter worker --queue jobs    # Fresh worker process
+polter frontend --serve       # Fresh frontend build
 ```
 
 #### Troubleshooting
 ```bash
 # Timeout issues
-export PGRUN_DEFAULT_TIMEOUT=60000
-pgrun my-app
+export POLTER_DEFAULT_TIMEOUT=60000
+polter my-app
 
 # Configuration check
-pgrun --verbose my-app 2>&1 | grep "Config"
+polter --verbose my-app 2>&1 | grep "Config"
 poltergeist status --target my-app
 ```
 

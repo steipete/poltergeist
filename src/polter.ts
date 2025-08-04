@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 
 /**
- * pgrun - Smart wrapper for running executables managed by Poltergeist
+ * polter - Smart wrapper for running executables managed by Poltergeist
  *
  * Ensures you never run stale or failed builds by:
  * - Checking build status before execution
@@ -347,7 +347,7 @@ async function runWrapper(
       console.error(
         chalk.red(`❌ Target '${targetName}' is not executable (type: ${target.type})`)
       );
-      console.error(chalk.yellow('🔧 pgrun only works with executable targets'));
+      console.error(chalk.yellow('🔧 polter only works with executable targets'));
       process.exit(1);
     }
 
@@ -438,7 +438,7 @@ async function runWrapper(
 const program = new Command();
 
 program
-  .name('pgrun')
+  .name('polter')
   .description('Smart wrapper for running executables managed by Poltergeist')
   .version('1.0.0')
   .argument('<target>', 'Name of the target to run')

@@ -4,7 +4,7 @@ import { existsSync, mkdirSync, writeFileSync, rmSync } from 'fs';
 import { join } from 'path';
 import os from 'os';
 
-describe('pgrun fallback behavior', () => {
+describe('polter fallback behavior', () => {
   // Use a unique temporary directory outside the Poltergeist project
   const testDir = join(os.tmpdir(), `pgrun-test-${Date.now()}`);
   const configPath = join(testDir, 'poltergeist.config.json');
@@ -29,8 +29,8 @@ describe('pgrun fallback behavior', () => {
     // Create a mock binary
     writeFileSync(binaryPath, '#!/bin/bash\necho "test-output"', { mode: 0o755 });
 
-    // Run pgrun from test directory (no config) - don't pass --help as it exits early
-    const result = await runPgrun(testDir, 'test-cli', [], { expectSuccess: true });
+    // Run polter from test directory (no config) - don't pass --help as it exits early
+    const result = await runPolter(testDir, 'test-cli', [], { expectSuccess: true });
 
     expect(result.stderr).toContain('POLTERGEIST NOT RUNNING');
     expect(result.stderr).toContain('npm run poltergeist:haunt');
@@ -55,7 +55,7 @@ describe('pgrun fallback behavior', () => {
     // Create a mock binary
     writeFileSync(binaryPath, '#!/bin/bash\necho "fallback-output"', { mode: 0o755 });
 
-    const result = await runPgrun(testDir, 'test-cli', [], { expectSuccess: true });
+    const result = await runPolter(testDir, 'test-cli', [], { expectSuccess: true });
 
     expect(result.stderr).toContain('POLTERGEIST NOT RUNNING');
     expect(result.stderr).toContain('Available configured targets:');
@@ -65,7 +65,7 @@ describe('pgrun fallback behavior', () => {
 
   it('should handle missing binary gracefully', async () => {
     // No config and no binary
-    const result = await runPgrun(testDir, 'nonexistent-cli', [], { expectSuccess: false });
+    const result = await runPolter(testDir, 'nonexistent-cli', [], { expectSuccess: false });
 
     expect(result.stderr).toContain('Binary not found for target \'nonexistent-cli\'');
     expect(result.stderr).toContain('Tried the following locations:');
@@ -77,7 +77,7 @@ describe('pgrun fallback behavior', () => {
     // Create a mock binary
     writeFileSync(binaryPath, '#!/bin/bash\necho "verbose-test"', { mode: 0o755 });
 
-    const result = await runPgrun(testDir, 'test-cli', [], { 
+    const result = await runPolter(testDir, 'test-cli', [], { 
       expectSuccess: true, 
       verbose: true 
     });
@@ -92,7 +92,7 @@ describe('pgrun fallback behavior', () => {
     const jsPath = join(testDir, 'test-cli.js');
     writeFileSync(jsPath, 'console.log("js-output");');
 
-    const result = await runPgrun(testDir, 'test-cli.js', [], { expectSuccess: true });
+    const result = await runPolter(testDir, 'test-cli.js', [], { expectSuccess: true });
 
     expect(result.stdout).toContain('Running binary: test-cli.js (potentially stale)');
     expect(result.stdout).toContain('js-output');
@@ -105,7 +105,7 @@ describe('pgrun fallback behavior', () => {
     const buildBinaryPath = join(buildDir, 'test-cli');
     writeFileSync(buildBinaryPath, '#!/bin/bash\necho "build-output"', { mode: 0o755 });
 
-    const result = await runPgrun(testDir, 'test-cli', [], { expectSuccess: true });
+    const result = await runPolter(testDir, 'test-cli', [], { expectSuccess: true });
 
     expect(result.stdout).toContain('Running binary: test-cli (potentially stale)');
     expect(result.stdout).toContain('build-output');
@@ -116,7 +116,7 @@ describe('pgrun fallback behavior', () => {
     const baseBinaryPath = join(testDir, 'myapp');
     writeFileSync(baseBinaryPath, '#!/bin/bash\necho "base-app-output"', { mode: 0o755 });
 
-    const result = await runPgrun(testDir, 'myapp-cli', [], { expectSuccess: true });
+    const result = await runPolter(testDir, 'myapp-cli', [], { expectSuccess: true });
 
     expect(result.stdout).toContain('Running binary: myapp-cli (potentially stale)');
     expect(result.stdout).toContain('base-app-output');
@@ -132,9 +132,9 @@ function stripAnsiCodes(text: string): string {
 }
 
 /**
- * Helper function to run pgrun and capture output
+ * Helper function to run polter and capture output
  */
-async function runPgrun(
+async function runPolter(
   cwd: string, 
   target: string, 
   args: string[] = [], 
@@ -146,17 +146,17 @@ async function runPgrun(
 ): Promise<{ stdout: string; stderr: string; exitCode: number }> {
   const { expectSuccess = true, verbose = false, timeout = 10000 } = options;
   
-  const pgrunPath = join(__dirname, '../dist/pgrun.js');
-  const pgrunArgs = [];
+  const polterPath = join(__dirname, '../dist/polter.js');
+  const polterArgs = [];
   
   if (verbose) {
-    pgrunArgs.push('--verbose');
+    polterArgs.push('--verbose');
   }
   
-  pgrunArgs.push(target, ...args);
+  polterArgs.push(target, ...args);
 
   return new Promise((resolve) => {
-    const child = spawn('node', [pgrunPath, ...pgrunArgs], {
+    const child = spawn('node', [polterPath, ...polterArgs], {
       cwd,
       stdio: ['pipe', 'pipe', 'pipe'],
       env: { ...process.env, NO_COLOR: '1' } // Disable colored output

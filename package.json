@@ -38,7 +38,7 @@
   "type": "module",
   "bin": {
     "poltergeist": "./dist/cli.js",
-    "pgrun": "./dist/pgrun.js"
+    "polter": "./dist/polter.js"
   },
   "files": [
     "dist/**/*",
