@@ -6,7 +6,7 @@
 import chalk from 'chalk';
 import { readFile } from 'fs/promises';
 import { dirname, resolve as resolvePath } from 'path';
-import { ZodError, type ZodIssue } from 'zod';
+import type { ZodError, ZodIssue } from 'zod';
 import type { PoltergeistConfig } from '../types.js';
 import { PoltergeistConfigSchema } from '../types.js';
 import { FileSystemUtils } from './filesystem.js';
@@ -27,7 +27,7 @@ export class ConfigValidationError extends Error {
   constructor(message: string, zodError: ZodError) {
     const detailedErrors = ConfigValidationError.formatZodErrors(zodError);
     const fullMessage = `${message}\n\n${detailedErrors.join('\n')}`;
-    
+
     super(fullMessage);
     this.name = 'ConfigValidationError';
     this.validationErrors = detailedErrors;
@@ -59,7 +59,7 @@ export class ConfigurationManager {
 
       // Validate configuration using Zod schema
       const validationResult = PoltergeistConfigSchema.safeParse(rawConfig);
-      
+
       if (!validationResult.success) {
         throw new ConfigValidationError(
           `Configuration validation failed in ${configPath}`,
@@ -72,7 +72,7 @@ export class ConfigurationManager {
       if (error instanceof ConfigValidationError) {
         throw error;
       }
-      
+
       const message = error instanceof Error ? error.message : String(error);
       throw new Error(`Failed to load config from ${configPath}: ${message}`);
     }
@@ -179,12 +179,9 @@ export class ConfigurationManager {
    */
   public static validateConfig(config: unknown): PoltergeistConfig {
     const validationResult = PoltergeistConfigSchema.safeParse(config);
-    
+
     if (!validationResult.success) {
-      throw new ConfigValidationError(
-        'Configuration validation failed',
-        validationResult.error
-      );
+      throw new ConfigValidationError('Configuration validation failed', validationResult.error);
     }
 
     return validationResult.data;
@@ -200,7 +197,7 @@ export class ConfigurationManager {
     suggestions?: string[];
   } {
     const validationResult = PoltergeistConfigSchema.safeParse(config);
-    
+
     if (validationResult.success) {
       return {
         isValid: true,
@@ -227,7 +224,7 @@ export class ConfigurationManager {
    */
   private static generateSuggestions(zodError: ZodError): string[] {
     const suggestions: string[] = [];
-    
+
     for (const error of zodError.issues) {
       const path = error.path.join('.');
       const message = error.message.toLowerCase();
@@ -238,11 +235,15 @@ export class ConfigurationManager {
       } else if (path === 'projectType') {
         suggestions.push('💡 Use one of these project types: swift, node, rust, python, mixed');
       } else if (path.includes('type') && message.includes('enum')) {
-        suggestions.push('💡 Valid target types: executable, app-bundle, library, framework, test, docker, custom');
+        suggestions.push(
+          '💡 Valid target types: executable, app-bundle, library, framework, test, docker, custom'
+        );
       } else if (path === 'targets' && message.includes('array')) {
         suggestions.push('💡 The "targets" field should be an array: "targets": [...]');
       } else if (path.includes('buildCommand') && message.includes('string')) {
-        suggestions.push('💡 Build commands should be strings, e.g., "buildCommand": "swift build"');
+        suggestions.push(
+          '💡 Build commands should be strings, e.g., "buildCommand": "swift build"'
+        );
       } else if (path.includes('watchPaths') && message.includes('array')) {
         suggestions.push('💡 Watch paths should be an array: "watchPaths": ["src/**/*.swift"]');
       } else if (path.includes('name') && message.includes('empty')) {

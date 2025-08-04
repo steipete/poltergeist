@@ -201,19 +201,19 @@ async function executeStaleWithWarning(
     let command: string;
     let commandArgs: string[];
 
-    const ext = binaryPath!.toLowerCase();
-    if (ext.endsWith('.js') || ext.endsWith('.mjs')) {
+    const ext = binaryPath?.toLowerCase();
+    if (ext?.endsWith('.js') || ext?.endsWith('.mjs')) {
       command = 'node';
-      commandArgs = [binaryPath!, ...args];
-    } else if (ext.endsWith('.py')) {
+      commandArgs = [binaryPath, ...args];
+    } else if (ext?.endsWith('.py')) {
       command = 'python';
-      commandArgs = [binaryPath!, ...args];
-    } else if (ext.endsWith('.sh')) {
+      commandArgs = [binaryPath, ...args];
+    } else if (ext?.endsWith('.sh')) {
       command = 'sh';
-      commandArgs = [binaryPath!, ...args];
+      commandArgs = [binaryPath, ...args];
     } else {
       // Assume it's a binary executable
-      command = binaryPath!;
+      command = binaryPath;
       commandArgs = args;
     }
 
@@ -225,7 +225,7 @@ async function executeStaleWithWarning(
     child.on('error', (error: Error) => {
       console.error(chalk.red(`❌ Failed to execute ${targetName}:`));
       console.error(chalk.red(`   ${error.message}`));
-      
+
       // Provide helpful suggestions based on error type
       if (error.message.includes('ENOENT')) {
         console.error(chalk.yellow('💡 Tips:'));
@@ -237,7 +237,7 @@ async function executeStaleWithWarning(
         console.error(`   • Run: chmod +x ${binaryPath}`);
         console.error('   • Check file permissions');
       }
-      
+
       resolve(1);
     });
 
@@ -299,7 +299,7 @@ function executeTarget(target: Target, projectRoot: string, args: string[]): Pro
     child.on('error', (error: Error) => {
       console.error(chalk.red(`❌ Failed to execute ${target.name}:`));
       console.error(chalk.red(`   ${error.message}`));
-      
+
       // Provide helpful suggestions based on error type
       if (error.message.includes('ENOENT')) {
         console.error(chalk.yellow('💡 Tips:'));
@@ -311,7 +311,7 @@ function executeTarget(target: Target, projectRoot: string, args: string[]): Pro
         console.error(`   • Run: chmod +x ${binaryPath}`);
         console.error('   • Check file permissions');
       }
-      
+
       resolve(1);
     });
 
@@ -340,9 +340,11 @@ async function runWrapper(
     if (!discovery) {
       // No Poltergeist config found - fall back to stale execution
       if (options.verbose) {
-        console.warn(chalk.yellow('⚠️  No poltergeist.config.json found - attempting stale execution'));
+        console.warn(
+          chalk.yellow('⚠️  No poltergeist.config.json found - attempting stale execution')
+        );
       }
-      
+
       // Try to find project root (current directory)
       const projectRoot = process.cwd();
       const exitCode = await executeStaleWithWarning(targetName, projectRoot, args, options);
@@ -356,16 +358,18 @@ async function runWrapper(
     if (!target) {
       // Target not found in config - try stale execution fallback
       if (options.verbose) {
-        console.warn(chalk.yellow(`⚠️  Target '${targetName}' not found in config - attempting stale execution`));
+        console.warn(
+          chalk.yellow(`⚠️  Target '${targetName}' not found in config - attempting stale execution`)
+        );
       }
-      
+
       const availableTargets = ConfigurationManager.getExecutableTargets(config).map((t) => t.name);
       if (availableTargets.length > 0) {
         console.warn(chalk.yellow('Available configured targets:'));
         availableTargets.forEach((name) => console.warn(chalk.yellow(`   - ${name}`)));
         console.warn('');
       }
-      
+
       const exitCode = await executeStaleWithWarning(targetName, projectRoot, args, options);
       process.exit(exitCode);
     }
@@ -408,7 +412,9 @@ async function runWrapper(
         if (result === 'timeout') {
           console.error(chalk.red(`❌ Build timeout after ${options.timeout}ms`));
           console.error(chalk.yellow('💡 Solutions:'));
-          console.error(`   • Increase timeout: polter ${targetName} --timeout ${options.timeout * 2}`);
+          console.error(
+            `   • Increase timeout: polter ${targetName} --timeout ${options.timeout * 2}`
+          );
           console.error('   • Check build logs: poltergeist logs');
           console.error('   • Verify Poltergeist is running: poltergeist status');
           process.exit(1);
@@ -457,18 +463,18 @@ async function runWrapper(
   } catch (error) {
     console.error(chalk.red('❌ Unexpected error:'));
     console.error(chalk.red(`   ${error instanceof Error ? error.message : error}`));
-    
+
     if (options.verbose && error instanceof Error) {
       console.error(chalk.gray('\nStack trace:'));
       console.error(chalk.gray(error.stack));
     }
-    
+
     console.error(chalk.yellow('\n💡 Common solutions:'));
     console.error('   • Check if poltergeist.config.json exists and is valid');
     console.error('   • Verify target name matches configuration');
     console.error('   • Run with --verbose for more details');
     console.error('   • Check poltergeist status: poltergeist status');
-    
+
     process.exit(1);
   }
 }

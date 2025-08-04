@@ -1,8 +1,8 @@
-import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 import { spawn } from 'child_process';
-import { existsSync, mkdirSync, writeFileSync, rmSync } from 'fs';
-import { join } from 'path';
+import { existsSync, mkdirSync, rmSync, writeFileSync } from 'fs';
 import os from 'os';
+import { join } from 'path';
+import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 
 describe('polter fallback behavior', () => {
   // Use a unique temporary directory outside the Poltergeist project
@@ -46,9 +46,9 @@ describe('polter fallback behavior', () => {
           name: 'other-target',
           type: 'executable',
           outputPath: './other-binary',
-          buildCommand: 'echo "build"'
-        }
-      ]
+          buildCommand: 'echo "build"',
+        },
+      ],
     };
     writeFileSync(configPath, JSON.stringify(config, null, 2));
 
@@ -67,7 +67,7 @@ describe('polter fallback behavior', () => {
     // No config and no binary
     const result = await runPolter(testDir, 'nonexistent-cli', [], { expectSuccess: false });
 
-    expect(result.stderr).toContain('Binary not found for target \'nonexistent-cli\'');
+    expect(result.stderr).toContain("Binary not found for target 'nonexistent-cli'");
     expect(result.stderr).toContain('Tried the following locations:');
     expect(result.stderr).toContain('Try running a manual build first');
     expect(result.exitCode).toBe(1);
@@ -77,12 +77,14 @@ describe('polter fallback behavior', () => {
     // Create a mock binary
     writeFileSync(binaryPath, '#!/bin/bash\necho "verbose-test"', { mode: 0o755 });
 
-    const result = await runPolter(testDir, 'test-cli', [], { 
-      expectSuccess: true, 
-      verbose: true 
+    const result = await runPolter(testDir, 'test-cli', [], {
+      expectSuccess: true,
+      verbose: true,
     });
 
-    expect(result.stderr).toContain('No poltergeist.config.json found - attempting stale execution');
+    expect(result.stderr).toContain(
+      'No poltergeist.config.json found - attempting stale execution'
+    );
     expect(result.stdout).toContain('Project root:');
     expect(result.stdout).toContain('Binary path:');
     expect(result.stdout).toContain('Status: Executing without build verification');
@@ -127,7 +129,7 @@ describe('polter fallback behavior', () => {
  * Helper function to strip ANSI escape codes from output
  */
 function stripAnsiCodes(text: string): string {
-  // eslint-disable-next-line no-control-regex
+  // biome-ignore lint/suspicious/noControlCharactersInRegex: ANSI escape sequence removal
   return text.replace(/\x1b\[[0-9;]*m/g, '');
 }
 
@@ -135,31 +137,31 @@ function stripAnsiCodes(text: string): string {
  * Helper function to run polter and capture output
  */
 async function runPolter(
-  cwd: string, 
-  target: string, 
-  args: string[] = [], 
-  options: { 
-    expectSuccess?: boolean; 
+  cwd: string,
+  target: string,
+  args: string[] = [],
+  options: {
+    expectSuccess?: boolean;
     verbose?: boolean;
     timeout?: number;
   } = {}
 ): Promise<{ stdout: string; stderr: string; exitCode: number }> {
-  const { expectSuccess = true, verbose = false, timeout = 10000 } = options;
-  
+  const { verbose = false, timeout = 10000 } = options;
+
   const polterPath = join(__dirname, '../dist/polter.js');
   const polterArgs = [];
-  
+
   if (verbose) {
     polterArgs.push('--verbose');
   }
-  
+
   polterArgs.push(target, ...args);
 
   return new Promise((resolve) => {
     const child = spawn('node', [polterPath, ...polterArgs], {
       cwd,
       stdio: ['pipe', 'pipe', 'pipe'],
-      env: { ...process.env, NO_COLOR: '1' } // Disable colored output
+      env: { ...process.env, NO_COLOR: '1' }, // Disable colored output
     });
 
     let stdout = '';
@@ -180,19 +182,19 @@ async function runPolter(
 
     child.on('exit', (code) => {
       clearTimeout(timeoutId);
-      resolve({ 
-        stdout: stripAnsiCodes(stdout), 
-        stderr: stripAnsiCodes(stderr), 
-        exitCode: code || 0 
+      resolve({
+        stdout: stripAnsiCodes(stdout),
+        stderr: stripAnsiCodes(stderr),
+        exitCode: code || 0,
       });
     });
 
     child.on('error', (error) => {
       clearTimeout(timeoutId);
-      resolve({ 
-        stdout: stripAnsiCodes(stdout), 
-        stderr: stripAnsiCodes(stderr + error.message), 
-        exitCode: 1 
+      resolve({
+        stdout: stripAnsiCodes(stdout),
+        stderr: stripAnsiCodes(stderr + error.message),
+        exitCode: 1,
       });
     });
   });
