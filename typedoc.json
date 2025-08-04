@@ -1,0 +1,73 @@
+{
+  "entryPoints": ["src/index.ts", "src/types.ts", "src/interfaces.ts"],
+  "out": "docs/api/typescript",
+  "readme": "README.md",
+  "name": "Poltergeist API Documentation",
+  "includeVersion": true,
+  "excludeExternals": true,
+  "excludePrivate": true,
+  "excludeProtected": false,
+  "excludeInternal": false,
+  "categorizeByGroup": true,
+  "defaultCategory": "Core",
+  "categoryOrder": [
+    "Core",
+    "Configuration",
+    "Build System",
+    "File Watching",
+    "State Management",
+    "Utilities",
+    "*"
+  ],
+  "sort": ["source-order"],
+  "kindSortOrder": [
+    "Document",
+    "Project",
+    "Module",
+    "Namespace", 
+    "Enum",
+    "EnumMember",
+    "Class",
+    "Interface",
+    "TypeAlias",
+    "Constructor",
+    "Property",
+    "Variable",
+    "Function",
+    "Method",
+    "Parameter",
+    "TypeParameter",
+    "Accessor",
+    "GetSignature",
+    "SetSignature",
+    "TypeLiteral",
+    "CallSignature",
+    "ConstructorSignature",
+    "IndexSignature",
+    "Reference"
+  ],
+  "theme": "default",
+  "customCss": "docs/api/custom.css",
+  "plugin": ["typedoc-plugin-mermaid"],
+  "gitRevision": "main",
+  "gitRemote": "origin",
+  "sourceLinkTemplate": "https://github.com/steipete/poltergeist/blob/{gitRevision}/{path}#L{line}",
+  "navigationLinks": {
+    "GitHub": "https://github.com/steipete/poltergeist",
+    "Architecture": "../architecture.html"
+  },
+  "sidebarLinks": {
+    "Architecture Diagrams": "../architecture.html",
+    "CLI Documentation": "../CLI.html"
+  },
+  "validation": {
+    "notExported": true,
+    "invalidLink": true,
+    "notDocumented": false
+  },
+  "treatWarningsAsErrors": false,
+  "treatValidationWarningsAsErrors": false,
+  "cleanOutputDir": true,
+  "emit": "docs",
+  "logLevel": "Info"
+}

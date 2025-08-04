@@ -8,6 +8,39 @@
 import Foundation
 import os.log
 
+/// The main project monitoring service for the Poltergeist macOS app.
+///
+/// `ProjectMonitor` is responsible for discovering, monitoring, and managing the state
+/// of all active Poltergeist CLI instances. It watches the state directory for changes
+/// and provides real-time updates about build status, project activity, and build queues.
+///
+/// ## Key Features
+/// 
+/// - **State Discovery**: Automatically discovers active Poltergeist instances by scanning state files
+/// - **Real-time Monitoring**: Watches for file system changes in the state directory
+/// - **Build Queue Management**: Tracks active, queued, and completed builds across all projects
+/// - **Build Statistics**: Maintains build history and performance metrics
+/// - **Lifecycle Management**: Handles cleanup of stale projects and processes
+///
+/// ## Usage
+///
+/// The ProjectMonitor is typically used as a singleton throughout the app:
+///
+/// ```swift
+/// let monitor = ProjectMonitor.shared
+/// monitor.startMonitoring()
+/// 
+/// // Access current projects
+/// for project in monitor.projects {
+///     print("Project: \(project.name) - Status: \(project.overallStatus)")
+/// }
+/// ```
+///
+/// ## Thread Safety
+///
+/// This class is marked with `@MainActor` and should only be accessed from the main thread.
+/// All public methods and properties are safe to access from SwiftUI views and other
+/// main-thread contexts.
 @MainActor
 @Observable
 final class ProjectMonitor {

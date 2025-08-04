@@ -8,7 +8,42 @@ import Foundation
 //  Created by Poltergeist on 2025.
 //
 
-/// Modern project model with Swift 6 Sendable compliance
+/// Represents a Poltergeist-monitored project with its build targets and status.
+///
+/// A `Project` encapsulates all information about a development project being
+/// monitored by Poltergeist, including its build targets, current status, and
+/// build history. This is the primary data model used throughout the macOS app
+/// for displaying project information.
+///
+/// ## Properties
+///
+/// - ``path``: The absolute filesystem path to the project root
+/// - ``name``: Display name derived from the project directory
+/// - ``hash``: Unique identifier hash for the project
+/// - ``targets``: Dictionary of build targets and their current state
+/// - ``overallStatus``: Computed overall build status across all targets
+///
+/// ## Usage Example
+///
+/// ```swift
+/// let project = Project(path: "/path/to/project", name: "MyProject", hash: "abc123")
+/// 
+/// switch project.overallStatus {
+/// case .building:
+///     print("Project is currently building")
+/// case .success:
+///     print("All builds successful")
+/// case .failed:
+///     print("Some builds failed")
+/// case .idle:
+///     print("No recent build activity")
+/// }
+/// ```
+///
+/// ## Thread Safety
+///
+/// This struct conforms to `Sendable` and is safe to use across different threads
+/// and actor contexts in Swift 6.
 struct Project: Identifiable, Equatable, Sendable {
     let path: String
     let name: String
