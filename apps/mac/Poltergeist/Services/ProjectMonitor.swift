@@ -26,10 +26,14 @@ class ProjectMonitor: ObservableObject {
 
     private var fileWatcher: FileWatcher?
     private var updateTimer: Timer?
+    private var debounceTimer: Timer?
 
     // Track build history for enhanced features
     private var buildHistory: [CompletedBuild] = []
     private let maxHistorySize = 50
+    
+    // Debouncing to avoid excessive scans
+    private let debounceInterval: TimeInterval = 1.0
 
     private init() {}
 
@@ -47,7 +51,7 @@ class ProjectMonitor: ObservableObject {
 
         // Set up periodic updates for heartbeat checks
         updateTimer = Timer.scheduledTimer(withTimeInterval: 5.0, repeats: true) { _ in
-            DispatchQueue.main.async {
+            Task { @MainActor in
                 self.scanForProjects()
             }
         }
@@ -67,10 +71,22 @@ class ProjectMonitor: ObservableObject {
 
     private func setupFileWatcher() {
         fileWatcher = FileWatcher(path: poltergeistDirectory) { [weak self] in
-            // This callback is now properly @MainActor isolated
-            self?.scanForProjects()
+            // Debounce rapid file changes to avoid excessive scanning
+            self?.debouncedScanForProjects()
         }
         fileWatcher?.start()
+    }
+    
+    private func debouncedScanForProjects() {
+        // Cancel any pending scan
+        debounceTimer?.invalidate()
+        
+        // Schedule a new scan after the debounce interval
+        debounceTimer = Timer.scheduledTimer(withTimeInterval: debounceInterval, repeats: false) { [weak self] _ in
+            Task { @MainActor in
+                self?.scanForProjects()
+            }
+        }
     }
 
     private func scanForProjects() {
@@ -242,25 +258,23 @@ class ProjectMonitor: ObservableObject {
     }
 
     private func handleStateFileError(file: String, error: Error) {
+        // Skip logging errors for obviously invalid test files to reduce noise
+        if file.hasPrefix("test-") || file.hasPrefix("main-queue-test-") {
+            logger.debug("Skipping invalid test file: \(file)")
+            return
+        }
+        
         switch error {
-        case DecodingError.dataCorrupted(let context):
-            logger.error(
-                "❌ Failed to decode state file \(file): data corrupted - \(context.debugDescription)"
-            )
-        case DecodingError.keyNotFound(let key, let context):
-            logger.error(
-                "❌ Failed to decode state file \(file): missing key '\(key.stringValue)' - \(context.debugDescription)"
-            )
-        case DecodingError.typeMismatch(let type, let context):
-            logger.error(
-                "❌ Failed to decode state file \(file): type mismatch for \(type) - \(context.debugDescription)"
-            )
-        case DecodingError.valueNotFound(let type, let context):
-            logger.error(
-                "❌ Failed to decode state file \(file): value not found for \(type) - \(context.debugDescription)"
-            )
+        case DecodingError.dataCorrupted:
+            logger.warning("❌ Invalid JSON in state file: \(file)")
+        case DecodingError.keyNotFound(let key, _):
+            logger.warning("❌ Missing key '\(key.stringValue)' in state file: \(file)")
+        case DecodingError.typeMismatch(let type, _):
+            logger.warning("❌ Type mismatch for \(type) in state file: \(file)")
+        case DecodingError.valueNotFound(let type, _):
+            logger.warning("❌ Missing value for \(type) in state file: \(file)")
         default:
-            logger.error("❌ Failed to process state file \(file): \(error.localizedDescription)")
+            logger.warning("❌ Failed to process state file \(file): \(error.localizedDescription)")
         }
     }
 
@@ -354,9 +368,12 @@ class ProjectMonitor: ObservableObject {
         logger.info("📊 Removal complete: \(removedCount) removed, \(failedCount) failed")
 
         // Rescan after a small delay to ensure filesystem operations complete
-        DispatchQueue.main.asyncAfter(deadline: .now() + 0.1) { [weak self] in
-            self?.logger.info("🔄 Triggering rescan after removal...")
-            self?.scanForProjects()
+        Task { [weak self] in
+            try? await Task.sleep(for: .milliseconds(100))
+            await MainActor.run {
+                self?.logger.info("🔄 Triggering rescan after removal...")
+                self?.scanForProjects()
+            }
         }
     }
 
@@ -374,7 +391,7 @@ class ProjectMonitor: ObservableObject {
 
     func refreshProjects() {
         logger.info("Refreshing projects...")
-        DispatchQueue.main.async {
+        Task { @MainActor in
             self.scanForProjects()
         }
     }
