@@ -8,22 +8,27 @@
 import Foundation
 import os.log
 
+/// Protocol to avoid Swift concurrency isolation checks
+protocol FileWatcherDelegate: AnyObject {
+    func fileWatcherDidDetectChange()
+}
+
 /// Modern directory watcher using DispatchSource instead of FSEventStreamRef
-/// This provides better Swift 6 concurrency support and simplified memory management
-/// Callbacks are guaranteed to run on the main queue via DispatchQueue.main.async
-final class FileWatcher: @unchecked Sendable {
+/// This provides simplified memory management and proper queue isolation
+/// Uses delegate pattern to avoid Swift concurrency issues
+final class FileWatcher {
     private let logger = Logger(subsystem: "com.poltergeist.monitor", category: "FileWatcher")
     private let path: String
-    private let callback: @Sendable () -> Void
+    weak var delegate: FileWatcherDelegate?
     private let queue = DispatchQueue(label: "com.poltergeist.filewatcher", qos: .background)
 
     private var directoryFileDescriptor: CInt = -1
     private var directorySource: DispatchSourceFileSystemObject?
     private let lock = NSLock()
 
-    init(path: String, callback: @escaping @Sendable () -> Void) {
+    init(path: String, delegate: FileWatcherDelegate) {
         self.path = path
-        self.callback = callback
+        self.delegate = delegate
     }
 
     func start() {
@@ -49,9 +54,9 @@ final class FileWatcher: @unchecked Sendable {
 
         source.setEventHandler { [weak self] in
             guard let self = self else { return }
-            // Dispatch to main queue - callback will be executed on main thread
+            // Dispatch to main queue to call delegate method safely
             DispatchQueue.main.async {
-                self.callback()
+                self.delegate?.fileWatcherDidDetectChange()
             }
         }
 

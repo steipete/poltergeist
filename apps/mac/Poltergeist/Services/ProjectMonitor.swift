@@ -10,7 +10,7 @@ import Foundation
 import os.log
 
 @MainActor
-class ProjectMonitor: ObservableObject {
+class ProjectMonitor: ObservableObject, FileWatcherDelegate {
     static let shared = ProjectMonitor()
     static let projectsDidUpdateNotification = Notification.Name("ProjectsDidUpdate")
 
@@ -66,13 +66,15 @@ class ProjectMonitor: ObservableObject {
     }
 
     private func setupFileWatcher() {
-        fileWatcher = FileWatcher(path: poltergeistDirectory) { [weak self] in
-            // FileWatcher guarantees callback is on main queue
-            // Since we're already on main queue, directly call scanForProjects
-            // without any Swift concurrency API involvement
-            self?.scanForProjects()
-        }
+        fileWatcher = FileWatcher(path: poltergeistDirectory, delegate: self)
         fileWatcher?.start()
+    }
+    
+    // MARK: - FileWatcherDelegate
+    
+    func fileWatcherDidDetectChange() {
+        // This method is called on main queue by FileWatcher
+        scanForProjects()
     }
 
     private func scanForProjects() {
