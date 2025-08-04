@@ -27,7 +27,7 @@ import Foundation
 ///
 /// ```swift
 /// let project = Project(path: "/path/to/project", name: "MyProject", hash: "abc123")
-/// 
+///
 /// switch project.overallStatus {
 /// case .building:
 ///     print("Project is currently building")

@@ -73,7 +73,8 @@ struct InlineProjectDetailView: View {
                             // Build time
                             if let buildTime = build.buildTime {
                                 let formattedTime =
-                                    InlineProjectDetailView.buildDurationFormatter.string(from: buildTime)
+                                    InlineProjectDetailView.buildDurationFormatter.string(
+                                        from: buildTime)
                                     ?? String(format: "%.2fs", buildTime)
                                 Text(formattedTime)
                                     .font(.system(size: 12))

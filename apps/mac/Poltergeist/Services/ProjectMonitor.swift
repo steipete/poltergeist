@@ -15,7 +15,7 @@ import os.log
 /// and provides real-time updates about build status, project activity, and build queues.
 ///
 /// ## Key Features
-/// 
+///
 /// - **State Discovery**: Automatically discovers active Poltergeist instances by scanning state files
 /// - **Real-time Monitoring**: Watches for file system changes in the state directory
 /// - **Build Queue Management**: Tracks active, queued, and completed builds across all projects
@@ -29,7 +29,7 @@ import os.log
 /// ```swift
 /// let monitor = ProjectMonitor.shared
 /// monitor.startMonitoring()
-/// 
+///
 /// // Access current projects
 /// for project in monitor.projects {
 ///     print("Project: \(project.name) - Status: \(project.overallStatus)")
