@@ -56,6 +56,8 @@ const { mockPoltergeist, mockStateManager, mockConfigLoader, mockLogger } = vi.h
         }
         // Return default config
         return {
+          version: '1.0',
+          projectType: 'node',
           targets: [
             {
               name: 'test-target',
@@ -66,6 +68,24 @@ const { mockPoltergeist, mockStateManager, mockConfigLoader, mockLogger } = vi.h
               watchPaths: ['src/**/*.ts'],
             },
           ],
+          watchman: {
+            useDefaultExclusions: true,
+            excludeDirs: [],
+            projectType: 'node',
+            maxFileEvents: 10000,
+            recrawlThreshold: 3,
+            settlingDelay: 1000,
+          },
+          buildScheduling: {
+            parallelization: 1,
+            prioritization: {
+              enabled: true,
+              focusDetectionWindow: 300000,
+            },
+          },
+          notifications: {
+            enabled: true,
+          },
         };
       }),
       getProjectRoot: vi.fn().mockReturnValue(process.cwd()),
@@ -223,7 +243,9 @@ describe('CLI Commands', () => {
 
   // Helper to create test config
   function createTestConfig(config: Partial<PoltergeistConfig> | null = null) {
-    const defaultConfig = {
+    const defaultConfig: PoltergeistConfig = {
+      version: '1.0',
+      projectType: 'node',
       targets: [
         {
           name: 'test-target',
@@ -234,9 +256,43 @@ describe('CLI Commands', () => {
           watchPaths: ['src/**/*.ts'],
         },
       ],
+      watchman: {
+        useDefaultExclusions: true,
+        excludeDirs: [],
+        projectType: 'node',
+        maxFileEvents: 10000,
+        recrawlThreshold: 3,
+        settlingDelay: 1000,
+      },
+      buildScheduling: {
+        parallelization: 1,
+        prioritization: {
+          enabled: true,
+          focusDetectionWindow: 300000,
+        },
+      },
+      notifications: {
+        enabled: true,
+      },
     };
 
-    writeFileSync(configPath, JSON.stringify(config || defaultConfig, null, 2));
+    const mergedConfig = config ? deepMerge(defaultConfig, config) : defaultConfig;
+    writeFileSync(configPath, JSON.stringify(mergedConfig, null, 2));
+  }
+
+  // Helper function for deep merging config objects
+  function deepMerge(target: any, source: any): any {
+    const result = { ...target };
+    
+    for (const key in source) {
+      if (source[key] !== null && typeof source[key] === 'object' && !Array.isArray(source[key])) {
+        result[key] = deepMerge(target[key] || {}, source[key]);
+      } else {
+        result[key] = source[key];
+      }
+    }
+    
+    return result;
   }
 
   describe('haunt/start command', () => {
@@ -307,6 +363,8 @@ describe('CLI Commands', () => {
         customConfigPath,
         JSON.stringify(
           {
+            version: '1.0',
+            projectType: 'node',
             targets: [
               {
                 name: 'custom-target',
@@ -317,6 +375,24 @@ describe('CLI Commands', () => {
                 watchPaths: ['**/*.js'],
               },
             ],
+            watchman: {
+              useDefaultExclusions: true,
+              excludeDirs: [],
+              projectType: 'node',
+              maxFileEvents: 10000,
+              recrawlThreshold: 3,
+              settlingDelay: 1000,
+            },
+            buildScheduling: {
+              parallelization: 1,
+              prioritization: {
+                enabled: true,
+                focusDetectionWindow: 300000,
+              },
+            },
+            notifications: {
+              enabled: true,
+            },
           },
           null,
           2

@@ -41,14 +41,36 @@ describe('polter fallback behavior', () => {
   it('should fall back to stale execution when target not found in config', async () => {
     // Create a valid config but without our target
     const config = {
+      version: '1.0',
+      projectType: 'node',
       targets: [
         {
           name: 'other-target',
           type: 'executable',
+          enabled: true,
           outputPath: './other-binary',
           buildCommand: 'echo "build"',
+          watchPaths: ['src/**/*.ts'],
         },
       ],
+      watchman: {
+        useDefaultExclusions: true,
+        excludeDirs: [],
+        projectType: 'node',
+        maxFileEvents: 10000,
+        recrawlThreshold: 3,
+        settlingDelay: 1000,
+      },
+      buildScheduling: {
+        parallelization: 1,
+        prioritization: {
+          enabled: true,
+          focusDetectionWindow: 300000,
+        },
+      },
+      notifications: {
+        enabled: true,
+      },
     };
     writeFileSync(configPath, JSON.stringify(config, null, 2));
 
