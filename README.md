@@ -412,16 +412,24 @@ When Poltergeist is not running or configuration is missing, `pgrun` gracefully 
 
 This ensures `pgrun` never completely blocks your workflow, while clearly indicating when builds might be stale.
 
-### Basic Usage
+### Installation & Basic Usage
 
 ```bash
+# Global installation (recommended)
+npm install -g @steipete/poltergeist
+
+# Now pgrun is available globally
 pgrun <target-name> [target-arguments...]
 
-# Options:
+# Examples:
 pgrun my-app --timeout 60000    # Wait up to 60 seconds
 pgrun my-app --force            # Run even if build failed
 pgrun my-app --no-wait          # Fail immediately if building
 pgrun my-app --verbose          # Show detailed progress
+
+# Create convenient aliases
+alias myapp="pgrun my-app"
+alias dev="pgrun dev-server --watch"
 ```
 
 ### Status Messages
@@ -437,9 +445,10 @@ pgrun my-app --verbose          # Show detailed progress
 
 #### Shell Integration
 ```bash
-# .bashrc/.zshrc aliases
+# .bashrc/.zshrc aliases (after global install)
 alias myapp="pgrun my-app-target"
 alias dev="pgrun dev-server --watch"
+alias pb="pgrun peekaboo"  # For Peekaboo users
 
 # package.json scripts
 {
@@ -448,6 +457,8 @@ alias dev="pgrun dev-server --watch"
     "deploy:prod": "pgrun deploy-tool --env production"
   }
 }
+
+# No wrapper scripts needed - use pgrun directly!
 ```
 
 #### Multi-Service Configuration
