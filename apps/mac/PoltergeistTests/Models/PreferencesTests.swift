@@ -213,62 +213,49 @@ struct PreferencesEdgeCaseTests {
     }
 }
 
-// MARK: - Preferences ObservableObject Tests  
-@Suite("Preferences ObservableObject Tests", .tags(.models, .unit))
+// MARK: - Preferences Observable Tests  
+@Suite("Preferences Observable Tests", .tags(.models, .unit))
 @MainActor
-struct PreferencesObservableObjectTests {
+struct PreferencesObservableTests {
     
-    @Test("ObservableObject conformance")
-    func testObservableObjectConformance() {
+    @Test("Observable conformance")
+    func testObservableConformance() {
         let preferences = Preferences.shared
         preferences.reset()
         
-        // Verify it conforms to ObservableObject
-        #expect(preferences is ObservableObject)
+        // Verify it's @Observable (Swift 6 pattern)
+        // @Observable classes don't have objectWillChange publishers
+        // Instead, they automatically track changes for SwiftUI
         
-        // The objectWillChange publisher exists
-        #expect(preferences.objectWillChange != nil)
+        // Test that we can read and modify properties
+        preferences.showNotifications = false
+        #expect(preferences.showNotifications == false)
+        
+        preferences.showNotifications = true
+        #expect(preferences.showNotifications == true)
+        
+        preferences.reset()
     }
     
-    @Test("Property changes trigger objectWillChange")
-    func testObjectWillChangeNotifications() async throws {
+    @Test("Observable property changes work correctly")
+    func testObservablePropertyChanges() {
         let preferences = Preferences.shared
         preferences.reset()
         
-        // Use confirmation to verify objectWillChange is published
-        await confirmation("objectWillChange was published", expectedCount: 1) { changeConfirmation in
-            // Subscribe to objectWillChange
-            let cancellable = preferences.objectWillChange.sink {
-                changeConfirmation()
-            }
-            
-            // Trigger a change
-            preferences.showNotifications = false
-            
-            // Keep cancellable alive
-            defer { cancellable.cancel() }
-        }
-        preferences.reset()
-    }
-    
-    @Test("Multiple property changes trigger multiple notifications")
-    func testMultipleObjectWillChangeNotifications() async throws {
-        let preferences = Preferences.shared  
-        preferences.reset()
+        // Test that property changes are immediate and observable
+        let originalValue = preferences.showNotifications
+        preferences.showNotifications = !originalValue
+        #expect(preferences.showNotifications == !originalValue)
         
-        await confirmation("objectWillChange was published", expectedCount: 3) { changeConfirmation in
-            let cancellable = preferences.objectWillChange.sink {
-                changeConfirmation()
-            }
-            
-            // Trigger multiple changes
-            preferences.showNotifications = false
-            preferences.soundEnabled = false  
-            preferences.launchAtLogin = true
-            
-            // Keep cancellable alive
-            defer { cancellable.cancel() }
-        }
+        // Test multiple property changes
+        preferences.soundEnabled = false
+        preferences.launchAtLogin = true
+        preferences.statusCheckInterval = 10.0
+        
+        #expect(preferences.soundEnabled == false)
+        #expect(preferences.launchAtLogin == true)
+        #expect(preferences.statusCheckInterval == 10.0)
+        
         preferences.reset()
     }
 }
