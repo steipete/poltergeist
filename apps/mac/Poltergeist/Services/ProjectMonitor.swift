@@ -207,12 +207,6 @@ final class ProjectMonitor {
 
     private func createTargetState(from state: PoltergeistState) -> TargetState {
         let heartbeat = ISO8601DateFormatter().date(from: state.process.lastHeartbeat)
-        let buildTimestamp =
-            state.lastBuild.map { ISO8601DateFormatter().date(from: $0.timestamp) }
-        let buildStartTime = state.lastBuild?.startTime.flatMap {
-            ISO8601DateFormatter().date(from: $0)
-        }
-
         let isStale = isProcessStale(heartbeat: heartbeat)
         if isStale {
             logger.warning("⚠️ Process is stale for \(state.projectName):\(state.target)")
@@ -225,7 +219,10 @@ final class ProjectMonitor {
             isActive: state.process.isActive && !isProcessStale(heartbeat: heartbeat),
             lastHeartbeat: heartbeat,
             lastBuild: state.lastBuild.map { build in
-                BuildInfo(
+                let buildTimestamp = ISO8601DateFormatter().date(from: build.timestamp)
+                let buildStartTime = build.startTime.flatMap { ISO8601DateFormatter().date(from: $0) }
+                
+                return BuildInfo(
                     status: build.status,
                     timestamp: buildTimestamp ?? Date(),
                     errorSummary: build.errorSummary?.isEmpty == true ? nil : build.errorSummary,
