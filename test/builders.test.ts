@@ -2,6 +2,7 @@
 
 import { spawn } from 'child_process';
 import { EventEmitter } from 'events';
+import { join } from 'path';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { AppBundleBuilder, BuilderFactory, ExecutableBuilder } from '../src/builders/index.js';
 import type { Logger } from '../src/logger.js';
@@ -264,7 +265,7 @@ describe('ExecutableBuilder', () => {
       expect(mockStateManager.updateAppInfo).toHaveBeenCalledWith(
         'cli',
         expect.objectContaining({
-          outputPath: '/test/project/dist/cli',
+          outputPath: join('/test/project', 'dist', 'cli'),
         })
       );
     });

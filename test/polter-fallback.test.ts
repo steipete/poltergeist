@@ -26,8 +26,8 @@ describe('polter fallback behavior', () => {
   });
 
   it('should fall back to stale execution when no config is found', async () => {
-    // Create a mock binary
-    writeFileSync(binaryPath, '#!/bin/bash\necho "test-output"', { mode: 0o755 });
+    // Create a cross-platform mock binary (Node.js script)
+    writeFileSync(binaryPath, 'console.log("test-output");', { mode: 0o755 });
 
     // Run polter from test directory (no config) - don't pass --help as it exits early
     const result = await runPolter(testDir, 'test-cli', [], { expectSuccess: true });
@@ -74,8 +74,8 @@ describe('polter fallback behavior', () => {
     };
     writeFileSync(configPath, JSON.stringify(config, null, 2));
 
-    // Create a mock binary
-    writeFileSync(binaryPath, '#!/bin/bash\necho "fallback-output"', { mode: 0o755 });
+    // Create a cross-platform mock binary (Node.js script)
+    writeFileSync(binaryPath, 'console.log("fallback-output");', { mode: 0o755 });
 
     const result = await runPolter(testDir, 'test-cli', [], { expectSuccess: true });
 
@@ -96,8 +96,8 @@ describe('polter fallback behavior', () => {
   });
 
   it('should show verbose output in fallback mode', async () => {
-    // Create a mock binary
-    writeFileSync(binaryPath, '#!/bin/bash\necho "verbose-test"', { mode: 0o755 });
+    // Create a cross-platform mock binary (Node.js script)
+    writeFileSync(binaryPath, 'console.log("verbose-test");', { mode: 0o755 });
 
     const result = await runPolter(testDir, 'test-cli', [], {
       expectSuccess: true,
@@ -127,7 +127,7 @@ describe('polter fallback behavior', () => {
     const buildDir = join(testDir, 'build');
     mkdirSync(buildDir);
     const buildBinaryPath = join(buildDir, 'test-cli');
-    writeFileSync(buildBinaryPath, '#!/bin/bash\necho "build-output"', { mode: 0o755 });
+    writeFileSync(buildBinaryPath, 'console.log("build-output");', { mode: 0o755 });
 
     const result = await runPolter(testDir, 'test-cli', [], { expectSuccess: true });
 
@@ -138,7 +138,7 @@ describe('polter fallback behavior', () => {
   it('should handle cli suffix removal for binary discovery', async () => {
     // Create binary without -cli suffix
     const baseBinaryPath = join(testDir, 'myapp');
-    writeFileSync(baseBinaryPath, '#!/bin/bash\necho "base-app-output"', { mode: 0o755 });
+    writeFileSync(baseBinaryPath, 'console.log("base-app-output");', { mode: 0o755 });
 
     const result = await runPolter(testDir, 'myapp-cli', [], { expectSuccess: true });
 
