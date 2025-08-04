@@ -4,16 +4,11 @@ export default defineConfig({
   test: {
     globals: true,
     environment: 'node',
-    // Windows CI compatibility: use sequential execution to avoid race conditions
-    pool: process.platform === 'win32' ? 'forks' : 'threads',
+    // Use forks pool to support process.chdir() in tests
+    pool: 'forks',
     poolOptions: {
-      threads: {
-        // Reduce concurrency on Windows to minimize race conditions
-        maxThreads: process.platform === 'win32' ? 1 : undefined,
-        minThreads: process.platform === 'win32' ? 1 : undefined,
-      },
       forks: {
-        // Use single process on Windows for better test isolation
+        // Reduce concurrency on Windows to minimize race conditions
         maxForks: process.platform === 'win32' ? 1 : undefined,
         minForks: process.platform === 'win32' ? 1 : undefined,
       },
