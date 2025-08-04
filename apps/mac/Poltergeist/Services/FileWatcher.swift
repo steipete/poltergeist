@@ -8,27 +8,22 @@
 import Foundation
 import os.log
 
-/// Protocol to avoid Swift concurrency isolation checks
-protocol FileWatcherDelegate: AnyObject {
-    func fileWatcherDidDetectChange()
-}
-
 /// Modern directory watcher using DispatchSource instead of FSEventStreamRef
 /// This provides simplified memory management and proper queue isolation
-/// Uses delegate pattern to avoid Swift concurrency issues
-final class FileWatcher {
+/// Uses manual synchronization via DispatchQueue.main.async for thread safety
+final class FileWatcher: @unchecked Sendable {
     private let logger = Logger(subsystem: "com.poltergeist.monitor", category: "FileWatcher")
     private let path: String
-    weak var delegate: FileWatcherDelegate?
-    private let queue = DispatchQueue(label: "com.poltergeist.filewatcher", qos: .background)
+    private let callback: @MainActor @Sendable () -> Void
 
     private var directoryFileDescriptor: CInt = -1
     private var directorySource: DispatchSourceFileSystemObject?
     private let lock = NSLock()
 
-    init(path: String, delegate: FileWatcherDelegate) {
+    /// - Parameter callback: Called on main queue when file system changes are detected
+    init(path: String, callback: @escaping @MainActor @Sendable () -> Void) {
         self.path = path
-        self.delegate = delegate
+        self.callback = callback
     }
 
     func start() {
@@ -49,15 +44,13 @@ final class FileWatcher {
         let source = DispatchSource.makeFileSystemObjectSource(
             fileDescriptor: directoryFileDescriptor,
             eventMask: [.write, .delete, .extend, .attrib, .link, .rename, .revoke],
-            queue: queue
+            queue: DispatchQueue.main
         )
 
         source.setEventHandler { [weak self] in
             guard let self = self else { return }
-            // Dispatch to main queue to call delegate method safely
-            DispatchQueue.main.async {
-                self.delegate?.fileWatcherDidDetectChange()
-            }
+            // Since we're already on the main queue, we can call the @MainActor callback directly
+            self.callback()
         }
 
         source.setCancelHandler { [weak self] in

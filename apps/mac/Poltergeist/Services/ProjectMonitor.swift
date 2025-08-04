@@ -10,7 +10,7 @@ import Foundation
 import os.log
 
 @MainActor
-class ProjectMonitor: ObservableObject, FileWatcherDelegate {
+class ProjectMonitor: ObservableObject {
     static let shared = ProjectMonitor()
     static let projectsDidUpdateNotification = Notification.Name("ProjectsDidUpdate")
 
@@ -66,15 +66,11 @@ class ProjectMonitor: ObservableObject, FileWatcherDelegate {
     }
 
     private func setupFileWatcher() {
-        fileWatcher = FileWatcher(path: poltergeistDirectory, delegate: self)
+        fileWatcher = FileWatcher(path: poltergeistDirectory) { [weak self] in
+            // This callback is now properly @MainActor isolated
+            self?.scanForProjects()
+        }
         fileWatcher?.start()
-    }
-    
-    // MARK: - FileWatcherDelegate
-    
-    func fileWatcherDidDetectChange() {
-        // This method is called on main queue by FileWatcher
-        scanForProjects()
     }
 
     private func scanForProjects() {
