@@ -24,10 +24,13 @@ export async function safeRemoveDir(path: string, maxRetries = 3): Promise<void>
         }
         throw error;
       }
-      
+
       // On Windows, wait a bit before retrying
-      if (isWindows && (error.code === 'EBUSY' || error.code === 'EPERM' || error.code === 'EACCES')) {
-        await new Promise(resolve => setTimeout(resolve, 100 * attempt));
+      if (
+        isWindows &&
+        (error.code === 'EBUSY' || error.code === 'EPERM' || error.code === 'EACCES')
+      ) {
+        await new Promise((resolve) => setTimeout(resolve, 100 * attempt));
       }
     }
   }
@@ -45,15 +48,15 @@ export async function safeCreateDir(path: string, maxRetries = 3): Promise<void>
       if (attempt === maxRetries) {
         throw error;
       }
-      
+
       // If directory already exists, that's fine
       if (error.code === 'EEXIST') {
         return;
       }
-      
+
       // On Windows, wait a bit before retrying
       if (isWindows) {
-        await new Promise(resolve => setTimeout(resolve, 50 * attempt));
+        await new Promise((resolve) => setTimeout(resolve, 50 * attempt));
       }
     }
   }
@@ -64,6 +67,6 @@ export async function safeCreateDir(path: string, maxRetries = 3): Promise<void>
  */
 export async function windowsDelay(ms = 50): Promise<void> {
   if (isWindows) {
-    await new Promise(resolve => setTimeout(resolve, ms));
+    await new Promise((resolve) => setTimeout(resolve, ms));
   }
 }

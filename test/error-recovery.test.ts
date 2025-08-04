@@ -36,7 +36,10 @@ describe('Error Recovery and Resilience', () => {
     vi.useFakeTimers();
 
     // Create unique test directory for each test
-    testDir = join(tmpdir(), `poltergeist-error-test-${Date.now()}-${Math.random().toString(36).slice(2)}`);
+    testDir = join(
+      tmpdir(),
+      `poltergeist-error-test-${Date.now()}-${Math.random().toString(36).slice(2)}`
+    );
     await safeCreateDir(testDir);
     await windowsDelay();
 
@@ -65,7 +68,7 @@ describe('Error Recovery and Resilience', () => {
       poltergeist.cleanup();
     }
     delete process.env.POLTERGEIST_STATE_DIR;
-    
+
     // Cleanup test directory with retry logic
     await safeRemoveDir(testDir);
   });
@@ -313,46 +316,52 @@ describe('Error Recovery and Resilience', () => {
   });
 
   describe('State File Recovery', () => {
-    it.skipIf(process.platform === 'win32' && process.env.CI)('should recover from corrupted state files', async () => {
-      const target: ExecutableTarget = harness.config.targets[0] as ExecutableTarget;
+    it.skipIf(process.platform === 'win32' && process.env.CI)(
+      'should recover from corrupted state files',
+      async () => {
+        const target: ExecutableTarget = harness.config.targets[0] as ExecutableTarget;
 
-      // Create corrupted state file
-      const statePath = join(testDir, 'test-project-abc123-test-target.state');
-      try {
-        writeFileSync(statePath, '{ corrupted json');
-        await windowsDelay();  // Allow file to be written
-      } catch (error) {
-        console.error('Failed to write corrupted state file:', error);
-        throw error;
+        // Create corrupted state file
+        const statePath = join(testDir, 'test-project-abc123-test-target.state');
+        try {
+          writeFileSync(statePath, '{ corrupted json');
+          await windowsDelay(); // Allow file to be written
+        } catch (error) {
+          console.error('Failed to write corrupted state file:', error);
+          throw error;
+        }
+
+        // Should handle gracefully
+        await expect(stateManager.initializeState(target)).resolves.not.toThrow();
+
+        // Should create new valid state
+        const state = await stateManager.readState('test-target');
+        expect(state).toBeDefined();
+        expect(state?.target).toBe('test-target');
       }
+    );
 
-      // Should handle gracefully
-      await expect(stateManager.initializeState(target)).resolves.not.toThrow();
+    it.skipIf(process.platform === 'win32' && process.env.CI)(
+      'should recover from inaccessible state directory',
+      async () => {
+        // Remove state directory with retry logic
+        await safeRemoveDir(testDir);
+        await windowsDelay(100); // Extra delay for Windows
 
-      // Should create new valid state
-      const state = await stateManager.readState('test-target');
-      expect(state).toBeDefined();
-      expect(state?.target).toBe('test-target');
-    });
+        const target: ExecutableTarget = harness.config.targets[0] as ExecutableTarget;
 
-    it.skipIf(process.platform === 'win32' && process.env.CI)('should recover from inaccessible state directory', async () => {
-      // Remove state directory with retry logic
-      await safeRemoveDir(testDir);
-      await windowsDelay(100);  // Extra delay for Windows
+        // Should recreate directory
+        await expect(stateManager.initializeState(target)).resolves.not.toThrow();
+        await windowsDelay(); // Allow directory recreation
 
-      const target: ExecutableTarget = harness.config.targets[0] as ExecutableTarget;
+        // Check if directory was recreated
+        expect(existsSync(testDir)).toBe(true);
 
-      // Should recreate directory
-      await expect(stateManager.initializeState(target)).resolves.not.toThrow();
-      await windowsDelay();  // Allow directory recreation
-
-      // Check if directory was recreated
-      expect(existsSync(testDir)).toBe(true);
-
-      // Verify state was written
-      const state = await stateManager.readState('test-target');
-      expect(state).toBeDefined();
-    });
+        // Verify state was written
+        const state = await stateManager.readState('test-target');
+        expect(state).toBeDefined();
+      }
+    );
 
     it('should handle concurrent state file access', async () => {
       const target: ExecutableTarget = harness.config.targets[0] as ExecutableTarget;
