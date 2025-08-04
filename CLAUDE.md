@@ -54,6 +54,67 @@ Run tests with: `npm test`
 ### Building
 Build with: `npm run build`
 
+## Poltergeist Mac App Usage
+
+### Setup and Configuration
+The Mac app requires a `poltergeist.config.json` file in your project root. Example for Swift projects:
+
+```json
+{
+  "version": "1.0",
+  "projectType": "swift",
+  "targets": [
+    {
+      "name": "debug",
+      "type": "executable", 
+      "enabled": true,
+      "buildCommand": "xcodebuild -project MyApp.xcodeproj -scheme MyApp -configuration Debug build",
+      "watchPaths": [
+        "Sources/**/*.swift",
+        "Tests/**/*.swift", 
+        "*.xcodeproj/**"
+      ],
+      "settlingDelay": 1000,
+      "debounceInterval": 3000
+    }
+  ],
+  "notifications": {
+    "enabled": true,
+    "buildSuccess": true,
+    "buildFailed": true,
+    "icon": "./path/to/your/app/icon.png"
+  }
+}
+```
+
+### Starting Poltergeist
+1. **CLI**: Run `poltergeist` in your project directory 
+2. **Mac App**: Will automatically detect and monitor configured projects
+
+### File Watching
+- Uses Facebook's Watchman for efficient file system monitoring
+- Automatically ignores build artifacts, `.DS_Store`, Xcode user data
+- Configurable watch patterns per target
+- Debouncing prevents excessive builds from rapid file changes
+
+### Build Process
+- Incremental compilation when possible
+- Build times typically 1.5-3.5 seconds for Swift projects
+- Automatic retry on transient failures
+- Real-time build status in Mac app status bar
+
+### Testing Integration
+Poltergeist works with standard project scripts:
+- `scripts/lint.sh` - SwiftLint integration
+- `scripts/format.sh` - swift-format integration  
+- `scripts/test.sh` - Swift Testing validation
+
+### State Management
+- State files stored in `/tmp/poltergeist/`
+- Format: `{projectName}-{hash}-{target}.state`
+- Contains build status, process info, heartbeat data
+- Automatic cleanup of stale projects
+
 ## Swift 6 Concurrency and Dispatch Queue Assertion Failures
 
 ### Critical Understanding: Isolation Boundaries and Queue Assertions

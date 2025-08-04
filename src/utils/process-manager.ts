@@ -197,31 +197,36 @@ export class ProcessManager {
 
   /**
    * Gracefully terminate a process with timeout fallback to SIGKILL
+   * Windows optimization: reduced timeout for faster termination
    */
   public async terminateProcess(
-    process: ChildProcess,
+    childProcess: ChildProcess,
     timeoutMs: number = this.options.shutdownTimeout
   ): Promise<void> {
-    if (!process.pid || process.killed) {
+    if (!childProcess.pid || childProcess.killed) {
       return;
     }
 
+    // Windows taskkill is less graceful than Unix SIGTERM, use shorter timeout
+    const effectiveTimeout = process.platform === 'win32' ? 
+      Math.min(timeoutMs, 3000) : timeoutMs;
+
     return new Promise((resolve) => {
       const timeout = setTimeout(() => {
-        if (!process.killed) {
-          this.logger?.warn(`Force killing process ${process.pid} after timeout`);
-          process.kill('SIGKILL');
+        if (!childProcess.killed) {
+          this.logger?.warn(`Force killing process ${childProcess.pid} after timeout`);
+          childProcess.kill('SIGKILL');
         }
         resolve();
-      }, timeoutMs);
+      }, effectiveTimeout);
 
-      process.on('exit', () => {
+      childProcess.on('exit', () => {
         clearTimeout(timeout);
         resolve();
       });
 
       // Try graceful termination first
-      process.kill('SIGTERM');
+      childProcess.kill('SIGTERM');
     });
   }
 

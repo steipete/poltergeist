@@ -5,7 +5,8 @@
 
 import { createHash } from 'crypto';
 import { existsSync, readFileSync, writeFileSync } from 'fs';
-import { dirname, join, resolve as resolvePath } from 'path';
+import { tmpdir } from 'os';
+import { dirname, join, resolve as resolvePath, sep } from 'path';
 
 /**
  * Centralized file system utilities for Poltergeist operations
@@ -16,10 +17,10 @@ import { dirname, join, resolve as resolvePath } from 'path';
 // biome-ignore lint/complexity/noStaticOnlyClass: Intentional design for API organization
 export class FileSystemUtils {
   /**
-   * Get the default state directory path
+   * Get the default state directory path (cross-platform)
    */
   public static getStateDirectory(): string {
-    return process.env.POLTERGEIST_STATE_DIR || '/tmp/poltergeist';
+    return process.env.POLTERGEIST_STATE_DIR || join(tmpdir(), 'poltergeist');
   }
 
   /**
@@ -28,7 +29,7 @@ export class FileSystemUtils {
    * Path hash prevents collisions between projects with same name
    */
   public static generateStateFileName(projectRoot: string, targetName: string): string {
-    const projectName = projectRoot.split('/').pop() || 'unknown';
+    const projectName = projectRoot.split(sep).pop() || 'unknown';
     const projectHash = createHash('sha256').update(projectRoot).digest('hex').substring(0, 8);
     return `${projectName}-${projectHash}-${targetName}.state`;
   }
@@ -100,7 +101,7 @@ export class FileSystemUtils {
    */
   public static findFileUpTree(fileName: string, startDir: string = process.cwd()): string | null {
     let currentDir = resolvePath(startDir);
-    const root = resolvePath('/');
+    const root = process.platform === 'win32' ? resolvePath(currentDir.split(sep)[0] + sep) : resolvePath('/');
 
     while (currentDir !== root) {
       const filePath = resolvePath(currentDir, fileName);

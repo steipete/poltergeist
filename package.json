@@ -19,7 +19,10 @@
     "gradle",
     "maven",
     "macos",
-    "dev-tools"
+    "windows",
+    "linux",
+    "dev-tools",
+    "cross-platform"
   ],
   "homepage": "https://github.com/steipete/poltergeist",
   "bugs": {
