@@ -148,7 +148,7 @@ export class StateManager implements IStateManager {
       if (!existsSync(this.stateDir)) {
         mkdirSync(this.stateDir, { recursive: true });
       }
-      
+
       // Double-check directory exists after creation (Windows race condition)
       if (!existsSync(this.stateDir)) {
         throw new Error(`State directory does not exist after creation: ${this.stateDir}`);

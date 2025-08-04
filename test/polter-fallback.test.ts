@@ -133,7 +133,9 @@ describe('polter fallback behavior', () => {
     const buildDir = join(testDir, 'build');
     mkdirSync(buildDir);
     const buildBinaryPath = join(buildDir, 'test-cli');
-    writeFileSync(buildBinaryPath, '#!/usr/bin/env node\nconsole.log("build-output");', { mode: 0o755 });
+    writeFileSync(buildBinaryPath, '#!/usr/bin/env node\nconsole.log("build-output");', {
+      mode: 0o755,
+    });
 
     const result = await runPolter(testDir, 'test-cli', [], { expectSuccess: true });
 
@@ -147,7 +149,9 @@ describe('polter fallback behavior', () => {
   it('should handle cli suffix removal for binary discovery', async () => {
     // Create binary without -cli suffix - polter looks for exact name match after suffix removal
     const baseBinaryPath = join(testDir, 'myapp');
-    writeFileSync(baseBinaryPath, '#!/usr/bin/env node\nconsole.log("base-app-output");', { mode: 0o755 });
+    writeFileSync(baseBinaryPath, '#!/usr/bin/env node\nconsole.log("base-app-output");', {
+      mode: 0o755,
+    });
 
     const result = await runPolter(testDir, 'myapp-cli', [], { expectSuccess: true });
 
