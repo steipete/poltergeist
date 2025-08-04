@@ -40,7 +40,13 @@ jobs:
       run: npm run typecheck
       
     - name: Run CLI tests
-      run: npm test
+      run: |
+        if [ "${{ matrix.os }}" = "windows-latest" ]; then
+          npx vitest --config vitest.config.windows-ci.ts
+        else
+          npm test
+        fi
+      shell: bash
       
     - name: Test CLI executables
       run: |

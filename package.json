@@ -53,6 +53,7 @@
     "dev": "tsx watch src/cli.ts",
     "start": "node dist/cli.js",
     "test": "vitest",
+    "test:windows-ci": "vitest --config vitest.config.windows-ci.ts",
     "lint": "biome check src test",
     "lint:fix": "biome check src test --write",
     "format": "biome format src test --write",

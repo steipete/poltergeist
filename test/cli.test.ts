@@ -154,7 +154,7 @@ const mockExit = vi.spyOn(process, 'exit').mockImplementation((code?: number) =>
 // Import the program after mocks are set up
 import { program } from '../src/cli.js';
 
-describe.skipIf(process.platform === 'win32' && process.env.CI)('CLI Commands', () => {
+describe('CLI Commands', () => {
   let testDir: string;
   let configPath: string;
   let originalCwd: string;
