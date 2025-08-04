@@ -148,6 +148,92 @@ async function waitForBuildCompletion(
 }
 
 /**
+ * Executes a binary when Poltergeist is not available (stale execution with warning)
+ */
+async function executeStaleWithWarning(
+  targetName: string,
+  projectRoot: string,
+  args: string[],
+  options: { verbose: boolean }
+): Promise<number> {
+  // Try common binary locations for the target
+  const possiblePaths = [
+    resolvePath(projectRoot, targetName),
+    resolvePath(projectRoot, `./${targetName}`),
+    resolvePath(projectRoot, `./build/${targetName}`),
+    resolvePath(projectRoot, `./dist/${targetName}`),
+    resolvePath(projectRoot, `./${targetName.replace('-cli', '')}`), // Handle cli suffix
+    resolvePath(projectRoot, `./${targetName.replace('-app', '')}`), // Handle app suffix
+  ];
+
+  let binaryPath: string | null = null;
+  for (const path of possiblePaths) {
+    if (existsSync(path)) {
+      binaryPath = path;
+      break;
+    }
+  }
+
+  if (!binaryPath) {
+    console.error(chalk.red(`❌ Binary not found for target '${targetName}'`));
+    console.error(chalk.yellow('Tried the following locations:'));
+    possiblePaths.forEach((path) => console.error(chalk.gray(`   ${path}`)));
+    console.error(chalk.yellow('🔧 Try running a manual build first'));
+    return 1;
+  }
+
+  // Show warning banner
+  console.warn(chalk.yellow('⚠️  POLTERGEIST NOT RUNNING - EXECUTING POTENTIALLY STALE BINARY'));
+  console.warn(chalk.yellow('   The binary may be outdated. For fresh builds, start Poltergeist:'));
+  console.warn(chalk.yellow('   npm run poltergeist:haunt'));
+  console.warn('');
+
+  if (options.verbose) {
+    console.log(chalk.blue(`📍 Project root: ${projectRoot}`));
+    console.log(chalk.blue(`🎯 Binary path: ${binaryPath}`));
+    console.log(chalk.yellow(`⚠️  Status: Executing without build verification`));
+  }
+
+  console.log(chalk.green(`✅ Running binary: ${targetName} (potentially stale)`));
+
+  return new Promise((resolve) => {
+    // Determine how to execute based on file extension
+    let command: string;
+    let commandArgs: string[];
+
+    const ext = binaryPath!.toLowerCase();
+    if (ext.endsWith('.js') || ext.endsWith('.mjs')) {
+      command = 'node';
+      commandArgs = [binaryPath!, ...args];
+    } else if (ext.endsWith('.py')) {
+      command = 'python';
+      commandArgs = [binaryPath!, ...args];
+    } else if (ext.endsWith('.sh')) {
+      command = 'sh';
+      commandArgs = [binaryPath!, ...args];
+    } else {
+      // Assume it's a binary executable
+      command = binaryPath!;
+      commandArgs = args;
+    }
+
+    const child = spawn(command, commandArgs, {
+      stdio: 'inherit',
+      cwd: projectRoot,
+    });
+
+    child.on('error', (error: Error) => {
+      console.error(chalk.red(`❌ Failed to execute ${targetName}:`), error.message);
+      resolve(1);
+    });
+
+    child.on('exit', (code: number | null) => {
+      resolve(code || 0);
+    });
+  });
+}
+
+/**
  * Executes the target binary with given arguments
  */
 function executeTarget(target: Target, projectRoot: string, args: string[]): Promise<number> {
@@ -224,11 +310,15 @@ async function runWrapper(
     // Find poltergeist config
     const discovery = await ConfigurationManager.discoverAndLoadConfig();
     if (!discovery) {
-      console.error(
-        chalk.red('❌ No poltergeist.config.json found in current directory or parents')
-      );
-      console.error(chalk.yellow('🔧 Run this command from within a Poltergeist-managed project'));
-      process.exit(1);
+      // No Poltergeist config found - fall back to stale execution
+      if (options.verbose) {
+        console.warn(chalk.yellow('⚠️  No poltergeist.config.json found - attempting stale execution'));
+      }
+      
+      // Try to find project root (current directory)
+      const projectRoot = process.cwd();
+      const exitCode = await executeStaleWithWarning(targetName, projectRoot, args, options);
+      process.exit(exitCode);
     }
 
     const { config, projectRoot } = discovery;
@@ -236,16 +326,20 @@ async function runWrapper(
     // Find target
     const target = ConfigurationManager.findTarget(config, targetName);
     if (!target) {
-      console.error(chalk.red(`❌ Target '${targetName}' not found in config`));
-      const availableTargets = ConfigurationManager.getExecutableTargets(config).map((t) => t.name);
-
-      if (availableTargets.length > 0) {
-        console.error(chalk.yellow('Available executable targets:'));
-        availableTargets.forEach((name) => console.error(chalk.yellow(`  - ${name}`)));
-      } else {
-        console.error(chalk.yellow('No executable targets found in config'));
+      // Target not found in config - try stale execution fallback
+      if (options.verbose) {
+        console.warn(chalk.yellow(`⚠️  Target '${targetName}' not found in config - attempting stale execution`));
       }
-      process.exit(1);
+      
+      const availableTargets = ConfigurationManager.getExecutableTargets(config).map((t) => t.name);
+      if (availableTargets.length > 0) {
+        console.warn(chalk.yellow('Available configured targets:'));
+        availableTargets.forEach((name) => console.warn(chalk.yellow(`   - ${name}`)));
+        console.warn('');
+      }
+      
+      const exitCode = await executeStaleWithWarning(targetName, projectRoot, args, options);
+      process.exit(exitCode);
     }
 
     // Validate target type

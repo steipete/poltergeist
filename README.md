@@ -389,6 +389,28 @@ pgrun my-tool deploy --production    # Waits for build, guarantees fresh code
 3. **Smart Waiting**: Waits for in-progress builds with live progress
 4. **Fail Fast**: Immediately exits on build failures with clear messages
 5. **Fresh Execution**: Only runs executables when builds are confirmed fresh
+6. **Graceful Fallback**: When Poltergeist isn't running, executes potentially stale binaries with warnings
+
+### Fallback Behavior
+
+When Poltergeist is not running or configuration is missing, `pgrun` gracefully falls back to stale execution:
+
+```bash
+⚠️  POLTERGEIST NOT RUNNING - EXECUTING POTENTIALLY STALE BINARY
+   The binary may be outdated. For fresh builds, start Poltergeist:
+   npm run poltergeist:haunt
+
+✅ Running binary: my-app (potentially stale)
+```
+
+**Fallback Logic**:
+1. **No config found**: Attempts to find binary in common locations (`./`, `./build/`, `./dist/`)
+2. **Target not configured**: Searches for binary even if not in Poltergeist config
+3. **Binary discovery**: Tries multiple paths and handles suffix variations (`-cli`, `-app`)
+4. **Smart execution**: Detects file type (`.js`, `.py`, `.sh`) and uses appropriate interpreter
+5. **Clear warnings**: Always warns when running without build verification
+
+This ensures `pgrun` never completely blocks your workflow, while clearly indicating when builds might be stale.
 
 ### Basic Usage
 
