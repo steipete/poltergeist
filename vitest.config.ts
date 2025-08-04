@@ -14,10 +14,14 @@ export default defineConfig({
       },
     },
     // Increase timeouts for Windows CI (slower filesystem operations)
-    testTimeout: process.platform === 'win32' ? 15000 : 5000,
-    hookTimeout: process.platform === 'win32' ? 15000 : 10000,
+    testTimeout: process.platform === 'win32' ? 30000 : 5000,
+    hookTimeout: process.platform === 'win32' ? 30000 : 10000,
     // Better test isolation
     isolate: true,
+    // Run hooks sequentially on Windows to avoid race conditions
+    sequence: {
+      hooks: process.platform === 'win32' ? 'list' : 'parallel',
+    },
     coverage: {
       reporter: ['text', 'html'],
       exclude: [

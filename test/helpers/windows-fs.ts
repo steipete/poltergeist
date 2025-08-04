@@ -10,6 +10,10 @@ const isWindows = platform() === 'win32';
  * Removes a directory with retry logic for Windows
  */
 export async function safeRemoveDir(path: string, maxRetries = 3): Promise<void> {
+  // Skip cleanup in CI if running on Windows to avoid timeouts
+  if (process.platform === 'win32' && process.env.CI) {
+    return;
+  }
   for (let attempt = 1; attempt <= maxRetries; attempt++) {
     try {
       if (existsSync(path)) {

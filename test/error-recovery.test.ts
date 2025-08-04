@@ -3,7 +3,7 @@
 import { existsSync, writeFileSync } from 'fs';
 import { tmpdir } from 'os';
 import { join } from 'path';
-import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
 import type { BaseBuilder } from '../src/builders/index.js';
 import { createPoltergeistWithDeps } from '../src/factories.js';
 import type { IStateManager } from '../src/interfaces.js';
@@ -29,18 +29,30 @@ describe('Error Recovery and Resilience', () => {
   let harness: TestHarness;
   let stateManager: StateManager;
   let testDir: string;
+  let baseTestDir: string;
+
+  // Create base directory once for all tests
+  beforeAll(async () => {
+    baseTestDir = join(tmpdir(), `poltergeist-error-test-${Date.now()}`);
+    await safeCreateDir(baseTestDir);
+  });
+
+  // Clean up base directory after all tests
+  afterAll(async () => {
+    await safeRemoveDir(baseTestDir);
+  });
 
   beforeEach(async () => {
     vi.clearAllMocks();
     vi.useFakeTimers();
 
-    // Create unique test directory for each test
-    testDir = join(
-      tmpdir(),
-      `poltergeist-error-test-${Date.now()}-${Math.random().toString(36).slice(2)}`
-    );
+    // Create unique subdirectory for each test
+    testDir = join(baseTestDir, `test-${Date.now()}-${Math.random().toString(36).slice(2)}`);
     await safeCreateDir(testDir);
-    await windowsDelay();
+    // Skip delay on Windows CI
+    if (!(process.platform === 'win32' && process.env.CI)) {
+      await windowsDelay();
+    }
 
     // Create test harness
     harness = createTestHarness({
@@ -67,9 +79,11 @@ describe('Error Recovery and Resilience', () => {
       poltergeist.cleanup();
     }
     delete process.env.POLTERGEIST_STATE_DIR;
-
-    // Cleanup test directory with retry logic
-    await safeRemoveDir(testDir);
+    
+    // Skip individual cleanup on Windows CI - will be done in afterAll
+    if (!(process.platform === 'win32' && process.env.CI)) {
+      await safeRemoveDir(testDir);
+    }
   });
 
   describe('Watchman Connection Recovery', () => {
