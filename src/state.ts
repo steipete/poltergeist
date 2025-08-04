@@ -150,12 +150,28 @@ export class StateManager implements IStateManager {
       const tempFile = `${stateFile}.${process.pid}.${Date.now()}.${attempt}.tmp`;
 
       try {
+        // Check if directory was removed (test cleanup race condition)
+        if (!existsSync(this.stateDir)) {
+          this.logger.debug(
+            `State directory removed during test cleanup for ${targetName}, skipping state write`
+          );
+          return; // Skip if directory was cleaned up by tests
+        }
+
         // Ensure state directory exists with more robust checking
         await this.ensureStateDirectory();
 
         // Update heartbeat and process info (if requested)
         if (updateProcessInfo) {
           state.process = ProcessManager.updateProcessInfo(state.process);
+        }
+
+        // Double-check directory still exists before writing (Windows race condition)
+        if (!existsSync(this.stateDir)) {
+          this.logger.debug(
+            `State directory removed during state write for ${targetName}, skipping`
+          );
+          return; // Skip if directory disappeared during our operations
         }
 
         // Write to temp file first
@@ -177,18 +193,6 @@ export class StateManager implements IStateManager {
             unlinkSync(tempFile);
           }
         } catch {}
-
-        // Special handling for Windows ENOENT errors during test teardown
-        if (lastError.message.includes('ENOENT') && lastError.message.includes('.tmp')) {
-          // This is likely a test teardown race condition where the directory was removed
-          // Check if the state directory was deleted by test cleanup
-          if (!existsSync(this.stateDir)) {
-            this.logger.debug(
-              `State directory removed during test cleanup for ${targetName}, skipping state write`
-            );
-            return; // Skip writing state if directory was cleaned up
-          }
-        }
 
         if (attempt === maxRetries) {
           // Final attempt failed, log detailed error info
