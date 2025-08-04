@@ -1,0 +1,136 @@
+{
+  "version": "1.0",
+  "name": "Poltergeist Mac App",
+  "description": "Auto-build configuration for Poltergeist macOS application",
+  "targets": {
+    "debug": {
+      "description": "Debug build of Poltergeist Mac app",
+      "watch": [
+        "Poltergeist/**/*.swift",
+        "PoltergeistTests/**/*.swift",
+        "Poltergeist.xcodeproj/**",
+        "Poltergeist/**/*.plist",
+        "Poltergeist/**/*.entitlements",
+        "scripts/**/*.sh"
+      ],
+      "ignore": [
+        "build/**",
+        "logs/**",
+        "**/.*",
+        "**/*.xcuserstate",
+        "**/xcuserdata/**",
+        "**/.DS_Store",
+        "**/DerivedData/**"
+      ],
+      "commands": [
+        {
+          "name": "swift-lint",
+          "command": "./scripts/lint.sh",
+          "description": "Run SwiftLint checks",
+          "continueOnError": true,
+          "timeout": 30000
+        },
+        {
+          "name": "swift-format-check", 
+          "command": "./scripts/format.sh --check",
+          "description": "Check Swift code formatting",
+          "continueOnError": true,
+          "timeout": 15000
+        },
+        {
+          "name": "xcode-build",
+          "command": "xcodebuild -project Poltergeist.xcodeproj -scheme Poltergeist -configuration Debug build CODE_SIGN_IDENTITY=\"\" CODE_SIGNING_REQUIRED=NO",
+          "description": "Build Poltergeist Debug configuration",
+          "timeout": 120000
+        },
+        {
+          "name": "run-tests",
+          "command": "./scripts/test.sh",
+          "description": "Run Swift Testing tests",
+          "continueOnError": true,
+          "timeout": 60000
+        }
+      ],
+      "notifications": {
+        "onSuccess": {
+          "title": "Poltergeist Mac App",
+          "message": "Debug build completed successfully ✅"
+        },
+        "onError": {
+          "title": "Poltergeist Mac App", 
+          "message": "Build failed ❌"
+        }
+      }
+    },
+    "release": {
+      "description": "Release build of Poltergeist Mac app",
+      "watch": [
+        "Poltergeist/**/*.swift",
+        "Poltergeist.xcodeproj/**",
+        "Poltergeist/**/*.plist",
+        "Poltergeist/**/*.entitlements"
+      ],
+      "ignore": [
+        "build/**",
+        "logs/**", 
+        "**/.*",
+        "**/*.xcuserstate",
+        "**/xcuserdata/**",
+        "**/.DS_Store",
+        "**/DerivedData/**"
+      ],
+      "commands": [
+        {
+          "name": "swift-lint",
+          "command": "./scripts/lint.sh",
+          "description": "Run SwiftLint checks",
+          "timeout": 30000
+        },
+        {
+          "name": "swift-format-check",
+          "command": "./scripts/format.sh --check", 
+          "description": "Check Swift code formatting",
+          "timeout": 15000
+        },
+        {
+          "name": "run-tests",
+          "command": "./scripts/test.sh",
+          "description": "Run Swift Testing tests",
+          "timeout": 60000
+        },
+        {
+          "name": "release-build",
+          "command": "./build.sh Release",
+          "description": "Build Release archive",
+          "timeout": 180000
+        }
+      ],
+      "notifications": {
+        "onSuccess": {
+          "title": "Poltergeist Mac App",
+          "message": "Release build completed successfully 🚀"
+        },
+        "onError": {
+          "title": "Poltergeist Mac App",
+          "message": "Release build failed ❌"
+        }
+      }
+    }
+  },
+  "globalIgnore": [
+    "**/.git/**",
+    "**/node_modules/**",
+    "**/DerivedData/**",
+    "**/*.xcuserstate",
+    "**/xcuserdata/**",
+    "**/.DS_Store",
+    "**/build/**",
+    "**/logs/**"
+  ],
+  "options": {
+    "debounceMs": 500,
+    "maxConcurrentBuilds": 1,
+    "enableNotifications": true,
+    "logLevel": "info"
+  }
+}

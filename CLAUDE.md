@@ -21,6 +21,16 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 Poltergeist is a file watcher and auto-builder for development projects. It uses Facebook's Watchman for efficient file watching and supports multiple build targets.
 
+### System Requirements
+- **macOS**: 14.0+ (for SwiftUI Settings support)
+- **iOS**: Not supported - macOS only app
+- **Architecture**: Universal (Apple Silicon + Intel)
+
+### SwiftUI Settings Implementation
+- Use `SettingsLink` for all settings access (macOS 14+ only)
+- No legacy Objective-C selectors (`showSettingsWindow:`, `showPreferencesWindow:`)
+- Settings window is handled entirely by SwiftUI's `Settings` scene
+
 ### Key Components
 - **State Management**: Unified state files in `/tmp/poltergeist/`
 - **Builders**: Modular build system for different target types

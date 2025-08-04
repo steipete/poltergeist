@@ -77,3 +77,7 @@ Icon
 Network Trash Folder
 Temporary Items
 .apdisk
+
+# Application logs
+info
+logs/
