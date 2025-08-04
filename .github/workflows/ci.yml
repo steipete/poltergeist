@@ -45,7 +45,7 @@ jobs:
     - name: Test CLI executables
       run: |
         node dist/cli.js --version
-        node dist/pgrun.js --help || true  # pgrun may exit with error code when no args
+        node dist/polter.js --help || true  # polter may exit with error code when no args
       shell: bash
       
   format-check:
