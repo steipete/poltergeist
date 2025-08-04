@@ -5,6 +5,30 @@ All notable changes to Poltergeist will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [Unreleased]
+
+### Added
+- ✅ **Windows Support**: Full cross-platform compatibility for Windows 10/11
+  - Cross-platform temp directory handling using `os.tmpdir()`
+  - Windows-specific process timeout optimizations
+  - Windows CI testing with GitHub Actions
+  - Updated documentation with Windows installation guide
+- Windows-specific CI job with platform validation tests
+
+### Changed
+- **Breaking**: Unified temp directory usage across CLI and macOS app
+  - CLI now uses `os.tmpdir()` instead of hardcoded `/tmp/poltergeist`
+  - macOS app updated to use same cross-platform temp directory
+  - Supports `POLTERGEIST_STATE_DIR` environment variable override
+- Enhanced CI pipeline with multi-platform testing (Ubuntu, macOS, Windows)
+- Updated README with comprehensive Windows support documentation
+- Added Windows, Linux, and cross-platform keywords to package.json
+
+### Fixed  
+- Cross-platform path separator handling in filename generation
+- Root directory detection for Windows drive letters
+- Process parameter naming conflict in ProcessManager
+
 ## [1.0.0] - 2025-08-03
 
 ### Added

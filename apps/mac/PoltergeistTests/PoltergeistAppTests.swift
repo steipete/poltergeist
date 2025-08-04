@@ -121,7 +121,7 @@ struct PoltergeistAppTests {
 
     @Test("Poltergeist directory handling")
     func testPoltergeistDirectoryHandling() {
-        let poltergeistDir = "/tmp/poltergeist"
+        let poltergeistDir = FileManager.default.temporaryDirectory.appendingPathComponent("poltergeist").path
 
         // Test directory creation (safe to do in tests)
         let fileManager = FileManager.default

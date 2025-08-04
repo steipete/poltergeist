@@ -114,19 +114,26 @@ struct NotificationSettingsView: View {
 struct AdvancedSettingsView: View {
     @Environment(Preferences.self) private var preferences
     @State private var showingResetAlert = false
+    
+    private var poltergeistDirectory: String {
+        if let customDir = ProcessInfo.processInfo.environment["POLTERGEIST_STATE_DIR"] {
+            return customDir
+        }
+        return FileManager.default.temporaryDirectory.appendingPathComponent("poltergeist").path
+    }
 
     var body: some View {
         Form {
             Section {
                 HStack {
                     Text("Poltergeist Directory:")
-                    Text("/tmp/poltergeist/")
+                    Text(poltergeistDirectory)
                         .font(.system(.body, design: .monospaced))
                         .foregroundColor(.secondary)
 
                     Button("Show in Finder") {
                         NSWorkspace.shared.selectFile(
-                            nil, inFileViewerRootedAtPath: "/tmp/poltergeist/")
+                            nil, inFileViewerRootedAtPath: poltergeistDirectory)
                     }
                 }
 

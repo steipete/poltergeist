@@ -15,7 +15,12 @@ final class ProjectMonitor {
     static let projectsDidUpdateNotification = Notification.Name("ProjectsDidUpdate")
 
     private let logger = Logger(subsystem: "com.poltergeist.monitor", category: "ProjectMonitor")
-    private let poltergeistDirectory = "/tmp/poltergeist"
+    private let poltergeistDirectory: String = {
+        if let customDir = ProcessInfo.processInfo.environment["POLTERGEIST_STATE_DIR"] {
+            return customDir
+        }
+        return FileManager.default.temporaryDirectory.appendingPathComponent("poltergeist").path
+    }()
 
     private(set) var projects: [Project] = []
     private(set) var buildQueue = BuildQueueInfo(

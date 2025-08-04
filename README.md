@@ -6,7 +6,7 @@
   <a href="https://nodejs.org"><img src="https://img.shields.io/badge/Node.js-20%2B-339933?style=for-the-badge&logo=node.js&logoColor=white" alt="Node.js 20+"></a>
   <a href="https://github.com/steipete/poltergeist"><img src="https://img.shields.io/badge/platforms-macOS%20%7C%20Linux%20%7C%20Windows-blue?style=for-the-badge" alt="Platforms"></a>
   <a href="LICENSE"><img src="https://img.shields.io/badge/license-MIT-green?style=for-the-badge" alt="MIT License"></a>
-  <a href="https://github.com/steipete/poltergeist/actions/workflows/ci.yml"><img src="https://github.com/steipete/poltergeist/actions/workflows/ci.yml/badge.svg?style=for-the-badge" alt="CI Status"></a>
+  <a href="https://github.com/steipete/poltergeist/actions/workflows/ci.yml"><img src="https://github.com/steipete/poltergeist/actions/workflows/ci.yml/badge.svg" alt="CI Status"></a>
 
   **The ghost that keeps your builds fresh** 👻  
   A universal file watcher with auto-rebuild for any language or build system
@@ -16,9 +16,10 @@
 
 Poltergeist offers both a **Node.js CLI** for universal development and a **native macOS app** for enhanced monitoring:
 
-### CLI Tool (Cross-Platform)
-- **Universal**: Works on macOS, Linux, and Windows
+### CLI Tool (Cross-Platform) 🌍
+- **Universal**: Works on macOS, Linux, and Windows  
 - **Node.js 20+** required
+- **Watchman support**: All platforms officially supported
 - Install: `npm install -g @steipete/poltergeist`
 
 ### macOS App (Native)
@@ -97,7 +98,10 @@ poltergeist haunt
 ### CLI Tool
 - **Node.js 20.0.0** or higher
 - **[Watchman](https://facebook.github.io/watchman/)** (must be installed separately)
-- Cross-platform: macOS, Linux, Windows
+- **Cross-platform**: macOS, Linux, Windows
+  - **macOS**: `brew install watchman`
+  - **Linux**: [Installation guide](https://facebook.github.io/watchman/docs/install#linux)
+  - **Windows**: [Chocolatey package](https://facebook.github.io/watchman/docs/install#windows) or manual install
 
 ### macOS App
 - **macOS 12.0+** (Monterey or later)
@@ -381,7 +385,7 @@ pgrun my-tool deploy --production    # Waits for build, guarantees fresh code
 ### How It Works
 
 1. **State Discovery**: Finds your project's poltergeist configuration
-2. **Build Status Check**: Reads current build state from `/tmp/poltergeist/`
+2. **Build Status Check**: Reads current build state from temp directory (`/tmp/poltergeist/` on Unix, `%TEMP%\poltergeist` on Windows)
 3. **Smart Waiting**: Waits for in-progress builds with live progress
 4. **Fail Fast**: Immediately exits on build failures with clear messages
 5. **Fresh Execution**: Only runs executables when builds are confirmed fresh
@@ -539,7 +543,7 @@ poltergeist status --target my-app
 
 Poltergeist uses a lock-free state management system with atomic operations:
 
-- **Single state file per target**: `/tmp/poltergeist/target-{name}.state.json`
+- **Single state file per target**: Cross-platform temp directory (`/tmp/poltergeist/` on Unix, `%TEMP%\poltergeist` on Windows)
 - **Atomic writes**: Temp file + rename for consistency
 - **Heartbeat monitoring**: Process liveness detection
 - **Build history**: Track success/failure patterns
@@ -610,7 +614,7 @@ open Poltergeist.xcodeproj
 
 Our comprehensive CI/CD pipeline ensures code quality across both platforms:
 
-- **Multi-platform testing**: Node.js 20/22 on Ubuntu and macOS
+- **Multi-platform testing**: Node.js 20/22 on Ubuntu, macOS, and Windows
 - **Swift 6 validation**: Strict concurrency checking and modern Swift practices
 - **Code quality**: SwiftLint, swift-format, Biome, and TypeScript checks
 - **Automated releases**: Dual-platform releases with both CLI (.tgz) and macOS app (.dmg/.zip)
