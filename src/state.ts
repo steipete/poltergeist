@@ -140,7 +140,7 @@ export class StateManager implements IStateManager {
     if (!state) return;
 
     const stateFile = this.getStateFilePath(targetName);
-    
+
     // Retry logic for Windows CI race conditions
     const maxRetries = process.platform === 'win32' ? 3 : 1;
     let lastError: Error | null = null;
@@ -164,11 +164,13 @@ export class StateManager implements IStateManager {
         // Atomic rename ensures state file is never corrupted/partial
         renameSync(tempFile, stateFile);
 
-        this.logger.debug(`State updated for ${targetName}${attempt > 1 ? ` (attempt ${attempt})` : ''}`);
+        this.logger.debug(
+          `State updated for ${targetName}${attempt > 1 ? ` (attempt ${attempt})` : ''}`
+        );
         return; // Success!
       } catch (error) {
         lastError = error instanceof Error ? error : new Error(String(error));
-        
+
         // Clean up temp file if it exists
         try {
           if (existsSync(tempFile)) {
@@ -178,15 +180,21 @@ export class StateManager implements IStateManager {
 
         if (attempt === maxRetries) {
           // Final attempt failed, log detailed error info
-          this.logger.error(`Failed to write state for ${targetName} after ${maxRetries} attempts: ${lastError.message}`);
-          this.logger.error(`State directory: ${this.stateDir}, exists: ${existsSync(this.stateDir)}`);
+          this.logger.error(
+            `Failed to write state for ${targetName} after ${maxRetries} attempts: ${lastError.message}`
+          );
+          this.logger.error(
+            `State directory: ${this.stateDir}, exists: ${existsSync(this.stateDir)}`
+          );
           this.logger.error(`State file: ${stateFile}`);
           this.logger.error(`Temp file: ${tempFile}`);
           throw lastError;
         } else {
           // Retry after a small delay for Windows
-          this.logger.debug(`State write attempt ${attempt} failed for ${targetName}, retrying: ${lastError.message}`);
-          await new Promise(resolve => setTimeout(resolve, 10 * attempt)); // Exponential backoff
+          this.logger.debug(
+            `State write attempt ${attempt} failed for ${targetName}, retrying: ${lastError.message}`
+          );
+          await new Promise((resolve) => setTimeout(resolve, 10 * attempt)); // Exponential backoff
         }
       }
     }
@@ -197,25 +205,25 @@ export class StateManager implements IStateManager {
    */
   private async ensureStateDirectory(): Promise<void> {
     const maxRetries = process.platform === 'win32' ? 3 : 1;
-    
+
     for (let attempt = 1; attempt <= maxRetries; attempt++) {
       try {
         if (!existsSync(this.stateDir)) {
           mkdirSync(this.stateDir, { recursive: true });
         }
-        
+
         // Double-check directory exists after creation (Windows race condition)
         if (!existsSync(this.stateDir)) {
           throw new Error(`State directory does not exist after creation: ${this.stateDir}`);
         }
-        
+
         return; // Success!
       } catch (error) {
         if (attempt === maxRetries) {
           throw error;
         }
         // Small delay before retry
-        await new Promise(resolve => setTimeout(resolve, 5 * attempt));
+        await new Promise((resolve) => setTimeout(resolve, 5 * attempt));
       }
     }
   }

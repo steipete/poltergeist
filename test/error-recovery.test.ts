@@ -318,7 +318,7 @@ describe('Error Recovery and Resilience', () => {
       writeFileSync(statePath, '{ corrupted json');
 
       // Should handle gracefully
-      await expect(stateManager.initializeState(target, 1234)).resolves.not.toThrow();
+      await expect(stateManager.initializeState(target)).resolves.not.toThrow();
 
       // Should create new valid state
       const state = await stateManager.readState('test-target');
@@ -333,7 +333,7 @@ describe('Error Recovery and Resilience', () => {
       const target: ExecutableTarget = harness.config.targets[0] as ExecutableTarget;
 
       // Should recreate directory
-      await expect(stateManager.initializeState(target, 1234)).resolves.not.toThrow();
+      await expect(stateManager.initializeState(target)).resolves.not.toThrow();
 
       // Check if directory was recreated
       expect(existsSync(testDir)).toBe(true);
