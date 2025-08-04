@@ -79,7 +79,7 @@ describe('Error Recovery and Resilience', () => {
       poltergeist.cleanup();
     }
     delete process.env.POLTERGEIST_STATE_DIR;
-    
+
     // Skip individual cleanup on Windows CI - will be done in afterAll
     if (!(process.platform === 'win32' && process.env.CI)) {
       await safeRemoveDir(testDir);
