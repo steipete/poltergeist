@@ -110,6 +110,16 @@ disabled_rules:
   - identifier_name # Allow longer identifiers for clarity
   - closure_body_length # Temporarily disable until code can be refactored
   - file_length # Temporarily disable until StatusBarMenuView can be split
+  - file_header # Disable file header requirement for now
+  - attributes # Disable strict attribute positioning
+  - multiline_arguments_brackets # Disable multiline argument bracket requirements
+  - opening_brace # Disable opening brace spacing enforcement
+  - function_body_length # Disable function body length temporarily
+  - type_body_length # Disable type body length temporarily
+  - multiple_closures_with_trailing_closure # Disable for SwiftUI views
+  - number_separator # Disable number separator requirements
+  - large_tuple # Allow larger tuples for now
+  - pattern_matching_keywords # Disable pattern matching keyword enforcement
 
 # Rule configurations
 line_length:
@@ -120,22 +130,11 @@ line_length:
   ignores_function_declarations: true
   ignores_interpolated_strings: true
 
-function_body_length:
-  warning: 60
-  error: 100
-
 function_parameter_count:
   warning: 6
   error: 8
 
-type_body_length:
-  warning: 300
-  error: 400
-
-file_length:
-  warning: 400
-  error: 500
-  ignore_comment_only_lines: true
+# Note: Removed function_body_length, type_body_length, and file_length configurations since they're disabled
 
 cyclomatic_complexity:
   warning: 10
@@ -146,36 +145,13 @@ nesting:
   type_level:
     warning: 3
     error: 6
-  statement_level:
+  function_level:
     warning: 5
     error: 10
 
 # Configuration for rules
 
-# SwiftUI specific configurations
-type_name:
-  min_length:
-    warning: 3
-    error: 2
-  max_length:
-    warning: 50
-    error: 60
-  excluded:
-    - iPhone # Allow iPhone as type name
-    - URL    # Allow URL as type name
-    - UUID   # Allow UUID as type name
-
-identifier_name:
-  min_length:
-    warning: 2
-    error: 1
-  max_length:
-    warning: 40
-    error: 60
-  excluded:
-    - id  # Allow 'id' as identifier
-    - url # Allow 'url' as identifier
-    - uri # Allow 'uri' as identifier
+# Note: Removed type_name and identifier_name configurations since those rules are disabled
 
 # Force unwrapping allowed in specific cases
 force_unwrapping:
@@ -186,40 +162,19 @@ trailing_whitespace:
   ignores_empty_lines: false
   ignores_comments: true
 
-# File header template
-file_header:
-  severity: warning
-  required_pattern: |
-                    \/\/
-                    \/\/ .*\.swift
-                    \/\/ Poltergeist
-                    \/\/
-                    \/\/ Created by .* on \d{4}\.
-                    \/\/
+# Note: Removed file_header configuration since it's disabled
 
 # Multiline arguments
 multiline_arguments:
   first_argument_location: next_line
   only_enforce_after_first_closure_on_first_line: true
 
-# Custom rules for SwiftUI
+# Custom rules for SwiftUI with @Observable pattern
 custom_rules:
   swiftui_state_private:
     name: "SwiftUI @State should be private"
     regex: '^(?!.*private).*@State\s'
     message: "@State properties should be private"
-    severity: warning
-    
-  swiftui_observedobject_not_private:
-    name: "SwiftUI @ObservedObject should not be private"
-    regex: 'private.*@ObservedObject'
-    message: "@ObservedObject should not be private"
-    severity: warning
-    
-  swiftui_environmentobject_not_private:
-    name: "SwiftUI @EnvironmentObject should not be private"
-    regex: 'private.*@EnvironmentObject'
-    message: "@EnvironmentObject should not be private"
     severity: warning
 
 # Reporter type

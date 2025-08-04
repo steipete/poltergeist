@@ -14,7 +14,7 @@ import os.log
 @MainActor
 final class NotificationManager: @unchecked Sendable {
     static let shared = NotificationManager()
-    
+
     private let logger = Logger(subsystem: "com.poltergeist.monitor", category: "Notifications")
     private var lastNotifiedStates: [String: String] = [:]
     private let notificationCenter = UNUserNotificationCenter.current()
@@ -27,7 +27,8 @@ final class NotificationManager: @unchecked Sendable {
 
     nonisolated private func requestAuthorization() async {
         do {
-            let granted = try await UNUserNotificationCenter.current().requestAuthorization(options: [.alert, .sound, .badge])
+            let granted = try await UNUserNotificationCenter.current().requestAuthorization(
+                options: [.alert, .sound, .badge])
             await MainActor.run {
                 if granted {
                     logger.info("✅ Notification authorization granted")
@@ -37,7 +38,8 @@ final class NotificationManager: @unchecked Sendable {
             }
         } catch {
             await MainActor.run {
-                logger.error("❌ Failed to request notification authorization: \(error.localizedDescription)")
+                logger.error(
+                    "❌ Failed to request notification authorization: \(error.localizedDescription)")
             }
         }
     }
@@ -74,7 +76,7 @@ final class NotificationManager: @unchecked Sendable {
             )
         }
     }
-    
+
     nonisolated private func deliverNotification(
         key: String,
         project: Project,
@@ -90,7 +92,7 @@ final class NotificationManager: @unchecked Sendable {
             errorSummary: errorSummary,
             soundEnabled: soundEnabled
         )
-        
+
         guard let content = content else { return }
 
         let request = UNNotificationRequest(
@@ -110,7 +112,7 @@ final class NotificationManager: @unchecked Sendable {
             }
         }
     }
-    
+
     nonisolated private func createNotificationContent(
         project: Project,
         target: String,
@@ -144,23 +146,23 @@ final class NotificationManager: @unchecked Sendable {
         default:
             return nil
         }
-        
+
         return content
     }
 
     func clearNotifications(for project: Project) {
         let identifiers = project.targets.keys.map { "\(project.path)-\($0)" }
-        
+
         Task {
             await clearDeliveredNotifications(identifiers: identifiers)
         }
-        
+
         // Clear last notified states synchronously
         for identifier in identifiers {
             lastNotifiedStates.removeValue(forKey: identifier)
         }
     }
-    
+
     private func clearDeliveredNotifications(identifiers: [String]) async {
         notificationCenter.removeDeliveredNotifications(withIdentifiers: identifiers)
         logger.debug("🗑️ Cleared \(identifiers.count) notifications")

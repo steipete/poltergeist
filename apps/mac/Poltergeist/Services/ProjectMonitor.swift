@@ -31,7 +31,7 @@ final class ProjectMonitor {
     // Track build history for enhanced features
     private var buildHistory: [CompletedBuild] = []
     private let maxHistorySize = 50
-    
+
     // Debouncing to avoid excessive scans
     private let debounceInterval: TimeInterval = 1.0
 
@@ -76,13 +76,14 @@ final class ProjectMonitor {
         }
         fileWatcher?.start()
     }
-    
+
     private func debouncedScanForProjects() {
         // Cancel any pending scan
         debounceTimer?.invalidate()
-        
+
         // Schedule a new scan after the debounce interval
-        debounceTimer = Timer.scheduledTimer(withTimeInterval: debounceInterval, repeats: false) { [weak self] _ in
+        debounceTimer = Timer.scheduledTimer(withTimeInterval: debounceInterval, repeats: false) {
+            [weak self] _ in
             Task { @MainActor in
                 self?.scanForProjects()
             }
@@ -111,7 +112,6 @@ final class ProjectMonitor {
                 "✅ Processed \(stateFileCount) state files, found \(projectMap.count) projects")
 
             updateProjectsList(from: projectMap)
-
         } catch {
             logger.error("❌ Failed to scan directory: \(error.localizedDescription)")
         }
@@ -150,7 +150,6 @@ final class ProjectMonitor {
             projectMap[projectKey] = project
 
             return project
-
         } catch {
             handleStateFileError(file: file, error: error)
             return nil
@@ -209,7 +208,7 @@ final class ProjectMonitor {
     private func createTargetState(from state: PoltergeistState) -> TargetState {
         let heartbeat = ISO8601DateFormatter().date(from: state.process.lastHeartbeat)
         let buildTimestamp =
-            state.lastBuild.map { ISO8601DateFormatter().date(from: $0.timestamp) } ?? nil
+            state.lastBuild.map { ISO8601DateFormatter().date(from: $0.timestamp) }
         let buildStartTime = state.lastBuild?.startTime.flatMap {
             ISO8601DateFormatter().date(from: $0)
         }
@@ -247,7 +246,6 @@ final class ProjectMonitor {
             let newStatus = targetState.lastBuild?.status,
             existingTarget.lastBuild?.status != newStatus
         {
-
             NotificationManager.shared.notifyBuildStatusChange(
                 project: project,
                 target: state.target,
@@ -263,7 +261,7 @@ final class ProjectMonitor {
             logger.debug("Skipping invalid test file: \(file)")
             return
         }
-        
+
         switch error {
         case DecodingError.dataCorrupted:
             logger.warning("❌ Invalid JSON in state file: \(file)")

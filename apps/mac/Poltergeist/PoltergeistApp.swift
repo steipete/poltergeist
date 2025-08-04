@@ -11,9 +11,9 @@ import os.log
 
 @main
 struct PoltergeistApp: App {
-    @NSApplicationDelegateAdaptor(AppDelegate.self) 
+    @NSApplicationDelegateAdaptor(AppDelegate.self)
     var appDelegate
-    
+
     // Modern dependency injection using @State and environment
     @State private var preferences = Preferences.shared
     @State private var projectMonitor = ProjectMonitor.shared
@@ -54,28 +54,30 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             await setupApplication()
         }
     }
-    
+
     private func setupApplication() async {
         logger.info("🚀 Poltergeist Monitor starting...")
 
         // Configure app behavior
         NSApp.setActivationPolicy(.accessory)
-        
+
         // Initialize core services
         setupStatusBar()
-        
+
         logger.info("✅ Poltergeist Monitor startup complete")
     }
-    
+
     private func setupStatusBar() {
         statusBarController = StatusBarController()
     }
 
-    nonisolated func applicationShouldTerminateAfterLastWindowClosed(_ sender: NSApplication) -> Bool {
+    nonisolated func applicationShouldTerminateAfterLastWindowClosed(_ sender: NSApplication)
+        -> Bool
+    {
         // Keep running even if all windows are closed (status bar app)
         false
     }
-    
+
     nonisolated func applicationWillTerminate(_ notification: Notification) {
         Task { @MainActor in
             logger.info("🛑 Poltergeist Monitor shutting down...")

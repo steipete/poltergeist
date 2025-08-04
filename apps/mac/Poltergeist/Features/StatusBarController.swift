@@ -39,23 +39,23 @@ final class StatusBarController: NSObject {
             logger.error("❌ Failed to create status bar button!")
             return
         }
-        
+
         logger.debug("✅ Status bar button created successfully")
         await configureButton(button)
     }
-    
+
     private func configureButton(_ button: NSStatusBarButton) async {
         // Configure icon with modern async pattern
         let icon = await loadStatusBarIcon()
         button.image = icon
-        
+
         // Configure button behavior
         button.action = #selector(statusItemClicked)
         button.target = self
         button.sendAction(on: [.leftMouseUp, .rightMouseUp])
         button.appearsDisabled = false
     }
-    
+
     private func loadStatusBarIcon() async -> NSImage? {
         // Try custom icon first
         if let image = NSImage(named: "StatusBarIcon") {
@@ -63,14 +63,16 @@ final class StatusBarController: NSObject {
             logger.debug("✅ Loaded custom StatusBarIcon")
             return image
         }
-        
+
         // Fallback to SF Symbol
-        if let image = NSImage(systemSymbolName: "ghost.fill", accessibilityDescription: "Poltergeist") {
+        if let image = NSImage(
+            systemSymbolName: "ghost.fill", accessibilityDescription: "Poltergeist")
+        {
             image.isTemplate = true
             logger.debug("✅ Loaded SF Symbol ghost icon")
             return image
         }
-        
+
         logger.warning("⚠️ No status bar icon available")
         return nil
     }
@@ -79,7 +81,6 @@ final class StatusBarController: NSObject {
         projectMonitor.startMonitoring()
         logger.debug("✅ Project monitoring started")
     }
-
 
     @objc private func statusItemClicked(_ sender: NSStatusBarButton?) {
         guard let event = NSApp.currentEvent else { return }

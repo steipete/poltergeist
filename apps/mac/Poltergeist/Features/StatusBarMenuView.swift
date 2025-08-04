@@ -12,7 +12,7 @@ struct StatusBarMenuView: View {
     // Modern dependency injection using environment
     @Environment(ProjectMonitor.self) private var projectMonitor
     @Environment(Preferences.self) private var preferences
-    
+
     let onDismiss: () -> Void
 
     @State private var expandedProjectIds: Set<String> = []
@@ -214,7 +214,7 @@ struct StatusBarMenuView: View {
             VisualEffectView()
         )
         .edgesIgnoringSafeArea(.all)
-        .onChange(of: currentProjectIds) { oldValue, newValue in
+        .onChange(of: currentProjectIds) { _, newValue in
             // Remove expanded state for projects that no longer exist
             expandedProjectIds = expandedProjectIds.intersection(newValue)
         }
@@ -357,7 +357,7 @@ struct BuildQueueItemView: View {
     @ViewBuilder
     private var buildStatusIndicator: some View {
         switch build {
-        case .active(_):
+        case .active:
             ZStack {
                 Circle()
                     .fill(Color.blue.opacity(0.2))
@@ -369,7 +369,7 @@ struct BuildQueueItemView: View {
                     .symbolEffect(.rotate, isActive: true)
             }
 
-        case .queued(_):
+        case .queued:
             ZStack {
                 Circle()
                     .fill(Color.orange.opacity(0.2))
@@ -498,8 +498,8 @@ struct BuildQueueItemView: View {
 
     private var buildBackgroundColor: Color {
         switch build {
-        case .active(_): return Color.blue.opacity(0.05)
-        case .queued(_): return Color.orange.opacity(0.05)
+        case .active: return Color.blue.opacity(0.05)
+        case .queued: return Color.orange.opacity(0.05)
         case .completed(let completedBuild):
             return (completedBuild.wasSuccessful ? Color.green : Color.red).opacity(0.05)
         }
