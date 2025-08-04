@@ -73,6 +73,7 @@
     "commander": "^14.0.0",
     "fb-watchman": "^2.0.2",
     "node-notifier": "^10.0.1",
+    "ora": "^8.2.0",
     "picomatch": "^4.0.3",
     "winston": "^3.17.0",
     "write-file-atomic": "^6.0.0",

@@ -14,6 +14,7 @@ import chalk from 'chalk';
 import { spawn } from 'child_process';
 import { Command } from 'commander';
 import { existsSync } from 'fs';
+import ora from 'ora';
 import { resolve as resolvePath } from 'path';
 import type { PoltergeistState } from './state.js';
 import type { Target } from './types.js';
@@ -82,21 +83,24 @@ async function getBuildStatus(
 async function waitForBuildCompletion(
   projectRoot: string,
   target: Target,
-  timeoutMs = 30000
+  timeoutMs = 300000
 ): Promise<'success' | 'failed' | 'timeout'> {
   const startTime = Date.now();
-  let spinnerIndex = 0;
-  const spinnerChars = ['⠋', '⠙', '⠹', '⠸', '⠼', '⠴', '⠦', '⠧', '⠇', '⠏'];
+  
+  // Use ora for professional spinner with automatic cursor management
+  const spinner = ora({
+    text: 'Build in progress...',
+    color: 'cyan',
+    spinner: 'dots'
+  });
 
-  // Clear any existing interval
-  const interval = setInterval(() => {
+  // Start spinner (automatically handles TTY detection and cursor hiding)
+  spinner.start();
+
+  // Update elapsed time periodically
+  const timeInterval = setInterval(() => {
     const elapsed = Date.now() - startTime;
-    const spinner = spinnerChars[spinnerIndex % spinnerChars.length];
-    spinnerIndex++;
-
-    process.stdout.write(
-      `\r${chalk.cyan(spinner)} Build in progress... ${Math.round(elapsed / 100) / 10}s`
-    );
+    spinner.text = `Build in progress... ${Math.round(elapsed / 100) / 10}s`;
   }, 100);
 
   try {
@@ -104,31 +108,34 @@ async function waitForBuildCompletion(
       const status = await getBuildStatus(projectRoot, target, { checkProcessForBuilding: true });
 
       if (status === 'success') {
-        clearInterval(interval);
-        process.stdout.write(`\r${' '.repeat(50)}\r`); // Clear spinner line
+        clearInterval(timeInterval);
+        spinner.succeed('Build completed successfully');
         return 'success';
       }
 
       if (status === 'failed') {
-        clearInterval(interval);
-        process.stdout.write(`\r${' '.repeat(50)}\r`); // Clear spinner line
+        clearInterval(timeInterval);
+        spinner.fail('Build failed');
         return 'failed';
       }
 
       if (status !== 'building') {
         // Build process died or status changed - check the actual final status
-        clearInterval(interval);
-        process.stdout.write(`\r${' '.repeat(50)}\r`); // Clear spinner line
-
         const finalStatus = await getBuildStatus(projectRoot, target, {
           checkProcessForBuilding: true,
         });
+        
+        clearInterval(timeInterval);
+        
         if (finalStatus === 'success') {
+          spinner.succeed('Build completed successfully');
           return 'success';
         } else if (finalStatus === 'failed') {
+          spinner.fail('Build failed');
           return 'failed';
         } else {
           // If status is unknown (e.g., file deleted), assume build process died and proceed
+          spinner.succeed('Build process completed');
           return 'success';
         }
       }
@@ -137,12 +144,12 @@ async function waitForBuildCompletion(
       await new Promise((resolve) => setTimeout(resolve, 250));
     }
 
-    clearInterval(interval);
-    process.stdout.write(`\r${' '.repeat(50)}\r`); // Clear spinner line
+    clearInterval(timeInterval);
+    spinner.fail('Build timeout');
     return 'timeout';
   } catch (error) {
-    clearInterval(interval);
-    process.stdout.write(`\r${' '.repeat(50)}\r`); // Clear spinner line
+    clearInterval(timeInterval);
+    spinner.fail('Build error');
     throw error;
   }
 }
@@ -493,7 +500,7 @@ program
   .version('1.0.0')
   .argument('<target>', 'Name of the target to run')
   .argument('[args...]', 'Arguments to pass to the target executable')
-  .option('-t, --timeout <ms>', 'Build wait timeout in milliseconds', '30000')
+  .option('-t, --timeout <ms>', 'Build wait timeout in milliseconds', '300000')
   .option('-f, --force', 'Run even if build failed', false)
   .option('-n, --no-wait', "Don't wait for builds, fail if building")
   .option('-v, --verbose', 'Show detailed status information', false)
