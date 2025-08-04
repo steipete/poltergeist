@@ -265,7 +265,7 @@ describe('ExecutableBuilder', () => {
       expect(mockStateManager.updateAppInfo).toHaveBeenCalledWith(
         'cli',
         expect.objectContaining({
-          outputPath: join('/test/project', 'dist', 'cli'),
+          outputPath: join('/test/project', './dist/cli'),
         })
       );
     });

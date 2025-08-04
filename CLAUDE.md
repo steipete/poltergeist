@@ -17,6 +17,11 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 - When refactoring, improve the entire system, not just patch issues
 - Ensure backwards compatibility when possible
 
+### File Headers
+- Use minimal file headers without "Created by" or date comments
+- Format: `//\n//  FileName.swift\n//  Poltergeist\n//`
+- Omit author attribution and creation dates
+
 ## Project Overview
 
 Poltergeist is a file watcher and auto-builder for development projects. It uses Facebook's Watchman for efficient file watching and supports multiple build targets.

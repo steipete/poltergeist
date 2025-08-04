@@ -144,9 +144,14 @@ export class StateManager implements IStateManager {
     const tempFile = `${stateFile}.${process.pid}.${Date.now()}.tmp`;
 
     try {
-      // Ensure state directory exists
+      // Ensure state directory exists with more robust checking
       if (!existsSync(this.stateDir)) {
         mkdirSync(this.stateDir, { recursive: true });
+      }
+      
+      // Double-check directory exists after creation (Windows race condition)
+      if (!existsSync(this.stateDir)) {
+        throw new Error(`State directory does not exist after creation: ${this.stateDir}`);
       }
 
       // Update heartbeat and process info (if requested)
@@ -164,6 +169,9 @@ export class StateManager implements IStateManager {
     } catch (error) {
       const err = error instanceof Error ? error : new Error(String(error));
       this.logger.error(`Failed to write state for ${targetName}: ${err.message}`);
+      this.logger.error(`State directory: ${this.stateDir}, exists: ${existsSync(this.stateDir)}`);
+      this.logger.error(`State file: ${stateFile}`);
+      this.logger.error(`Temp file: ${tempFile}`);
 
       // Clean up temp file if it exists
       try {
