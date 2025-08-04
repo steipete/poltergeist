@@ -249,30 +249,29 @@ final class StatusBarController: NSObject {
         projectMonitor.refreshProjects()
     }
 
-
     @objc private func showAbout() {
         NSApp.activate(ignoringOtherApps: true)
         NSApp.orderFrontStandardAboutPanel(nil)
     }
-    
+
     // MARK: - Lifecycle
-    
+
     deinit {
         logger.info("🗑️ StatusBarController deallocating")
         // Note: UI cleanup happens automatically when object deallocates
         // Cannot access @MainActor properties from nonisolated deinit in Swift 6
     }
-    
+
     @MainActor
     private func cleanupStatusBar() {
         popover?.performClose(nil)
         popover = nil
-        
+
         if let statusItem = statusItem {
             NSStatusBar.system.removeStatusItem(statusItem)
             logger.debug("✅ Status bar item removed")
         }
         statusItem = nil
     }
-    
+
 }

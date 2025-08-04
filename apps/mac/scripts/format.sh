@@ -39,14 +39,14 @@ issues_found=false
 find Poltergeist -name "*.swift" -type f | while read file; do
     if [ "$CHECK_ONLY" = true ]; then
         # Check mode: only verify formatting
-        if ! swift-format --configuration .swift-format --mode diff "$file" > /dev/null 2>&1; then
+        if ! swift-format lint --configuration .swift-format "$file" > /dev/null 2>&1; then
             echo "❌ Formatting issues found in: $file"
             issues_found=true
         fi
     else
         # Format mode: apply changes
         echo "  Formatting: $file"
-        if ! swift-format --configuration .swift-format --in-place "$file" 2>&1 | tee -a logs/swift-format.log; then
+        if ! swift-format format --configuration .swift-format --in-place "$file" 2>&1 | tee -a logs/swift-format.log; then
             echo "⚠️  Failed to format: $file"
             issues_found=true
         fi

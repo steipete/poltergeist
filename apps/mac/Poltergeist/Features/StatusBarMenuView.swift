@@ -215,7 +215,10 @@ struct StatusBarMenuView: View {
                 .background(.ultraThinMaterial)
             }
         }
-        .frame(minWidth: 420, idealWidth: 480, maxWidth: 540, minHeight: 180, idealHeight: 400, maxHeight: 700)
+        .frame(
+            minWidth: 420, idealWidth: 480, maxWidth: 540, minHeight: 180, idealHeight: 400,
+            maxHeight: 700
+        )
         .background(
             VisualEffectView()
         )

@@ -82,7 +82,8 @@ final class ProjectMonitor {
         debounceTimer?.invalidate()
 
         // Schedule a new scan after the debounce interval
-        debounceTimer = Timer.scheduledTimer(withTimeInterval: debounceInterval, repeats: false) { [weak self] _ in
+        debounceTimer = Timer.scheduledTimer(withTimeInterval: debounceInterval, repeats: false) {
+            [weak self] _ in
             Task { @MainActor in
                 self?.scanForProjects()
             }
@@ -303,7 +304,7 @@ final class ProjectMonitor {
             currentProjectNames.contains(build.project)
         }
 
-        // Filter out queued builds for projects that no longer exist  
+        // Filter out queued builds for projects that no longer exist
         let queuedBuilds = buildQueue.queuedBuilds.filter { build in
             currentProjectNames.contains(build.project)
         }
@@ -318,10 +319,12 @@ final class ProjectMonitor {
         let originalQueuedCount = buildQueue.queuedBuilds.count
         let originalRecentCount = buildQueue.recentBuilds.count
 
-        if activeBuilds.count != originalActiveCount ||
-           queuedBuilds.count != originalQueuedCount ||
-           recentBuilds.count != originalRecentCount {
-            logger.info("🧹 Cleaning build queue: active \(originalActiveCount)→\(activeBuilds.count), queued \(originalQueuedCount)→\(queuedBuilds.count), recent \(originalRecentCount)→\(recentBuilds.count)")
+        if activeBuilds.count != originalActiveCount || queuedBuilds.count != originalQueuedCount
+            || recentBuilds.count != originalRecentCount
+        {
+            logger.info(
+                "🧹 Cleaning build queue: active \(originalActiveCount)→\(activeBuilds.count), queued \(originalQueuedCount)→\(queuedBuilds.count), recent \(originalRecentCount)→\(recentBuilds.count)"
+            )
 
             buildQueue = BuildQueueInfo(
                 queuedBuilds: queuedBuilds,
@@ -384,7 +387,7 @@ final class ProjectMonitor {
                     let alternativePatterns = [
                         "\(project.name)-\(targetName)-\(project.hash).state",
                         "\(project.name)_\(project.hash)_\(targetName).state",
-                        "\(project.name).\(project.hash).\(targetName).state"
+                        "\(project.name).\(project.hash).\(targetName).state",
                     ]
 
                     for pattern in alternativePatterns {
