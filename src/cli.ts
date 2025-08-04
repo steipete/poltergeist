@@ -3,7 +3,8 @@
 import chalk from 'chalk';
 // Updated CLI for generic target system
 import { Command } from 'commander';
-import { existsSync } from 'fs';
+import { createReadStream, existsSync, readFileSync, statSync, watchFile } from 'fs';
+import { createInterface } from 'readline';
 import packageJson from '../package.json' with { type: 'json' };
 // import { Poltergeist } from './poltergeist.js';
 import { ConfigurationError } from './config.js';
@@ -18,7 +19,7 @@ const program = new Command();
 
 program
   .name('poltergeist')
-  .description('The ghost that keeps your projects fresh')
+  .description('👻 Poltergeist - The ghost that keeps your projects fresh')
   .version(version);
 
 // Helper function to load config and handle errors
@@ -152,7 +153,7 @@ program
           }
         } else {
           // All targets status
-          const targets = Object.keys(status);
+          const targets = Object.keys(status).filter(key => !key.startsWith('_'));
           if (targets.length === 0) {
             console.log(chalk.gray('No targets configured'));
           } else {
@@ -278,6 +279,183 @@ function formatStatus(status: string): string {
   }
 }
 
+// Log entry interface
+interface LogEntry {
+  timestamp: string;
+  level: string;
+  message: string;
+  target?: string;
+  [key: string]: unknown;
+}
+
+// Display logs with formatting and filtering
+async function displayLogs(logFile: string, options: {
+  target?: string;
+  lines: string;
+  follow?: boolean;
+  json?: boolean;
+}): Promise<void> {
+  const maxLines = Number.parseInt(options.lines, 10);
+  
+  if (options.follow) {
+    await followLogs(logFile, options.target, options.json);
+    return;
+  }
+
+  // Read and parse log entries
+  const logEntries = await readLogEntries(logFile, options.target, maxLines);
+  
+  if (logEntries.length === 0) {
+    if (options.target) {
+      console.log(chalk.yellow(`No logs found for target: ${options.target}`));
+    } else {
+      console.log(chalk.yellow('No logs found'));
+    }
+    return;
+  }
+
+  // Display logs
+  if (options.json) {
+    console.log(JSON.stringify(logEntries, null, 2));
+  } else {
+    console.log(chalk.blue('👻 Poltergeist Logs'));
+    console.log(chalk.gray('═'.repeat(50)));
+    logEntries.forEach(formatLogEntry);
+  }
+}
+
+// Read and parse log entries from file
+async function readLogEntries(logFile: string, targetFilter?: string, maxLines?: number): Promise<LogEntry[]> {
+  const content = readFileSync(logFile, 'utf-8');
+  const lines = content.trim().split('\n').filter(line => line.trim());
+  
+  const entries: LogEntry[] = [];
+  
+  for (const line of lines) {
+    try {
+      const entry = JSON.parse(line) as LogEntry;
+      
+      // Filter by target if specified
+      if (targetFilter && entry.target !== targetFilter) {
+        continue;
+      }
+      
+      entries.push(entry);
+    } catch (error) {
+      // Skip malformed log lines
+      continue;
+    }
+  }
+
+  // Return last N lines if maxLines specified
+  if (maxLines && entries.length > maxLines) {
+    return entries.slice(-maxLines);
+  }
+  
+  return entries;
+}
+
+// Format a single log entry for display
+function formatLogEntry(entry: LogEntry): void {
+  const timestamp = new Date(entry.timestamp).toLocaleString();
+  const level = formatLogLevel(entry.level);
+  const target = entry.target ? chalk.blue(`[${entry.target}]`) : '';
+  const message = entry.message;
+  
+  console.log(`${chalk.gray(timestamp)} ${level} ${target} ${message}`);
+  
+  // Show additional metadata if present
+  const metadata = { ...entry };
+  delete (metadata as any).timestamp;
+  delete (metadata as any).level;
+  delete (metadata as any).message;
+  delete (metadata as any).target;
+  
+  const metadataKeys = Object.keys(metadata);
+  if (metadataKeys.length > 0 && metadataKeys.some(key => metadata[key] !== undefined)) {
+    console.log(chalk.gray(`  ${JSON.stringify(metadata)}`));
+  }
+}
+
+// Format log level with colors
+function formatLogLevel(level: string): string {
+  switch (level.toLowerCase()) {
+    case 'error':
+      return chalk.red('ERROR');
+    case 'warn':
+      return chalk.yellow('WARN ');
+    case 'info':
+      return chalk.cyan('INFO ');
+    case 'debug':
+      return chalk.gray('DEBUG');
+    case 'success':
+      return chalk.green('SUCCESS');
+    default:
+      return chalk.white(level.padEnd(5).toUpperCase());
+  }
+}
+
+// Follow logs in real-time
+async function followLogs(logFile: string, targetFilter?: string, jsonOutput?: boolean): Promise<void> {
+  let fileSize = statSync(logFile).size;
+  
+  console.log(chalk.blue('👻 Following Poltergeist logs... (Press Ctrl+C to exit)'));
+  if (targetFilter) {
+    console.log(chalk.gray(`Filtering for target: ${targetFilter}`));
+  }
+  console.log(chalk.gray('═'.repeat(50)));
+  
+  // Display existing logs first
+  const existingEntries = await readLogEntries(logFile, targetFilter, 20);
+  if (jsonOutput) {
+    existingEntries.forEach(entry => console.log(JSON.stringify(entry)));
+  } else {
+    existingEntries.forEach(formatLogEntry);
+  }
+  
+  // Watch for new log entries
+  watchFile(logFile, { interval: 500 }, (curr) => {
+    if (curr.size > fileSize) {
+      const stream = createReadStream(logFile, {
+        start: fileSize,
+        encoding: 'utf-8'
+      });
+      
+      const rl = createInterface({
+        input: stream,
+        crlfDelay: Infinity
+      });
+      
+      rl.on('line', (line) => {
+        try {
+          const entry = JSON.parse(line) as LogEntry;
+          
+          // Filter by target if specified
+          if (targetFilter && entry.target !== targetFilter) {
+            return;
+          }
+          
+          if (jsonOutput) {
+            console.log(JSON.stringify(entry));
+          } else {
+            formatLogEntry(entry);
+          }
+        } catch (error) {
+          // Skip malformed lines
+        }
+      });
+      
+      fileSize = curr.size;
+    }
+  });
+  
+  // Keep process alive
+  return new Promise(() => {
+    // This promise never resolves to keep the follow active
+    // User exits with Ctrl+C
+  });
+}
+
 program
   .command('logs')
   .description('Show Poltergeist logs')
@@ -285,17 +463,23 @@ program
   .option('-n, --lines <number>', 'Number of lines to show', '50')
   .option('-f, --follow', 'Follow log output')
   .option('-c, --config <path>', 'Path to config file')
+  .option('--json', 'Output logs in JSON format')
   .action(async (options) => {
     const { config } = await loadConfiguration(options.config);
 
     const logFile = config.logging?.file || '.poltergeist.log';
     if (!existsSync(logFile)) {
-      console.error(chalk.red('No log file found'));
+      console.error(chalk.red(`No log file found: ${logFile}`));
+      console.error(chalk.yellow('💡 Start Poltergeist to generate logs: poltergeist start'));
       process.exit(1);
     }
 
-    // This would normally use tail command or similar
-    console.log(chalk.yellow('Log viewing implementation needed'));
+    try {
+      await displayLogs(logFile, options);
+    } catch (error) {
+      console.error(chalk.red(`Failed to read logs: ${error instanceof Error ? error.message : error}`));
+      process.exit(1);
+    }
   });
 
 program
@@ -418,7 +602,11 @@ program.on('option:cli', () => warnOldFlag('--cli', '--target <name>'));
 program.on('option:mac', () => warnOldFlag('--mac', '--target <name>'));
 
 // Parse arguments only when run directly (not when imported for testing)
-if (import.meta.url === `file://${process.argv[1]}`) {
+// Allow execution when imported by wrapper scripts (like poltergeist.ts)
+const isDirectRun = import.meta.url === `file://${process.argv[1]}`;
+const isWrapperRun = process.argv[1]?.endsWith('poltergeist.ts') || process.argv[1]?.endsWith('poltergeist');
+
+if (isDirectRun || isWrapperRun) {
   program.parse(process.argv);
 
   // Show help if no command specified
