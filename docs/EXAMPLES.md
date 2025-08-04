@@ -49,8 +49,8 @@ A simple Swift CLI tool with testing:
 poltergeist haunt
 
 # In another terminal, test the CLI
-pgrun cli-tool --help
-pgrun cli-tool --version
+polter cli-tool --help
+polter cli-tool --version
 
 # Run tests
 swift test  # Tests will auto-run when files change
@@ -111,8 +111,8 @@ Full-stack Node.js application with frontend and API:
 poltergeist haunt
 
 # Start development servers (in separate terminals)
-pgrun api-server --watch  # Auto-restarts on changes
-pgrun frontend --serve    # Development server with hot reload
+polter api-server --watch  # Auto-restarts on changes
+polter frontend --serve    # Development server with hot reload
 
 # Run tests
 npm test  # Tests run automatically on file changes
@@ -165,7 +165,7 @@ poltergeist haunt
 docker run --rm -p 8080:8080 myapp/dev:latest
 
 # Test the application
-pgrun rust-app --config ./config/dev.toml
+polter rust-app --config ./config/dev.toml
 ```
 
 ## Advanced Configurations
@@ -241,8 +241,8 @@ poltergeist haunt --verbose
 # - Tests run when relevant files change
 
 # Test CLI integration
-pgrun cli-companion --export-data ./data.json
-pgrun cli-companion --import-data ./data.json
+polter cli-companion --export-data ./data.json
+polter cli-companion --import-data ./data.json
 ```
 
 ### Microservices Architecture
@@ -327,12 +327,12 @@ Multiple services with inter-dependencies:
 poltergeist haunt
 
 # Start services in dependency order (separate terminals)
-pgrun auth-service
+polter auth-service
 sleep 2
-pgrun user-service  
+polter user-service  
 sleep 2
-pgrun api-gateway
-pgrun frontend --serve
+polter api-gateway
+polter frontend --serve
 
 # Run integration tests
 sleep 5
@@ -605,7 +605,7 @@ services:
       - .:/app
     depends_on:
       - poltergeist
-    command: pgrun server --port 3000
+    command: polter server --port 3000
 ```
 
 ### Kubernetes Job
@@ -628,7 +628,7 @@ spec:
           - |
             npm install -g @steipete/poltergeist
             poltergeist haunt --timeout 300
-            pgrun production-build
+            polter production-build
         volumeMounts:
         - name: source-code
           mountPath: /app
@@ -688,7 +688,7 @@ jobs:
         '
         
     - name: Run application
-      run: pgrun main-build --version
+      run: polter main-build --version
       
     - name: Stop Poltergeist
       run: kill $POLTERGEIST_PID
@@ -720,7 +720,7 @@ pipeline {
                         # Wait for builds to complete
                         timeout 600 bash -c '
                             while true; do
-                                if pgrun production-build --version; then
+                                if polter production-build --version; then
                                     echo "Build successful!"
                                     break
                                 fi
@@ -737,7 +737,7 @@ pipeline {
         stage('Test') {
             steps {
                 script {
-                    sh 'pgrun test-suite --junit-output'
+                    sh 'polter test-suite --junit-output'
                 }
             }
         }
@@ -748,7 +748,7 @@ pipeline {
             }
             steps {
                 script {
-                    sh 'pgrun deploy-script --environment production'
+                    sh 'polter deploy-script --environment production'
                 }
             }
         }

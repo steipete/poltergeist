@@ -694,7 +694,7 @@ jobs:
         done
         
         # Check build status
-        if pgrun ci-build --version; then
+        if polter ci-build --version; then
           echo "✅ Build successful"
         else
           echo "❌ Build failed"
