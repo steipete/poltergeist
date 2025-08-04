@@ -20,41 +20,40 @@ extension Tag {
 @Suite("Project Monitor Tests", .tags(.services, .integration))
 @MainActor
 final class ProjectMonitorTests {
-    
     let tempDirectory: URL
     let testStateDirectory: String
-    
+
     init() throws {
         // Create a temporary directory for test state files
         self.tempDirectory = FileManager.default.temporaryDirectory
             .appendingPathComponent("poltergeist-tests")
             .appendingPathComponent(UUID().uuidString)
-        
+
         try FileManager.default.createDirectory(
             at: tempDirectory,
             withIntermediateDirectories: true,
             attributes: nil
         )
-        
+
         self.testStateDirectory = tempDirectory.path
     }
-    
+
     deinit {
         // Clean up temporary directory
         try? FileManager.default.removeItem(at: tempDirectory)
     }
-    
+
     // MARK: - State File Parsing Tests
-    
+
     @Test("Parse valid state file name")
     func testParseValidStateFileName() throws {
         // Use reflection to access private method for testing
         let monitor = ProjectMonitor.shared
-        
+
         // Create a mock state file in our test directory
         let stateFileName = "MyProject-a1b2c3d4-main-app.state"
         let stateFilePath = tempDirectory.appendingPathComponent(stateFileName)
-        
+
         // Create minimal valid state content
         let stateContent = """
         {
@@ -77,17 +76,17 @@ final class ProjectMonitorTests {
             }
         }
         """
-        
+
         try stateContent.write(to: stateFilePath, atomically: true, encoding: .utf8)
-        
+
         // Test that the state file can be created and contains expected data
         #expect(FileManager.default.fileExists(atPath: stateFilePath.path))
-        
+
         let loadedContent = try String(contentsOf: stateFilePath)
         #expect(loadedContent.contains("MyProject"))
         #expect(loadedContent.contains("main-app"))
     }
-    
+
     @Test("Invalid state file names are rejected")
     func testInvalidStateFileNames() {
         let invalidNames = [
@@ -98,18 +97,18 @@ final class ProjectMonitorTests {
             "project.state",                   // Missing target
             "project-abc12345.state"           // Missing target separator
         ]
-        
+
         for invalidName in invalidNames {
             let stateFilePath = tempDirectory.appendingPathComponent(invalidName)
-            
+
             // Create the file
             try? "{}".write(to: stateFilePath, atomically: true, encoding: .utf8)
-            
+
             // File should exist but parsing should handle invalid names gracefully
             #expect(FileManager.default.fileExists(atPath: stateFilePath.path))
         }
     }
-    
+
     @Test("Process staleness detection", arguments: [
         // (secondsAgo, expectedStale)
         (60, false),    // 1 minute ago - fresh
@@ -121,7 +120,7 @@ final class ProjectMonitorTests {
     ])
     func testProcessStalenessDetection(secondsAgo: TimeInterval, expectedStale: Bool) {
         let heartbeatTime = Date().addingTimeInterval(-secondsAgo)
-        
+
         let targetState = TargetState(
             target: "test",
             isActive: true,
@@ -129,10 +128,10 @@ final class ProjectMonitorTests {
             lastBuild: nil,
             icon: nil
         )
-        
+
         #expect(targetState.isStale == expectedStale)
     }
-    
+
     @Test("Nil heartbeat is always stale")
     func testNilHeartbeatIsStale() {
         let targetState = TargetState(
@@ -142,22 +141,22 @@ final class ProjectMonitorTests {
             lastBuild: nil,
             icon: nil
         )
-        
+
         #expect(targetState.isStale == true)
     }
-    
+
     // MARK: - State File Processing Tests
-    
+
     @Test("Process valid state file with build info")
     func testProcessValidStateFileWithBuildInfo() throws {
         let stateFileName = "TestProject-12345678-test-target.state"
         let stateFilePath = tempDirectory.appendingPathComponent(stateFileName)
-        
+
         let stateContent = """
         {
             "version": "1.0.0",
             "projectPath": "/Users/test/TestProject",
-            "projectName": "TestProject", 
+            "projectName": "TestProject",
             "target": "test-target",
             "configPath": "/Users/test/TestProject/config.json",
             "process": {
@@ -184,30 +183,30 @@ final class ProjectMonitorTests {
             }
         }
         """
-        
+
         try stateContent.write(to: stateFilePath, atomically: true, encoding: .utf8)
-        
+
         // Verify file was created and contains expected content
         #expect(FileManager.default.fileExists(atPath: stateFilePath.path))
-        
+
         let data = try Data(contentsOf: stateFilePath)
         let state = try JSONDecoder().decode(PoltergeistState.self, from: data)
-        
+
         #expect(state.projectName == "TestProject")
         #expect(state.target == "test-target")
         #expect(state.process.isActive == true)
-        
+
         let build = try #require(state.lastBuild)
         #expect(build.status == "success")
         #expect(build.buildTime == 30.5)
         #expect(build.gitHash == "abc123def456")
     }
-    
+
     @Test("Process state file with corrupted JSON")
     func testProcessCorruptedStateFile() throws {
         let stateFileName = "Corrupted-12345678-target.state"
         let stateFilePath = tempDirectory.appendingPathComponent(stateFileName)
-        
+
         let corruptedContent = """
         {
             "version": "1.0.0",
@@ -224,27 +223,27 @@ final class ProjectMonitorTests {
             "appInfo": { INVALID JSON }
         }
         """
-        
+
         try corruptedContent.write(to: stateFilePath, atomically: true, encoding: .utf8)
-        
+
         // Verify file exists but JSON is invalid
         #expect(FileManager.default.fileExists(atPath: stateFilePath.path))
-        
+
         let data = try Data(contentsOf: stateFilePath)
-        
+
         // Should throw when trying to decode
         #expect(throws: DecodingError.self) {
             try JSONDecoder().decode(PoltergeistState.self, from: data)
         }
     }
-    
+
     // MARK: - Project Management Tests
-    
+
     @Test("Project creation from state file")
     func testProjectCreationFromStateFile() throws {
         let stateFileName = "NewProject-abcdef12-main.state"
         let stateFilePath = tempDirectory.appendingPathComponent(stateFileName)
-        
+
         let stateContent = """
         {
             "version": "1.0.0",
@@ -276,39 +275,39 @@ final class ProjectMonitorTests {
             }
         }
         """
-        
+
         try stateContent.write(to: stateFilePath, atomically: true, encoding: .utf8)
-        
+
         // Test that we can decode and create project structures
         let data = try Data(contentsOf: stateFilePath)
         let state = try JSONDecoder().decode(PoltergeistState.self, from: data)
-        
+
         // Simulate creating a project from this state
         let project = Project(
             path: state.projectPath,
             name: state.projectName,
             hash: "abcdef12" // extracted from filename
         )
-        
+
         #expect(project.name == "NewProject")
         #expect(project.path == "/Users/test/NewProject")
         #expect(project.hash == "abcdef12")
         #expect(project.targets.isEmpty) // No targets added yet
     }
-    
+
     @Test("Multiple targets for same project")
     func testMultipleTargetsForSameProject() throws {
         // Create state files for multiple targets of the same project
         let projectHash = "12345678"
         let projectName = "MultiTarget"
         let projectPath = "/Users/test/MultiTarget"
-        
+
         let targets = ["app", "tests", "lib"]
-        
+
         for target in targets {
             let stateFileName = "\(projectName)-\(projectHash)-\(target).state"
             let stateFilePath = tempDirectory.appendingPathComponent(stateFileName)
-            
+
             let stateContent = """
             {
                 "version": "1.0.0",
@@ -340,20 +339,20 @@ final class ProjectMonitorTests {
                 }
             }
             """
-            
+
             try stateContent.write(to: stateFilePath, atomically: true, encoding: .utf8)
         }
-        
+
         // Verify all files were created
         for target in targets {
             let stateFileName = "\(projectName)-\(projectHash)-\(target).state"
             let stateFilePath = tempDirectory.appendingPathComponent(stateFileName)
             #expect(FileManager.default.fileExists(atPath: stateFilePath.path))
         }
-        
+
         // Test that we can load all states and they belong to the same project
         var projectStates: [PoltergeistState] = []
-        
+
         for target in targets {
             let stateFileName = "\(projectName)-\(projectHash)-\(target).state"
             let stateFilePath = tempDirectory.appendingPathComponent(stateFileName)
@@ -361,20 +360,20 @@ final class ProjectMonitorTests {
             let state = try JSONDecoder().decode(PoltergeistState.self, from: data)
             projectStates.append(state)
         }
-        
+
         #expect(projectStates.count == 3)
-        
+
         // All should have the same project info
         let firstState = projectStates[0]
         for state in projectStates {
             #expect(state.projectName == firstState.projectName)
             #expect(state.projectPath == firstState.projectPath)
         }
-        
+
         // But different targets
         let targetNames = Set(projectStates.map { $0.target })
         #expect(targetNames == Set(targets))
-        
+
         // Test overall status determination - should be failed due to tests
         let buildStatuses = projectStates.compactMap { $0.lastBuild?.status }
         #expect(buildStatuses.contains("failed"))
@@ -386,12 +385,11 @@ final class ProjectMonitorTests {
 @Suite("Build Statistics Tests", .tags(.services, .unit))
 @MainActor
 struct BuildStatisticsTests {
-    
     @Test("Build statistics calculation")
     func testBuildStatisticsCalculation() {
         let now = Date()
         let twentyFourHoursAgo = now.addingTimeInterval(-24 * 60 * 60)
-        
+
         // Create sample completed builds
         let successfulBuild = CompletedBuild(
             target: "app",
@@ -403,7 +401,7 @@ struct BuildStatisticsTests {
             errorSummary: nil,
             gitHash: "abc123"
         )
-        
+
         let failedBuild = CompletedBuild(
             target: "tests",
             project: "test",
@@ -414,10 +412,10 @@ struct BuildStatisticsTests {
             errorSummary: "Build failed",
             gitHash: "def456"
         )
-        
+
         let oldBuild = CompletedBuild(
             target: "old",
-            project: "test", 
+            project: "test",
             startedAt: twentyFourHoursAgo.addingTimeInterval(-3600), // 25 hours ago
             completedAt: twentyFourHoursAgo.addingTimeInterval(-3570), // 25 hours ago
             status: "success",
@@ -425,51 +423,51 @@ struct BuildStatisticsTests {
             errorSummary: nil,
             gitHash: "old123"
         )
-        
+
         let buildHistory = [successfulBuild, failedBuild, oldBuild]
-        
+
         // Filter to last 24 hours (should exclude oldBuild)
         let recentBuilds = buildHistory.filter { $0.completedAt > twentyFourHoursAgo }
-        
+
         #expect(recentBuilds.count == 2)
-        
+
         let successful = recentBuilds.filter { $0.wasSuccessful }.count
         let failed = recentBuilds.count - successful
         let averageDuration = recentBuilds.map { $0.duration }.reduce(0, +) / Double(recentBuilds.count)
-        
+
         #expect(successful == 1)
         #expect(failed == 1)
         #expect(averageDuration == 22.5) // (30 + 15) / 2
-        
+
         // Success rate calculation
         let successRate = Double(successful) / Double(recentBuilds.count)
         #expect(successRate == 0.5)
     }
-    
+
     @Test("Build statistics with no builds")
     func testBuildStatisticsWithNoBuilds() {
         let buildHistory: [CompletedBuild] = []
         let now = Date()
         let twentyFourHoursAgo = now.addingTimeInterval(-24 * 60 * 60)
-        
+
         let recentBuilds = buildHistory.filter { $0.completedAt > twentyFourHoursAgo }
-        
+
         #expect(recentBuilds.isEmpty)
-        
+
         let successful = recentBuilds.filter { $0.wasSuccessful }.count
         let averageDuration = recentBuilds.isEmpty ? 0.0 : recentBuilds.map { $0.duration }.reduce(0, +) / Double(recentBuilds.count)
         let successRate = recentBuilds.isEmpty ? 1.0 : Double(successful) / Double(recentBuilds.count)
-        
+
         #expect(successful == 0)
         #expect(averageDuration == 0.0)
         #expect(successRate == 1.0) // Default to 100% when no builds
     }
-    
+
     @Test("Build statistics with only successful builds")
     func testBuildStatisticsOnlySuccessful() {
         let now = Date()
         let twentyFourHoursAgo = now.addingTimeInterval(-24 * 60 * 60)
-        
+
         let builds = [
             CompletedBuild(
                 target: "app1",
@@ -492,11 +490,11 @@ struct BuildStatisticsTests {
                 gitHash: "abc2"
             )
         ]
-        
+
         let recentBuilds = builds.filter { $0.completedAt > twentyFourHoursAgo }
         let successful = recentBuilds.filter { $0.wasSuccessful }.count
         let successRate = Double(successful) / Double(recentBuilds.count)
-        
+
         #expect(successful == 2)
         #expect(successRate == 1.0)
     }
