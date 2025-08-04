@@ -183,7 +183,9 @@ export class StateManager implements IStateManager {
           // This is likely a test teardown race condition where the directory was removed
           // Check if the state directory was deleted by test cleanup
           if (!existsSync(this.stateDir)) {
-            this.logger.debug(`State directory removed during test cleanup for ${targetName}, skipping state write`);
+            this.logger.debug(
+              `State directory removed during test cleanup for ${targetName}, skipping state write`
+            );
             return; // Skip writing state if directory was cleaned up
           }
         }
