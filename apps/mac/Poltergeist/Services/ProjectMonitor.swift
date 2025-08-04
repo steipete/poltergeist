@@ -82,8 +82,7 @@ final class ProjectMonitor {
         debounceTimer?.invalidate()
 
         // Schedule a new scan after the debounce interval
-        debounceTimer = Timer.scheduledTimer(withTimeInterval: debounceInterval, repeats: false) {
-            [weak self] _ in
+        debounceTimer = Timer.scheduledTimer(withTimeInterval: debounceInterval, repeats: false) { [weak self] _ in
             Task { @MainActor in
                 self?.scanForProjects()
             }
@@ -176,7 +175,8 @@ final class ProjectMonitor {
         let hashPattern = #"-([a-f0-9]{8})-"#
         guard let regex = try? NSRegularExpression(pattern: hashPattern, options: []),
             let match = regex.firstMatch(
-                in: fileWithoutExtension, options: [],
+                in: fileWithoutExtension,
+                options: [],
                 range: NSRange(location: 0, length: fileWithoutExtension.count))
         else {
             logger.warning("Invalid state file name format: \(file) (no 8-char hash found)")
@@ -283,6 +283,9 @@ final class ProjectMonitor {
             logger.info("📊 Project count changed: \(oldProjectCount) → \(self.projects.count)")
         }
 
+        // Clean up build queue when projects are removed
+        cleanBuildQueueForRemovedProjects()
+
         NotificationCenter.default.post(name: Self.projectsDidUpdateNotification, object: nil)
     }
 
@@ -290,6 +293,47 @@ final class ProjectMonitor {
         guard let heartbeat = heartbeat else { return true }
         // Use same staleness threshold as CLI (5 minutes = 300 seconds)
         return Date().timeIntervalSince(heartbeat) > 300
+    }
+
+    private func cleanBuildQueueForRemovedProjects() {
+        let currentProjectNames = Set(projects.map { $0.name })
+
+        // Filter out active builds for projects that no longer exist
+        let activeBuilds = buildQueue.activeBuilds.filter { build in
+            currentProjectNames.contains(build.project)
+        }
+
+        // Filter out queued builds for projects that no longer exist  
+        let queuedBuilds = buildQueue.queuedBuilds.filter { build in
+            currentProjectNames.contains(build.project)
+        }
+
+        // Filter out recent builds for projects that no longer exist (keep some history)
+        let recentBuilds = buildQueue.recentBuilds.filter { build in
+            currentProjectNames.contains(build.project)
+        }
+
+        // Update build queue if anything changed
+        let originalActiveCount = buildQueue.activeBuilds.count
+        let originalQueuedCount = buildQueue.queuedBuilds.count
+        let originalRecentCount = buildQueue.recentBuilds.count
+
+        if activeBuilds.count != originalActiveCount ||
+           queuedBuilds.count != originalQueuedCount ||
+           recentBuilds.count != originalRecentCount {
+            logger.info("🧹 Cleaning build queue: active \(originalActiveCount)→\(activeBuilds.count), queued \(originalQueuedCount)→\(queuedBuilds.count), recent \(originalRecentCount)→\(recentBuilds.count)")
+
+            buildQueue = BuildQueueInfo(
+                queuedBuilds: queuedBuilds,
+                activeBuilds: activeBuilds,
+                recentBuilds: recentBuilds
+            )
+
+            // Also clean build history
+            buildHistory = buildHistory.filter { build in
+                currentProjectNames.contains(build.project)
+            }
+        }
     }
 
     func removeProject(_ project: Project) {
@@ -340,7 +384,7 @@ final class ProjectMonitor {
                     let alternativePatterns = [
                         "\(project.name)-\(targetName)-\(project.hash).state",
                         "\(project.name)_\(project.hash)_\(targetName).state",
-                        "\(project.name).\(project.hash).\(targetName).state",
+                        "\(project.name).\(project.hash).\(targetName).state"
                     ]
 
                     for pattern in alternativePatterns {
@@ -383,6 +427,14 @@ final class ProjectMonitor {
 
         for project in inactiveProjects {
             removeProject(project)
+        }
+
+        // Ensure build queue is cleaned after removing projects
+        Task { [weak self] in
+            try? await Task.sleep(for: .milliseconds(200))
+            await MainActor.run {
+                self?.cleanBuildQueueForRemovedProjects()
+            }
         }
     }
 

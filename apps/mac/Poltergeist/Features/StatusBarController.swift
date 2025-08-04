@@ -190,14 +190,7 @@ final class StatusBarController: NSObject {
 
         menu.addItem(.separator())
 
-        // Settings & About
-        menu.addItem(
-            NSMenuItem(
-                title: "Settings...",
-                action: #selector(openSettings),
-                keyEquivalent: ","
-            ).with { $0.keyEquivalentModifierMask = .command })
-
+        // About (Settings is in SwiftUI popover menu only)
         menu.addItem(
             NSMenuItem(
                 title: "About Poltergeist Monitor",
@@ -256,12 +249,28 @@ final class StatusBarController: NSObject {
         projectMonitor.refreshProjects()
     }
 
-    @objc private func openSettings() {
-        NSApp.sendAction(Selector(("showSettingsWindow:")), to: nil, from: nil)
-    }
 
     @objc private func showAbout() {
         NSApp.activate(ignoringOtherApps: true)
         NSApp.orderFrontStandardAboutPanel(nil)
     }
+    
+    // MARK: - Lifecycle
+    
+    deinit {
+        logger.info("🗑️ StatusBarController deallocating")
+        cleanupStatusBar()
+    }
+    
+    private func cleanupStatusBar() {
+        popover?.performClose(nil)
+        popover = nil
+        
+        if let statusItem = statusItem {
+            NSStatusBar.system.removeStatusItem(statusItem)
+            logger.debug("✅ Status bar item removed")
+        }
+        statusItem = nil
+    }
+    
 }

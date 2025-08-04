@@ -88,13 +88,19 @@ struct StatusBarMenuView: View {
 
                     Divider()
 
-                    Button(action: {
-                        NSApp.sendAction(Selector(("showSettingsWindow:")), to: nil, from: nil)
-                    }) {
-                        Label("Settings...", systemImage: "gear")
+                    if #available(macOS 14.0, *) {
+                        SettingsLink {
+                            Label("Settings...", systemImage: "gear")
+                        }
+                        .keyboardShortcut(",", modifiers: .command)
+                    } else {
+                        Button(action: {
+                            // Fallback for macOS < 14.0 (though we require 14.0+)
+                        }) {
+                            Label("Settings... (requires macOS 14.0+)", systemImage: "gear")
+                        }
+                        .disabled(true)
                     }
-                    .keyboardShortcut(",", modifiers: .command)
-                    .disabled(true)  // Temporarily disabled
 
                     Divider()
 
@@ -109,8 +115,8 @@ struct StatusBarMenuView: View {
                 }
                 .menuStyle(.borderlessButton)
             }
-            .padding(.horizontal, 16)
-            .padding(.vertical, 14)
+            .padding(.horizontal, 14)
+            .padding(.vertical, 12)
             .background(
                 ZStack {
                     Color.clear.background(.ultraThinMaterial)
@@ -123,7 +129,7 @@ struct StatusBarMenuView: View {
                 EmptyStateView()
             } else {
                 ScrollView {
-                    LazyVStack(spacing: 10) {
+                    LazyVStack(spacing: 8) {
                         // Active builds section (when present)
                         if !projectMonitor.buildQueue.activeBuilds.isEmpty {
                             BuildQueueSectionView(
@@ -203,13 +209,13 @@ struct StatusBarMenuView: View {
                             }
                         }
                     }
-                    .padding(.horizontal, 12)
-                    .padding(.vertical, 10)
+                    .padding(.horizontal, 10)
+                    .padding(.vertical, 8)
                 }
                 .background(.ultraThinMaterial)
             }
         }
-        .frame(minWidth: 480, minHeight: 200, maxHeight: 600)
+        .frame(minWidth: 420, idealWidth: 480, maxWidth: 540, minHeight: 180, idealHeight: 400, maxHeight: 700)
         .background(
             VisualEffectView()
         )
@@ -261,7 +267,7 @@ struct EmptyStateView: View {
             }
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity)
-        .padding(40)
+        .padding(32)
     }
 }
 
@@ -308,9 +314,9 @@ struct BuildQueueSectionView: View {
                 BuildQueueItemView(build: build)
             }
         }
-        .padding(12)
+        .padding(10)
         .background(.regularMaterial)
-        .cornerRadius(10)
+        .cornerRadius(8)
     }
 }
 
@@ -348,10 +354,10 @@ struct BuildQueueItemView: View {
             // Progress or duration
             buildRightInfo
         }
-        .padding(.vertical, 6)
-        .padding(.horizontal, 8)
+        .padding(.vertical, 4)
+        .padding(.horizontal, 6)
         .background(buildBackgroundColor)
-        .cornerRadius(6)
+        .cornerRadius(4)
     }
 
     @ViewBuilder
@@ -634,7 +640,7 @@ struct ModernProjectRow: View {
                     .opacity(isHovered || isExpanded ? 1 : 0.5)
                     .animation(.easeInOut(duration: 0.2), value: isExpanded)
             }
-            .padding(14)
+            .padding(12)
         }
         .background(
             RoundedRectangle(cornerRadius: 10)
@@ -847,8 +853,8 @@ struct InlineProjectDetailView: View {
                 .cornerRadius(8)
             }
         }
-        .padding(.horizontal, 14)
-        .padding(.vertical, 12)
+        .padding(.horizontal, 12)
+        .padding(.vertical, 10)
         .background(Color.primary.opacity(0.02))
     }
 
