@@ -144,7 +144,7 @@ struct CompletedBuild: Equatable, Identifiable, Sendable {
 }
 
 // State file models matching Poltergeist's output
-struct PoltergeistState: Codable, Sendable {
+struct PoltergeistState: @preconcurrency Codable, Sendable {
     let version: String
     let projectPath: String
     let projectName: String
@@ -154,14 +154,14 @@ struct PoltergeistState: Codable, Sendable {
     let lastBuild: BuildStatus?
     let appInfo: AppInfo
 
-    struct ProcessInfo: Codable, Sendable {
+    struct ProcessInfo: @preconcurrency Codable, Sendable {
         let pid: Int
         let isActive: Bool
         let startTime: String
         let lastHeartbeat: String
     }
 
-    struct BuildStatus: Codable, Sendable {
+    struct BuildStatus: @preconcurrency Codable, Sendable {
         let status: String
         let timestamp: String
         let startTime: String?  // When build started (for progress calculation)
@@ -173,7 +173,7 @@ struct PoltergeistState: Codable, Sendable {
         let estimatedDuration: Double?  // Estimated total duration
     }
 
-    struct AppInfo: Codable, Sendable {
+    struct AppInfo: @preconcurrency Codable, Sendable {
         let bundleId: String?
         let outputPath: String?
         let iconPath: String?
