@@ -10,18 +10,18 @@ import os.log
 
 /// Modern directory watcher using DispatchSource instead of FSEventStreamRef
 /// This provides better Swift 6 concurrency support and simplified memory management
-/// Callbacks are annotated with @MainActor and guaranteed to run on the main actor
+/// Callbacks are guaranteed to run on the main queue via DispatchQueue.main.async
 final class FileWatcher: @unchecked Sendable {
     private let logger = Logger(subsystem: "com.poltergeist.monitor", category: "FileWatcher")
     private let path: String
-    private let callback: @MainActor @Sendable () -> Void
+    private let callback: @Sendable () -> Void
     private let queue = DispatchQueue(label: "com.poltergeist.filewatcher", qos: .background)
 
     private var directoryFileDescriptor: CInt = -1
     private var directorySource: DispatchSourceFileSystemObject?
     private let lock = NSLock()
 
-    init(path: String, callback: @escaping @MainActor @Sendable () -> Void) {
+    init(path: String, callback: @escaping @Sendable () -> Void) {
         self.path = path
         self.callback = callback
     }
@@ -49,7 +49,8 @@ final class FileWatcher: @unchecked Sendable {
 
         source.setEventHandler { [weak self] in
             guard let self = self else { return }
-            Task { @MainActor in
+            // Dispatch to main queue - callback will be executed on main thread
+            DispatchQueue.main.async {
                 self.callback()
             }
         }

@@ -47,7 +47,7 @@ class ProjectMonitor: ObservableObject {
 
         // Set up periodic updates for heartbeat checks
         updateTimer = Timer.scheduledTimer(withTimeInterval: 5.0, repeats: true) { _ in
-            Task { @MainActor in
+            DispatchQueue.main.async {
                 self.scanForProjects()
             }
         }
@@ -67,7 +67,9 @@ class ProjectMonitor: ObservableObject {
 
     private func setupFileWatcher() {
         fileWatcher = FileWatcher(path: poltergeistDirectory) { [weak self] in
-            // FileWatcher callback is @MainActor annotated
+            // FileWatcher guarantees callback is on main queue
+            // Since we're already on main queue, directly call scanForProjects
+            // without any Swift concurrency API involvement
             self?.scanForProjects()
         }
         fileWatcher?.start()
@@ -374,7 +376,9 @@ class ProjectMonitor: ObservableObject {
 
     func refreshProjects() {
         logger.info("Refreshing projects...")
-        scanForProjects()
+        DispatchQueue.main.async {
+            self.scanForProjects()
+        }
     }
 
     // MARK: - Build Queue Management
