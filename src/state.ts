@@ -150,14 +150,6 @@ export class StateManager implements IStateManager {
       const tempFile = `${stateFile}.${process.pid}.${Date.now()}.${attempt}.tmp`;
 
       try {
-        // Check if directory was removed (test cleanup race condition)
-        if (!existsSync(this.stateDir)) {
-          this.logger.debug(
-            `State directory removed during test cleanup for ${targetName}, skipping state write`
-          );
-          return; // Skip if directory was cleaned up by tests
-        }
-
         // Ensure state directory exists with more robust checking
         await this.ensureStateDirectory();
 
@@ -166,16 +158,22 @@ export class StateManager implements IStateManager {
           state.process = ProcessManager.updateProcessInfo(state.process);
         }
 
-        // Double-check directory still exists before writing (Windows race condition)
-        if (!existsSync(this.stateDir)) {
-          this.logger.debug(
-            `State directory removed during state write for ${targetName}, skipping`
-          );
-          return; // Skip if directory disappeared during our operations
+        // Write to temp file first with Windows race condition handling
+        try {
+          writeFileSync(tempFile, JSON.stringify(state, null, 2));
+        } catch (writeError) {
+          // Handle Windows ENOENT errors during test cleanup
+          if (writeError instanceof Error && writeError.message.includes('ENOENT')) {
+            // Check if this is a test cleanup race condition
+            if (!existsSync(this.stateDir)) {
+              this.logger.debug(
+                `State directory removed during write for ${targetName}, skipping state write`
+              );
+              return; // Skip if directory was cleaned up during write
+            }
+          }
+          throw writeError; // Re-throw if not a cleanup race condition
         }
-
-        // Write to temp file first
-        writeFileSync(tempFile, JSON.stringify(state, null, 2));
 
         // Atomic rename ensures state file is never corrupted/partial
         renameSync(tempFile, stateFile);

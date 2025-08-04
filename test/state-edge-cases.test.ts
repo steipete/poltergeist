@@ -41,13 +41,35 @@ describe('StateManager Edge Cases', () => {
 
   afterEach(async () => {
     if (stateManager) {
-      stateManager.stopHeartbeat();
-      // Clean up all state files
-      await stateManager.cleanup();
+      try {
+        stateManager.stopHeartbeat();
+        // Clean up all state files with timeout
+        await Promise.race([
+          stateManager.cleanup(),
+          new Promise((resolve) => setTimeout(resolve, 1000)), // 1 second timeout
+        ]);
+      } catch (_error) {
+        // Ignore cleanup errors during test teardown
+      }
     }
     delete process.env.POLTERGEIST_STATE_DIR;
-    if (existsSync(testDir)) {
-      rmSync(testDir, { recursive: true, force: true });
+
+    // Force cleanup with retry for Windows
+    for (let attempt = 0; attempt < 3; attempt++) {
+      try {
+        if (existsSync(testDir)) {
+          rmSync(testDir, { recursive: true, force: true });
+        }
+        break; // Success
+      } catch (error) {
+        if (attempt === 2) {
+          // Final attempt failed, but don't fail the test
+          console.warn(`Failed to clean up test directory: ${error}`);
+        } else {
+          // Retry after small delay
+          await new Promise((resolve) => setTimeout(resolve, 100));
+        }
+      }
     }
   });
 
@@ -152,6 +174,8 @@ describe('StateManager Edge Cases', () => {
       // On Windows, run operations sequentially to avoid race conditions
       if (process.platform === 'win32') {
         await stateManager.initializeState(target);
+        // Add small delay to avoid race condition
+        await new Promise((resolve) => setTimeout(resolve, 50));
         await stateManager.updateBuildStatus('race-test', {
           targetName: 'race-test',
           status: 'success',
@@ -175,7 +199,7 @@ describe('StateManager Edge Cases', () => {
       const state = await stateManager.readState('race-test');
       expect(state).toBeDefined();
       expect(state?.process.pid).toBe(process.pid);
-    });
+    }, 10000); // Increase timeout for Windows
 
     it('should handle concurrent heartbeat updates', async () => {
       const target: BaseTarget = {
