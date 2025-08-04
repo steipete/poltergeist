@@ -1,7 +1,6 @@
 // Tests for error recovery and resilience
 
 import { existsSync, writeFileSync } from 'fs';
-import { writeFile } from 'fs/promises';
 import { tmpdir } from 'os';
 import { join } from 'path';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
@@ -11,13 +10,13 @@ import type { IStateManager } from '../src/interfaces.js';
 import type { Poltergeist } from '../src/poltergeist.js';
 import { StateManager } from '../src/state.js';
 import type { ExecutableTarget } from '../src/types.js';
+import { safeCreateDir, safeRemoveDir, windowsDelay } from './helpers/windows-fs.js';
 import {
   createTestHarness,
   simulateFileChange,
   type TestHarness,
   waitForAsync,
 } from './helpers.js';
-import { safeCreateDir, safeRemoveDir, windowsDelay } from './helpers/windows-fs.js';
 
 // Mock child_process module
 vi.mock('child_process', () => ({
