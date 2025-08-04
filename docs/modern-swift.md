@@ -1,24 +1,26 @@
 # Modern Swift Development
 
-Write idiomatic SwiftUI code following Apple's latest architectural recommendations and best practices.
+Write idiomatic Swift and SwiftUI code following Apple's latest architectural recommendations and Swift 6 best practices.
 
 ## Core Philosophy
 
-- SwiftUI is the default UI paradigm for Apple platforms - embrace its declarative nature
-- Avoid legacy UIKit patterns and unnecessary abstractions
-- Focus on simplicity, clarity, and native data flow
-- Let SwiftUI handle the complexity - don't fight the framework
+- **Swift 6 First**: Embrace strict concurrency and data race safety from the start
+- **SwiftUI Native**: Use SwiftUI's declarative paradigm as the primary UI framework
+- **Simplicity Over Complexity**: Avoid unnecessary abstractions and legacy patterns
+- **Type Safety**: Leverage Swift's powerful type system and compiler guarantees
+- **Concurrency by Design**: Build thread-safe, data-race-free applications
 
 ## Architecture Guidelines
 
 ### 1. Embrace Native State Management
 
-Use SwiftUI's built-in property wrappers appropriately:
-- `@State` - Local, ephemeral view state
+Use SwiftUI's built-in property wrappers with Swift 6 concurrency awareness:
+- `@State` - Local, ephemeral view state (MainActor isolated)
 - `@Binding` - Two-way data flow between views
-- `@Observable` - Shared state (iOS 17+)
-- `@ObservableObject` - Legacy shared state (pre-iOS 17)
+- `@Observable` - Modern shared state with automatic observation (iOS 17+)
+- `@ObservableObject` - Legacy shared state, prefer `@Observable` for new code
 - `@Environment` - Dependency injection for app-wide concerns
+- `@MainActor` - Ensure UI updates happen on the main thread
 
 ### 2. State Ownership Principles
 
