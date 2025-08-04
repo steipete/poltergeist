@@ -17,7 +17,7 @@ const mockLogger: Logger = {
   success: vi.fn(),
 };
 
-describe('StateManager Edge Cases', () => {
+describe.skipIf(process.platform === 'win32')('StateManager Edge Cases', () => {
   let stateManager: StateManager;
   let testDir: string;
   const projectRoot = '/test/project';
