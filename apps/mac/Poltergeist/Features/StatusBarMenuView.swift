@@ -129,7 +129,7 @@ struct StatusBarMenuView: View {
                 EmptyStateView()
             } else {
                 ScrollView {
-                    LazyVStack(spacing: 8) {
+                    LazyVStack(spacing: 12) {
                         // Active builds section (when present)
                         if !projectMonitor.buildQueue.activeBuilds.isEmpty {
                             BuildQueueSectionView(
@@ -311,15 +311,17 @@ struct BuildQueueSectionView: View {
                     .cornerRadius(8)
             }
 
-            // Build items
-            ForEach(builds.indices, id: \.self) { index in
-                let build = builds[index]
-                BuildQueueItemView(build: build)
+            // Build items in a clear vertical list with better spacing
+            VStack(spacing: 6) {
+                ForEach(builds.indices, id: \.self) { index in
+                    let build = builds[index]
+                    BuildQueueItemView(build: build)
+                }
             }
         }
-        .padding(10)
+        .padding(14)
         .background(.regularMaterial)
-        .cornerRadius(8)
+        .cornerRadius(10)
     }
 }
 
@@ -357,10 +359,10 @@ struct BuildQueueItemView: View {
             // Progress or duration
             buildRightInfo
         }
-        .padding(.vertical, 4)
-        .padding(.horizontal, 6)
+        .padding(.vertical, 8)
+        .padding(.horizontal, 12)
         .background(buildBackgroundColor)
-        .cornerRadius(4)
+        .cornerRadius(8)
     }
 
     @ViewBuilder
@@ -370,7 +372,7 @@ struct BuildQueueItemView: View {
             ZStack {
                 Circle()
                     .fill(Color.blue.opacity(0.2))
-                    .frame(width: 24, height: 24)
+                    .frame(width: 28, height: 28)
 
                 Image(systemName: "arrow.triangle.2.circlepath")
                     .font(.system(size: 12, weight: .medium))
@@ -382,7 +384,7 @@ struct BuildQueueItemView: View {
             ZStack {
                 Circle()
                     .fill(Color.orange.opacity(0.2))
-                    .frame(width: 24, height: 24)
+                    .frame(width: 28, height: 28)
 
                 Image(systemName: "clock")
                     .font(.system(size: 12, weight: .medium))
@@ -393,7 +395,7 @@ struct BuildQueueItemView: View {
             ZStack {
                 Circle()
                     .fill((completedBuild.wasSuccessful ? Color.green : Color.red).opacity(0.2))
-                    .frame(width: 24, height: 24)
+                    .frame(width: 28, height: 28)
 
                 Image(
                     systemName: completedBuild.wasSuccessful
