@@ -16,6 +16,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Windows-specific CI job with platform validation tests
 
 ### Changed
+- **Breaking**: Renamed `pgrun` command to `polter` for better branding and clarity
+  - Global binary now available as `polter` instead of `pgrun`
+  - All documentation and examples updated to use new command name
+  - Backward compatibility note: `pgrun` is no longer available, use `polter`
 - **Breaking**: Unified temp directory usage across CLI and macOS app
   - CLI now uses `os.tmpdir()` instead of hardcoded `/tmp/poltergeist`
   - macOS app updated to use same cross-platform temp directory
@@ -67,7 +71,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Added
 - Initial beta release
 - Universal target system supporting executables, app bundles, libraries, frameworks, tests, Docker containers
-- Smart execution wrapper (pgrun) ensuring fresh builds
+- Smart execution wrapper (polter) ensuring fresh builds
 - Intelligent build prioritization and queue management
 - Focus pattern detection and smart configuration
 - Native notifications with concurrent build protection

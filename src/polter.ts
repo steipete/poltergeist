@@ -223,7 +223,21 @@ async function executeStaleWithWarning(
     });
 
     child.on('error', (error: Error) => {
-      console.error(chalk.red(`❌ Failed to execute ${targetName}:`), error.message);
+      console.error(chalk.red(`❌ Failed to execute ${targetName}:`));
+      console.error(chalk.red(`   ${error.message}`));
+      
+      // Provide helpful suggestions based on error type
+      if (error.message.includes('ENOENT')) {
+        console.error(chalk.yellow('💡 Tips:'));
+        console.error('   • Check if the binary exists and is executable');
+        console.error('   • Try running: poltergeist start');
+        console.error('   • Verify the output path in your configuration');
+      } else if (error.message.includes('EACCES')) {
+        console.error(chalk.yellow('💡 Permission denied:'));
+        console.error(`   • Run: chmod +x ${binaryPath}`);
+        console.error('   • Check file permissions');
+      }
+      
       resolve(1);
     });
 
@@ -283,7 +297,21 @@ function executeTarget(target: Target, projectRoot: string, args: string[]): Pro
     });
 
     child.on('error', (error: Error) => {
-      console.error(chalk.red(`❌ Failed to execute ${target.name}:`), error.message);
+      console.error(chalk.red(`❌ Failed to execute ${target.name}:`));
+      console.error(chalk.red(`   ${error.message}`));
+      
+      // Provide helpful suggestions based on error type
+      if (error.message.includes('ENOENT')) {
+        console.error(chalk.yellow('💡 Tips:'));
+        console.error('   • Check if the binary exists and is executable');
+        console.error('   • Try running: poltergeist start');
+        console.error('   • Verify the output path in your configuration');
+      } else if (error.message.includes('EACCES')) {
+        console.error(chalk.yellow('💡 Permission denied:'));
+        console.error(`   • Run: chmod +x ${binaryPath}`);
+        console.error('   • Check file permissions');
+      }
+      
       resolve(1);
     });
 
@@ -347,7 +375,9 @@ async function runWrapper(
       console.error(
         chalk.red(`❌ Target '${targetName}' is not executable (type: ${target.type})`)
       );
-      console.error(chalk.yellow('🔧 polter only works with executable targets'));
+      console.error(chalk.yellow('💡 polter only works with executable targets'));
+      console.error('   • Executable targets have "type": "executable" in the config');
+      console.error('   • Other target types are handled by Poltergeist daemon');
       process.exit(1);
     }
 
@@ -377,17 +407,19 @@ async function runWrapper(
 
         if (result === 'timeout') {
           console.error(chalk.red(`❌ Build timeout after ${options.timeout}ms`));
-          console.error(
-            chalk.yellow('🔧 Try increasing timeout with --timeout or check build logs')
-          );
+          console.error(chalk.yellow('💡 Solutions:'));
+          console.error(`   • Increase timeout: polter ${targetName} --timeout ${options.timeout * 2}`);
+          console.error('   • Check build logs: poltergeist logs');
+          console.error('   • Verify Poltergeist is running: poltergeist status');
           process.exit(1);
         }
 
         if (result === 'failed' && !options.force) {
           console.error(chalk.red('❌ Build failed'));
-          console.error(
-            chalk.yellow('🔧 Run `poltergeist logs` for details or use --force to run anyway')
-          );
+          console.error(chalk.yellow('💡 Options:'));
+          console.error('   • Check build logs: poltergeist logs');
+          console.error(`   • Force execution anyway: polter ${targetName} --force`);
+          console.error('   • Fix build errors and try again');
           process.exit(1);
         }
 
@@ -423,13 +455,20 @@ async function runWrapper(
     const exitCode = await executeTarget(target, projectRoot, args);
     process.exit(exitCode);
   } catch (error) {
-    console.error(
-      chalk.red('❌ Unexpected error:'),
-      error instanceof Error ? error.message : error
-    );
+    console.error(chalk.red('❌ Unexpected error:'));
+    console.error(chalk.red(`   ${error instanceof Error ? error.message : error}`));
+    
     if (options.verbose && error instanceof Error) {
+      console.error(chalk.gray('\nStack trace:'));
       console.error(chalk.gray(error.stack));
     }
+    
+    console.error(chalk.yellow('\n💡 Common solutions:'));
+    console.error('   • Check if poltergeist.config.json exists and is valid');
+    console.error('   • Verify target name matches configuration');
+    console.error('   • Run with --verbose for more details');
+    console.error('   • Check poltergeist status: poltergeist status');
+    
     process.exit(1);
   }
 }
@@ -461,7 +500,12 @@ program
 
 // Handle unhandled promise rejections
 process.on('unhandledRejection', (reason) => {
-  console.error(chalk.red('❌ Unhandled promise rejection:'), reason);
+  console.error(chalk.red('❌ Unhandled promise rejection:'));
+  console.error(chalk.red(`   ${reason}`));
+  console.error(chalk.yellow('\n💡 This is likely a bug. Please report it with:'));
+  console.error('   • Your poltergeist.config.json');
+  console.error('   • The command you ran');
+  console.error('   • Your environment (OS, Node version)');
   process.exit(1);
 });
 
