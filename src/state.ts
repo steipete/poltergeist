@@ -1,7 +1,8 @@
 // Unified state management for Poltergeist
 
-import { existsSync, mkdirSync, readFileSync, renameSync, unlinkSync, writeFileSync } from 'fs';
+import { existsSync, mkdirSync, readFileSync, unlinkSync } from 'fs';
 import { join } from 'path';
+import writeFileAtomic from 'write-file-atomic';
 import type { IStateManager } from './interfaces.js';
 import type { Logger } from './logger.js';
 import type { BuildStatus, Target } from './types.js';
@@ -131,9 +132,8 @@ export class StateManager implements IStateManager {
   }
 
   /**
-   * Writes state to file using atomic temp-file + rename pattern.
-   * This prevents corruption during concurrent writes from multiple processes.
-   * Uses PID and timestamp in temp filename for uniqueness.
+   * Writes state to file using write-file-atomic for robust cross-platform atomic writes.
+   * This prevents corruption during concurrent writes and handles Windows race conditions.
    */
   private async writeState(targetName: string, updateProcessInfo = true): Promise<void> {
     const state = this.states.get(targetName);
@@ -141,76 +141,45 @@ export class StateManager implements IStateManager {
 
     const stateFile = this.getStateFilePath(targetName);
 
-    // Retry logic for Windows CI race conditions
-    const maxRetries = process.platform === 'win32' ? 3 : 1;
-    let lastError: Error | null = null;
+    try {
+      // Ensure state directory exists
+      await this.ensureStateDirectory();
 
-    for (let attempt = 1; attempt <= maxRetries; attempt++) {
-      // Use unique temp file to prevent concurrent write conflicts
-      const tempFile = `${stateFile}.${process.pid}.${Date.now()}.${attempt}.tmp`;
+      // Update heartbeat and process info (if requested)
+      if (updateProcessInfo) {
+        state.process = ProcessManager.updateProcessInfo(state.process);
+      }
 
-      try {
-        // Ensure state directory exists with more robust checking
-        await this.ensureStateDirectory();
+      // Use write-file-atomic for robust cross-platform atomic writes
+      // This handles temp file creation, writing, and atomic rename automatically
+      // with proper Windows race condition handling
+      await writeFileAtomic(stateFile, JSON.stringify(state, null, 2), {
+        // Ensure proper file encoding
+        encoding: 'utf8',
+        // Create temp files in the same directory for atomic rename
+        tmpfileCreated: (tmpfile: string) => {
+          this.logger.debug(`Created temp file for ${targetName}: ${tmpfile}`);
+        },
+      });
 
-        // Update heartbeat and process info (if requested)
-        if (updateProcessInfo) {
-          state.process = ProcessManager.updateProcessInfo(state.process);
-        }
-
-        // Write to temp file first with Windows race condition handling
-        try {
-          writeFileSync(tempFile, JSON.stringify(state, null, 2));
-        } catch (writeError) {
-          // Handle Windows ENOENT errors during test cleanup
-          if (writeError instanceof Error && writeError.message.includes('ENOENT')) {
-            // Check if this is a test cleanup race condition
-            if (!existsSync(this.stateDir)) {
-              this.logger.debug(
-                `State directory removed during write for ${targetName}, skipping state write`
-              );
-              return; // Skip if directory was cleaned up during write
-            }
-          }
-          throw writeError; // Re-throw if not a cleanup race condition
-        }
-
-        // Atomic rename ensures state file is never corrupted/partial
-        renameSync(tempFile, stateFile);
-
-        this.logger.debug(
-          `State updated for ${targetName}${attempt > 1 ? ` (attempt ${attempt})` : ''}`
-        );
-        return; // Success!
-      } catch (error) {
-        lastError = error instanceof Error ? error : new Error(String(error));
-
-        // Clean up temp file if it exists
-        try {
-          if (existsSync(tempFile)) {
-            unlinkSync(tempFile);
-          }
-        } catch {}
-
-        if (attempt === maxRetries) {
-          // Final attempt failed, log detailed error info
-          this.logger.error(
-            `Failed to write state for ${targetName} after ${maxRetries} attempts: ${lastError.message}`
-          );
-          this.logger.error(
-            `State directory: ${this.stateDir}, exists: ${existsSync(this.stateDir)}`
-          );
-          this.logger.error(`State file: ${stateFile}`);
-          this.logger.error(`Temp file: ${tempFile}`);
-          throw lastError;
-        } else {
-          // Retry after a small delay for Windows
+      this.logger.debug(`State updated for ${targetName}`);
+    } catch (error) {
+      // Handle Windows ENOENT errors during test cleanup
+      if (error instanceof Error && error.message.includes('ENOENT')) {
+        // Check if this is a test cleanup race condition
+        if (!existsSync(this.stateDir)) {
           this.logger.debug(
-            `State write attempt ${attempt} failed for ${targetName}, retrying: ${lastError.message}`
+            `State directory removed during write for ${targetName}, skipping state write`
           );
-          await new Promise((resolve) => setTimeout(resolve, 10 * attempt)); // Exponential backoff
+          return; // Skip if directory was cleaned up during write
         }
       }
+
+      const errorMessage = error instanceof Error ? error.message : String(error);
+      this.logger.error(`Failed to write state for ${targetName}: ${errorMessage}`);
+      this.logger.error(`State directory: ${this.stateDir}, exists: ${existsSync(this.stateDir)}`);
+      this.logger.error(`State file: ${stateFile}`);
+      throw error;
     }
   }
 
