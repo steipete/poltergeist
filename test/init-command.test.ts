@@ -7,15 +7,29 @@ import type { PoltergeistConfig } from '../src/types';
 
 describe('poltergeist init - Smart Defaults', () => {
   let tempDir: string;
-  const cli = join(__dirname, '..', 'dist', 'cli.js');
+  let originalCwd: string;
+  let cli: string;
 
   // Helper function to run init command and get config
   function runInitAndGetConfig(args = '--auto'): PoltergeistConfig {
-    const result = execSync(`node "${cli}" init ${args}`, {
-      stdio: 'pipe',
-      cwd: tempDir,
-      encoding: 'utf-8',
-    });
+    let result: string;
+    
+    // Ensure CLI exists
+    if (!existsSync(cli)) {
+      throw new Error(`CLI not found at: ${cli}`);
+    }
+    
+    try {
+      result = execSync(`node "${cli}" init ${args}`, {
+        stdio: 'pipe',
+        cwd: tempDir,
+        encoding: 'utf-8',
+        env: { ...process.env, NODE_ENV: 'test' },
+        shell: process.platform === 'win32' ? 'cmd.exe' : true,
+      });
+    } catch (error: any) {
+      throw new Error(`Init command failed: ${error.message}\nStdout: ${error.stdout}\nStderr: ${error.stderr}\nCLI path: ${cli}\nCWD: ${tempDir}`);
+    }
 
     const configPath = join(tempDir, 'poltergeist.config.json');
     if (!existsSync(configPath)) {
@@ -26,14 +40,18 @@ describe('poltergeist init - Smart Defaults', () => {
   }
 
   beforeEach(() => {
+    // Store original directory
+    originalCwd = process.cwd();
+    // Set CLI path before changing directory
+    cli = join(originalCwd, 'dist', 'cli.js');
     // Create a temporary directory for each test
     tempDir = mkdtempSync(join(tmpdir(), 'poltergeist-test-'));
     process.chdir(tempDir);
   });
 
   afterEach(() => {
-    // Clean up
-    process.chdir(__dirname);
+    // Clean up - restore to original directory
+    process.chdir(originalCwd);
     rmSync(tempDir, { recursive: true, force: true });
   });
 
