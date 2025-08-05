@@ -102,9 +102,9 @@ export class SimpleLogger implements Logger {
         level: 'info',
         message,
         target: this.targetName,
-        ...((metadata && typeof metadata === 'object') ? metadata : { metadata })
+        ...(metadata && typeof metadata === 'object' ? metadata : { metadata }),
       };
-      this.logStream.write(JSON.stringify(logEntry) + '\n');
+      this.logStream.write(`${JSON.stringify(logEntry)}\n`);
     }
   }
 
@@ -162,7 +162,7 @@ export function createLogger(logFile?: string, logLevel?: string): Logger {
   if (logtape) {
     try {
       const { configure, getLogger, getConsoleSink, getFileSink } = logtape;
-      
+
       // Configure LogTape
       const sinks: any = {
         console: getConsoleSink({
@@ -172,8 +172,8 @@ export function createLogger(logFile?: string, logLevel?: string): Logger {
             const level = record.level.toUpperCase().padEnd(5);
             const category = record.category.join('/');
             return `${ghost} [${time}] ${level} [${category}] ${record.message.join('')}`;
-          }
-        })
+          },
+        }),
       };
 
       if (logFile) {
@@ -191,9 +191,9 @@ export function createLogger(logFile?: string, logLevel?: string): Logger {
           {
             category: ['poltergeist'],
             level: level as any,
-            sinks: logFile ? ['console', 'file'] : ['console']
-          }
-        ]
+            sinks: logFile ? ['console', 'file'] : ['console'],
+          },
+        ],
       });
 
       const logger = getLogger(['poltergeist']);
