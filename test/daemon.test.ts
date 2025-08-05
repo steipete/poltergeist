@@ -9,6 +9,7 @@ import { DaemonManager } from '../dist/daemon/daemon-manager.js';
 import { createLogger } from '../dist/logger.js';
 import type { PoltergeistConfig } from '../dist/types.js';
 import { FileSystemUtils } from '../dist/utils/filesystem.js';
+import { ProcessManager } from '../dist/utils/process-manager.js';
 
 // Mock child_process.fork
 vi.mock('child_process', () => ({
@@ -26,11 +27,14 @@ describe('DaemonManager', () => {
   let testProjectPath: string;
   let stateDir: string;
 
-  beforeEach(() => {
+  beforeEach(async () => {
     logger = createLogger();
     daemon = new DaemonManager(logger);
     testProjectPath = '/test/project';
     stateDir = FileSystemUtils.getStateDirectory();
+
+    // Ensure state directory exists
+    await mkdir(stateDir, { recursive: true });
 
     // Clear any existing mocks
     vi.clearAllMocks();
@@ -100,8 +104,14 @@ describe('DaemonManager', () => {
       await mkdir(stateDir, { recursive: true });
       await writeFile(daemonInfoPath, JSON.stringify(daemonInfo));
 
+      // Mock ProcessManager.isProcessAlive to return true for current process
+      vi.spyOn(ProcessManager, 'isProcessAlive').mockReturnValue(true);
+
       const result = await daemon.isDaemonRunning(testProjectPath);
       expect(result).toBe(true);
+
+      // Restore mock
+      vi.restoreAllMocks();
     });
   });
 
@@ -178,6 +188,9 @@ describe('DaemonManager', () => {
       await mkdir(stateDir, { recursive: true });
       await writeFile(daemonInfoPath, JSON.stringify(daemonInfo));
 
+      // Mock ProcessManager.isProcessAlive to return true for current process
+      vi.spyOn(ProcessManager, 'isProcessAlive').mockReturnValue(true);
+
       const config: PoltergeistConfig = {
         version: '1.0',
         projectType: 'node',
@@ -189,6 +202,9 @@ describe('DaemonManager', () => {
           projectRoot: testProjectPath,
         })
       ).rejects.toThrow('Daemon already running for this project');
+
+      // Restore mock
+      vi.restoreAllMocks();
     });
 
     it('should handle daemon startup failure', async () => {
@@ -278,13 +294,20 @@ describe('DaemonManager', () => {
       await mkdir(stateDir, { recursive: true });
       await writeFile(daemonInfoPath, JSON.stringify(daemonInfo));
 
+      // Mock ProcessManager.isProcessAlive to simulate process exists then dies
+      let processAlive = true;
+      vi.spyOn(ProcessManager, 'isProcessAlive').mockImplementation(() => {
+        const wasAlive = processAlive;
+        if (wasAlive) {
+          processAlive = false; // Process dies after first check
+        }
+        return wasAlive;
+      });
+
       // Mock process.kill to simulate successful termination
       const originalKill = process.kill;
       process.kill = vi.fn((_pid, signal) => {
-        if (signal === 0) {
-          // Check if process exists
-          return true;
-        } else if (signal === 'SIGTERM') {
+        if (signal === 'SIGTERM') {
           // Simulate termination
           return true;
         }
@@ -376,8 +399,14 @@ Line 5`;
       await mkdir(stateDir, { recursive: true });
       await writeFile(daemonInfoPath, JSON.stringify(daemonInfo));
 
+      // Mock ProcessManager.isProcessAlive to return true for current process
+      vi.spyOn(ProcessManager, 'isProcessAlive').mockReturnValue(true);
+
       const info = await daemon.getDaemonInfo(testProjectPath);
       expect(info).toEqual(daemonInfo);
+
+      // Restore mock
+      vi.restoreAllMocks();
     });
   });
 });
