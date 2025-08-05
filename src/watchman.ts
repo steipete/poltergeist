@@ -1,8 +1,8 @@
 // Poltergeist v1.0 - Watchman client for generic target system
 
 import { EventEmitter } from 'events';
-import watchman from 'fb-watchman';
 import type { Logger } from './logger.js';
+import { createWatchmanClient } from './utils/watchman-wrapper.js';
 
 export interface FileChange {
   path: string;
@@ -20,20 +20,11 @@ export interface WatchSubscription {
   settle?: number;
 }
 
-// Custom type definition for fb-watchman client
-interface FBWatchmanClient {
-  capabilityCheck(
-    options: { optional: string[]; required: string[] },
-    callback: (error: Error | null, resp?: unknown) => void
-  ): void;
-  command(args: unknown[], callback: (error: Error | null, resp?: unknown) => void): void;
-  on(event: string, handler: (data: unknown) => void): this;
-  removeListener(event: string, handler: (data: unknown) => void): this;
-  end(): void;
-}
+// Note: fb-watchman client is now loaded dynamically via watchman-wrapper
+// to support Bun bytecode compilation
 
 export class WatchmanClient extends EventEmitter {
-  private client: FBWatchmanClient;
+  private client: any;
   private watchRoot?: string;
   private logger: Logger;
   private subscriptions: Map<string, string> = new Map();
@@ -41,7 +32,7 @@ export class WatchmanClient extends EventEmitter {
   constructor(logger: Logger) {
     super();
     this.logger = logger;
-    this.client = new watchman.Client() as FBWatchmanClient;
+    this.client = createWatchmanClient();
 
     this.client.on('error', (error: unknown) => {
       const err = error instanceof Error ? error : new Error(String(error));

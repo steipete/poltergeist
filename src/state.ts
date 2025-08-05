@@ -2,10 +2,10 @@
 
 import { existsSync, mkdirSync, readFileSync, unlinkSync } from 'fs';
 import { join } from 'path';
-import writeFileAtomic from 'write-file-atomic';
 import type { IStateManager } from './interfaces.js';
 import type { Logger } from './logger.js';
 import type { BuildStatus, Target } from './types.js';
+import { writeFileAtomic } from './utils/atomic-write.js';
 import { FileSystemUtils } from './utils/filesystem.js';
 import { type ProcessInfo, ProcessManager } from './utils/process-manager.js';
 

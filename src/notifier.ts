@@ -1,10 +1,5 @@
-import notifier from 'node-notifier';
-
-interface ExtendedNotification extends notifier.Notification {
-  sound?: string | boolean;
-  timeout?: number;
-  appIcon?: string;
-}
+import type { NotificationOptions } from './utils/notifier-wrapper.js';
+import notifier from './utils/notifier-wrapper.js';
 
 export class BuildNotifier {
   constructor(
@@ -51,7 +46,7 @@ export class BuildNotifier {
 
     // title and message are already provided as parameters
 
-    const notificationOptions: ExtendedNotification = {
+    const notificationOptions: NotificationOptions = {
       title,
       message,
       sound: this.config.failureSound || 'Basso',
@@ -79,7 +74,7 @@ export class BuildNotifier {
 
     // title and message are already provided as parameters
 
-    const notificationOptions: ExtendedNotification = {
+    const notificationOptions: NotificationOptions = {
       title,
       message,
       sound: this.config.successSound || 'Glass',

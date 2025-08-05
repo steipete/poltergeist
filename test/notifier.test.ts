@@ -1,13 +1,13 @@
 // Comprehensive tests for BuildNotifier
 
-import notifier from 'node-notifier';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { BuildNotifier } from '../src/notifier.js';
+import notifier from '../src/utils/notifier-wrapper.js';
 
-// Mock node-notifier
-vi.mock('node-notifier', () => ({
+// Mock notifier-wrapper
+vi.mock('../src/utils/notifier-wrapper.js', () => ({
   default: {
-    notify: vi.fn(),
+    notify: vi.fn(async () => {}),
   },
 }));
 

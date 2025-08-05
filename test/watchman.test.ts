@@ -1,16 +1,24 @@
 // Tests for Watchman integration
 
-import watchman from 'fb-watchman';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import type { Logger } from '../src/logger.js';
 import { WatchmanClient } from '../src/watchman.js';
 
-// Mock watchman
-vi.mock('fb-watchman', () => ({
-  default: {
-    Client: vi.fn(),
-  },
-}));
+// Mock the watchman wrapper instead of fb-watchman directly
+vi.mock('../src/utils/watchman-wrapper.js', () => {
+  const mockWatchmanInstance = {
+    on: vi.fn(),
+    command: vi.fn(),
+    end: vi.fn(),
+    removeListener: vi.fn(),
+    capabilityCheck: vi.fn(),
+  };
+
+  return {
+    createWatchmanClient: vi.fn(() => mockWatchmanInstance),
+    WatchmanClientWrapper: vi.fn(() => mockWatchmanInstance),
+  };
+});
 
 describe('WatchmanClient', () => {
   let client: WatchmanClient;
@@ -23,7 +31,7 @@ describe('WatchmanClient', () => {
     end: ReturnType<typeof vi.fn>;
   };
 
-  beforeEach(() => {
+  beforeEach(async () => {
     vi.clearAllMocks();
 
     // Mock logger
@@ -35,18 +43,20 @@ describe('WatchmanClient', () => {
       success: vi.fn(),
     };
 
-    // Mock watchman client instance
-    mockWatchmanInstance = {
-      on: vi.fn(),
-      command: vi.fn(),
-      end: vi.fn(),
-      removeListener: vi.fn(),
-      capabilityCheck: vi.fn((_caps, callback) => {
-        callback(null);
-      }),
-    };
+    // Import the mock after clearing
+    const { createWatchmanClient } = await import('../src/utils/watchman-wrapper.js');
 
-    vi.mocked(watchman.Client).mockImplementation(() => mockWatchmanInstance);
+    // Get the mock instance
+    mockWatchmanInstance = createWatchmanClient() as any;
+
+    // Setup default mock behaviors
+    mockWatchmanInstance.capabilityCheck = vi.fn(async (_caps, callback) => {
+      callback(null);
+    });
+
+    mockWatchmanInstance.command = vi.fn(async (_cmd, callback) => {
+      callback(null, {});
+    });
 
     client = new WatchmanClient(mockLogger);
   });
@@ -63,7 +73,7 @@ describe('WatchmanClient', () => {
     });
 
     it('should handle connection errors', async () => {
-      mockWatchmanInstance.capabilityCheck.mockImplementation((_caps, callback) => {
+      mockWatchmanInstance.capabilityCheck.mockImplementation(async (_caps, callback) => {
         callback(new Error('Connection failed'));
       });
 
@@ -87,7 +97,7 @@ describe('WatchmanClient', () => {
     it('should watch a project successfully', async () => {
       const projectPath = '/test/project';
 
-      mockWatchmanInstance.command.mockImplementation((args, callback) => {
+      mockWatchmanInstance.command.mockImplementation(async (args, callback) => {
         if (args[0] === 'watch-project') {
           callback(null, {
             watch: projectPath,
@@ -108,7 +118,7 @@ describe('WatchmanClient', () => {
     it('should handle watch errors', async () => {
       const projectPath = '/non/existent/path';
 
-      mockWatchmanInstance.command.mockImplementation((args, callback) => {
+      mockWatchmanInstance.command.mockImplementation(async (args, callback) => {
         if (args[0] === 'watch-project') {
           callback(new Error('unable to resolve root'), null);
         }
@@ -122,7 +132,7 @@ describe('WatchmanClient', () => {
 
   describe('Subscriptions', () => {
     beforeEach(async () => {
-      mockWatchmanInstance.command.mockImplementation((args, callback) => {
+      mockWatchmanInstance.command.mockImplementation(async (args, callback) => {
         if (args[0] === 'watch-project') {
           callback(null, { watch: '/test/project' });
         } else if (args[0] === 'subscribe') {
@@ -176,7 +186,7 @@ describe('WatchmanClient', () => {
     });
 
     it('should handle subscription errors', async () => {
-      mockWatchmanInstance.command.mockImplementation((args, callback) => {
+      mockWatchmanInstance.command.mockImplementation(async (args, callback) => {
         if (args[0] === 'subscribe') {
           callback(new Error('Subscription failed'), null);
         }
@@ -239,7 +249,7 @@ describe('WatchmanClient', () => {
 
   describe('Unsubscribe', () => {
     beforeEach(async () => {
-      mockWatchmanInstance.command.mockImplementation((args, callback) => {
+      mockWatchmanInstance.command.mockImplementation(async (args, callback) => {
         if (args[0] === 'watch-project') {
           callback(null, { watch: '/test/project' });
         } else if (args[0] === 'subscribe') {
@@ -288,7 +298,7 @@ describe('WatchmanClient', () => {
         vi.fn()
       );
 
-      mockWatchmanInstance.command.mockImplementation((args, callback) => {
+      mockWatchmanInstance.command.mockImplementation(async (args, callback) => {
         if (args[0] === 'unsubscribe') {
           callback(new Error('Unsubscribe failed'), null);
         }
@@ -305,7 +315,7 @@ describe('WatchmanClient', () => {
 
   describe('Disconnect', () => {
     beforeEach(async () => {
-      mockWatchmanInstance.command.mockImplementation((args, callback) => {
+      mockWatchmanInstance.command.mockImplementation(async (args, callback) => {
         if (args[0] === 'watch-project') {
           callback(null, { watch: '/test/project' });
         } else if (args[0] === 'subscribe') {
@@ -358,7 +368,7 @@ describe('WatchmanClient', () => {
     });
 
     it('should report connected after watching a project', async () => {
-      mockWatchmanInstance.command.mockImplementation((args, callback) => {
+      mockWatchmanInstance.command.mockImplementation(async (args, callback) => {
         if (args[0] === 'watch-project') {
           callback(null, { watch: '/test/project' });
         }

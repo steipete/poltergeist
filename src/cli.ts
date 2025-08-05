@@ -209,6 +209,13 @@ program
   });
 
 program
+  .command('version')
+  .description('Show Poltergeist version')
+  .action(() => {
+    console.log(`Poltergeist v${version}`);
+  });
+
+program
   .command('status')
   .description('Check Poltergeist status')
   .option('-t, --target <name>', 'Check specific target status')
@@ -493,7 +500,7 @@ async function readLogEntries(
 
 // Format a single log entry for display
 function formatLogEntry(entry: LogEntry): void {
-  // Handle timestamp - winston gives us HH:mm:ss format, so use it directly
+  // Handle timestamp - Pino gives us HH:mm:ss format, so use it directly
   const timestamp = entry.timestamp.includes(':')
     ? entry.timestamp
     : new Date(entry.timestamp).toLocaleString();

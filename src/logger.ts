@@ -2,7 +2,9 @@
 // Testing Poltergeist self-monitoring capabilities
 
 import chalk from 'chalk';
-import winston from 'winston';
+import { createWriteStream } from 'fs';
+import type { Logger as PinoLogger } from 'pino';
+import { pino } from 'pino';
 
 export interface Logger {
   info(message: string, metadata?: unknown): void;
@@ -12,120 +14,117 @@ export interface Logger {
   success(message: string, metadata?: unknown): void;
 }
 
-// Custom format for console output with target names
-const customFormat = winston.format.printf(({ level, message, timestamp, target, ...metadata }) => {
-  const ghost = '👻';
-  const coloredLevel =
-    level === 'error'
-      ? chalk.red(level.toUpperCase())
-      : level === 'warn'
-        ? chalk.yellow(level.toUpperCase())
-        : level === 'info'
-          ? chalk.cyan('INFO')
-          : level === 'debug'
-            ? chalk.gray('DEBUG')
-            : chalk.green(level.toUpperCase());
-
-  // Include target name if present
-  const targetPrefix = target ? `${chalk.blue(`[${target}]`)} ` : '';
-
-  let output = `${ghost} [${timestamp}] ${coloredLevel}: ${targetPrefix}${message}`;
-
-  // Add metadata if present
-  const metadataKeys = Object.keys(metadata);
-  if (metadataKeys.length > 0 && metadataKeys.some((key) => metadata[key] !== undefined)) {
-    output += ` ${chalk.gray(JSON.stringify(metadata))}`;
-  }
-
-  return output;
-});
+// Create a custom prettifier for console output
+function createPrettyTransport() {
+  return {
+    target: 'pino-pretty',
+    options: {
+      colorize: true,
+      translateTime: 'HH:MM:ss',
+      ignore: 'pid,hostname',
+      messageFormat: '{msg}',
+      customPrettifiers: {
+        // Note: These are string representations that will be eval'd in the worker
+        // They can't reference external variables like chalk
+      },
+    },
+  };
+}
 
 export function createLogger(logFile?: string, logLevel?: string): Logger {
-  const transports: winston.transport[] = [
-    // Console transport with colors
-    new winston.transports.Console({
-      format: winston.format.combine(customFormat),
-    }),
-  ];
+  // Configure Pino with pretty printing for console
+  const level = logLevel || 'info';
 
-  // Add file transport if logFile is specified
+  let pinoLogger: PinoLogger;
+
   if (logFile) {
-    transports.push(
-      new winston.transports.File({
-        filename: logFile,
-        format: winston.format.combine(winston.format.timestamp(), winston.format.json()),
-      })
+    // Create multi-stream transport for both console and file
+    const streams = [
+      { stream: pino.transport(createPrettyTransport()) },
+      { stream: createWriteStream(logFile, { flags: 'a' }) },
+    ];
+
+    pinoLogger = pino(
+      {
+        level,
+        formatters: {
+          level: (label) => ({ level: label }),
+        },
+      },
+      pino.multistream(streams)
     );
+  } else {
+    // Console only with pretty printing
+    pinoLogger = pino({
+      level,
+      transport: createPrettyTransport(),
+    });
   }
 
-  const winstonLogger = winston.createLogger({
-    level: logLevel || 'info',
-    format: winston.format.combine(
-      winston.format.timestamp({ format: 'HH:mm:ss' }),
-      winston.format.errors({ stack: true }),
-      winston.format.splat()
-    ),
-    transports,
-  });
-
   // Return a wrapper that implements Logger interface
-  return new TargetLogger(winstonLogger);
+  return new TargetLogger(pinoLogger);
 }
 
 // Target-aware logger wrapper
 export class TargetLogger implements Logger {
-  private logger: winston.Logger;
+  private logger: PinoLogger;
   private targetName?: string;
 
-  constructor(logger: winston.Logger, targetName?: string) {
+  constructor(logger: PinoLogger, targetName?: string) {
     this.logger = logger;
     this.targetName = targetName;
   }
 
-  private log(level: string, message: string, metadata?: unknown): void {
-    const logEntry = {
-      level,
-      message,
-      target: this.targetName,
-    };
+  private formatMetadata(metadata?: unknown): Record<string, any> {
+    const base: Record<string, any> = {};
 
-    // Only spread if metadata is an object
-    if (metadata && typeof metadata === 'object' && !Array.isArray(metadata)) {
-      Object.assign(logEntry, metadata);
+    if (this.targetName) {
+      base.target = this.targetName;
     }
 
-    // Winston's log method accepts a LogEntry which we're constructing
-    this.logger.log(logEntry as winston.LogEntry);
+    if (metadata && typeof metadata === 'object' && !Array.isArray(metadata)) {
+      Object.assign(base, metadata);
+    } else if (metadata !== undefined) {
+      base.metadata = metadata;
+    }
+
+    return base;
+  }
+
+  private formatMessage(message: string): string {
+    const ghost = '👻';
+    const target = this.targetName ? `${chalk.blue(`[${this.targetName}]`)} ` : '';
+    return `${ghost} ${target}${message}`;
   }
 
   info(message: string, metadata?: unknown): void {
-    this.log('info', message, metadata);
+    this.logger.info(this.formatMetadata(metadata), this.formatMessage(message));
   }
 
   error(message: string, metadata?: unknown): void {
-    this.log('error', message, metadata);
+    this.logger.error(this.formatMetadata(metadata), this.formatMessage(message));
   }
 
   warn(message: string, metadata?: unknown): void {
-    this.log('warn', message, metadata);
+    this.logger.warn(this.formatMetadata(metadata), this.formatMessage(message));
   }
 
   debug(message: string, metadata?: unknown): void {
-    this.log('debug', message, metadata);
+    this.logger.debug(this.formatMetadata(metadata), this.formatMessage(message));
   }
 
   success(message: string, metadata?: unknown): void {
     // Map success to info level with special formatting
-    this.log('info', `✅ ${message}`, metadata);
+    this.logger.info(this.formatMetadata(metadata), this.formatMessage(`✅ ${message}`));
   }
 }
 
 // Create a logger for a specific target
-export function createTargetLogger(baseLogger: winston.Logger, targetName: string): Logger {
+export function createTargetLogger(baseLogger: PinoLogger, targetName: string): Logger {
   return new TargetLogger(baseLogger, targetName);
 }
 
-// Simple logger implementation without winston dependency
+// Simple logger implementation without external dependencies
 export class SimpleLogger implements Logger {
   private targetName?: string;
   private logLevel: string;

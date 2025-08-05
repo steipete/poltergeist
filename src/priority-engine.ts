@@ -1,6 +1,5 @@
 // Priority Scoring Engine for Intelligent Build Scheduling
 
-import picomatch from 'picomatch';
 import type { Logger } from './logger.js';
 import type {
   BuildSchedulingConfig,
@@ -10,6 +9,7 @@ import type {
   TargetPriority,
 } from './types.js';
 import { BuildStatusManager } from './utils/build-status-manager.js';
+import picomatch from './utils/glob-matcher.js';
 
 export class PriorityEngine {
   private config: BuildSchedulingConfig;

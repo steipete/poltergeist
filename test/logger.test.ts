@@ -1,7 +1,7 @@
 // Comprehensive tests for Logger functionality
 
+import type { Logger as PinoLogger } from 'pino';
 import { afterEach, beforeEach, describe, expect, it, type MockedFunction, vi } from 'vitest';
-import winston from 'winston';
 import {
   createConsoleLogger,
   createLogger,
@@ -10,23 +10,33 @@ import {
   TargetLogger,
 } from '../src/logger.js';
 
-// Mock winston
-vi.mock('winston', () => ({
-  default: {
-    createLogger: vi.fn(),
-    format: {
-      combine: vi.fn().mockImplementation((...args) => args),
-      timestamp: vi.fn().mockImplementation((opts?: unknown) => ({ type: 'timestamp', opts })),
-      errors: vi.fn().mockImplementation((opts?: unknown) => ({ type: 'errors', opts })),
-      splat: vi.fn().mockImplementation(() => ({ type: 'splat' })),
-      json: vi.fn().mockImplementation(() => ({ type: 'json' })),
-      printf: vi.fn().mockImplementation((fn) => ({ type: 'printf', fn })),
-    },
-    transports: {
-      Console: vi.fn().mockImplementation((opts) => ({ type: 'console', opts })),
-      File: vi.fn().mockImplementation((opts) => ({ type: 'file', opts })),
-    },
-  },
+// Mock pino
+vi.mock('pino', () => {
+  const mockLogger = {
+    info: vi.fn(),
+    error: vi.fn(),
+    warn: vi.fn(),
+    debug: vi.fn(),
+  };
+
+  const pinoMock = vi.fn(() => mockLogger);
+  pinoMock.multistream = vi.fn((streams) => streams);
+  pinoMock.transport = vi.fn((transport) => transport);
+
+  return {
+    pino: pinoMock,
+    default: pinoMock,
+  };
+});
+
+// Mock pino-pretty
+vi.mock('pino-pretty', () => ({
+  default: vi.fn(),
+}));
+
+// Mock fs for file streams
+vi.mock('fs', () => ({
+  createWriteStream: vi.fn((path) => ({ path, flags: 'a' })),
 }));
 
 // Mock chalk for consistent output
@@ -42,56 +52,64 @@ vi.mock('chalk', () => ({
 }));
 
 describe('createLogger', () => {
-  let mockWinstonLogger: winston.Logger;
+  let mockPinoLogger: PinoLogger;
 
-  beforeEach(() => {
+  beforeEach(async () => {
     vi.clearAllMocks();
 
-    mockWinstonLogger = {
-      log: vi.fn(),
+    mockPinoLogger = {
       info: vi.fn(),
       error: vi.fn(),
       warn: vi.fn(),
       debug: vi.fn(),
-    };
-
-    vi.mocked(winston.createLogger).mockReturnValue(mockWinstonLogger);
-  });
-
-  it('should create logger with console transport only when no logFile specified', () => {
-    const _logger = createLogger();
-
-    expect(winston.createLogger).toHaveBeenCalledWith({
+      trace: vi.fn(),
+      fatal: vi.fn(),
+      silent: vi.fn(),
       level: 'info',
-      format: expect.any(Array),
-      transports: expect.arrayContaining([expect.objectContaining({ type: 'console' })]),
-    });
+      child: vi.fn(),
+      bindings: vi.fn(),
+      flush: vi.fn(),
+      onChild: vi.fn(),
+    } as any;
 
-    expect(winston.transports.File).not.toHaveBeenCalled();
+    const { pino } = await import('pino');
+    vi.mocked(pino).mockReturnValue(mockPinoLogger);
   });
 
-  it('should create logger with both console and file transports when logFile specified', () => {
-    const _logger = createLogger('/tmp/test.log', 'debug');
+  it('should create logger with console transport only when no logFile specified', async () => {
+    const logger = createLogger();
 
-    expect(winston.createLogger).toHaveBeenCalledWith({
-      level: 'debug',
-      format: expect.any(Array),
-      transports: expect.arrayContaining([
-        expect.objectContaining({ type: 'console' }),
-        expect.objectContaining({ type: 'file' }),
-      ]),
-    });
-
-    expect(winston.transports.File).toHaveBeenCalledWith({
-      filename: '/tmp/test.log',
-      format: expect.any(Array),
-    });
+    const { pino } = await import('pino');
+    expect(pino).toHaveBeenCalledWith(
+      expect.objectContaining({
+        level: 'info',
+        transport: expect.objectContaining({
+          target: 'pino-pretty',
+        }),
+      })
+    );
   });
 
-  it('should use custom log level when specified', () => {
+  it('should create logger with both console and file transports when logFile specified', async () => {
+    const logger = createLogger('/tmp/test.log', 'debug');
+
+    const { pino } = await import('pino');
+    const { createWriteStream } = await import('fs');
+
+    expect(createWriteStream).toHaveBeenCalledWith('/tmp/test.log', { flags: 'a' });
+    expect(pino).toHaveBeenCalledWith(
+      expect.objectContaining({
+        level: 'debug',
+      }),
+      expect.anything()
+    );
+  });
+
+  it('should use custom log level when specified', async () => {
     const _logger = createLogger(undefined, 'warn');
 
-    expect(winston.createLogger).toHaveBeenCalledWith(
+    const { pino } = await import('pino');
+    expect(pino).toHaveBeenCalledWith(
       expect.objectContaining({
         level: 'warn',
       })
@@ -100,85 +118,140 @@ describe('createLogger', () => {
 
   it('should return a TargetLogger instance', () => {
     const logger = createLogger();
-
     expect(logger).toBeInstanceOf(TargetLogger);
   });
 });
 
 describe('TargetLogger', () => {
-  let mockWinstonLogger: winston.Logger;
+  let mockPinoLogger: PinoLogger;
   let targetLogger: TargetLogger;
 
   beforeEach(() => {
     vi.clearAllMocks();
 
-    mockWinstonLogger = {
-      log: vi.fn(),
-    };
+    mockPinoLogger = {
+      info: vi.fn(),
+      error: vi.fn(),
+      warn: vi.fn(),
+      debug: vi.fn(),
+    } as any;
 
-    targetLogger = new TargetLogger(mockWinstonLogger, 'test-target');
+    targetLogger = new TargetLogger(mockPinoLogger, 'test-target');
   });
 
   it('should log info messages with target name', () => {
     targetLogger.info('Test info message', { extra: 'data' });
 
-    expect(mockWinstonLogger.log).toHaveBeenCalledWith({
-      level: 'info',
-      message: 'Test info message',
-      target: 'test-target',
-      extra: 'data',
-    });
+    expect(mockPinoLogger.info).toHaveBeenCalledWith(
+      {
+        target: 'test-target',
+        extra: 'data',
+      },
+      expect.stringContaining('👻')
+    );
+    expect(mockPinoLogger.info).toHaveBeenCalledWith(
+      expect.anything(),
+      expect.stringContaining('[BLUE][test-target][/BLUE]')
+    );
+    expect(mockPinoLogger.info).toHaveBeenCalledWith(
+      expect.anything(),
+      expect.stringContaining('Test info message')
+    );
   });
 
   it('should log error messages with target name', () => {
     targetLogger.error('Test error message');
 
-    expect(mockWinstonLogger.log).toHaveBeenCalledWith({
-      level: 'error',
-      message: 'Test error message',
-      target: 'test-target',
-    });
+    expect(mockPinoLogger.error).toHaveBeenCalledWith(
+      {
+        target: 'test-target',
+      },
+      expect.stringContaining('👻')
+    );
+    expect(mockPinoLogger.error).toHaveBeenCalledWith(
+      expect.anything(),
+      expect.stringContaining('Test error message')
+    );
   });
 
   it('should log warn messages with target name', () => {
     targetLogger.warn('Test warning');
 
-    expect(mockWinstonLogger.log).toHaveBeenCalledWith({
-      level: 'warn',
-      message: 'Test warning',
-      target: 'test-target',
-    });
+    expect(mockPinoLogger.warn).toHaveBeenCalledWith(
+      {
+        target: 'test-target',
+      },
+      expect.stringContaining('👻')
+    );
+    expect(mockPinoLogger.warn).toHaveBeenCalledWith(
+      expect.anything(),
+      expect.stringContaining('Test warning')
+    );
   });
 
   it('should log debug messages with target name', () => {
     targetLogger.debug('Debug info');
 
-    expect(mockWinstonLogger.log).toHaveBeenCalledWith({
-      level: 'debug',
-      message: 'Debug info',
-      target: 'test-target',
-    });
+    expect(mockPinoLogger.debug).toHaveBeenCalledWith(
+      {
+        target: 'test-target',
+      },
+      expect.stringContaining('👻')
+    );
+    expect(mockPinoLogger.debug).toHaveBeenCalledWith(
+      expect.anything(),
+      expect.stringContaining('Debug info')
+    );
   });
 
   it('should log success messages as info with checkmark', () => {
     targetLogger.success('Build completed');
 
-    expect(mockWinstonLogger.log).toHaveBeenCalledWith({
-      level: 'info',
-      message: '✅ Build completed',
-      target: 'test-target',
-    });
+    expect(mockPinoLogger.info).toHaveBeenCalledWith(
+      {
+        target: 'test-target',
+      },
+      expect.stringContaining('👻')
+    );
+    expect(mockPinoLogger.info).toHaveBeenCalledWith(
+      expect.anything(),
+      expect.stringContaining('✅ Build completed')
+    );
   });
 
   it('should work without target name', () => {
-    const loggerWithoutTarget = new TargetLogger(mockWinstonLogger);
+    const loggerWithoutTarget = new TargetLogger(mockPinoLogger);
     loggerWithoutTarget.info('No target');
 
-    expect(mockWinstonLogger.log).toHaveBeenCalledWith({
-      level: 'info',
-      message: 'No target',
-      target: undefined,
-    });
+    expect(mockPinoLogger.info).toHaveBeenCalledWith({}, expect.stringContaining('👻'));
+    expect(mockPinoLogger.info).toHaveBeenCalledWith(
+      expect.anything(),
+      expect.stringContaining('No target')
+    );
+  });
+
+  it('should handle non-object metadata', () => {
+    targetLogger.info('Test', 'string metadata');
+
+    expect(mockPinoLogger.info).toHaveBeenCalledWith(
+      {
+        target: 'test-target',
+        metadata: 'string metadata',
+      },
+      expect.stringContaining('Test')
+    );
+  });
+
+  it('should handle array metadata', () => {
+    targetLogger.info('Test', [1, 2, 3]);
+
+    expect(mockPinoLogger.info).toHaveBeenCalledWith(
+      {
+        target: 'test-target',
+        metadata: [1, 2, 3],
+      },
+      expect.stringContaining('Test')
+    );
   });
 });
 
@@ -290,19 +363,23 @@ describe('SimpleLogger', () => {
 describe('createTargetLogger', () => {
   it('should create a TargetLogger with specified target name', () => {
     const mockBaseLogger = {
-      log: vi.fn(),
-    } as winston.Logger;
+      info: vi.fn(),
+      error: vi.fn(),
+      warn: vi.fn(),
+      debug: vi.fn(),
+    } as any;
 
     const targetLogger = createTargetLogger(mockBaseLogger, 'my-target');
 
     expect(targetLogger).toBeInstanceOf(TargetLogger);
     targetLogger.info('Test');
 
-    expect(mockBaseLogger.log).toHaveBeenCalledWith({
-      level: 'info',
-      message: 'Test',
-      target: 'my-target',
-    });
+    expect(mockBaseLogger.info).toHaveBeenCalledWith(
+      {
+        target: 'my-target',
+      },
+      expect.stringContaining('Test')
+    );
   });
 });
 
@@ -356,77 +433,5 @@ describe('createConsoleLogger', () => {
     expect(consoleLogSpy).toHaveBeenCalledWith(
       expect.stringContaining('[GREEN][Poltergeist][/GREEN]')
     );
-  });
-});
-
-describe('Custom Format Function', () => {
-  it('should format log messages correctly', async () => {
-    // We need to import the module to trigger the format.printf call
-    vi.resetModules();
-    await import('../src/logger.js');
-
-    // Get the custom format function
-    const formatCall = vi.mocked(winston.format.printf).mock.calls[0];
-    if (!formatCall || !formatCall[0]) {
-      throw new Error('printf not called');
-    }
-    const formatFn = formatCall[0];
-
-    // Test different log levels
-    const infoResult = formatFn({
-      level: 'info',
-      message: 'Test message',
-      timestamp: '12:34:56',
-      target: 'my-target',
-    });
-
-    expect(infoResult).toContain('👻');
-    expect(infoResult).toContain('12:34:56');
-    expect(infoResult).toContain('[CYAN]INFO[/CYAN]');
-    expect(infoResult).toContain('[BLUE][my-target][/BLUE]');
-    expect(infoResult).toContain('Test message');
-
-    // Test error level
-    const errorResult = formatFn({
-      level: 'error',
-      message: 'Error occurred',
-      timestamp: '12:34:56',
-    });
-
-    expect(errorResult).toContain('[RED]ERROR[/RED]');
-    expect(errorResult).not.toContain('[BLUE]'); // No target
-
-    // Test with metadata
-    const withMetadata = formatFn({
-      level: 'debug',
-      message: 'Debug info',
-      timestamp: '12:34:56',
-      extra: 'data',
-      count: 42,
-    });
-
-    expect(withMetadata).toContain('[GRAY]DEBUG[/GRAY]');
-    expect(withMetadata).toContain('[GRAY]{"extra":"data","count":42}[/GRAY]');
-  });
-
-  it('should handle special log levels', async () => {
-    // We need to import the module to trigger the format.printf call
-    vi.resetModules();
-    await import('../src/logger.js');
-
-    const formatCall = vi.mocked(winston.format.printf).mock.calls[0];
-    if (!formatCall || !formatCall[0]) {
-      throw new Error('printf not called');
-    }
-    const formatFn = formatCall[0];
-
-    // Test unknown level (defaults to green)
-    const customResult = formatFn({
-      level: 'custom',
-      message: 'Custom level',
-      timestamp: '12:34:56',
-    });
-
-    expect(customResult).toContain('[GREEN]CUSTOM[/GREEN]');
   });
 });

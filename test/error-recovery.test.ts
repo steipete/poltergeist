@@ -22,6 +22,10 @@ import {
 vi.mock('child_process', () => ({
   spawn: vi.fn(),
   execSync: vi.fn().mockReturnValue('abc123\n'),
+  exec: vi.fn((cmd, callback) => {
+    // Mock exec for native-notifier - just call the callback
+    if (callback) callback(null, '', '');
+  }),
 }));
 
 describe('Error Recovery and Resilience', () => {
