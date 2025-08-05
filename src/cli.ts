@@ -12,7 +12,7 @@ import packageJson from '../package.json' with { type: 'json' };
 import { ConfigurationError } from './config.js';
 import { createPoltergeist } from './factories.js';
 import { createLogger } from './logger.js';
-import type { PoltergeistConfig, ProjectType } from './types.js';
+import type { AppBundleTarget, PoltergeistConfig, ProjectType, Target } from './types.js';
 import { CMakeProjectAnalyzer } from './utils/cmake-analyzer.js';
 import { ConfigurationManager } from './utils/config-manager.js';
 import { WatchmanConfigManager } from './watchman-config.js';
@@ -630,7 +630,7 @@ program
         if (xcodeProjects.length > 0) {
           console.log(chalk.green(`✅ Found ${xcodeProjects.length} Xcode project(s)`));
 
-          const targets: Array<Record<string, unknown>> = [];
+          const targets: Target[] = [];
 
           for (const project of xcodeProjects) {
             const projectDir = path.dirname(project.path);
@@ -673,7 +673,7 @@ program
               environment: {
                 CONFIGURATION: 'Debug',
               },
-            });
+            } as AppBundleTarget);
           }
 
           config = {
