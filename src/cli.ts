@@ -155,12 +155,30 @@ program
         }
       }
       
-      // Then start it again
-      console.log(chalk.gray('👻 [Poltergeist] Starting new instance...'));
-      const newPoltergeist = createPoltergeist(config, projectRoot, logger);
-      await newPoltergeist.start(options.target);
+      // Then start it again as a detached process
+      console.log(chalk.gray(`👻 [Poltergeist] Starting new instance... v${version}`));
       
-      console.log(chalk.green('👻 [Poltergeist] Successfully restarted!'));
+      // Build the start command
+      const startArgs = ['start'];
+      if (options.target) {
+        startArgs.push('--target', options.target);
+      }
+      if (options.config) {
+        startArgs.push('--config', options.config);
+      }
+      
+      // Spawn detached process
+      const { spawn } = await import('child_process');
+      const child = spawn('node', [process.argv[1], ...startArgs], {
+        detached: true,
+        stdio: 'ignore',
+        cwd: process.cwd()
+      });
+      
+      // Detach the child process
+      child.unref();
+      
+      console.log(chalk.green(`👻 [Poltergeist] Successfully restarted! (PID: ${child.pid})`));
     } catch (error) {
       console.error(chalk.red(`👻 [Poltergeist] Failed to restart: ${error}`));
       process.exit(1);
@@ -401,7 +419,8 @@ async function readLogEntries(logFile: string, targetFilter?: string, maxLines?:
 
 // Format a single log entry for display
 function formatLogEntry(entry: LogEntry): void {
-  const timestamp = new Date(entry.timestamp).toLocaleString();
+  // Handle timestamp - winston gives us HH:mm:ss format, so use it directly
+  const timestamp = entry.timestamp.includes(':') ? entry.timestamp : new Date(entry.timestamp).toLocaleString();
   const level = formatLogLevel(entry.level);
   const target = entry.target ? chalk.blue(`[${entry.target}]`) : '';
   const message = entry.message;
@@ -665,3 +684,4 @@ export { program };
 // Test file watching
 // Test file watching Wed Jul 30 20:26:08 CEST 2025
 // Another test Wed Jul 30 20:26:59 CEST 2025
+// Testing file change logging in build messages - testing both fixes!

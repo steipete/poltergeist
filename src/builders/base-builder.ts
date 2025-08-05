@@ -27,7 +27,9 @@ export abstract class BaseBuilder<T extends Target = Target> {
   }
 
   public async build(changedFiles: string[], options: BuildOptions = {}): Promise<BuildStatus> {
-    this.logger.info(`[${this.target.name}] Building with ${changedFiles.length} changed file(s)`);
+    // Format file list for logging
+    const fileListText = this.formatChangedFiles(changedFiles);
+    this.logger.info(`[${this.target.name}] Building with ${changedFiles.length} changed file(s)${fileListText}`);
 
     // Check if already building using state manager
     if (await this.stateManager.isLocked(this.target.name)) {
@@ -197,6 +199,25 @@ export abstract class BaseBuilder<T extends Target = Target> {
   protected getBuilderName(): string {
     // Override in subclasses for specific builder names
     return this.target.type;
+  }
+
+  private formatChangedFiles(changedFiles: string[]): string {
+    if (changedFiles.length === 0) {
+      return '';
+    }
+
+    // Show up to 3 files by name for clarity
+    const maxFilesToShow = 3;
+    const filesToShow = changedFiles.slice(0, maxFilesToShow);
+    const remainingCount = changedFiles.length - maxFilesToShow;
+
+    let fileList = filesToShow.join(', ');
+    
+    if (remainingCount > 0) {
+      fileList += `, +${remainingCount} more`;
+    }
+
+    return `: ${fileList}`;
   }
 
   public stop(): void {
