@@ -607,7 +607,7 @@ program
             successSound: 'Glass',
             failureSound: 'Basso',
           },
-        };
+        } as PoltergeistConfig;
 
         // Apply options
         if (options.generator) {
