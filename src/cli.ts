@@ -445,11 +445,11 @@ function formatLogEntry(entry: LogEntry): void {
   console.log(`${chalk.gray(timestamp)} ${level} ${target} ${message}`);
 
   // Show additional metadata if present
-  const metadata = { ...entry };
-  delete (metadata as any).timestamp;
-  delete (metadata as any).level;
-  delete (metadata as any).message;
-  delete (metadata as any).target;
+  const metadata: Record<string, unknown> = { ...entry };
+  delete metadata.timestamp;
+  delete metadata.level;
+  delete metadata.message;
+  delete metadata.target;
 
   const metadataKeys = Object.keys(metadata);
   if (metadataKeys.length > 0 && metadataKeys.some((key) => metadata[key] !== undefined)) {
@@ -630,7 +630,7 @@ program
         if (xcodeProjects.length > 0) {
           console.log(chalk.green(`✅ Found ${xcodeProjects.length} Xcode project(s)`));
 
-          const targets: any[] = [];
+          const targets: Array<Record<string, unknown>> = [];
 
           for (const project of xcodeProjects) {
             const projectDir = path.dirname(project.path);

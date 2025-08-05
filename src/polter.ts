@@ -305,8 +305,8 @@ function executeTarget(target: Target, projectRoot: string, args: string[]): Pro
   return new Promise((resolve) => {
     // Get output path based on target type
     let binaryPath: string;
-    if ('outputPath' in target) {
-      binaryPath = resolvePath(projectRoot, target.outputPath!);
+    if ('outputPath' in target && target.outputPath) {
+      binaryPath = resolvePath(projectRoot, target.outputPath);
     } else {
       console.error(chalk.red(`❌ Target '${target.name}' does not have an output path`));
       resolve(1);

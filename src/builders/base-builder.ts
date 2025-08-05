@@ -26,6 +26,10 @@ export abstract class BaseBuilder<T extends Target = Target> {
     this.stateManager = stateManager;
   }
 
+  public getProjectRoot(): string {
+    return this.projectRoot;
+  }
+
   public async build(changedFiles: string[], options: BuildOptions = {}): Promise<BuildStatus> {
     // Format file list for logging
     const fileListText = this.formatChangedFiles(changedFiles);
@@ -130,8 +134,8 @@ export abstract class BaseBuilder<T extends Target = Target> {
       };
 
       // Determine stdio configuration based on log capture option
-      let stdio: any = 'inherit';
-      let logStream: any = null;
+      let stdio: 'inherit' | ('inherit' | 'pipe')[] = 'inherit';
+      let logStream: NodeJS.WritableStream | null = null;
 
       if (options.captureLogs && options.logFile) {
         // Create log directory if it doesn't exist

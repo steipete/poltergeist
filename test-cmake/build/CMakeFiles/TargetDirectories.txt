@@ -1,0 +1,4 @@
+/Users/steipete/Projects/poltergeist/test-cmake/build/CMakeFiles/test-app.dir
+/Users/steipete/Projects/poltergeist/test-cmake/build/CMakeFiles/test-lib.dir
+/Users/steipete/Projects/poltergeist/test-cmake/build/CMakeFiles/edit_cache.dir
+/Users/steipete/Projects/poltergeist/test-cmake/build/CMakeFiles/rebuild_cache.dir

@@ -374,7 +374,7 @@ export class CMakeProjectAnalyzer {
       const content = readFileSync(presetsFile, 'utf-8');
       const json = JSON.parse(content);
 
-      return (json.configurePresets || []).map((preset: any) => ({
+      return (json.configurePresets || []).map((preset: Record<string, unknown>) => ({
         name: preset.name,
         displayName: preset.displayName,
         generator: preset.generator,
@@ -516,8 +516,10 @@ export class CMakeProjectAnalyzer {
         stdio: 'pipe',
       });
       return { stdout };
-    } catch (error: any) {
-      throw new Error(`Command failed: ${command}\n${error.message}`);
+    } catch (error: unknown) {
+      throw new Error(
+        `Command failed: ${command}\n${error instanceof Error ? error.message : String(error)}`
+      );
     }
   }
 }

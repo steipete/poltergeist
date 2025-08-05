@@ -1,7 +1,7 @@
-import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
-import { mkdtempSync, rmSync, mkdirSync, writeFileSync, existsSync } from 'fs';
+import { existsSync, mkdirSync, mkdtempSync, rmSync, writeFileSync } from 'fs';
 import { tmpdir } from 'os';
 import { join } from 'path';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 // Mock the readdir function before importing the module
 vi.mock('fs/promises', async () => {
@@ -159,7 +159,7 @@ describe('CLI Xcode Helper Functions', () => {
 
       // Check if file is executable (has execute permission)
       const stats = require('fs').statSync('scripts/build.sh');
-      const isExecutable = (stats.mode & parseInt('111', 8)) !== 0;
+      const isExecutable = (stats.mode & 0o111) !== 0;
       expect(isExecutable).toBe(true);
     });
 

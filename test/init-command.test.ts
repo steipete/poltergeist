@@ -1,8 +1,8 @@
-import { describe, it, expect, beforeEach, afterEach } from 'vitest';
 import { execSync } from 'child_process';
-import { mkdtempSync, rmSync, readFileSync } from 'fs';
+import { mkdtempSync, readFileSync, rmSync } from 'fs';
 import { tmpdir } from 'os';
 import { join } from 'path';
+import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 import type { PoltergeistConfig } from '../src/types';
 
 describe('poltergeist init - Smart Defaults', () => {

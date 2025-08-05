@@ -1,5 +1,5 @@
-import { describe, it, expect } from 'vitest';
-import { PoltergeistConfig } from '../src/types';
+import { describe, expect, it } from 'vitest';
+import type { PoltergeistConfig } from '../src/types';
 
 // Import the generateDefaultConfig function from cli.ts
 // Since it's not exported, we'll need to extract it or test via the CLI

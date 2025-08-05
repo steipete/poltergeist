@@ -1,10 +1,10 @@
-import { describe, it, expect, beforeEach, afterEach } from 'vitest';
-import { mkdtempSync, rmSync, mkdirSync, writeFileSync } from 'fs';
+import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from 'fs';
 import { tmpdir } from 'os';
 import { join } from 'path';
-import { WatchmanConfigManager } from '../src/watchman-config.js';
+import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 import { createLogger } from '../src/logger.js';
 import type { ProjectType } from '../src/types.js';
+import { WatchmanConfigManager } from '../src/watchman-config.js';
 
 describe('WatchmanConfigManager - Xcode Project Detection', () => {
   let tempDir: string;

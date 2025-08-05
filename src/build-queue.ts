@@ -227,8 +227,8 @@ export class IntelligentBuildQueue {
   private async executeBuild(request: QueuedBuild): Promise<BuildStatus> {
     const { builder, triggeringFiles, target } = request;
 
-    // Get projectRoot from builder (all builders have this property)
-    const projectRoot = (builder as any).projectRoot;
+    // Get projectRoot from builder using public method
+    const projectRoot = builder.getProjectRoot();
 
     // Build options for log capture
     const buildOptions = {

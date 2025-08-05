@@ -112,7 +112,7 @@ describe('Poltergeist Wrapper Script', () => {
       expect(result.exitCode).toBe(0);
 
       // Should be valid JSON
-      let json;
+      let json: unknown;
       expect(() => {
         json = JSON.parse(result.stdout);
       }).not.toThrow();
