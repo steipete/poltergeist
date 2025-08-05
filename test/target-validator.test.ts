@@ -83,16 +83,16 @@ describe('Target Validator', () => {
       expect(() => validateTarget('poltergeist-cl', mockConfig)).toThrow('process.exit called');
 
       const errorCalls = mockConsoleError.mock.calls.map((call) => call[0]);
-      
+
       // Should show multiple suggestions when both are close matches
-      const hasSuggestions = errorCalls.some((msg) => 
-        typeof msg === 'string' && msg.includes('Did you mean one of these?')
+      const hasSuggestions = errorCalls.some(
+        (msg) => typeof msg === 'string' && msg.includes('Did you mean one of these?')
       );
       expect(hasSuggestions).toBe(true);
-      
+
       // Should include poltergeist-cli in suggestions
-      const hasCliSuggestion = errorCalls.some((msg) =>
-        typeof msg === 'string' && msg.includes('poltergeist-cli')
+      const hasCliSuggestion = errorCalls.some(
+        (msg) => typeof msg === 'string' && msg.includes('poltergeist-cli')
       );
       expect(hasCliSuggestion).toBe(true);
     });
@@ -103,8 +103,8 @@ describe('Target Validator', () => {
 
       const errorCalls = mockConsoleError.mock.calls.map((call) => call[0]);
       // For 'polt', no targets are within the threshold, so no suggestions
-      const hasSuggestion = errorCalls.some((msg) =>
-        typeof msg === 'string' && msg.includes('Did you mean')
+      const hasSuggestion = errorCalls.some(
+        (msg) => typeof msg === 'string' && msg.includes('Did you mean')
       );
       expect(hasSuggestion).toBe(false);
     });
@@ -128,10 +128,10 @@ describe('Target Validator', () => {
       expect(() => validateTarget('POLTERGEIST-CLI', mockConfig)).toThrow('process.exit called');
 
       const errorCalls = mockConsoleError.mock.calls.map((call) => call[0]);
-      
+
       // Should show single suggestion for exact case-insensitive match
-      const hasSingleSuggestion = errorCalls.some((msg) => 
-        typeof msg === 'string' && msg.includes("Did you mean 'poltergeist-cli'?")
+      const hasSingleSuggestion = errorCalls.some(
+        (msg) => typeof msg === 'string' && msg.includes("Did you mean 'poltergeist-cli'?")
       );
       expect(hasSingleSuggestion).toBe(true);
     });
@@ -153,16 +153,18 @@ describe('Target Validator', () => {
       expect(() => validateTarget('poltergeist-clu', mockConfig)).toThrow('process.exit called');
 
       const errorCalls = mockConsoleError.mock.calls.map((call) => call[0]);
-      
+
       // Should suggest poltergeist-cli for single character typo
-      const hasCliSuggestion = errorCalls.some((msg) =>
-        typeof msg === 'string' && msg.includes('poltergeist-cli')
+      const hasCliSuggestion = errorCalls.some(
+        (msg) => typeof msg === 'string' && msg.includes('poltergeist-cli')
       );
       expect(hasCliSuggestion).toBe(true);
-      
+
       // Should show suggestion message
-      const hasSuggestionMessage = errorCalls.some((msg) =>
-        typeof msg === 'string' && (msg.includes('Did you mean') || msg.includes('Did you mean one of these?'))
+      const hasSuggestionMessage = errorCalls.some(
+        (msg) =>
+          typeof msg === 'string' &&
+          (msg.includes('Did you mean') || msg.includes('Did you mean one of these?'))
       );
       expect(hasSuggestionMessage).toBe(true);
     });

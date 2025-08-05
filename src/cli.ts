@@ -12,7 +12,6 @@ import packageJson from '../package.json' with { type: 'json' };
 import { ConfigurationError } from './config.js';
 import { createPoltergeist } from './factories.js';
 import { createLogger } from './logger.js';
-import type { Poltergeist } from './poltergeist.js';
 import type { AppBundleTarget, PoltergeistConfig, ProjectType, Target } from './types.js';
 import { CMakeProjectAnalyzer } from './utils/cmake-analyzer.js';
 import { ConfigurationManager } from './utils/config-manager.js';
@@ -48,8 +47,6 @@ async function loadConfiguration(
     process.exit(1);
   }
 }
-
-
 
 program
   .command('haunt')
@@ -992,10 +989,13 @@ program
     try {
       // Get current status
       const status = await poltergeist.getStatus();
-      
+
       // Find currently building targets
       const activeBuilds = Object.entries(status)
-        .filter(([name, s]) => !name.startsWith('_') && (s as StatusObject).lastBuild?.status === 'building')
+        .filter(
+          ([name, s]) =>
+            !name.startsWith('_') && (s as StatusObject).lastBuild?.status === 'building'
+        )
         .map(([name, s]) => ({ name, status: s as StatusObject }));
 
       // Determine which target to wait for
@@ -1005,7 +1005,7 @@ program
       if (targetName) {
         // Validate target exists
         validateTarget(targetName, config);
-        
+
         // Specific target requested
         const statusObj = status[targetName] as StatusObject;
         if (statusObj.lastBuild?.status !== 'building') {
@@ -1039,12 +1039,12 @@ program
         if ((targetStatus as any).buildCommand) {
           console.log(`Command: ${(targetStatus as any).buildCommand}`);
         }
-        
+
         // Show time estimate if available
         if (targetStatus.lastBuild?.timestamp) {
           const elapsed = Date.now() - new Date(targetStatus.lastBuild.timestamp).getTime();
           const elapsedSec = Math.round(elapsed / 1000);
-          
+
           if ((targetStatus as any).buildStats?.averageDuration) {
             const avgSec = Math.round((targetStatus as any).buildStats.averageDuration / 1000);
             const remaining = Math.max(0, avgSec - elapsedSec);
@@ -1059,13 +1059,13 @@ program
       }
 
       // Poll for completion
-      const timeout = parseInt(options.timeout) * 1000;
+      const timeout = Number.parseInt(options.timeout) * 1000;
       const pollInterval = 1000; // 1 second
       const startTime = Date.now();
 
       while (true) {
-        await new Promise(resolve => setTimeout(resolve, pollInterval));
-        
+        await new Promise((resolve) => setTimeout(resolve, pollInterval));
+
         // Check timeout
         if (Date.now() - startTime > timeout) {
           console.log(chalk.red('❌ Build failed'));
@@ -1076,7 +1076,7 @@ program
         // Get updated status
         const updatedStatus = await poltergeist.getStatus(targetToWait!);
         const targetUpdate = updatedStatus[targetToWait!] as StatusObject;
-        
+
         if (!targetUpdate) {
           console.log(chalk.red('❌ Build failed'));
           console.log('Error: Target disappeared');
@@ -1084,7 +1084,7 @@ program
         }
 
         const buildStatus = targetUpdate.lastBuild?.status;
-        
+
         if (buildStatus === 'success') {
           if (!process.stdout.isTTY) {
             console.log('✅ Build completed successfully');
