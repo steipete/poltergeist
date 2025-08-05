@@ -11,10 +11,10 @@ describe('poltergeist init - Smart Defaults', () => {
 
   // Helper function to run init command and get config
   function runInitAndGetConfig(args = '--auto'): PoltergeistConfig {
-    const result = execSync(`node "${cli}" init ${args}`, { 
+    const result = execSync(`node "${cli}" init ${args}`, {
       stdio: 'pipe',
       cwd: tempDir,
-      encoding: 'utf-8'
+      encoding: 'utf-8',
     });
 
     const configPath = join(tempDir, 'poltergeist.config.json');
@@ -289,7 +289,7 @@ let package = Package(
     it('should show minimal config without creating file', () => {
       const output = execSync(`node "${cli}" init --auto --dry-run`, {
         encoding: 'utf-8',
-        cwd: tempDir
+        cwd: tempDir,
       });
 
       // Should show preview

@@ -52,7 +52,7 @@ export class DaemonManager {
    */
   async isDaemonRunning(projectPath: string): Promise<boolean> {
     const infoPath = this.getDaemonInfoPath(projectPath);
-    
+
     if (!existsSync(infoPath)) {
       return false;
     }
@@ -60,7 +60,7 @@ export class DaemonManager {
     try {
       const content = await readFile(infoPath, 'utf-8');
       const info: DaemonInfo = JSON.parse(content);
-      
+
       // Check if process is actually running
       try {
         process.kill(info.pid, 0); // Signal 0 = check if process exists
@@ -81,7 +81,7 @@ export class DaemonManager {
    */
   async getDaemonInfo(projectPath: string): Promise<DaemonInfo | null> {
     const infoPath = this.getDaemonInfoPath(projectPath);
-    
+
     if (!existsSync(infoPath)) {
       return null;
     }
@@ -89,7 +89,7 @@ export class DaemonManager {
     try {
       const content = await readFile(infoPath, 'utf-8');
       const info: DaemonInfo = JSON.parse(content);
-      
+
       // Verify process is running
       try {
         process.kill(info.pid, 0);
@@ -108,7 +108,7 @@ export class DaemonManager {
    */
   async startDaemon(config: PoltergeistConfig, options: DaemonOptions): Promise<number> {
     const { projectRoot, configPath, target, verbose } = options;
-    
+
     // Check if already running
     if (await this.isDaemonRunning(projectRoot)) {
       throw new Error('Daemon already running for this project');
@@ -119,7 +119,10 @@ export class DaemonManager {
     await mkdir(stateDir, { recursive: true });
 
     const logFile = this.getLogFilePath(projectRoot);
-    const daemonWorkerPath = join(dirname(import.meta.url.replace('file://', '')), 'daemon-worker.js');
+    const daemonWorkerPath = join(
+      dirname(import.meta.url.replace('file://', '')),
+      'daemon-worker.js'
+    );
 
     // Prepare arguments for daemon
     const daemonArgs = JSON.stringify({
@@ -128,14 +131,14 @@ export class DaemonManager {
       configPath,
       target,
       verbose,
-      logFile
+      logFile,
     });
 
     // Fork the daemon process
     const child = fork(daemonWorkerPath, [daemonArgs], {
       detached: true,
       stdio: ['ignore', 'ignore', 'ignore', 'ipc'],
-      env: { ...process.env }
+      env: { ...process.env },
     });
 
     // Wait for daemon to confirm startup
@@ -147,7 +150,7 @@ export class DaemonManager {
 
       child.once('message', async (message: any) => {
         clearTimeout(timeout);
-        
+
         if (message.type === 'started' && message.pid) {
           // Save daemon info
           const daemonInfo: DaemonInfo = {
@@ -155,15 +158,15 @@ export class DaemonManager {
             startTime: new Date().toISOString(),
             logFile,
             projectPath: projectRoot,
-            configPath
+            configPath,
           };
-          
+
           await this.saveDaemonInfo(projectRoot, daemonInfo);
-          
+
           // Detach from parent
           child.unref();
           child.disconnect();
-          
+
           resolve(message.pid);
         } else if (message.type === 'error') {
           reject(new Error(message.error || 'Daemon startup failed'));
@@ -182,7 +185,7 @@ export class DaemonManager {
    */
   async stopDaemon(projectPath: string): Promise<void> {
     const info = await this.getDaemonInfo(projectPath);
-    
+
     if (!info) {
       throw new Error('No daemon running for this project');
     }
@@ -190,10 +193,10 @@ export class DaemonManager {
     try {
       // Send graceful shutdown signal
       process.kill(info.pid, 'SIGTERM');
-      
+
       // Wait for process to exit (with timeout)
       await this.waitForProcessExit(info.pid, 5000);
-      
+
       // Clean up info file
       await this.cleanupDaemonInfo(projectPath);
     } catch (error) {
@@ -203,7 +206,7 @@ export class DaemonManager {
       } catch {
         // Process already dead
       }
-      
+
       await this.cleanupDaemonInfo(projectPath);
       throw new Error(`Failed to stop daemon: ${error}`);
     }
@@ -234,18 +237,18 @@ export class DaemonManager {
    */
   private async waitForProcessExit(pid: number, timeout: number): Promise<void> {
     const startTime = Date.now();
-    
+
     while (Date.now() - startTime < timeout) {
       try {
         process.kill(pid, 0);
         // Process still exists, wait a bit
-        await new Promise(resolve => setTimeout(resolve, 100));
+        await new Promise((resolve) => setTimeout(resolve, 100));
       } catch {
         // Process no longer exists
         return;
       }
     }
-    
+
     throw new Error('Process exit timeout');
   }
 
@@ -254,19 +257,19 @@ export class DaemonManager {
    */
   async readLogFile(projectPath: string, lines?: number): Promise<string[]> {
     const logFile = this.getLogFilePath(projectPath);
-    
+
     if (!existsSync(logFile)) {
       return [];
     }
 
     try {
       const content = await readFile(logFile, 'utf-8');
-      const allLines = content.split('\n').filter(line => line.trim());
-      
+      const allLines = content.split('\n').filter((line) => line.trim());
+
       if (lines && lines > 0) {
         return allLines.slice(-lines);
       }
-      
+
       return allLines;
     } catch (error) {
       this.logger.error('Failed to read log file:', error);

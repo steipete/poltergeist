@@ -80,7 +80,7 @@ program
       try {
         const { DaemonManager } = await import('./daemon/daemon-manager.js');
         const daemon = new DaemonManager(logger);
-        
+
         // Check if already running
         if (await daemon.isDaemonRunning(projectRoot)) {
           console.log(chalk.yellow('👻 Poltergeist daemon is already running for this project'));
@@ -88,17 +88,17 @@ program
           console.log(chalk.gray('Use "poltergeist stop" to stop the daemon'));
           process.exit(1);
         }
-        
+
         console.log(chalk.gray('👻 [Poltergeist] Starting daemon...'));
-        
+
         // Start daemon
         const pid = await daemon.startDaemon(config, {
           projectRoot,
           configPath,
           target: options.target,
-          verbose: options.verbose
+          verbose: options.verbose,
         });
-        
+
         console.log(chalk.green(`👻 Poltergeist daemon started (PID: ${pid})`));
         console.log(chalk.gray('Use "poltergeist logs" to see output'));
         console.log(chalk.gray('Use "poltergeist status" to check build status'));
@@ -110,7 +110,7 @@ program
     } else {
       // Foreground mode (traditional blocking behavior)
       console.log(chalk.gray('👻 [Poltergeist] Running in foreground mode...'));
-      
+
       if (options.target) {
         console.log(chalk.gray(`👻 [Poltergeist] Building target: ${options.target}`));
       } else {
@@ -142,9 +142,9 @@ program
     try {
       const { DaemonManager } = await import('./daemon/daemon-manager.js');
       const daemon = new DaemonManager(logger);
-      
+
       // Check if daemon is running
-      if (!await daemon.isDaemonRunning(projectRoot)) {
+      if (!(await daemon.isDaemonRunning(projectRoot))) {
         console.log(chalk.yellow('👻 No Poltergeist daemon running for this project'));
         process.exit(1);
       }
@@ -174,14 +174,14 @@ program
     try {
       const { DaemonManager } = await import('./daemon/daemon-manager.js');
       const daemon = new DaemonManager(logger);
-      
+
       // Check if daemon is running
       const isRunning = await daemon.isDaemonRunning(projectRoot);
-      
+
       if (isRunning) {
         console.log(chalk.gray('👻 [Poltergeist] Stopping current daemon...'));
         await daemon.stopDaemon(projectRoot);
-        
+
         // Wait a moment to ensure clean shutdown
         await new Promise((resolve) => setTimeout(resolve, 1000));
       }
@@ -198,7 +198,7 @@ program
           projectRoot,
           configPath,
           target: options.target,
-          verbose: options.verbose
+          verbose: options.verbose,
         });
         console.log(chalk.green(`👻 Poltergeist daemon restarted (PID: ${pid})`));
       }

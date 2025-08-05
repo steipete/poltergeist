@@ -152,7 +152,7 @@ describe('CLI Xcode Helper Functions', () => {
     it('should detect build scripts correctly', () => {
       mkdirSync('scripts', { recursive: true });
       writeFileSync('scripts/build.sh', '#!/bin/bash\nxcodebuild');
-      
+
       // Only test chmod on non-Windows platforms
       if (process.platform !== 'win32') {
         require('fs').chmodSync('scripts/build.sh', '755');

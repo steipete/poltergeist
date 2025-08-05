@@ -32,7 +32,7 @@ describe('Poltergeist Wrapper Script', () => {
       // Use platform-specific command
       const isWindows = process.platform === 'win32';
       const npxCmd = isWindows ? 'npx.cmd' : 'npx';
-      
+
       const child = spawn(npxCmd, ['tsx', wrapperScript, ...args], {
         stdio: 'pipe',
         timeout,
