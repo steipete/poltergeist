@@ -63,7 +63,7 @@ export class CMakeProjectAnalyzer {
       buildSystemTargets = buildInfo.targets;
       generator = buildInfo.generator;
       buildDirectory = buildInfo.buildDirectory;
-    } catch (error) {
+    } catch (_error) {
       console.warn('Could not query build system, using parsed targets only');
     }
 
@@ -215,7 +215,7 @@ export class CMakeProjectAnalyzer {
 
       const targets = this.parseTargetList(stdout);
       return { targets, generator, buildDirectory: buildDir };
-    } catch (error) {
+    } catch (_error) {
       // Fallback: try to list targets from Makefile or build.ninja
       const targets = await this.parseTargetsFromBuildFiles(buildPath);
       return { targets, generator, buildDirectory: buildDir };
@@ -518,46 +518,46 @@ export class CMakeProjectAnalyzer {
     // First pass: group patterns by their structure
     const groups = new Map<string, string[]>();
     const standalone: string[] = [];
-    
+
     patterns.forEach((pattern) => {
       // Skip patterns that already use brace expansion
       if (pattern.includes('{')) {
         standalone.push(pattern);
         return;
       }
-      
+
       // Try to find the common prefix and suffix
       const parts = pattern.split('/');
       let found = false;
-      
+
       // Look for patterns with the same structure but different directory names
       for (let i = 1; i < parts.length - 1; i++) {
         const prefix = parts.slice(0, i).join('/');
         const suffix = parts.slice(i + 1).join('/');
         const key = `${prefix}|${suffix}`;
-        
+
         // Check if this creates a meaningful group
         if (suffix.includes('**') || suffix.includes('*')) {
           if (!groups.has(key)) {
             groups.set(key, []);
           }
-          groups.get(key)!.push(parts[i]);
+          groups.get(key)?.push(parts[i]);
           found = true;
           break;
         }
       }
-      
+
       if (!found) {
         standalone.push(pattern);
       }
     });
-    
+
     // Second pass: build optimized patterns
     const optimized: string[] = [];
-    
+
     // Add standalone patterns
     optimized.push(...standalone);
-    
+
     // Add grouped patterns
     groups.forEach((dirs, key) => {
       if (dirs.length === 1) {
@@ -571,7 +571,7 @@ export class CMakeProjectAnalyzer {
         optimized.push(`${prefix}/{${uniqueDirs.join(',')}}/${suffix}`);
       }
     });
-    
+
     // Remove duplicates that might have been covered by parent patterns
     const filtered = optimized.filter((pattern, index) => {
       // Check if this pattern is redundant
@@ -582,10 +582,10 @@ export class CMakeProjectAnalyzer {
       }
       return true;
     });
-    
+
     return filtered.sort();
   }
-  
+
   /**
    * Check if pattern1 is redundant given pattern2 exists
    */
@@ -594,9 +594,9 @@ export class CMakeProjectAnalyzer {
     if (pattern2.includes('/**/*') && pattern1.includes('/**/*')) {
       const base1 = pattern1.substring(0, pattern1.indexOf('/**/*'));
       const base2 = pattern2.substring(0, pattern2.indexOf('/**/*'));
-      
+
       // If pattern1 is a subdirectory of pattern2
-      if (base1.startsWith(base2 + '/')) {
+      if (base1.startsWith(`${base2}/`)) {
         return true;
       }
     }

@@ -642,12 +642,12 @@ program
               project.path.toLowerCase().includes('/ios/');
 
             // Create a sanitized target name
-            let targetName =
+            const targetName =
               projectName
                 .toLowerCase()
                 .replace(/[^a-z0-9]/g, '')
                 .replace(/ios$/, '') || 'app';
-            
+
             // Ensure unique target name
             let finalTargetName = isIOS ? `${targetName}-ios` : targetName;
             let suffix = 2;
@@ -680,12 +680,12 @@ program
                 CONFIGURATION: 'Debug',
               },
             };
-            
+
             // For iOS targets, add enabled: false
             if (isIOS) {
               (target as any).enabled = false;
             }
-            
+
             targets.push(target);
           }
 
@@ -760,9 +760,9 @@ function guessBundleId(projectName: string, projectPath: string): string {
     .toLowerCase()
     .replace(/[^a-z0-9]/g, '')
     .replace(/ios$/, '');
-  
-  const isIOS = projectName.toLowerCase().includes('ios') || 
-                projectPath.toLowerCase().includes('/ios/');
+
+  const isIOS =
+    projectName.toLowerCase().includes('ios') || projectPath.toLowerCase().includes('/ios/');
 
   // Try to extract from common patterns
   if (projectPath.includes('vibetunnel')) {

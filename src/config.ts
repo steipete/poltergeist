@@ -157,8 +157,10 @@ export class ConfigLoader {
     } catch (error) {
       if (error instanceof Error && error.name === 'ZodError') {
         const zodError = error as any;
-        const issues = zodError.errors?.map?.((e: any) => `  - ${e.path.join('.')}: ${e.message}`)
-          .join('\n') || zodError.message || 'Unknown validation error';
+        const issues =
+          zodError.errors?.map?.((e: any) => `  - ${e.path.join('.')}: ${e.message}`).join('\n') ||
+          zodError.message ||
+          'Unknown validation error';
         throw new ConfigurationError(`Configuration validation failed:\n${issues}`);
       }
       throw error;

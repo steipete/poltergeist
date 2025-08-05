@@ -1,10 +1,10 @@
-import { describe, it, expect, beforeEach, afterEach } from 'vitest';
-import { CMakeAnalyzer } from '../src/utils/cmake-analyzer.js';
+import { execSync } from 'child_process';
 import * as fs from 'fs';
 import * as path from 'path';
-import { execSync } from 'child_process';
-import { fileURLToPath } from 'url';
 import { dirname } from 'path';
+import { fileURLToPath } from 'url';
+import { afterEach, beforeEach, describe, expect, it } from 'vitest';
+import { CMakeAnalyzer } from '../src/utils/cmake-analyzer.js';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
@@ -25,22 +25,15 @@ describe('CMakeAnalyzer', () => {
 
   describe('optimizeWatchPatterns', () => {
     it('should not modify patterns that are already optimized', () => {
-      const patterns = [
-        'src/{core,utils,helpers}/**/*.{c,h}',
-        'tests/**/*.{c,h}'
-      ];
-      
+      const patterns = ['src/{core,utils,helpers}/**/*.{c,h}', 'tests/**/*.{c,h}'];
+
       const optimized = (analyzer as any).optimizeWatchPatterns(patterns);
       expect(optimized).toEqual(patterns.sort());
     });
 
     it('should combine patterns with same prefix and suffix', () => {
-      const patterns = [
-        'src/core/**/*.{c,h}',
-        'src/utils/**/*.{c,h}',
-        'src/helpers/**/*.{c,h}'
-      ];
-      
+      const patterns = ['src/core/**/*.{c,h}', 'src/utils/**/*.{c,h}', 'src/helpers/**/*.{c,h}'];
+
       const optimized = (analyzer as any).optimizeWatchPatterns(patterns);
       expect(optimized).toEqual(['src/{core,helpers,utils}/**/*.{c,h}']);
     });
@@ -50,14 +43,11 @@ describe('CMakeAnalyzer', () => {
         'src/core/**/*.c',
         'src/core/**/*.h',
         'src/utils/**/*.c',
-        'src/utils/**/*.h'
+        'src/utils/**/*.h',
       ];
-      
+
       const optimized = (analyzer as any).optimizeWatchPatterns(patterns);
-      expect(optimized).toEqual([
-        'src/{core,utils}/**/*.c',
-        'src/{core,utils}/**/*.h'
-      ]);
+      expect(optimized).toEqual(['src/{core,utils}/**/*.c', 'src/{core,utils}/**/*.h']);
     });
 
     it('should remove redundant subdirectory patterns', () => {
@@ -65,9 +55,9 @@ describe('CMakeAnalyzer', () => {
         'spine-c/**/*.{c,h}',
         'spine-c/src/**/*.{c,h}',
         'spine-c/include/**/*.{c,h}',
-        'spine-c/src/internal/**/*.{c,h}'
+        'spine-c/src/internal/**/*.{c,h}',
       ];
-      
+
       const optimized = (analyzer as any).optimizeWatchPatterns(patterns);
       expect(optimized).toEqual(['spine-c/**/*.{c,h}']);
     });
@@ -85,11 +75,11 @@ describe('CMakeAnalyzer', () => {
         'spine-c/include/**/*.{c,cpp,cxx,cc,h,hpp,hxx}',
         'spine-c/include/spine/**/*.{c,cpp,cxx,cc,h,hpp,hxx}',
         'spine-c/src/**/*.{c,cpp,cxx,cc,h,hpp,hxx}',
-        'spine-c/src/spine/**/*.{c,cpp,cxx,cc,h,hpp,hxx}'
+        'spine-c/src/spine/**/*.{c,cpp,cxx,cc,h,hpp,hxx}',
       ];
-      
+
       const optimized = (analyzer as any).optimizeWatchPatterns(patterns);
-      
+
       // Should remove subdirectory patterns that are covered by parent patterns
       expect(optimized).not.toContain('spine-c-unit-tests/memory/**/*.{c,cpp,cxx,cc,h,hpp,hxx}');
       expect(optimized).not.toContain('spine-c/include/spine/**/*.{c,cpp,cxx,cc,h,hpp,hxx}');
@@ -99,14 +89,14 @@ describe('CMakeAnalyzer', () => {
 
     it('should handle single patterns without optimization', () => {
       const patterns = ['src/main.c', 'include/header.h'];
-      
+
       const optimized = (analyzer as any).optimizeWatchPatterns(patterns);
       expect(optimized).toEqual(patterns.sort());
     });
 
     it('should handle empty pattern array', () => {
       const patterns: string[] = [];
-      
+
       const optimized = (analyzer as any).optimizeWatchPatterns(patterns);
       expect(optimized).toEqual([]);
     });
@@ -115,20 +105,16 @@ describe('CMakeAnalyzer', () => {
       const patterns = [
         'project/src/module1/submodule/**/*.{c,h}',
         'project/src/module2/submodule/**/*.{c,h}',
-        'project/src/module3/submodule/**/*.{c,h}'
+        'project/src/module3/submodule/**/*.{c,h}',
       ];
-      
+
       const optimized = (analyzer as any).optimizeWatchPatterns(patterns);
       expect(optimized).toEqual(['project/src/{module1,module2,module3}/submodule/**/*.{c,h}']);
     });
 
     it('should not combine patterns with different depths', () => {
-      const patterns = [
-        'src/core/**/*.c',
-        'src/core/internal/**/*.c',
-        'tests/**/*.c'
-      ];
-      
+      const patterns = ['src/core/**/*.c', 'src/core/internal/**/*.c', 'tests/**/*.c'];
+
       const optimized = (analyzer as any).optimizeWatchPatterns(patterns);
       // Should keep parent pattern and remove redundant child
       expect(optimized).toContain('src/core/**/*.c');
@@ -141,20 +127,19 @@ describe('CMakeAnalyzer', () => {
         'src/my-module/**/*.{c,h}',
         'src/your-module/**/*.{c,h}',
         'src/@special/**/*.{c,h}',
-        'src/module_test/**/*.{c,h}'
+        'src/module_test/**/*.{c,h}',
       ];
-      
+
       const optimized = (analyzer as any).optimizeWatchPatterns(patterns);
       // Should combine patterns with special characters
-      expect(optimized.some(p => p.includes('{@special,module_test,my-module,your-module}'))).toBe(true);
+      expect(
+        optimized.some((p) => p.includes('{@special,module_test,my-module,your-module}'))
+      ).toBe(true);
     });
 
     it('should handle Windows-style paths', () => {
-      const patterns = [
-        'src\\core\\**\\*.c',
-        'src\\utils\\**\\*.c'
-      ];
-      
+      const patterns = ['src\\core\\**\\*.c', 'src\\utils\\**\\*.c'];
+
       // Should handle gracefully even if not optimized
       const optimized = (analyzer as any).optimizeWatchPatterns(patterns);
       expect(optimized).toEqual(patterns.sort());
@@ -166,9 +151,9 @@ describe('CMakeAnalyzer', () => {
         'tsconfig.json',
         'src/index.ts',
         'src/core/**/*.ts',
-        'src/utils/**/*.ts'
+        'src/utils/**/*.ts',
       ];
-      
+
       const optimized = (analyzer as any).optimizeWatchPatterns(patterns);
       // Non-wildcard patterns should remain
       expect(optimized).toContain('package.json');
@@ -197,34 +182,22 @@ describe('CMakeAnalyzer', () => {
     });
 
     it('should not mark parent patterns as redundant', () => {
-      const isRedundant = (analyzer as any).isPatternRedundant(
-        'src/**/*.c',
-        'src/core/**/*.c'
-      );
+      const isRedundant = (analyzer as any).isPatternRedundant('src/**/*.c', 'src/core/**/*.c');
       expect(isRedundant).toBe(false);
     });
 
     it('should handle patterns without wildcards correctly', () => {
-      const isRedundant = (analyzer as any).isPatternRedundant(
-        'src/main.c',
-        'src/**/*.c'
-      );
+      const isRedundant = (analyzer as any).isPatternRedundant('src/main.c', 'src/**/*.c');
       expect(isRedundant).toBe(false);
     });
 
     it('should handle exact same patterns', () => {
-      const isRedundant = (analyzer as any).isPatternRedundant(
-        'src/**/*.c',
-        'src/**/*.c'
-      );
+      const isRedundant = (analyzer as any).isPatternRedundant('src/**/*.c', 'src/**/*.c');
       expect(isRedundant).toBe(false); // Same patterns are not redundant to each other
     });
 
     it('should handle patterns with different extensions', () => {
-      const isRedundant = (analyzer as any).isPatternRedundant(
-        'src/**/*.c',
-        'src/**/*.h'
-      );
+      const isRedundant = (analyzer as any).isPatternRedundant('src/**/*.c', 'src/**/*.h');
       expect(isRedundant).toBe(false);
     });
 
@@ -251,31 +224,30 @@ describe('CMakeAnalyzer', () => {
           'include/public',
           'tests',
           'tests/unit',
-          'tests/integration'
+          'tests/integration',
         ],
         language: 'c',
         buildDirectory: 'build',
         targets: [],
-        presets: null
+        presets: null,
       };
 
       const patterns = analyzer.generateWatchPatterns(mockAnalysis);
-      
+
       // Should contain base patterns
       expect(patterns).toContain('**/CMakeLists.txt');
       expect(patterns).toContain('cmake/**/*.cmake');
       expect(patterns).toContain('**/*.{c,h}');
-      
+
       // Should have optimized directory patterns
-      const hasOptimizedSrcPattern = patterns.some(p => 
-        p.includes('src/{') && p.includes('core') && p.includes('utils')
+      const hasOptimizedSrcPattern = patterns.some(
+        (p) => p.includes('src/{') && p.includes('core') && p.includes('utils')
       );
       expect(hasOptimizedSrcPattern).toBe(true);
-      
+
       // Should not have redundant patterns
-      const redundantPatterns = patterns.filter(p => 
-        p === 'include/public/**/*.{c,h}' || 
-        p === 'tests/unit/**/*.{c,h}'
+      const redundantPatterns = patterns.filter(
+        (p) => p === 'include/public/**/*.{c,h}' || p === 'tests/unit/**/*.{c,h}'
       );
       expect(redundantPatterns).toHaveLength(0);
     });
@@ -291,20 +263,22 @@ describe('CMakeAnalyzer', () => {
         'project/module5/src/**/*.{c,cpp,h,hpp}',
         'project/common/utils/**/*.{c,cpp,h,hpp}',
         'project/common/helpers/**/*.{c,cpp,h,hpp}',
-        'project/common/core/**/*.{c,cpp,h,hpp}'
+        'project/common/core/**/*.{c,cpp,h,hpp}',
       ];
-      
+
       const optimized = (analyzer as any).optimizeWatchPatterns(patterns);
-      
+
       const originalSize = JSON.stringify(patterns).length;
       const optimizedSize = JSON.stringify(optimized).length;
       const reduction = ((originalSize - optimizedSize) / originalSize) * 100;
-      
+
       // Should achieve at least 30% reduction for this pattern set
       expect(reduction).toBeGreaterThan(30);
-      
+
       // Should have correct optimized patterns
-      expect(optimized).toContain('project/{module1,module2,module3,module4,module5}/src/**/*.{c,cpp,h,hpp}');
+      expect(optimized).toContain(
+        'project/{module1,module2,module3,module4,module5}/src/**/*.{c,cpp,h,hpp}'
+      );
       expect(optimized).toContain('project/common/{core,helpers,utils}/**/*.{c,cpp,h,hpp}');
     });
 
@@ -319,22 +293,22 @@ describe('CMakeAnalyzer', () => {
         'include/public/**/*.h',
         'tests/**/*.{c,cpp,cc}',
         'tests/unit/**/*.{c,cpp,cc}',
-        'tests/integration/**/*.{c,cpp,cc}'
+        'tests/integration/**/*.{c,cpp,cc}',
       ];
-      
+
       const optimized = (analyzer as any).optimizeWatchPatterns(patterns);
-      
+
       // Should keep non-optimizable patterns
       expect(optimized).toContain('**/CMakeLists.txt');
       expect(optimized).toContain('CMakePresets.json');
-      
+
       // Should optimize src directories
       expect(optimized).toContain('src/{core,platform,utils}/**/*.{c,h}');
-      
+
       // Should remove redundant include/public pattern
       expect(optimized).toContain('include/**/*.h');
       expect(optimized).not.toContain('include/public/**/*.h');
-      
+
       // Should remove redundant test subdirectories
       expect(optimized).toContain('tests/**/*.{c,cpp,cc}');
       expect(optimized).not.toContain('tests/unit/**/*.{c,cpp,cc}');
@@ -352,9 +326,9 @@ describe('CMakeAnalyzer', () => {
           'src/utils/string.c',
           'src/utils/math.c',
           'src/platform/linux.c',
-          'src/platform/windows.c'
+          'src/platform/windows.c',
         ],
-        outputPath: 'build/libmylib.a'
+        outputPath: 'build/libmylib.a',
       };
 
       const mockAnalysis = {
@@ -364,20 +338,20 @@ describe('CMakeAnalyzer', () => {
         language: 'c' as const,
         buildDirectory: 'build',
         targets: [mockTarget],
-        presets: null
+        presets: null,
       };
 
       const patterns = (analyzer as any).generateTargetWatchPatterns(mockTarget, mockAnalysis);
-      
+
       // Should contain CMakeLists.txt
       expect(patterns).toContain('**/CMakeLists.txt');
-      
+
       // Should have optimized the source directories
-      const hasOptimizedPattern = patterns.some(p => 
-        p === 'src/{core,platform,utils}/**/*.{c,cpp,cxx,cc,h,hpp,hxx}'
+      const hasOptimizedPattern = patterns.some(
+        (p) => p === 'src/{core,platform,utils}/**/*.{c,cpp,cxx,cc,h,hpp,hxx}'
       );
       expect(hasOptimizedPattern).toBe(true);
-      
+
       // Should not have individual directory patterns
       expect(patterns).not.toContain('src/core/**/*.{c,cpp,cxx,cc,h,hpp,hxx}');
       expect(patterns).not.toContain('src/utils/**/*.{c,cpp,cxx,cc,h,hpp,hxx}');
@@ -388,7 +362,7 @@ describe('CMakeAnalyzer', () => {
         name: 'all',
         type: 'custom' as const,
         sourceFiles: [],
-        outputPath: ''
+        outputPath: '',
       };
 
       const mockAnalysis = {
@@ -398,18 +372,18 @@ describe('CMakeAnalyzer', () => {
         language: 'mixed' as const,
         buildDirectory: 'build',
         targets: [mockTarget],
-        presets: null
+        presets: null,
       };
 
       const patterns = (analyzer as any).generateTargetWatchPatterns(mockTarget, mockAnalysis);
-      
+
       // Should use general patterns
       expect(patterns).toContain('**/CMakeLists.txt');
       expect(patterns).toContain('**/*.{c,cpp,cxx,cc,h,hpp,hxx}');
-      
+
       // Should have source directories from analysis
-      const hasSrcPattern = patterns.some(p => p.includes('src/**/*.'));
-      const hasIncludePattern = patterns.some(p => p.includes('include/**/*.'));
+      const hasSrcPattern = patterns.some((p) => p.includes('src/**/*.'));
+      const hasIncludePattern = patterns.some((p) => p.includes('include/**/*.'));
       expect(hasSrcPattern).toBe(true);
       expect(hasIncludePattern).toBe(true);
     });
