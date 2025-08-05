@@ -17,9 +17,9 @@ import { createLogger } from '../src/logger.js';
 import { ConfigurationManager } from '../src/utils/config-manager.js';
 
 describe('Wait Command Integration', () => {
-  let mockPoltergeist: any;
-  let consoleLogSpy: any;
-  let processExitSpy: any;
+  let mockPoltergeist: ReturnType<typeof vi.fn>;
+  let consoleLogSpy: ReturnType<typeof vi.spyOn>;
+  let processExitSpy: ReturnType<typeof vi.spyOn>;
   let originalTTY: boolean | undefined;
 
   const mockConfig: PoltergeistConfig = {
@@ -64,7 +64,7 @@ describe('Wait Command Integration', () => {
       error: vi.fn(),
       warn: vi.fn(),
       debug: vi.fn(),
-    } as any);
+    } as ReturnType<typeof createLogger>);
 
     mockPoltergeist = {
       getStatus: vi.fn(),
@@ -90,7 +90,7 @@ describe('Wait Command Integration', () => {
     // Mock progressive status updates
     mockPoltergeist.getStatus.mockImplementation(async (targetName?: string) => {
       callCount++;
-      
+
       // For initial status check (no target specified)
       if (!targetName) {
         return {
@@ -103,7 +103,7 @@ describe('Wait Command Integration', () => {
           },
         };
       }
-      
+
       // For targeted polling
       if (callCount <= 3) {
         // First few calls: still building
@@ -132,18 +132,20 @@ describe('Wait Command Integration', () => {
 
     try {
       await program.parseAsync(['node', 'cli.js', 'wait', 'test-app', '--timeout', '5']);
-    } catch (error) {
+    } catch (_error) {
       // Expected due to process.exit
     }
 
     // Should have called getStatus multiple times
     expect(mockPoltergeist.getStatus.mock.calls.length).toBeGreaterThan(2);
-    
+
     // Should have called with target name for polling
-    const targetedCalls = mockPoltergeist.getStatus.mock.calls.filter((call: any[]) => call[0] === 'test-app');
+    const targetedCalls = mockPoltergeist.getStatus.mock.calls.filter(
+      (call) => call[0] === 'test-app'
+    );
     expect(targetedCalls.length).toBeGreaterThan(0);
-    
-    const output = consoleLogSpy.mock.calls.map((call: any[]) => call[0]).join('\n');
+
+    const output = consoleLogSpy.mock.calls.map((call) => call[0]).join('\n');
     expect(output).toContain('✅ Build completed successfully');
   });
 
@@ -178,19 +180,19 @@ describe('Wait Command Integration', () => {
 
     let exitCode: number | undefined;
     processExitSpy.mockImplementation((code?: string | number) => {
-      exitCode = typeof code === 'number' ? code : parseInt(code || '0');
+      exitCode = typeof code === 'number' ? code : Number.parseInt(code || '0');
       throw new Error('process.exit');
     });
 
     try {
       await program.parseAsync(['node', 'cli.js', 'wait', 'test-app']);
-    } catch (error) {
+    } catch (_error) {
       // Expected
     }
 
     expect(exitCode).toBe(1);
     expect(mockPoltergeist.getStatus).toHaveBeenCalledTimes(2);
-    const output = consoleLogSpy.mock.calls.map((call: any[]) => call[0]).join('\n');
+    const output = consoleLogSpy.mock.calls.map((call) => call[0]).join('\n');
     expect(output).toContain('❌ Build failed');
     expect(output).toContain('TypeScript compilation failed');
   });
@@ -211,7 +213,7 @@ describe('Wait Command Integration', () => {
 
     let exitCode: number | undefined;
     processExitSpy.mockImplementation((code?: string | number) => {
-      exitCode = typeof code === 'number' ? code : parseInt(code || '0');
+      exitCode = typeof code === 'number' ? code : Number.parseInt(code || '0');
       throw new Error('process.exit');
     });
 
@@ -219,14 +221,14 @@ describe('Wait Command Integration', () => {
     const startTime = Date.now();
     try {
       await program.parseAsync(['node', 'cli.js', 'wait', 'test-app', '--timeout', '2']);
-    } catch (error) {
+    } catch (_error) {
       // Expected
     }
     const elapsed = Date.now() - startTime;
 
     expect(exitCode).toBe(1);
     expect(elapsed).toBeLessThan(3000); // Should timeout around 2 seconds
-    const output = consoleLogSpy.mock.calls.map((call: any[]) => call[0]).join('\n');
+    const output = consoleLogSpy.mock.calls.map((call) => call[0]).join('\n');
     expect(output).toContain('❌ Build failed');
     expect(output).toContain('Timeout exceeded');
   });
@@ -254,18 +256,18 @@ describe('Wait Command Integration', () => {
 
     let exitCode: number | undefined;
     processExitSpy.mockImplementation((code?: string | number) => {
-      exitCode = typeof code === 'number' ? code : parseInt(code || '0');
+      exitCode = typeof code === 'number' ? code : Number.parseInt(code || '0');
       throw new Error('process.exit');
     });
 
     try {
       await program.parseAsync(['node', 'cli.js', 'wait', 'test-app']);
-    } catch (error) {
+    } catch (_error) {
       // Expected
     }
 
     expect(exitCode).toBe(1);
-    const output = consoleLogSpy.mock.calls.map((call: any[]) => call[0]).join('\n');
+    const output = consoleLogSpy.mock.calls.map((call) => call[0]).join('\n');
     expect(output).toContain('❌ Build failed');
     expect(output).toContain('Target disappeared');
   });
@@ -300,18 +302,18 @@ describe('Wait Command Integration', () => {
 
     let exitCode: number | undefined;
     processExitSpy.mockImplementation((code?: string | number) => {
-      exitCode = typeof code === 'number' ? code : parseInt(code || '0');
+      exitCode = typeof code === 'number' ? code : Number.parseInt(code || '0');
       throw new Error('process.exit');
     });
 
     try {
       await program.parseAsync(['node', 'cli.js', 'wait', 'test-app']);
-    } catch (error) {
+    } catch (_error) {
       // Expected
     }
 
     expect(exitCode).toBe(1);
-    const output = consoleLogSpy.mock.calls.map((call: any[]) => call[0]).join('\n');
+    const output = consoleLogSpy.mock.calls.map((call) => call[0]).join('\n');
     expect(output).toContain('❌ Build failed');
     expect(output).toContain('Build ended with status: idle');
   });

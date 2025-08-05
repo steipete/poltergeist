@@ -1,6 +1,5 @@
 // Tests for agent-friendly CLI commands: wait, logs, and enhanced status
 
-import chalk from 'chalk';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import type { PoltergeistConfig } from '../src/types.js';
 
@@ -18,10 +17,10 @@ import { createLogger } from '../src/logger.js';
 import { ConfigurationManager } from '../src/utils/config-manager.js';
 
 describe('Agent-Friendly Commands', () => {
-  let mockPoltergeist: any;
-  let consoleLogSpy: any;
-  let consoleErrorSpy: any;
-  let processExitSpy: any;
+  let mockPoltergeist: ReturnType<typeof vi.fn>;
+  let consoleLogSpy: ReturnType<typeof vi.spyOn>;
+  let consoleErrorSpy: ReturnType<typeof vi.spyOn>;
+  let processExitSpy: ReturnType<typeof vi.spyOn>;
   let originalTTY: boolean | undefined;
 
   const mockConfig: PoltergeistConfig = {
@@ -70,7 +69,7 @@ describe('Agent-Friendly Commands', () => {
       error: vi.fn(),
       warn: vi.fn(),
       debug: vi.fn(),
-    } as any);
+    } as ReturnType<typeof createLogger>);
 
     // Create mock Poltergeist instance
     mockPoltergeist = {
@@ -148,12 +147,12 @@ describe('Agent-Friendly Commands', () => {
 
       try {
         await program.parseAsync(['node', 'cli.js', 'status']);
-      } catch (error) {
+      } catch (_error) {
         // Expected due to process.exit mock
       }
 
       // Check that agent instructions were shown
-      const output = consoleLogSpy.mock.calls.map((call: any[]) => call[0]).join('\n');
+      const output = consoleLogSpy.mock.calls.map((call) => call[0]).join('\n');
       expect(output).toContain("Use 'poltergeist wait test-app' (timeout: 210s recommended)");
       expect(output).toContain("Or 'poltergeist logs test-app -f' for detailed output.");
       expect(output).toContain('DO NOT run build commands manually unless build fails.');
@@ -189,12 +188,12 @@ describe('Agent-Friendly Commands', () => {
 
       try {
         await program.parseAsync(['node', 'cli.js', 'status']);
-      } catch (error) {
+      } catch (_error) {
         // Expected due to process.exit mock
       }
 
       // Check that agent instructions were NOT shown
-      const output = consoleLogSpy.mock.calls.map((call: any[]) => call[0]).join('\n');
+      const output = consoleLogSpy.mock.calls.map((call) => call[0]).join('\n');
       expect(output).not.toContain("Use 'poltergeist wait");
       expect(output).not.toContain('DO NOT run build commands manually');
     });
@@ -218,11 +217,11 @@ describe('Agent-Friendly Commands', () => {
 
       try {
         await program.parseAsync(['node', 'cli.js', 'status']);
-      } catch (error) {
+      } catch (_error) {
         // Expected
       }
 
-      const output = consoleLogSpy.mock.calls.map((call: any[]) => call[0]).join('\n');
+      const output = consoleLogSpy.mock.calls.map((call) => call[0]).join('\n');
       expect(output).toContain('Elapsed: 45s / ~180s');
       expect(output).toContain('135s remaining');
     });
@@ -265,11 +264,11 @@ describe('Agent-Friendly Commands', () => {
 
       try {
         await program.parseAsync(['node', 'cli.js', 'wait', 'test-app']);
-      } catch (error) {
+      } catch (_error) {
         // Expected
       }
 
-      const output = consoleLogSpy.mock.calls.map((call: any[]) => call[0]).join('\n');
+      const output = consoleLogSpy.mock.calls.map((call) => call[0]).join('\n');
       expect(output).toContain("⏳ Waiting for 'test-app' build...");
       expect(output).toContain('Command: npm run build:test');
       expect(output).toContain('Started: 30s ago, ~30s remaining');
@@ -296,11 +295,11 @@ describe('Agent-Friendly Commands', () => {
 
       try {
         await program.parseAsync(['node', 'cli.js', 'wait']);
-      } catch (error) {
+      } catch (_error) {
         // Expected
       }
 
-      const errorOutput = consoleErrorSpy.mock.calls.map((call: any[]) => call[0]).join('\n');
+      const errorOutput = consoleErrorSpy.mock.calls.map((call) => call[0]).join('\n');
       expect(errorOutput).toContain('❌ Multiple targets building. Please specify:');
       expect(errorOutput).toContain('test-app: npm run build:app');
       expect(errorOutput).toContain('test-lib: npm run build:lib');
@@ -334,11 +333,11 @@ describe('Agent-Friendly Commands', () => {
 
       try {
         await program.parseAsync(['node', 'cli.js', 'wait']);
-      } catch (error) {
+      } catch (_error) {
         // Expected
       }
 
-      const output = consoleLogSpy.mock.calls.map((call: any[]) => call[0]).join('\n');
+      const output = consoleLogSpy.mock.calls.map((call) => call[0]).join('\n');
       expect(output).toContain("⏳ Waiting for 'test-app' build...");
     });
 
@@ -370,18 +369,18 @@ describe('Agent-Friendly Commands', () => {
 
       let exitCode: number | undefined;
       processExitSpy.mockImplementation((code?: string | number) => {
-        exitCode = typeof code === 'number' ? code : parseInt(code || '0');
+        exitCode = typeof code === 'number' ? code : Number.parseInt(code || '0');
         throw new Error('process.exit');
       });
 
       try {
         await program.parseAsync(['node', 'cli.js', 'wait', 'test-app']);
-      } catch (error) {
+      } catch (_error) {
         // Expected
       }
 
       expect(exitCode).toBe(1);
-      const output = consoleLogSpy.mock.calls.map((call: any[]) => call[0]).join('\n');
+      const output = consoleLogSpy.mock.calls.map((call) => call[0]).join('\n');
       expect(output).toContain('❌ Build failed');
       expect(output).toContain('Error: Compilation error in src/app.ts');
     });
@@ -391,13 +390,28 @@ describe('Agent-Friendly Commands', () => {
     beforeEach(() => {
       // Mock log file content
       const logEntries = [
-        { timestamp: '2024-01-01T10:00:00', level: 'info', message: 'Build started', target: 'test-app' },
-        { timestamp: '2024-01-01T10:00:05', level: 'error', message: 'Build failed', target: 'test-app' },
-        { timestamp: '2024-01-01T10:00:10', level: 'info', message: 'Build started', target: 'test-lib' },
+        {
+          timestamp: '2024-01-01T10:00:00',
+          level: 'info',
+          message: 'Build started',
+          target: 'test-app',
+        },
+        {
+          timestamp: '2024-01-01T10:00:05',
+          level: 'error',
+          message: 'Build failed',
+          target: 'test-app',
+        },
+        {
+          timestamp: '2024-01-01T10:00:10',
+          level: 'info',
+          message: 'Build started',
+          target: 'test-lib',
+        },
       ];
       vi.mocked(readFileSync).mockImplementation((path) => {
         if (path.toString().endsWith('.log')) {
-          return logEntries.map(e => JSON.stringify(e)).join('\n');
+          return logEntries.map((e) => JSON.stringify(e)).join('\n');
         }
         return JSON.stringify(mockConfig);
       });
@@ -406,12 +420,12 @@ describe('Agent-Friendly Commands', () => {
     it('supports -t flag for tail option', async () => {
       try {
         await program.parseAsync(['node', 'cli.js', 'logs', 'test-app', '-t', '50']);
-      } catch (error) {
+      } catch (_error) {
         // Expected
       }
 
       // Should parse the tail option correctly
-      const output = consoleLogSpy.mock.calls.map((call: any[]) => call[0]).join('\n');
+      const output = consoleLogSpy.mock.calls.map((call) => call[0]).join('\n');
       expect(output).toContain('Build started');
     });
 
@@ -435,12 +449,12 @@ describe('Agent-Friendly Commands', () => {
 
       try {
         await program.parseAsync(['node', 'cli.js', 'logs']);
-      } catch (error) {
+      } catch (_error) {
         // Expected
       }
 
       // Should not show error about multiple targets
-      const errorOutput = consoleErrorSpy.mock.calls.map((call: any[]) => call[0]).join('\n');
+      const errorOutput = consoleErrorSpy.mock.calls.map((call) => call[0]).join('\n');
       expect(errorOutput).not.toContain('Multiple targets available');
     });
 
@@ -484,11 +498,11 @@ describe('Agent-Friendly Commands', () => {
 
       try {
         await program.parseAsync(['node', 'cli.js', 'logs']);
-      } catch (error) {
+      } catch (_error) {
         // Expected
       }
 
-      const errorOutput = consoleErrorSpy.mock.calls.map((call: any[]) => call[0]).join('\n');
+      const errorOutput = consoleErrorSpy.mock.calls.map((call) => call[0]).join('\n');
       expect(errorOutput).toContain('❌ Multiple targets available');
       expect(errorOutput).toContain('test-app');
       expect(errorOutput).toContain('test-lib');
@@ -536,12 +550,12 @@ describe('Agent-Friendly Commands', () => {
 
       try {
         await program.parseAsync(['node', 'cli.js', 'logs']);
-      } catch (error) {
+      } catch (_error) {
         // Expected
       }
 
       // Should automatically select the building target
-      const errorOutput = consoleErrorSpy.mock.calls.map((call: any[]) => call[0]).join('\n');
+      const errorOutput = consoleErrorSpy.mock.calls.map((call) => call[0]).join('\n');
       expect(errorOutput).not.toContain('Multiple targets available');
     });
   });

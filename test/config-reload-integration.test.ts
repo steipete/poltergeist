@@ -114,8 +114,19 @@ describe('Configuration Reloading Integration', () => {
         ],
       };
 
-      const detectChanges = (poltergeist as any).detectConfigChanges.bind(poltergeist);
-      const applyChanges = (poltergeist as any).applyConfigChanges.bind(poltergeist);
+      // Access private methods for testing
+      const poltergeistPrivate = poltergeist as unknown as {
+        detectConfigChanges: (
+          oldConfig: PoltergeistConfig,
+          newConfig: PoltergeistConfig
+        ) => ReturnType<(typeof poltergeist)['detectConfigChanges']>;
+        applyConfigChanges: (
+          newConfig: PoltergeistConfig,
+          changes: ReturnType<(typeof poltergeist)['detectConfigChanges']>
+        ) => Promise<void>;
+      };
+      const detectChanges = poltergeistPrivate.detectConfigChanges.bind(poltergeist);
+      const applyChanges = poltergeistPrivate.applyConfigChanges.bind(poltergeist);
 
       const changes = detectChanges(baseConfig, newConfig);
 
@@ -187,7 +198,14 @@ describe('Configuration Reloading Integration', () => {
         ],
       };
 
-      const detectChanges = (poltergeist as any).detectConfigChanges.bind(poltergeist);
+      // Access private method for testing
+      const poltergeistPrivate = poltergeist as unknown as {
+        detectConfigChanges: (
+          oldConfig: PoltergeistConfig,
+          newConfig: PoltergeistConfig
+        ) => ReturnType<(typeof poltergeist)['detectConfigChanges']>;
+      };
+      const detectChanges = poltergeistPrivate.detectConfigChanges.bind(poltergeist);
       const changes = detectChanges(baseConfig, newConfig);
 
       // Type changes should be detected as modifications
@@ -267,7 +285,14 @@ describe('Configuration Reloading Integration', () => {
         ],
       };
 
-      const detectChanges = (poltergeist as any).detectConfigChanges.bind(poltergeist);
+      // Access private method for testing
+      const poltergeistPrivate = poltergeist as unknown as {
+        detectConfigChanges: (
+          oldConfig: PoltergeistConfig,
+          newConfig: PoltergeistConfig
+        ) => ReturnType<(typeof poltergeist)['detectConfigChanges']>;
+      };
+      const detectChanges = poltergeistPrivate.detectConfigChanges.bind(poltergeist);
       const changes = detectChanges(baseConfig, newConfig);
 
       // Verify all types of changes are detected
@@ -312,7 +337,14 @@ describe('Configuration Reloading Integration', () => {
         },
       };
 
-      const detectChanges = (poltergeist as any).detectConfigChanges.bind(poltergeist);
+      // Access private method for testing
+      const poltergeistPrivate = poltergeist as unknown as {
+        detectConfigChanges: (
+          oldConfig: PoltergeistConfig,
+          newConfig: PoltergeistConfig
+        ) => ReturnType<(typeof poltergeist)['detectConfigChanges']>;
+      };
+      const detectChanges = poltergeistPrivate.detectConfigChanges.bind(poltergeist);
       const changes = detectChanges(configWithBuildScheduling, newConfig);
 
       expect(changes.buildSchedulingChanged).toBe(true);
@@ -363,7 +395,11 @@ describe('Configuration Reloading Integration', () => {
         configPath
       );
 
-      const handleConfigChange = (poltergeist as any).handleConfigChange.bind(poltergeist);
+      // Access private method for testing
+      const poltergeistPrivate = poltergeist as unknown as {
+        handleConfigChange: (newConfig: PoltergeistConfig) => Promise<void>;
+      };
+      const handleConfigChange = poltergeistPrivate.handleConfigChange.bind(poltergeist);
 
       // Simulate rapid successive config changes
       const changePromises = [
@@ -487,7 +523,11 @@ describe('Configuration Reloading Integration', () => {
         };
       });
 
-      const handleConfigChange = (poltergeist as any).handleConfigChange.bind(poltergeist);
+      // Access private method for testing
+      const poltergeistPrivate = poltergeist as unknown as {
+        handleConfigChange: (newConfig: PoltergeistConfig) => Promise<void>;
+      };
+      const handleConfigChange = poltergeistPrivate.handleConfigChange.bind(poltergeist);
 
       // Perform many config reloads
       for (let i = 0; i < 10; i++) {
@@ -541,8 +581,19 @@ describe('Configuration Reloading Integration', () => {
         configPath
       );
 
-      const detectChanges = (poltergeist as any).detectConfigChanges.bind(poltergeist);
-      const applyChanges = (poltergeist as any).applyConfigChanges.bind(poltergeist);
+      // Access private methods for testing
+      const poltergeistPrivate = poltergeist as unknown as {
+        detectConfigChanges: (
+          oldConfig: PoltergeistConfig,
+          newConfig: PoltergeistConfig
+        ) => ReturnType<(typeof poltergeist)['detectConfigChanges']>;
+        applyConfigChanges: (
+          newConfig: PoltergeistConfig,
+          changes: ReturnType<(typeof poltergeist)['detectConfigChanges']>
+        ) => Promise<void>;
+      };
+      const detectChanges = poltergeistPrivate.detectConfigChanges.bind(poltergeist);
+      const applyChanges = poltergeistPrivate.applyConfigChanges.bind(poltergeist);
 
       const startTime = Date.now();
       const changes = detectChanges(baseConfig, largeConfig);

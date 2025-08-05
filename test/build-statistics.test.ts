@@ -3,19 +3,19 @@
 import { tmpdir } from 'os';
 import { join } from 'path';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import { createLogger } from '../src/logger.js';
+import type { Logger } from '../src/logger.js';
 import { StateManager } from '../src/state.js';
 import type { BuildStatus } from '../src/types.js';
 
 describe('Build Statistics', () => {
   let stateManager: StateManager;
   let tempDir: string;
-  let logger: any;
+  let logger: Logger;
 
   beforeEach(() => {
     // Create a unique temp directory for each test
     tempDir = join(tmpdir(), `poltergeist-test-${Date.now()}`);
-    
+
     // Mock logger
     logger = {
       info: vi.fn(),
@@ -142,12 +142,12 @@ describe('Build Statistics', () => {
 
       const state = await stateManager.readState('test-target');
       expect(state?.buildStats?.successfulBuilds).toHaveLength(10);
-      
+
       // Should keep the last 10 (3000ms to 12000ms)
-      const durations = state?.buildStats?.successfulBuilds.map(b => b.duration) || [];
+      const durations = state?.buildStats?.successfulBuilds.map((b) => b.duration) || [];
       expect(durations[0]).toBe(3000);
       expect(durations[9]).toBe(12000);
-      
+
       // Average should be (3+4+5+6+7+8+9+10+11+12) * 1000 / 10 = 7500
       expect(state?.buildStats?.averageDuration).toBe(7500);
     });
