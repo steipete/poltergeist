@@ -81,13 +81,25 @@ describe('Logs Command', () => {
     );
   });
 
-  afterEach(() => {
+  afterEach(async () => {
     // Restore original cwd
     process.chdir(originalCwd);
 
+    // On Windows, wait a bit before cleanup to avoid ENOTEMPTY errors
+    if (process.platform === 'win32') {
+      await new Promise((resolve) => setTimeout(resolve, 100));
+    }
+
     // Cleanup
     if (existsSync(testDir)) {
-      rmSync(testDir, { recursive: true, force: true });
+      try {
+        rmSync(testDir, { recursive: true, force: true });
+      } catch (error) {
+        // Ignore cleanup errors on Windows
+        if (process.platform !== 'win32') {
+          throw error;
+        }
+      }
     }
   });
 
