@@ -329,7 +329,7 @@ describe('CLI Commands', () => {
 
       expect(result.exitCode).toBe(1);
       expect(mockConsoleError).toHaveBeenCalledWith(
-        expect.stringContaining('Unknown target: unknown-target')
+        expect.stringContaining("❌ Target 'unknown-target' not found")
       );
       expect(mockConsoleError).toHaveBeenCalledWith(expect.stringContaining('Available targets:'));
       expect(mockConsoleError).toHaveBeenCalledWith(

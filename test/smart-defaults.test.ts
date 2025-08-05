@@ -77,7 +77,8 @@ describe('Smart Defaults Integration', () => {
 
       // Load config and check defaults are applied internally
       const { ConfigLoader } = await import('../src/config');
-      const loader = new ConfigLoader('./poltergeist.config.json');
+      const configPath = join(tempDir, 'poltergeist.config.json');
+      const loader = new ConfigLoader(configPath);
       const config = loader.loadConfig();
 
       // These should have default values applied internally

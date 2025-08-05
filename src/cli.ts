@@ -195,12 +195,13 @@ program
         console.log(chalk.gray('═'.repeat(50)));
 
         if (options.target) {
-          // Validate target exists
-          validateTarget(options.target, config);
-
-          // Single target status
+          // Check if target exists in status
           const targetStatus = status[options.target];
-          formatTargetStatus(options.target, targetStatus);
+          if (!targetStatus) {
+            console.log(chalk.yellow(`Target '${options.target}' not found`));
+          } else {
+            formatTargetStatus(options.target, targetStatus);
+          }
         } else {
           // All targets status
           const targets = Object.keys(status).filter((key) => !key.startsWith('_'));
@@ -913,10 +914,7 @@ program
       }
     }
 
-    // Validate the target exists if specified
-    if (logTarget) {
-      validateTarget(logTarget, config);
-    }
+    // Note: Don't validate target exists - it might have been removed but still have logs
 
     const logFile = config.logging?.file || '.poltergeist.log';
     if (!existsSync(logFile)) {

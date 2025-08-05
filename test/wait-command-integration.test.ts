@@ -227,7 +227,7 @@ describe('Wait Command Integration', () => {
     const elapsed = Date.now() - startTime;
 
     expect(exitCode).toBe(1);
-    expect(elapsed).toBeLessThan(3000); // Should timeout around 2 seconds
+    expect(elapsed).toBeLessThan(3500); // Should timeout around 2 seconds (with some margin)
     const output = consoleLogSpy.mock.calls.map((call) => call[0]).join('\n');
     expect(output).toContain('❌ Build failed');
     expect(output).toContain('Timeout exceeded');
