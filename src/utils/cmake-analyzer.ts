@@ -513,7 +513,6 @@ export class CMakeProjectAnalyzer {
 
   /**
    * Optimize watch patterns by consolidating paths using brace expansion
-   * Example: ["foo/bar/**/*.c", "foo/baz/**/*.c"] => ["foo/{bar,baz}/**/*.c"]
    */
   private optimizeWatchPatterns(patterns: string[]): string[] {
     // First pass: group patterns by their structure
@@ -619,3 +618,6 @@ export class CMakeProjectAnalyzer {
     }
   }
 }
+
+// Export alias for compatibility with tests
+export { CMakeProjectAnalyzer as CMakeAnalyzer };
