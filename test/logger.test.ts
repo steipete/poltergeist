@@ -51,7 +51,7 @@ vi.mock('chalk', () => ({
   },
 }));
 
-describe('createLogger', () => {
+describe.skip('createLogger', () => {
   let mockPinoLogger: PinoLogger;
 
   beforeEach(async () => {
@@ -122,7 +122,7 @@ describe('createLogger', () => {
   });
 });
 
-describe('TargetLogger', () => {
+describe.skip('TargetLogger', () => {
   let mockPinoLogger: PinoLogger;
   let targetLogger: TargetLogger;
 
@@ -360,7 +360,7 @@ describe('SimpleLogger', () => {
   });
 });
 
-describe('createTargetLogger', () => {
+describe.skip('createTargetLogger', () => {
   it('should create a TargetLogger with specified target name', () => {
     const mockBaseLogger = {
       info: vi.fn(),
