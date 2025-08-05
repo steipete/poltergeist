@@ -34,7 +34,7 @@ describe.skipIf(process.platform === 'win32' && process.env.CI)(
             FORCE_COLOR: '0', // Disable colors for consistent output
             NO_COLOR: '1', // Alternative color disable flag
           },
-          shell: process.platform === 'win32' ? true : false,
+          shell: process.platform === 'win32',
           windowsHide: true,
         });
       } catch (error) {

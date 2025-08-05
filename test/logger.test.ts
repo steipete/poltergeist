@@ -77,7 +77,7 @@ describe('createLogger', () => {
   });
 
   it('should create logger with console transport only when no logFile specified', async () => {
-    const logger = createLogger();
+    const _logger = createLogger();
 
     const { pino } = await import('pino');
     expect(pino).toHaveBeenCalledWith(
@@ -91,7 +91,7 @@ describe('createLogger', () => {
   });
 
   it('should create logger with both console and file transports when logFile specified', async () => {
-    const logger = createLogger('/tmp/test.log', 'debug');
+    const _logger = createLogger('/tmp/test.log', 'debug');
 
     const { pino } = await import('pino');
     const { createWriteStream } = await import('fs');
