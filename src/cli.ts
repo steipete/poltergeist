@@ -12,7 +12,13 @@ import packageJson from '../package.json' with { type: 'json' };
 import { ConfigurationError } from './config.js';
 import { createPoltergeist } from './factories.js';
 import { createLogger } from './logger.js';
-import type { AppBundleTarget, PoltergeistConfig, ProjectType, Target } from './types.js';
+import type { Poltergeist } from './poltergeist.js';
+import type {
+  AppBundleTarget,
+  PoltergeistConfig,
+  ProjectType,
+  Target,
+} from './types.js';
 import { CMakeProjectAnalyzer } from './utils/cmake-analyzer.js';
 import { ConfigurationManager } from './utils/config-manager.js';
 import { WatchmanConfigManager } from './watchman-config.js';
@@ -323,7 +329,7 @@ function formatTargetStatus(name: string, status: unknown): void {
       let timeInfo = `  Elapsed: ${elapsedSec}s`;
 
       // Add estimate if we have build statistics
-      if (statusObj.buildStats && statusObj.buildStats.averageDuration) {
+      if (statusObj.buildStats?.averageDuration) {
         const avgSec = Math.round(statusObj.buildStats.averageDuration / 1000);
         const remainingSec = Math.max(0, avgSec - elapsedSec);
         timeInfo += ` / ~${avgSec}s (${remainingSec}s remaining)`;
@@ -366,7 +372,7 @@ function formatTargetStatus(name: string, status: unknown): void {
   // Show agent instructions if not in TTY and building
   if (!process.stdout.isTTY && statusObj.lastBuild?.status === 'building') {
     console.log();
-    if (statusObj.buildStats && statusObj.buildStats.averageDuration) {
+    if (statusObj.buildStats?.averageDuration) {
       const avgSec = Math.round(statusObj.buildStats.averageDuration / 1000);
       const recommendedTimeout = avgSec + 30; // Add 30s buffer
       console.log(`Use 'poltergeist wait ${name}' (timeout: ${recommendedTimeout}s recommended)`);
@@ -465,7 +471,7 @@ async function readLogEntries(
       }
 
       entries.push(entry);
-    } catch (error) {}
+    } catch (_error) {}
   }
 
   // Return last N lines if maxLines specified
@@ -568,7 +574,7 @@ async function followLogs(
           } else {
             formatLogEntry(entry);
           }
-        } catch (error) {
+        } catch (_error) {
           // Skip malformed lines
         }
       });
@@ -788,7 +794,7 @@ async function findXcodeProjects(
           }
         }
       }
-    } catch (error) {
+    } catch (_error) {
       // Ignore permission errors
     }
   }
@@ -974,7 +980,7 @@ program
       const status = await poltergeist.getStatus();
 
       // Find active builds
-      const activeBuilds: Array<{ name: string; status: any }> = [];
+      const activeBuilds: Array<{ name: string; status: StatusObject }> = [];
       for (const [name, targetStatus] of Object.entries(status)) {
         if (name.startsWith('_')) continue;
         const statusObj = targetStatus as StatusObject;
@@ -1012,7 +1018,9 @@ program
         console.error(chalk.red('❌ Multiple targets building. Please specify:'));
         for (const build of activeBuilds) {
           const cmd = build.status.buildCommand || 'unknown command';
-          const elapsed = Date.now() - new Date(build.status.lastBuild.timestamp).getTime();
+          const elapsed = build.status.lastBuild?.timestamp
+            ? Date.now() - new Date(build.status.lastBuild.timestamp).getTime()
+            : 0;
           const elapsedSec = Math.round(elapsed / 1000);
           console.error(`   - ${build.name}: ${cmd} (${elapsedSec}s elapsed)`);
         }
@@ -1044,7 +1052,9 @@ program
         console.log(`⏳ Waiting for '${targetToWait}' build...`);
         console.log(`   Command: ${buildCommand}`);
 
-        const elapsed = Date.now() - new Date(targetStatus.lastBuild!.timestamp).getTime();
+        const elapsed = targetStatus.lastBuild?.timestamp
+          ? Date.now() - new Date(targetStatus.lastBuild.timestamp).getTime()
+          : 0;
         const elapsedSec = Math.round(elapsed / 1000);
         let remainingInfo = '';
 
@@ -1079,7 +1089,7 @@ program
 
 // Helper function to wait for build completion
 async function waitForBuildCompletion(
-  poltergeist: any,
+  poltergeist: Poltergeist,
   targetName: string,
   timeout: number
 ): Promise<{ success: boolean; error?: string }> {
@@ -1115,7 +1125,7 @@ async function waitForBuildCompletion(
 
 // Helper function for TTY mode with progress
 async function waitForBuildWithProgress(
-  poltergeist: any,
+  poltergeist: Poltergeist,
   targetName: string,
   timeout: number,
   logLines: number

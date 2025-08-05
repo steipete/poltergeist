@@ -306,7 +306,7 @@ describe('Configuration Reloading Integration', () => {
         buildScheduling: {
           ...configWithBuildScheduling.buildScheduling,
           prioritization: {
-            ...configWithBuildScheduling.buildScheduling!.prioritization,
+            ...configWithBuildScheduling.buildScheduling?.prioritization,
             focusDetectionWindow: 600000, // Only change this one value
           },
         },
@@ -397,14 +397,14 @@ describe('Configuration Reloading Integration', () => {
         },
       };
 
-      let configChangeCallback: Function | undefined;
+      let _configChangeCallback: Function | undefined;
 
       // Capture the callback and simulate immediate config change during startup
       enhancedMocks.watchmanClient!.subscribe = vi
         .fn()
-        .mockImplementation((projectRoot, subscriptionName, subscription, callback) => {
+        .mockImplementation((_projectRoot, subscriptionName, _subscription, callback) => {
           if (subscriptionName === 'poltergeist_config') {
-            configChangeCallback = callback;
+            _configChangeCallback = callback;
             // Simulate immediate config change
             setTimeout(() => {
               callback([{ name: 'poltergeist.config.json', exists: true }]);

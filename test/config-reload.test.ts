@@ -187,7 +187,7 @@ describe('Configuration Reloading', () => {
     );
 
     // Mock watchman subscribe to verify it gets called for config file
-    const subscribeMock = enhancedMocks.watchmanClient!.subscribe as any;
+    const subscribeMock = enhancedMocks.watchmanClient?.subscribe as any;
 
     await poltergeist.start();
 
@@ -230,7 +230,7 @@ describe('Configuration Reloading', () => {
     await expect(poltergeist.start()).resolves.not.toThrow();
 
     // Should not set up config file watching
-    const subscribeMock = enhancedMocks.watchmanClient!.subscribe as any;
+    const subscribeMock = enhancedMocks.watchmanClient?.subscribe as any;
     const configSubscriptionCall = subscribeMock.mock.calls.find(
       (call: any[]) => call[1] === 'poltergeist_config'
     );
@@ -544,7 +544,7 @@ describe('Configuration Reloading', () => {
       // Make watchman subscription fail for config file
       enhancedMocks.watchmanClient!.subscribe = vi
         .fn()
-        .mockImplementation((projectRoot, subscriptionName) => {
+        .mockImplementation((_projectRoot, subscriptionName) => {
           if (subscriptionName === 'poltergeist_config') {
             throw new Error('Watchman subscription failed');
           }
@@ -588,7 +588,7 @@ describe('Configuration Reloading', () => {
       // Capture the callback for config file watching
       enhancedMocks.watchmanClient!.subscribe = vi
         .fn()
-        .mockImplementation((projectRoot, subscriptionName, subscription, callback) => {
+        .mockImplementation((_projectRoot, subscriptionName, _subscription, callback) => {
           if (subscriptionName === 'poltergeist_config') {
             configChangeCallback = callback;
           }
@@ -626,7 +626,7 @@ describe('Configuration Reloading', () => {
       });
 
       // Simulate config file change
-      await configChangeCallback!([{ name: 'poltergeist.config.json', exists: true }]);
+      await configChangeCallback?.([{ name: 'poltergeist.config.json', exists: true }]);
 
       // Give it a moment to complete async operations
       await new Promise((resolve) => setTimeout(resolve, 10));
@@ -668,7 +668,7 @@ describe('Configuration Reloading', () => {
 
       enhancedMocks.watchmanClient!.subscribe = vi
         .fn()
-        .mockImplementation((projectRoot, subscriptionName, subscription, callback) => {
+        .mockImplementation((_projectRoot, subscriptionName, _subscription, callback) => {
           if (subscriptionName === 'poltergeist_config') {
             configChangeCallback = callback;
           }
@@ -689,7 +689,7 @@ describe('Configuration Reloading', () => {
       vi.clearAllMocks();
 
       // Simulate non-config file change
-      await configChangeCallback!([{ name: 'other-file.json', exists: true }]);
+      await configChangeCallback?.([{ name: 'other-file.json', exists: true }]);
 
       // Verify reload was NOT triggered
       expect(harness.logger.info).not.toHaveBeenCalledWith(
@@ -714,7 +714,7 @@ describe('Configuration Reloading', () => {
 
       enhancedMocks.watchmanClient!.subscribe = vi
         .fn()
-        .mockImplementation((projectRoot, subscriptionName, subscription, callback) => {
+        .mockImplementation((_projectRoot, subscriptionName, _subscription, callback) => {
           if (subscriptionName === 'poltergeist_config') {
             configChangeCallback = callback;
           }
@@ -735,7 +735,7 @@ describe('Configuration Reloading', () => {
       vi.clearAllMocks();
 
       // Simulate config file deletion (exists: false)
-      await configChangeCallback!([{ name: 'poltergeist.config.json', exists: false }]);
+      await configChangeCallback?.([{ name: 'poltergeist.config.json', exists: false }]);
 
       // Verify reload was NOT triggered
       expect(harness.logger.info).not.toHaveBeenCalledWith(

@@ -1,7 +1,7 @@
 import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from 'fs';
 import { tmpdir } from 'os';
 import { join } from 'path';
-import { afterEach, beforeEach, describe, expect, it } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { createLogger } from '../src/logger.js';
 import type { ProjectType } from '../src/types.js';
 import { WatchmanConfigManager } from '../src/watchman-config.js';
@@ -232,7 +232,7 @@ describe('WatchmanConfigManager - Xcode Project Detection', () => {
     });
 
     it('should validate patterns and warn about problematic ones', () => {
-      const warnSpy = jest.spyOn(logger, 'warn');
+      const warnSpy = vi.spyOn(logger, 'warn');
 
       manager.validateWatchPattern('.git/**');
       expect(warnSpy).toHaveBeenCalledWith(
@@ -248,7 +248,7 @@ describe('WatchmanConfigManager - Xcode Project Detection', () => {
 
   describe('Configuration validation', () => {
     it('should validate all watch patterns in config', () => {
-      const validateSpy = jest.spyOn(manager, 'validateWatchPattern');
+      const validateSpy = vi.spyOn(manager, 'validateWatchPattern');
 
       const config = {
         version: '1.0' as const,

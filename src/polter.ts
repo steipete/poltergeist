@@ -39,7 +39,7 @@ function readLastLines(filePath: string, lines: number): string[] {
     const content = readFileSync(filePath, 'utf-8');
     const allLines = content.trim().split('\n');
     return allLines.slice(-lines);
-  } catch (error) {
+  } catch (_error) {
     return [];
   }
 }
