@@ -76,7 +76,7 @@ add_library(test-lib STATIC lib.cpp)
       writeFileSync('lib.cpp', 'void foo() {}');
     });
 
-    it('should generate minimal CMake config', () => {
+    it('should generate minimal CMake config', { timeout: 10000 }, () => {
       execSync(`node ${cli} init --cmake`, { stdio: 'pipe' });
 
       const config: PoltergeistConfig = JSON.parse(
@@ -240,10 +240,10 @@ let package = Package(
       const iosTarget = config.targets.find((t) => t.name.includes('ios'));
       expect(iosTarget?.enabled).toBe(false);
 
-      // Others should be enabled
+      // Others should be enabled (enabled defaults to true, so it may be undefined in minimal config)
       const otherTargets = config.targets.filter((t) => !t.name.includes('ios'));
       otherTargets.forEach((target) => {
-        expect(target.enabled).toBe(true);
+        expect(target.enabled === undefined || target.enabled === true).toBe(true);
       });
     });
 

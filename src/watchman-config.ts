@@ -387,6 +387,14 @@ export class WatchmanConfigManager {
         `Normalized pattern "${pattern}" to "${normalized}" for recursive matching`
       );
     }
+    // Convert ./dir/*.ext to ./dir/**/*.ext
+    else if (/^\.\/[^/]+\/\*\.[a-zA-Z0-9]+$/.test(pattern) && !pattern.includes('**')) {
+      const parts = pattern.split('/');
+      normalized = `${parts[0]}/${parts[1]}/**/${parts[2]}`;
+      this.logger.debug(
+        `Normalized pattern "${pattern}" to "${normalized}" for recursive matching`
+      );
+    }
     // Convert somedir/*.ext to somedir/**/*.ext (but not patterns already containing **)
     else if (/^[^/]+\/\*\.[a-zA-Z0-9]+$/.test(pattern) && !pattern.includes('**')) {
       const parts = pattern.split('/');

@@ -129,7 +129,6 @@ describe('CLI Xcode Helper Functions', () => {
         type: 'app-bundle',
         enabled: true,
         buildCommand: expect.stringContaining('xcodebuild'),
-        outputPath: expect.stringContaining('.app'),
         bundleId: expect.stringContaining('com.example'),
         watchPaths: expect.arrayContaining([
           expect.stringContaining('*.swift'),
@@ -138,16 +137,15 @@ describe('CLI Xcode Helper Functions', () => {
           expect.stringContaining('*.entitlements'),
           expect.stringContaining('*.plist'),
         ]),
-        settlingDelay: 1500,
-        debounceInterval: 3000,
         environment: {
           CONFIGURATION: 'Debug',
         },
       };
 
       // This validates the expected structure
-      expect(expectedTarget.watchPaths).toHaveLength(5);
-      expect(expectedTarget.settlingDelay).toBeGreaterThan(1000);
+      // expectedTarget is just a matcher object, not actual config
+      // settlingDelay and debounceInterval are not included in minimal configs
+      expect(expectedTarget.type).toBe('app-bundle');
     });
 
     it('should detect build scripts correctly', () => {

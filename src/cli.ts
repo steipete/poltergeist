@@ -623,7 +623,7 @@ program
       }
     } else {
       // Generate config for other project types
-      if (projectType === 'swift') {
+      if (projectType === 'swift' || projectType === 'mixed') {
         // Look for Xcode projects
         const xcodeProjects = await findXcodeProjects(projectRoot);
 
@@ -631,6 +631,7 @@ program
           console.log(chalk.green(`✅ Found ${xcodeProjects.length} Xcode project(s)`));
 
           const targets: Target[] = [];
+          const usedNames = new Set<string>();
 
           for (const project of xcodeProjects) {
             const projectDir = path.dirname(project.path);
@@ -641,11 +642,20 @@ program
               project.path.toLowerCase().includes('/ios/');
 
             // Create a sanitized target name
-            const targetName =
+            let targetName =
               projectName
                 .toLowerCase()
                 .replace(/[^a-z0-9]/g, '')
                 .replace(/ios$/, '') || 'app';
+            
+            // Ensure unique target name
+            let finalTargetName = isIOS ? `${targetName}-ios` : targetName;
+            let suffix = 2;
+            while (usedNames.has(finalTargetName)) {
+              finalTargetName = isIOS ? `${targetName}${suffix}-ios` : `${targetName}${suffix}`;
+              suffix++;
+            }
+            usedNames.add(finalTargetName);
 
             const buildScript = existsSync(path.join(projectDir, 'scripts', 'build.sh'));
             const buildCommand = buildScript
@@ -654,12 +664,10 @@ program
                 ? `cd ${relativeDir} && xcodebuild -workspace ${path.basename(project.path)} -scheme ${project.scheme || projectName} -configuration Debug build`
                 : `cd ${relativeDir} && xcodebuild -project ${path.basename(project.path)} -scheme ${project.scheme || projectName} -configuration Debug build`;
 
-            targets.push({
-              name: isIOS ? `${targetName}-ios` : targetName,
+            const target: AppBundleTarget = {
+              name: finalTargetName,
               type: 'app-bundle',
-              enabled: !isIOS, // Enable macOS by default, disable iOS
               buildCommand,
-              outputPath: `./${relativeDir}/build/Debug/${projectName}.app`,
               bundleId: guessBundleId(projectName, project.path),
               watchPaths: [
                 `${relativeDir}/**/*.swift`,
@@ -668,17 +676,22 @@ program
                 `${relativeDir}/**/*.entitlements`,
                 `${relativeDir}/**/*.plist`,
               ],
-              settlingDelay: 1500,
-              debounceInterval: 3000,
               environment: {
                 CONFIGURATION: 'Debug',
               },
-            } as AppBundleTarget);
+            };
+            
+            // For iOS targets, add enabled: false
+            if (isIOS) {
+              (target as any).enabled = false;
+            }
+            
+            targets.push(target);
           }
 
           config = {
             version: '1.0',
-            projectType: 'swift',
+            projectType: 'swift', // Always use swift if we find Xcode projects
             targets,
           };
         } else {
@@ -747,6 +760,9 @@ function guessBundleId(projectName: string, projectPath: string): string {
     .toLowerCase()
     .replace(/[^a-z0-9]/g, '')
     .replace(/ios$/, '');
+  
+  const isIOS = projectName.toLowerCase().includes('ios') || 
+                projectPath.toLowerCase().includes('/ios/');
 
   // Try to extract from common patterns
   if (projectPath.includes('vibetunnel')) {
@@ -755,7 +771,7 @@ function guessBundleId(projectName: string, projectPath: string): string {
       : 'sh.vibetunnel.vibetunnel';
   }
 
-  return `com.example.${cleanName}`;
+  return isIOS ? `com.example.${cleanName}.ios` : `com.example.${cleanName}`;
 }
 
 // Helper function to generate default config for non-CMake projects

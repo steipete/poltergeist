@@ -172,7 +172,7 @@ export interface PerformanceConfig {
 export interface WatchmanConfig {
   useDefaultExclusions: boolean;
   excludeDirs: string[];
-  projectType: ProjectType;
+  projectType?: ProjectType;
   maxFileEvents: number;
   recrawlThreshold: number;
   settlingDelay: number;
@@ -400,7 +400,7 @@ export const PerformanceConfigSchema = z.object({
 export const WatchmanConfigSchema = z.object({
   useDefaultExclusions: z.boolean().default(true),
   excludeDirs: z.array(z.string()).default([]),
-  projectType: z.enum(['swift', 'node', 'rust', 'python', 'cmake', 'mixed']),
+  projectType: z.enum(['swift', 'node', 'rust', 'python', 'cmake', 'mixed']).optional(),
   maxFileEvents: z.number().default(10000),
   recrawlThreshold: z.number().default(5),
   settlingDelay: z.number().default(1000),

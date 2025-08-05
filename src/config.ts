@@ -141,6 +141,7 @@ export class ConfigLoader {
       const validated = PoltergeistConfigSchema.parse(config);
 
       // Apply default watchman config if not specified
+      // For minimal configs, don't add defaults when watchman is partially specified
       if (!validated.watchman) {
         validated.watchman = {
           useDefaultExclusions: true,
@@ -155,10 +156,9 @@ export class ConfigLoader {
       return validated;
     } catch (error) {
       if (error instanceof Error && error.name === 'ZodError') {
-        const zodError = error as unknown as { errors: Array<{ path: string[]; message: string }> };
-        const issues = zodError.errors
-          .map((e) => `  - ${e.path.join('.')}: ${e.message}`)
-          .join('\n');
+        const zodError = error as any;
+        const issues = zodError.errors?.map?.((e: any) => `  - ${e.path.join('.')}: ${e.message}`)
+          .join('\n') || zodError.message || 'Unknown validation error';
         throw new ConfigurationError(`Configuration validation failed:\n${issues}`);
       }
       throw error;
