@@ -1,6 +1,6 @@
 {
   "name": "@steipete/poltergeist",
-  "version": "1.5.0",
+  "version": "1.5.1",
   "description": "The ghost that keeps your builds fresh - a universal file watcher with auto-rebuild for any language or build system",
   "keywords": [
     "build",
@@ -84,6 +84,7 @@
     "chalk": "^5.5.0",
     "commander": "^14.0.0",
     "fb-watchman": "^2.0.2",
+    "glob": "^11.0.3",
     "node-notifier": "^10.0.1",
     "ora": "^8.2.0",
     "picomatch": "^4.0.3",
