@@ -1,10 +1,17 @@
-// Enhanced logger with target-specific logging support
-// Testing Poltergeist self-monitoring capabilities
+// Logger implementation using LogTape for zero-dependency compilation
+// Falls back to SimpleLogger if LogTape is not available
 
 import chalk from 'chalk';
-import { createWriteStream } from 'fs';
-import type { Logger as PinoLogger } from 'pino';
-import { pino } from 'pino';
+import { createWriteStream, existsSync, mkdirSync } from 'fs';
+import { dirname } from 'path';
+
+// Try to import LogTape, but don't fail if it's not available
+let logtape: any;
+try {
+  logtape = await import('@logtape/logtape');
+} catch {
+  // LogTape not available, will use SimpleLogger
+}
 
 export interface Logger {
   info(message: string, metadata?: unknown): void;
@@ -14,81 +21,14 @@ export interface Logger {
   success(message: string, metadata?: unknown): void;
 }
 
-// Create a custom prettifier for console output
-function createPrettyTransport() {
-  return {
-    target: 'pino-pretty',
-    options: {
-      colorize: true,
-      translateTime: 'HH:MM:ss',
-      ignore: 'pid,hostname',
-      messageFormat: '{msg}',
-      customPrettifiers: {
-        // Note: These are string representations that will be eval'd in the worker
-        // They can't reference external variables like chalk
-      },
-    },
-  };
-}
-
-export function createLogger(logFile?: string, logLevel?: string): Logger {
-  // Configure Pino with pretty printing for console
-  const level = logLevel || 'info';
-
-  let pinoLogger: PinoLogger;
-
-  if (logFile) {
-    // Create multi-stream transport for both console and file
-    const streams = [
-      { stream: pino.transport(createPrettyTransport()) },
-      { stream: createWriteStream(logFile, { flags: 'a' }) },
-    ];
-
-    pinoLogger = pino(
-      {
-        level,
-        formatters: {
-          level: (label) => ({ level: label }),
-        },
-      },
-      pino.multistream(streams)
-    );
-  } else {
-    // Console only with pretty printing
-    pinoLogger = pino({
-      level,
-      transport: createPrettyTransport(),
-    });
-  }
-
-  // Return a wrapper that implements Logger interface
-  return new TargetLogger(pinoLogger);
-}
-
-// Target-aware logger wrapper
-export class TargetLogger implements Logger {
-  private logger: PinoLogger;
+// LogTape-based logger implementation
+class LogTapeLogger implements Logger {
+  private logger: any;
   private targetName?: string;
 
-  constructor(logger: PinoLogger, targetName?: string) {
+  constructor(logger: any, targetName?: string) {
     this.logger = logger;
     this.targetName = targetName;
-  }
-
-  private formatMetadata(metadata?: unknown): Record<string, any> {
-    const base: Record<string, any> = {};
-
-    if (this.targetName) {
-      base.target = this.targetName;
-    }
-
-    if (metadata && typeof metadata === 'object' && !Array.isArray(metadata)) {
-      Object.assign(base, metadata);
-    } else if (metadata !== undefined) {
-      base.metadata = metadata;
-    }
-
-    return base;
   }
 
   private formatMessage(message: string): string {
@@ -98,40 +38,47 @@ export class TargetLogger implements Logger {
   }
 
   info(message: string, metadata?: unknown): void {
-    this.logger.info(this.formatMetadata(metadata), this.formatMessage(message));
+    this.logger.info(this.formatMessage(message), metadata);
   }
 
   error(message: string, metadata?: unknown): void {
-    this.logger.error(this.formatMetadata(metadata), this.formatMessage(message));
+    this.logger.error(this.formatMessage(message), metadata);
   }
 
   warn(message: string, metadata?: unknown): void {
-    this.logger.warn(this.formatMetadata(metadata), this.formatMessage(message));
+    this.logger.warn(this.formatMessage(message), metadata);
   }
 
   debug(message: string, metadata?: unknown): void {
-    this.logger.debug(this.formatMetadata(metadata), this.formatMessage(message));
+    this.logger.debug(this.formatMessage(message), metadata);
   }
 
   success(message: string, metadata?: unknown): void {
-    // Map success to info level with special formatting
-    this.logger.info(this.formatMetadata(metadata), this.formatMessage(`✅ ${message}`));
+    this.logger.info(this.formatMessage(`✅ ${message}`), metadata);
   }
-}
-
-// Create a logger for a specific target
-export function createTargetLogger(baseLogger: PinoLogger, targetName: string): Logger {
-  return new TargetLogger(baseLogger, targetName);
 }
 
 // Simple logger implementation without external dependencies
 export class SimpleLogger implements Logger {
   private targetName?: string;
   private logLevel: string;
+  private logStream?: any;
 
-  constructor(targetName?: string, logLevel: string = 'info') {
+  constructor(targetName?: string, logLevel: string = 'info', logFile?: string) {
     this.targetName = targetName;
     this.logLevel = logLevel;
+
+    if (logFile) {
+      try {
+        const dir = dirname(logFile);
+        if (!existsSync(dir)) {
+          mkdirSync(dir, { recursive: true });
+        }
+        this.logStream = createWriteStream(logFile, { flags: 'a' });
+      } catch {
+        // Ignore file logging errors
+      }
+    }
   }
 
   private shouldLog(level: string): boolean {
@@ -148,40 +95,157 @@ export class SimpleLogger implements Logger {
     return `${ghost} [${time}] ${level.toUpperCase()}:${target} ${message}`;
   }
 
+  private writeToFile(message: string, metadata?: unknown): void {
+    if (this.logStream) {
+      const logEntry = {
+        timestamp: new Date().toISOString(),
+        level: 'info',
+        message,
+        target: this.targetName,
+        ...((metadata && typeof metadata === 'object') ? metadata : { metadata })
+      };
+      this.logStream.write(JSON.stringify(logEntry) + '\n');
+    }
+  }
+
   info(message: string, metadata?: unknown): void {
     if (this.shouldLog('info')) {
-      console.log(this.formatMessage('info', message));
+      const formatted = this.formatMessage('info', message);
+      console.log(formatted);
       if (metadata) console.log(metadata);
+      this.writeToFile(message, metadata);
     }
   }
 
   error(message: string, metadata?: unknown): void {
     if (this.shouldLog('error')) {
-      console.error(chalk.red(this.formatMessage('error', message)));
+      const formatted = this.formatMessage('error', message);
+      console.error(chalk.red(formatted));
       if (metadata) console.error(metadata);
+      this.writeToFile(message, metadata);
     }
   }
 
   warn(message: string, metadata?: unknown): void {
     if (this.shouldLog('warn')) {
-      console.warn(chalk.yellow(this.formatMessage('warn', message)));
+      const formatted = this.formatMessage('warn', message);
+      console.warn(chalk.yellow(formatted));
       if (metadata) console.warn(metadata);
+      this.writeToFile(message, metadata);
     }
   }
 
   debug(message: string, metadata?: unknown): void {
     if (this.shouldLog('debug')) {
-      console.log(chalk.gray(this.formatMessage('debug', message)));
+      const formatted = this.formatMessage('debug', message);
+      console.log(chalk.gray(formatted));
       if (metadata) console.log(metadata);
+      this.writeToFile(message, metadata);
     }
   }
 
   success(message: string, metadata?: unknown): void {
     if (this.shouldLog('info')) {
-      console.log(chalk.green(this.formatMessage('info', `✅ ${message}`)));
+      const formatted = this.formatMessage('info', `✅ ${message}`);
+      console.log(chalk.green(formatted));
       if (metadata) console.log(metadata);
+      this.writeToFile(`✅ ${message}`, metadata);
     }
   }
+}
+
+// Main logger factory
+export function createLogger(logFile?: string, logLevel?: string): Logger {
+  const level = logLevel || 'info';
+
+  // Try to use LogTape if available
+  if (logtape) {
+    try {
+      const { configure, getLogger, getConsoleSink, getFileSink } = logtape;
+      
+      // Configure LogTape
+      const sinks: any = {
+        console: getConsoleSink({
+          formatter: (record: any) => {
+            const ghost = '👻';
+            const time = new Date().toLocaleTimeString('en-US', { hour12: false });
+            const level = record.level.toUpperCase().padEnd(5);
+            const category = record.category.join('/');
+            return `${ghost} [${time}] ${level} [${category}] ${record.message.join('')}`;
+          }
+        })
+      };
+
+      if (logFile) {
+        const dir = dirname(logFile);
+        if (!existsSync(dir)) {
+          mkdirSync(dir, { recursive: true });
+        }
+        sinks.file = getFileSink(logFile);
+      }
+
+      configure({
+        sinks,
+        filters: {},
+        loggers: [
+          {
+            category: ['poltergeist'],
+            level: level as any,
+            sinks: logFile ? ['console', 'file'] : ['console']
+          }
+        ]
+      });
+
+      const logger = getLogger(['poltergeist']);
+      return new LogTapeLogger(logger);
+    } catch {
+      // Fall back to SimpleLogger if LogTape configuration fails
+    }
+  }
+
+  // Fall back to SimpleLogger
+  return new SimpleLogger(undefined, level, logFile);
+}
+
+// Target-aware logger wrapper
+export class TargetLogger implements Logger {
+  private logger: Logger;
+  private targetName?: string;
+
+  constructor(logger: Logger, targetName?: string) {
+    this.logger = logger;
+    this.targetName = targetName;
+  }
+
+  private formatMessage(message: string): string {
+    const target = this.targetName ? `[${this.targetName}] ` : '';
+    return `${target}${message}`;
+  }
+
+  info(message: string, metadata?: unknown): void {
+    this.logger.info(this.formatMessage(message), metadata);
+  }
+
+  error(message: string, metadata?: unknown): void {
+    this.logger.error(this.formatMessage(message), metadata);
+  }
+
+  warn(message: string, metadata?: unknown): void {
+    this.logger.warn(this.formatMessage(message), metadata);
+  }
+
+  debug(message: string, metadata?: unknown): void {
+    this.logger.debug(this.formatMessage(message), metadata);
+  }
+
+  success(message: string, metadata?: unknown): void {
+    this.logger.success(this.formatMessage(message), metadata);
+  }
+}
+
+// Create a logger for a specific target
+export function createTargetLogger(baseLogger: Logger, targetName: string): Logger {
+  return new TargetLogger(baseLogger, targetName);
 }
 
 // Helper to create a simple console logger for CLI output
