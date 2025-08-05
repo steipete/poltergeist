@@ -601,7 +601,6 @@ program
           projectType: 'cmake',
           targets,
           watchman: {
-            projectType: 'cmake',
             excludeDirs: [analysis.buildDirectory || 'build'],
           },
           notifications: {
@@ -648,7 +647,9 @@ program
             const buildScript = existsSync(path.join(projectDir, 'scripts', 'build.sh'));
             const buildCommand = buildScript ?
               `cd ${relativeDir} && ./scripts/build.sh --configuration Debug` :
-              `cd ${relativeDir} && xcodebuild -project ${path.basename(project.path)} -scheme ${project.scheme || projectName} -configuration Debug build`;
+              project.type === 'xcworkspace' ?
+                `cd ${relativeDir} && xcodebuild -workspace ${path.basename(project.path)} -scheme ${project.scheme || projectName} -configuration Debug build` :
+                `cd ${relativeDir} && xcodebuild -project ${path.basename(project.path)} -scheme ${project.scheme || projectName} -configuration Debug build`;
             
             targets.push({
               name: isIOS ? `${targetName}-ios` : targetName,
@@ -676,43 +677,6 @@ program
             version: '1.0',
             projectType: 'swift',
             targets,
-            watchman: {
-              useDefaultExclusions: true,
-              excludeDirs: ['node_modules', 'dist', 'build', 'DerivedData', '.git'],
-              projectType: 'swift',
-              maxFileEvents: 10000,
-              recrawlThreshold: 5,
-              settlingDelay: 1000
-            },
-            buildScheduling: {
-              parallelization: 2,
-              prioritization: {
-                enabled: true,
-                focusDetectionWindow: 300000,
-                priorityDecayTime: 1800000,
-                buildTimeoutMultiplier: 2.0
-              }
-            },
-            notifications: {
-              enabled: true,
-              buildStart: false,
-              buildSuccess: true,
-              buildFailed: true,
-              successSound: 'Glass',
-              failureSound: 'Basso'
-            },
-            performance: {
-              profile: 'balanced',
-              autoOptimize: true,
-              metrics: {
-                enabled: true,
-                reportInterval: 300
-              }
-            },
-            logging: {
-              level: 'info',
-              file: '.poltergeist.log'
-            }
           };
         } else {
           config = generateDefaultConfig(projectType);
@@ -796,10 +760,6 @@ function generateDefaultConfig(projectType: ProjectType): PoltergeistConfig {
     version: '1.0',
     projectType,
     targets: [],
-    notifications: {
-      successSound: 'Glass',
-      failureSound: 'Basso',
-    },
   };
 
   // Add default targets based on project type
