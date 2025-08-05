@@ -12,11 +12,11 @@
   A universal file watcher with auto-rebuild for any language or build system
 </div>
 
-## 🎯 Dual Platform Support
+## Dual Platform Support
 
 Poltergeist offers both a **Node.js CLI** for universal development and a **native macOS app** for enhanced monitoring:
 
-### CLI Tool (Cross-Platform) 🌍
+### CLI Tool (Cross-Platform)
 - **Universal**: Works on macOS, Linux, and Windows  
 - **Node.js 20+** required
 - **Watchman support**: All platforms officially supported
@@ -74,7 +74,7 @@ npx @steipete/poltergeist haunt
       "enabled": true,
       "buildCommand": "./scripts/build.sh",
       "outputPath": "./bin/mycli",
-      "watchPaths": ["src/**/*.swift"]
+      "watchPaths": ["src/**/*.{swift,h}"]
     }
   ],
   "watchman": {
@@ -130,6 +130,55 @@ Essential configuration structure:
   "buildScheduling": { "parallelization": 2 },
   "notifications": { "enabled": true }
 }
+```
+
+### Watch Path Patterns
+
+Poltergeist supports glob patterns with brace expansion for more compact configurations:
+
+#### Basic Patterns
+```json
+"watchPaths": [
+  "src/**/*.swift",           // All Swift files recursively
+  "**/*.{js,ts}",            // All JavaScript and TypeScript files
+  "tests/**/*Test.swift"      // Test files with specific naming
+]
+```
+
+#### Brace Expansion
+Reduce repetition with brace expansion patterns:
+```json
+// Instead of:
+"watchPaths": [
+  "src/**/*.c",
+  "src/**/*.cpp", 
+  "src/**/*.h"
+]
+
+// Use:
+"watchPaths": [
+  "src/**/*.{c,cpp,h}"      // All C/C++ source and header files
+]
+```
+
+#### Advanced Examples
+```json
+"watchPaths": [
+  // Multiple extensions
+  "src/**/*.{swift,m,h}",                    // Swift and Objective-C
+  "{src,include}/**/*.{c,cpp,h}",           // Multiple directories
+  "frontend/**/*.{ts,tsx,js,jsx,css}",      // Web assets
+  
+  // Multiple file patterns
+  "{CMakeLists.txt,CMakePresets.json}",     // Specific files
+  "config/{package,tsconfig}.json",         // Config files
+  "**/*.{yaml,yml}",                        // YAML files
+  
+  // Complex patterns
+  "{src,test}/**/*.{c,cpp,h}",             // Source and test dirs
+  "apps/{mac,ios}/**/*.swift",              // Platform-specific
+  "**/{Makefile,*.mk}"                      // Make files
+]
 ```
 
 <details>
@@ -273,43 +322,69 @@ Includes 70+ optimized patterns: version control (`.git`), build artifacts (`nod
 
 | Command | Description |
 |---------|-------------|
-| `poltergeist haunt [options]` | Start watching and building |
-| `poltergeist stop [options]` | Stop Poltergeist processes |
-| `poltergeist restart [options]` | Restart Poltergeist (stop and start) |
-| `poltergeist status [options]` | Display build status |
-| `poltergeist list [options]` | List configured targets |
-| `poltergeist clean [options]` | Clean stale state files |
-| `poltergeist logs [options]` | Display build logs |
+| `poltergeist haunt\|start [options]` | Start watching and auto-building your project |
+| `poltergeist stop\|rest [options]` | Stop Poltergeist |
+| `poltergeist restart [options]` | Restart Poltergeist (stop and start again) |
+| `poltergeist status [options]` | Check Poltergeist status |
+| `poltergeist logs [options]` | Show Poltergeist logs |
+| `poltergeist list [options]` | List all configured targets |
+| `poltergeist clean [options]` | Clean up stale state files |
 
 ### Options
 
 #### `haunt` / `start`
 ```bash
 poltergeist haunt [options]
-  -t, --target <name>   Build only specific target
-  -c, --config <path>   Custom config file path
+  -t, --target <name>   Target to build (omit to build all enabled targets)
+  -c, --config <path>   Path to config file
   -v, --verbose         Enable verbose logging
+```
+
+#### `stop` / `rest`
+```bash
+poltergeist stop [options]
+  -t, --target <name>   Stop specific target only
+  -c, --config <path>   Path to config file
 ```
 
 #### `restart`
 ```bash
 poltergeist restart [options]
   -t, --target <name>   Restart specific target only
-  -c, --config <path>   Custom config file path
+  -c, --config <path>   Path to config file
   -n, --no-cache       Clear Watchman cache on restart
 ```
 
 #### `status`
 ```bash
 poltergeist status [options]
-  -t, --target <name>   Show specific target status
-  -v, --verbose         Detailed status information
+  -t, --target <name>   Check specific target status
+  -c, --config <path>   Path to config file
+  --json               Output status as JSON
+```
+
+#### `logs`
+```bash
+poltergeist logs [options]
+  -t, --target <name>   Show logs for specific target
+  -n, --lines <number>  Number of lines to show (default: 50)
+  -f, --follow          Follow log output
+  -c, --config <path>   Path to config file
+  --json                Output logs in JSON format
 ```
 
 #### `list`
 ```bash
 poltergeist list [options]
-  -c, --config <path>   Custom config file path
+  -c, --config <path>   Path to config file
+```
+
+#### `clean`
+```bash
+poltergeist clean [options]
+  -a, --all            Remove all state files, not just stale ones
+  -d, --days <number>  Remove state files older than N days (default: 7)
+  --dry-run            Show what would be removed without actually removing
 ```
 
 ### Status Output
@@ -319,15 +394,16 @@ $ poltergeist status
 
 👻 Poltergeist Status
 ══════════════════════════════════════════════════
-Target: my-cli
+Target: poltergeist-cli
   Status: running
-  Process: 12345 (host: MacBook-Pro.local)
-  Last Build: 8/2/2025, 8:15:30 PM
+  Process: Running (PID: 1652 on Peters-MBP.localdomain)
+  Heartbeat: ✓ Active (8s ago)
+  Last Build: 8/5/2025, 4:57:20 AM
   Build Status: ✅ Success
-  Build Time: 2.3s
-  Git Hash: abc123f
+  Build Time: 765ms
+  Git Hash: d762366
   Builder: Executable
-  Output: ./bin/mycli
+  Output: /Users/steipete/Projects/poltergeist/dist/cli.js
 ```
 
 ### Configuration Changes
@@ -500,13 +576,13 @@ poltergeist status --target my-app
       "type": "executable",
       "buildCommand": "swift build -c release",
       "outputPath": "./.build/release/MyTool",
-      "watchPaths": ["Sources/**/*.swift", "Package.swift"]
+      "watchPaths": ["{Sources,Tests}/**/*.swift", "Package.swift"]
     },
     {
       "name": "tests",
       "type": "test",
       "testCommand": "swift test",
-      "watchPaths": ["Sources/**/*.swift", "Tests/**/*.swift"]
+      "watchPaths": ["{Sources,Tests}/**/*.swift", "Package.swift"]
     }
   ]
 }
@@ -523,14 +599,14 @@ poltergeist status --target my-app
       "type": "executable",
       "buildCommand": "./scripts/build-swift.sh",
       "outputPath": "./bin/backend",
-      "watchPaths": ["Backend/**/*.swift", "Shared/**/*.swift"]
+      "watchPaths": ["{Backend,Shared}/**/*.swift"]
     },
     {
       "name": "react-frontend", 
       "type": "executable",
       "buildCommand": "npm run build",
       "outputPath": "./frontend/dist",
-      "watchPaths": ["frontend/src/**/*.{ts,tsx,js,jsx}"]
+      "watchPaths": ["frontend/src/**/*.{ts,tsx,js,jsx,css,scss}"]
     },
     {
       "name": "mac-app",
@@ -538,7 +614,7 @@ poltergeist status --target my-app
       "bundleId": "com.example.myapp",
       "buildCommand": "xcodebuild -scheme MyApp",
       "autoRelaunch": true,
-      "watchPaths": ["MacApp/**/*.swift", "Shared/**/*.swift"]
+      "watchPaths": ["{MacApp,Shared}/**/*.{swift,xib,storyboard}"]
     }
   ]
 }
@@ -555,7 +631,88 @@ poltergeist status --target my-app
       "type": "docker",
       "imageName": "myapp/api",
       "buildCommand": "docker build -f docker/Dockerfile.dev -t myapp/api:dev .",
-      "watchPaths": ["src/**/*.js", "package.json", "docker/Dockerfile.dev"]
+      "watchPaths": ["src/**/*.{js,ts}", "{package,package-lock}.json", "docker/Dockerfile.dev"]
+    }
+  ]
+}
+```
+
+### C/C++ Project with CMake
+```json
+{
+  "version": "1.0",
+  "projectType": "mixed",
+  "targets": [
+    {
+      "name": "libspine-debug",
+      "type": "library",
+      "buildCommand": "./build.sh",
+      "outputPath": "./build/libspine-c.a",
+      "watchPaths": [
+        "{src,include}/**/*.{c,cpp,h}",
+        "{CMakeLists.txt,CMakePresets.json}"
+      ],
+      "settlingDelay": 1000,
+      "environment": { "CMAKE_BUILD_TYPE": "Debug" }
+    }
+  ],
+  "watchman": {
+    "excludeDirs": ["build", "target"],
+    "rules": [
+      { "pattern": "**/*.{o,a}", "action": "ignore", "reason": "Compiled artifacts" }
+    ]
+  }
+}
+```
+
+### macOS/iOS Universal App
+```json
+{
+  "version": "1.0",
+  "projectType": "swift",
+  "targets": [
+    {
+      "name": "universal-app",
+      "type": "app-bundle",
+      "buildCommand": "xcodebuild -scheme UniversalApp -sdk macosx",
+      "watchPaths": [
+        "**/*.{swift,m,h}",
+        "**/*.{xcodeproj,xcconfig,entitlements,plist}",
+        "**/*.{xib,storyboard,xcassets}"
+      ],
+      "settlingDelay": 1500
+    }
+  ]
+}
+```
+
+### Real-World Example: Peekaboo
+```json
+{
+  "version": "1.0",
+  "projectType": "mixed",
+  "targets": [
+    {
+      "name": "peekaboo-cli",
+      "type": "executable",
+      "buildCommand": "./scripts/build-swift-debug.sh",
+      "outputPath": "./peekaboo",
+      "watchPaths": [
+        "{Core,Apps/CLI}/**/*.swift"
+      ],
+      "icon": "./assets/icon_512x512@2x.png"
+    },
+    {
+      "name": "peekaboo-mac",
+      "type": "app-bundle",
+      "platform": "macos",
+      "buildCommand": "./scripts/build-mac-debug.sh",
+      "bundleId": "boo.peekaboo.mac.debug",
+      "autoRelaunch": true,
+      "watchPaths": [
+        "Apps/Mac/**/*.{swift,storyboard,xib}",
+        "Core/**/*.swift"
+      ]
     }
   ]
 }
