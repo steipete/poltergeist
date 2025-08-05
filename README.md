@@ -337,6 +337,39 @@ poltergeist init --cmake --dry-run            # Preview configuration
 }
 ```
 
+### Watch Pattern Optimization
+
+Poltergeist automatically optimizes watch patterns using brace expansion and redundancy elimination:
+
+#### Automatic Optimization
+- **Brace Expansion**: Consolidates similar paths (e.g., `foo/{bar,baz}/**/*.c`)
+- **Redundancy Elimination**: Removes subdirectory patterns when parent is already watched
+- **Size Reduction**: Typically reduces configuration size by 40-70%
+
+#### Example
+```json
+// Before optimization (generated patterns):
+"watchPaths": [
+  "spine-c-unit-tests/memory/**/*.{c,cpp,h}",
+  "spine-c-unit-tests/minicppunit/**/*.{c,cpp,h}",
+  "spine-c-unit-tests/teamcity/**/*.{c,cpp,h}",
+  "spine-c-unit-tests/tests/**/*.{c,cpp,h}",
+  "spine-c/include/**/*.{c,cpp,h}",
+  "spine-c/include/spine/**/*.{c,cpp,h}",
+  "spine-c/src/**/*.{c,cpp,h}",
+  "spine-c/src/spine/**/*.{c,cpp,h}"
+]
+
+// After optimization (automatic):
+"watchPaths": [
+  "spine-c-unit-tests/**/*.{c,cpp,h}",
+  "spine-c/include/**/*.{c,cpp,h}",
+  "spine-c/src/**/*.{c,cpp,h}"
+]
+```
+
+This optimization happens automatically during `poltergeist init` and reduces both config file size and Watchman's processing overhead.
+
 ### Smart Project Detection
 
 Poltergeist automatically detects your project type based on configuration files:

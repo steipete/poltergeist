@@ -442,8 +442,9 @@ export class CMakeProjectAnalyzer {
       patterns.push(`${dir}/**/*.${ext}`);
     }
 
-    // Remove duplicates
-    return [...new Set(patterns)];
+    // Remove duplicates and optimize
+    const unique = [...new Set(patterns)];
+    return this.optimizeWatchPatterns(unique);
   }
 
   generatePoltergeistTargets(analysis: CMakeAnalysis): Target[] {
@@ -505,7 +506,102 @@ export class CMakeProjectAnalyzer {
       patterns.push(...this.generateWatchPatterns(analysis));
     }
 
-    return [...new Set(patterns)];
+    // Optimize patterns using brace expansion
+    const optimized = this.optimizeWatchPatterns([...new Set(patterns)]);
+    return optimized;
+  }
+
+  /**
+   * Optimize watch patterns by consolidating paths using brace expansion
+   * Example: ["foo/bar/**/*.c", "foo/baz/**/*.c"] => ["foo/{bar,baz}/**/*.c"]
+   */
+  private optimizeWatchPatterns(patterns: string[]): string[] {
+    // First pass: group patterns by their structure
+    const groups = new Map<string, string[]>();
+    const standalone: string[] = [];
+    
+    patterns.forEach((pattern) => {
+      // Skip patterns that already use brace expansion
+      if (pattern.includes('{')) {
+        standalone.push(pattern);
+        return;
+      }
+      
+      // Try to find the common prefix and suffix
+      const parts = pattern.split('/');
+      let found = false;
+      
+      // Look for patterns with the same structure but different directory names
+      for (let i = 1; i < parts.length - 1; i++) {
+        const prefix = parts.slice(0, i).join('/');
+        const suffix = parts.slice(i + 1).join('/');
+        const key = `${prefix}|${suffix}`;
+        
+        // Check if this creates a meaningful group
+        if (suffix.includes('**') || suffix.includes('*')) {
+          if (!groups.has(key)) {
+            groups.set(key, []);
+          }
+          groups.get(key)!.push(parts[i]);
+          found = true;
+          break;
+        }
+      }
+      
+      if (!found) {
+        standalone.push(pattern);
+      }
+    });
+    
+    // Second pass: build optimized patterns
+    const optimized: string[] = [];
+    
+    // Add standalone patterns
+    optimized.push(...standalone);
+    
+    // Add grouped patterns
+    groups.forEach((dirs, key) => {
+      if (dirs.length === 1) {
+        // Only one directory, reconstruct the original
+        const [prefix, suffix] = key.split('|');
+        optimized.push(`${prefix}/${dirs[0]}/${suffix}`);
+      } else {
+        // Multiple directories, use brace expansion
+        const [prefix, suffix] = key.split('|');
+        const uniqueDirs = [...new Set(dirs)].sort();
+        optimized.push(`${prefix}/{${uniqueDirs.join(',')}}/${suffix}`);
+      }
+    });
+    
+    // Remove duplicates that might have been covered by parent patterns
+    const filtered = optimized.filter((pattern, index) => {
+      // Check if this pattern is redundant
+      for (let i = 0; i < optimized.length; i++) {
+        if (i !== index && this.isPatternRedundant(pattern, optimized[i])) {
+          return false;
+        }
+      }
+      return true;
+    });
+    
+    return filtered.sort();
+  }
+  
+  /**
+   * Check if pattern1 is redundant given pattern2 exists
+   */
+  private isPatternRedundant(pattern1: string, pattern2: string): boolean {
+    // If pattern2 already covers pattern1's directory at a higher level
+    if (pattern2.includes('/**/*') && pattern1.includes('/**/*')) {
+      const base1 = pattern1.substring(0, pattern1.indexOf('/**/*'));
+      const base2 = pattern2.substring(0, pattern2.indexOf('/**/*'));
+      
+      // If pattern1 is a subdirectory of pattern2
+      if (base1.startsWith(base2 + '/')) {
+        return true;
+      }
+    }
+    return false;
   }
 
   private execCommand(command: string, options: { cwd: string }): { stdout: string } {
