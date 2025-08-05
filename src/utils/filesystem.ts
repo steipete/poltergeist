@@ -60,7 +60,6 @@ export class FileSystemUtils {
     return join(FileSystemUtils.getStateDirectory(), fileName);
   }
 
-
   /**
    * Safely read a JSON file with error handling
    */
