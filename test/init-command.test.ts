@@ -13,12 +13,12 @@ describe('poltergeist init - Smart Defaults', () => {
   // Helper function to run init command and get config
   function runInitAndGetConfig(args = '--auto'): PoltergeistConfig {
     let result: string;
-    
+
     // Ensure CLI exists
     if (!existsSync(cli)) {
       throw new Error(`CLI not found at: ${cli}`);
     }
-    
+
     try {
       result = execSync(`node "${cli}" init ${args}`, {
         stdio: 'pipe',
@@ -27,8 +27,11 @@ describe('poltergeist init - Smart Defaults', () => {
         env: { ...process.env, NODE_ENV: 'test' },
         shell: process.platform === 'win32' ? 'cmd.exe' : true,
       });
-    } catch (error: any) {
-      throw new Error(`Init command failed: ${error.message}\nStdout: ${error.stdout}\nStderr: ${error.stderr}\nCLI path: ${cli}\nCWD: ${tempDir}`);
+    } catch (error) {
+      const errorDetails = error as { message?: string; stdout?: string; stderr?: string };
+      throw new Error(
+        `Init command failed: ${errorDetails.message || 'Unknown error'}\nStdout: ${errorDetails.stdout || ''}\nStderr: ${errorDetails.stderr || ''}\nCLI path: ${cli}\nCWD: ${tempDir}`
+      );
     }
 
     const configPath = join(tempDir, 'poltergeist.config.json');
