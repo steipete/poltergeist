@@ -58,7 +58,7 @@
     }
   },
   "logging": {
-    "level": "info",
+    "level": "debug",
     "file": ".poltergeist.log"
   }
 }
