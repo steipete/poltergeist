@@ -13,12 +13,7 @@ import { ConfigurationError } from './config.js';
 import { createPoltergeist } from './factories.js';
 import { createLogger } from './logger.js';
 import type { Poltergeist } from './poltergeist.js';
-import type {
-  AppBundleTarget,
-  PoltergeistConfig,
-  ProjectType,
-  Target,
-} from './types.js';
+import type { AppBundleTarget, PoltergeistConfig, ProjectType, Target } from './types.js';
 import { CMakeProjectAnalyzer } from './utils/cmake-analyzer.js';
 import { ConfigurationManager } from './utils/config-manager.js';
 import { WatchmanConfigManager } from './watchman-config.js';

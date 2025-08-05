@@ -255,17 +255,17 @@ describe('Logs Command', () => {
       expect(result.exitCode).toBe(0);
 
       // Should be valid JSON
-      let json;
+      let json: unknown;
       expect(() => {
         json = JSON.parse(result.stdout);
       }).not.toThrow();
 
       expect(Array.isArray(json)).toBe(true);
       expect(json).toHaveLength(2);
-      expect(json[0]).toHaveProperty('timestamp');
-      expect(json[0]).toHaveProperty('level');
-      expect(json[0]).toHaveProperty('message');
-      expect(json[0]).toHaveProperty('target');
+      expect((json as any[])[0]).toHaveProperty('timestamp');
+      expect((json as any[])[0]).toHaveProperty('level');
+      expect((json as any[])[0]).toHaveProperty('message');
+      expect((json as any[])[0]).toHaveProperty('target');
     });
 
     it('should combine target filter and line limit', async () => {
