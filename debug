@@ -1,0 +1,61 @@
+{"level":"info","message":"👻 [Poltergeist] Putting Poltergeist to rest...","timestamp":"03:34:21"}
+{"level":"info","message":"👻 [Poltergeist] Poltergeist is now at rest","timestamp":"03:34:21"}
+{"level":"info","message":"Starting Poltergeist...","timestamp":"03:34:22"}
+{"level":"info","message":"🔧 Setting up Watchman configuration...","timestamp":"03:34:22"}
+{"level":"info","message":"Generated 44 exclusions for node project with balanced profile","timestamp":"03:34:22"}
+{"level":"info","message":"✅ Generated .watchmanconfig with 44 exclusions (node project, balanced profile)","timestamp":"03:34:22"}
+{"level":"info","message":"🎯 Watchman Optimization Summary:","timestamp":"03:34:22"}
+{"level":"info","message":"  • Project Type: node","timestamp":"03:34:22"}
+{"level":"info","message":"  • Performance Profile: balanced","timestamp":"03:34:22"}
+{"level":"info","message":"  • Total Exclusions: 44","timestamp":"03:34:22"}
+{"level":"info","message":"  • Custom Exclusions: 2","timestamp":"03:34:22"}
+{"level":"info","message":"  • Max File Events: 10000","timestamp":"03:34:22"}
+{"level":"info","message":"  • Recrawl Threshold: 5","timestamp":"03:34:22"}
+{"level":"info","message":"  • Auto-optimization: Enabled","timestamp":"03:34:22"}
+{"level":"info","message":"💡 Optimization suggestions:","timestamp":"03:34:22"}
+{"level":"info","message":"  • Consider excluding \"coverage\" directory for better performance","timestamp":"03:34:22"}
+{"level":"info","message":"👻 [Poltergeist] Building 1 enabled target(s)","timestamp":"03:34:22"}
+{"level":"info","message":"Connected to Watchman","timestamp":"03:34:22"}
+{"level":"info","message":"Watching project at: /Users/steipete/Projects/poltergeist","timestamp":"03:34:22"}
+{"level":"info","message":"Generated 44 exclusions for node project with balanced profile","timestamp":"03:34:22"}
+{"level":"info","message":"Limiting subscription exclusions to 20 most critical (total: 44)","timestamp":"03:34:22"}
+{"level":"info","message":"Subscription created: poltergeist_src______ts","timestamp":"03:34:22"}
+{"level":"info","message":"👻 Watching 1 target(s): src/**/*.ts","timestamp":"03:34:22"}
+{"level":"info","message":"Generated 44 exclusions for node project with balanced profile","timestamp":"03:34:22"}
+{"level":"info","message":"Limiting subscription exclusions to 20 most critical (total: 44)","timestamp":"03:34:22"}
+{"level":"info","message":"File changes detected: 23 files affected 1 targets","timestamp":"03:34:22"}
+{"level":"info","message":"Queued build for poltergeist-cli with priority 5850.00 (queue size: 1)","timestamp":"03:34:22"}
+{"level":"info","message":"Starting build for poltergeist-cli (priority: 5850.00)","timestamp":"03:34:22"}
+{"level":"info","message":"[poltergeist-cli] Building with 23 changed file(s)","timestamp":"03:34:22"}
+{"level":"info","message":"Subscription created: poltergeist_test______ts","timestamp":"03:34:22"}
+{"level":"info","message":"File changes detected: 24 files affected 1 targets","timestamp":"03:34:22"}
+{"level":"info","message":"👻 Watching 1 target(s): test/**/*.ts","timestamp":"03:34:22"}
+{"level":"info","message":"Generated 44 exclusions for node project with balanced profile","timestamp":"03:34:22"}
+{"level":"info","message":"Limiting subscription exclusions to 20 most critical (total: 44)","timestamp":"03:34:22"}
+{"level":"info","message":"Subscription created: poltergeist_package_json","timestamp":"03:34:22"}
+{"level":"info","message":"👻 Watching 1 target(s): package.json","timestamp":"03:34:22"}
+{"level":"info","message":"Generated 44 exclusions for node project with balanced profile","timestamp":"03:34:22"}
+{"level":"info","message":"Limiting subscription exclusions to 20 most critical (total: 44)","timestamp":"03:34:22"}
+{"level":"info","message":"File changes detected: 1 files affected 1 targets","timestamp":"03:34:22"}
+{"level":"info","message":"Subscription created: poltergeist_tsconfig_json","timestamp":"03:34:22"}
+{"level":"info","message":"👻 Watching 1 target(s): tsconfig.json","timestamp":"03:34:22"}
+{"level":"info","message":"Generated 44 exclusions for node project with balanced profile","timestamp":"03:34:22"}
+{"level":"info","message":"Limiting subscription exclusions to 20 most critical (total: 44)","timestamp":"03:34:22"}
+{"level":"info","message":"File changes detected: 1 files affected 1 targets","timestamp":"03:34:22"}
+{"level":"info","message":"Subscription created: poltergeist_vitest_config_ts","timestamp":"03:34:22"}
+{"level":"info","message":"👻 Watching 1 target(s): vitest.config.ts","timestamp":"03:34:22"}
+{"level":"info","message":"File changes detected: 1 files affected 0 targets","timestamp":"03:34:22"}
+{"level":"info","message":"👻 [Poltergeist] is now watching for changes...","timestamp":"03:34:22"}
+{"level":"info","message":"File changes detected: 1 files affected 1 targets","timestamp":"03:34:22"}
+{"level":"info","message":"[poltergeist-cli] Executable built: /Users/steipete/Projects/poltergeist/dist/cli.js","timestamp":"03:34:23"}
+{"level":"info","message":"[poltergeist-cli] Build completed in 796ms","timestamp":"03:34:23"}
+{"level":"info","message":"Rescheduling build for poltergeist-cli due to pending changes","timestamp":"03:34:23"}
+{"level":"info","message":"Queued build for poltergeist-cli with priority 10145.53 (queue size: 1)","timestamp":"03:34:23"}
+{"level":"info","message":"Build completed for poltergeist-cli: success (796ms)","timestamp":"03:34:23"}
+{"level":"info","message":"Starting build for poltergeist-cli (priority: 10145.53)","timestamp":"03:34:23"}
+{"level":"info","message":"[poltergeist-cli] Building with 1 changed file(s)","timestamp":"03:34:23"}
+{"level":"info","message":"[poltergeist-cli] Executable built: /Users/steipete/Projects/poltergeist/dist/cli.js","timestamp":"03:34:23"}
+{"level":"info","message":"[poltergeist-cli] Build completed in 780ms","timestamp":"03:34:23"}
+{"level":"info","message":"Build completed for poltergeist-cli: success (780ms)","timestamp":"03:34:23"}
+{"level":"info","message":"👻 [Poltergeist] Putting Poltergeist to rest...","timestamp":"03:36:54"}
+{"level":"info","message":"👻 [Poltergeist] Poltergeist is now at rest","timestamp":"03:36:54"}

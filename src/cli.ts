@@ -124,6 +124,50 @@ program
   });
 
 program
+  .command('restart')
+  .description('Restart Poltergeist (stop and start again)')
+  .option('-t, --target <name>', 'Restart specific target only')
+  .option('-c, --config <path>', 'Path to config file')
+  .option('-n, --no-cache', 'Clear Watchman cache on restart')
+  .action(async (options) => {
+    console.log(chalk.gray('👻 [Poltergeist] Restarting...'));
+
+    const { config, projectRoot } = await loadConfiguration(options.config);
+    const logger = createLogger(config.logging?.level || 'info');
+
+    try {
+      // First stop Poltergeist
+      console.log(chalk.gray('👻 [Poltergeist] Stopping current instance...'));
+      const poltergeist = createPoltergeist(config, projectRoot, logger);
+      await poltergeist.stop(options.target);
+      
+      // Wait a moment to ensure clean shutdown
+      await new Promise(resolve => setTimeout(resolve, 1000));
+      
+      // Clear Watchman cache if requested
+      if (!options.cache) {
+        console.log(chalk.gray('👻 [Poltergeist] Clearing Watchman cache...'));
+        try {
+          const { execSync } = await import('child_process');
+          execSync('watchman watch-del-all', { stdio: 'ignore' });
+        } catch (error) {
+          logger.warn('Failed to clear Watchman cache:', error);
+        }
+      }
+      
+      // Then start it again
+      console.log(chalk.gray('👻 [Poltergeist] Starting new instance...'));
+      const newPoltergeist = createPoltergeist(config, projectRoot, logger);
+      await newPoltergeist.start(options.target);
+      
+      console.log(chalk.green('👻 [Poltergeist] Successfully restarted!'));
+    } catch (error) {
+      console.error(chalk.red(`👻 [Poltergeist] Failed to restart: ${error}`));
+      process.exit(1);
+    }
+  });
+
+program
   .command('status')
   .description('Check Poltergeist status')
   .option('-t, --target <name>', 'Check specific target status')
