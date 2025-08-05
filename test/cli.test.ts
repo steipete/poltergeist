@@ -10,7 +10,7 @@ import type { PoltergeistConfig } from '../src/types.js';
 // This gives us better control and avoids needing to build the CLI first
 
 // Use vi.hoisted to ensure mocks are defined before imports
-const { mockPoltergeist, mockStateManager, mockConfigLoader, mockLogger } = vi.hoisted(() => {
+const { mockPoltergeist, mockStateManager, mockConfigLoader, mockLogger, mockDaemonManager } = vi.hoisted(() => {
   const { existsSync, readFileSync } = require('fs');
   const mockPoltergeist = {
     start: vi.fn().mockResolvedValue(undefined),
@@ -28,6 +28,14 @@ const { mockPoltergeist, mockStateManager, mockConfigLoader, mockLogger } = vi.h
         },
       },
     }),
+  };
+
+  const mockDaemonManager = {
+    isDaemonRunning: vi.fn().mockResolvedValue(false),
+    startDaemon: vi.fn().mockResolvedValue(12345),
+    stopDaemon: vi.fn().mockResolvedValue(undefined),
+    readLogFile: vi.fn().mockResolvedValue(['Log line 1', 'Log line 2']),
+    getDaemonInfo: vi.fn().mockResolvedValue(null),
   };
 
   const mockStateManager = vi.fn().mockImplementation(() => ({
@@ -104,6 +112,7 @@ const { mockPoltergeist, mockStateManager, mockConfigLoader, mockLogger } = vi.h
     mockStateManager,
     mockConfigLoader,
     mockLogger,
+    mockDaemonManager,
   };
 });
 
@@ -136,6 +145,10 @@ vi.mock('../src/state.js', () => ({
 vi.mock('../src/config.js', () => ({
   ConfigLoader: mockConfigLoader,
   ConfigurationError: class ConfigurationError extends Error {},
+}));
+
+vi.mock('../src/daemon/daemon-manager.js', () => ({
+  DaemonManager: vi.fn().mockImplementation(() => mockDaemonManager),
 }));
 
 vi.mock('../src/logger.js', () => ({
@@ -195,11 +208,27 @@ describe('CLI Commands', () => {
 
   // Helper to run CLI command directly
   async function runCLI(
-    args: string[]
+    args: string[],
+    options?: {
+      daemonRunning?: boolean;
+      daemonStopError?: Error;
+    }
   ): Promise<{ exitCode: number; error?: Error; stdout?: string; stderr?: string }> {
     mockConsoleLog.mockClear();
     mockConsoleError.mockClear();
     mockExit.mockClear();
+    
+    // Reset daemon manager mocks
+    mockDaemonManager.isDaemonRunning.mockReset().mockResolvedValue(options?.daemonRunning ?? false);
+    mockDaemonManager.startDaemon.mockReset().mockResolvedValue(12345);
+    mockDaemonManager.stopDaemon.mockReset();
+    if (options?.daemonStopError) {
+      mockDaemonManager.stopDaemon.mockRejectedValue(options.daemonStopError);
+    } else {
+      mockDaemonManager.stopDaemon.mockResolvedValue(undefined);
+    }
+    mockDaemonManager.readLogFile.mockReset().mockResolvedValue(['Log line 1', 'Log line 2']);
+    mockDaemonManager.getDaemonInfo.mockReset().mockResolvedValue(null);
 
     // Capture stdout/stderr from console mocks
     const stdout: string[] = [];
@@ -305,9 +334,9 @@ describe('CLI Commands', () => {
       const result = await runCLI(['haunt']);
 
       expect(result.exitCode).toBe(0);
-      expect(mockConsoleLog).toHaveBeenCalledWith(expect.stringContaining('Summoning Poltergeist'));
+      expect(mockConsoleLog).toHaveBeenCalledWith(expect.stringContaining('Starting daemon...'));
       expect(mockConsoleLog).toHaveBeenCalledWith(
-        expect.stringContaining('Building 1 enabled target(s)')
+        expect.stringContaining('Poltergeist daemon started (PID:')
       );
     });
 
@@ -318,7 +347,10 @@ describe('CLI Commands', () => {
 
       expect(result.exitCode).toBe(0);
       expect(mockConsoleLog).toHaveBeenCalledWith(
-        expect.stringContaining('Building target: test-target')
+        expect.stringContaining('Starting daemon...')
+      );
+      expect(mockConsoleLog).toHaveBeenCalledWith(
+        expect.stringContaining('Poltergeist daemon started (PID:')
       );
     });
 
@@ -406,7 +438,10 @@ describe('CLI Commands', () => {
 
       expect(result.exitCode).toBe(0);
       expect(mockConsoleLog).toHaveBeenCalledWith(
-        expect.stringContaining('Building 1 enabled target(s)')
+        expect.stringContaining('Starting daemon...')
+      );
+      expect(mockConsoleLog).toHaveBeenCalledWith(
+        expect.stringContaining('Poltergeist daemon started (PID:')
       );
     });
 
@@ -416,7 +451,9 @@ describe('CLI Commands', () => {
       const result = await runCLI(['haunt', '--verbose']);
 
       expect(result.exitCode).toBe(0);
-      // In real implementation, would check for verbose logs
+      expect(mockConsoleLog).toHaveBeenCalledWith(
+        expect.stringContaining('Poltergeist daemon started (PID:')
+      );
     });
   });
 
@@ -424,39 +461,49 @@ describe('CLI Commands', () => {
     it('should stop all targets', async () => {
       createTestConfig();
 
-      const result = await runCLI(['stop']);
+      const result = await runCLI(['stop'], { daemonRunning: true });
 
       expect(result.exitCode).toBe(0);
       expect(mockConsoleLog).toHaveBeenCalledWith(
-        expect.stringContaining('Putting Poltergeist to rest')
+        expect.stringContaining('Stopping daemon...')
       );
       expect(mockConsoleLog).toHaveBeenCalledWith(
-        expect.stringContaining('Poltergeist is now at rest')
+        expect.stringContaining('Daemon stopped successfully')
       );
     });
 
     it('should stop specific target', async () => {
       createTestConfig();
 
-      const result = await runCLI(['rest', '--target', 'test-target']);
+      const result = await runCLI(['rest'], { daemonRunning: true });
 
       expect(result.exitCode).toBe(0);
       expect(mockConsoleLog).toHaveBeenCalledWith(
-        expect.stringContaining('Putting Poltergeist to rest')
+        expect.stringContaining('Stopping daemon...')
       );
     });
 
     it('should handle stop errors gracefully', async () => {
       createTestConfig();
 
-      // Mock error
-      mockPoltergeist.stop.mockRejectedValueOnce(new Error('Stop failed'));
+      const result = await runCLI(['stop'], { 
+        daemonRunning: true, 
+        daemonStopError: new Error('Stop failed') 
+      });
+
+      expect(result.exitCode).toBe(1);
+      expect(mockConsoleError).toHaveBeenCalledWith(expect.stringContaining('Failed to stop daemon:'));
+    });
+
+    it('should handle no daemon running', async () => {
+      createTestConfig();
 
       const result = await runCLI(['stop']);
 
       expect(result.exitCode).toBe(1);
-      expect(mockConsoleError).toHaveBeenCalledWith(expect.stringContaining('Failed to stop:'));
-      expect(mockConsoleError).toHaveBeenCalledWith(expect.stringContaining('Stop failed'));
+      expect(mockConsoleLog).toHaveBeenCalledWith(
+        expect.stringContaining('No Poltergeist daemon running for this project')
+      );
     });
   });
 
