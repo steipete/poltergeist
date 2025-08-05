@@ -275,6 +275,7 @@ Includes 70+ optimized patterns: version control (`.git`), build artifacts (`nod
 |---------|-------------|
 | `poltergeist haunt [options]` | Start watching and building |
 | `poltergeist stop [options]` | Stop Poltergeist processes |
+| `poltergeist restart [options]` | Restart Poltergeist (stop and start) |
 | `poltergeist status [options]` | Display build status |
 | `poltergeist list [options]` | List configured targets |
 | `poltergeist clean [options]` | Clean stale state files |
@@ -288,6 +289,14 @@ poltergeist haunt [options]
   -t, --target <name>   Build only specific target
   -c, --config <path>   Custom config file path
   -v, --verbose         Enable verbose logging
+```
+
+#### `restart`
+```bash
+poltergeist restart [options]
+  -t, --target <name>   Restart specific target only
+  -c, --config <path>   Custom config file path
+  -n, --no-cache       Clear Watchman cache on restart
 ```
 
 #### `status`
@@ -321,52 +330,36 @@ Target: my-cli
   Output: ./bin/mycli
 ```
 
-### Configuration Changes and Reloading
+### Configuration Changes
 
-**Important**: Poltergeist loads configuration once at startup and does **not** hot-reload configuration changes. To apply configuration updates, you must restart Poltergeist.
+Poltergeist loads configuration once at startup. **Configuration changes require a restart** to take effect.
 
-#### How Configuration Loading Works
+```bash
+# Restart to apply configuration changes
+poltergeist restart
 
-1. **Load Once at Startup**: Configuration is read from `poltergeist.config.json` when Poltergeist starts
-2. **Stored in Memory**: All settings (targets, notifications, build commands) are cached in memory for performance
-3. **No File Watching**: Poltergeist only watches your source files, not the configuration file itself
-4. **Restart Required**: Changes to `poltergeist.config.json` require a restart to take effect
+# Or restart specific target only
+poltergeist restart --target my-app
+
+# Clear Watchman cache on restart (if needed)
+poltergeist restart --no-cache
+```
+
+#### Common Configuration Workflow
+
+1. **Edit** `poltergeist.config.json`
+2. **Restart** with `poltergeist restart`
+3. **Verify** with `poltergeist status`
 
 #### When to Restart
 
-Restart Poltergeist after changing any of these settings:
-- Target configurations (build commands, watch paths, output paths)
-- Notification settings (sounds, enabled/disabled status)
-- Watchman configuration (exclusions, performance settings)
-- Build scheduling and parallelization options
+Restart after changing:
+- Target configurations (build commands, watch paths)
+- Notification settings
+- Watchman exclusions or performance settings
+- Build scheduling options
 
-```bash
-# Stop current instance
-poltergeist stop
-
-# Start with new configuration
-poltergeist haunt
-```
-
-#### Why No Hot Reloading?
-
-This design choice ensures:
-- **Reliability**: Prevents configuration corruption during live builds
-- **Performance**: Avoids file watching overhead for rarely-changed config
-- **Simplicity**: Clear separation between source code changes and configuration changes
-- **Consistency**: Predictable behavior across different development workflows
-
-#### Quick Configuration Test
-
-To verify configuration changes are loaded:
-
-```bash
-# After restarting, check status to confirm new settings
-poltergeist status
-
-# Enable debug logging to see configuration details
-POLTERGEIST_LOG_LEVEL=debug poltergeist haunt
-```
+> **Design Note**: Configuration is loaded once for reliability and performance. This prevents configuration corruption during builds and avoids file watching overhead for rarely-changed config files.
 
 ## Smart Execution with polter
 
