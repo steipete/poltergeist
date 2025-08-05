@@ -100,6 +100,41 @@ export const PROJECT_TYPE_EXCLUSIONS = {
     'build',
   ],
 
+  cmake: [
+    // Build directories
+    'build',
+    '_build',
+    'out',
+    'cmake-build-*',
+    '**/CMakeFiles/**',
+    // CMake generated files
+    'CMakeCache.txt',
+    '**/CMakeCache.txt',
+    'cmake_install.cmake',
+    '**/cmake_install.cmake',
+    'Makefile',
+    '**/Makefile',
+    // Build artifacts
+    '*.a',
+    '*.so',
+    '*.dylib',
+    '*.dll',
+    '*.lib',
+    '*.exe',
+    // IDE specific
+    '.cmake',
+    '**/.cmake/**',
+    // CMake package directories
+    '_deps',
+    '**/_deps/**',
+    // Testing directories
+    'Testing',
+    '**/Testing/**',
+    // CPack generated
+    '_CPack_Packages',
+    '**/_CPack_Packages/**',
+  ],
+
   mixed: [], // Will be populated by combining all types
 } as const;
 
@@ -143,6 +178,7 @@ const MIXED_EXCLUSIONS = [
   ...PROJECT_TYPE_EXCLUSIONS.node,
   ...PROJECT_TYPE_EXCLUSIONS.rust,
   ...PROJECT_TYPE_EXCLUSIONS.python,
+  ...PROJECT_TYPE_EXCLUSIONS.cmake,
 ];
 
 // Create extended exclusions object with mixed type
@@ -234,12 +270,18 @@ export class WatchmanConfigManager {
         return 'python';
       }
 
+      if (fileSet.has('CMakeLists.txt')) {
+        this.logger.debug('Detected CMake project (CMakeLists.txt found)');
+        return 'cmake';
+      }
+
       // Check for multiple project types
       const indicators = [
         fileSet.has('Package.swift') ? 'swift' : null,
         fileSet.has('package.json') ? 'node' : null,
         fileSet.has('Cargo.toml') ? 'rust' : null,
         fileSet.has('pyproject.toml') || fileSet.has('requirements.txt') ? 'python' : null,
+        fileSet.has('CMakeLists.txt') ? 'cmake' : null,
       ].filter(Boolean);
 
       if (indicators.length > 1) {

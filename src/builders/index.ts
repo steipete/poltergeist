@@ -5,10 +5,17 @@ import type { StateManager } from '../state.js';
 import type { Target } from '../types.js';
 import { AppBundleBuilder } from './app-bundle-builder.js';
 import type { BaseBuilder } from './base-builder.js';
+import { CMakeCustomBuilder } from './cmake-custom-builder.js';
+import { CMakeExecutableBuilder } from './cmake-executable-builder.js';
+import { CMakeLibraryBuilder } from './cmake-library-builder.js';
 import { ExecutableBuilder } from './executable-builder.js';
 
 export * from './app-bundle-builder.js';
 export * from './base-builder.js';
+export * from './cmake-builder.js';
+export * from './cmake-custom-builder.js';
+export * from './cmake-executable-builder.js';
+export * from './cmake-library-builder.js';
 export * from './executable-builder.js';
 
 export function createBuilder(
@@ -23,6 +30,15 @@ export function createBuilder(
 
     case 'app-bundle':
       return new AppBundleBuilder(target, projectRoot, logger, stateManager);
+
+    case 'cmake-executable':
+      return new CMakeExecutableBuilder(target, projectRoot, logger, stateManager);
+
+    case 'cmake-library':
+      return new CMakeLibraryBuilder(target, projectRoot, logger, stateManager);
+
+    case 'cmake-custom':
+      return new CMakeCustomBuilder(target, projectRoot, logger, stateManager);
 
     case 'library':
     case 'framework':

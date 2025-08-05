@@ -29,7 +29,9 @@ export abstract class BaseBuilder<T extends Target = Target> {
   public async build(changedFiles: string[], options: BuildOptions = {}): Promise<BuildStatus> {
     // Format file list for logging
     const fileListText = this.formatChangedFiles(changedFiles);
-    this.logger.info(`[${this.target.name}] Building with ${changedFiles.length} changed file(s)${fileListText}`);
+    this.logger.info(
+      `[${this.target.name}] Building with ${changedFiles.length} changed file(s)${fileListText}`
+    );
 
     // Check if already building using state manager
     if (await this.stateManager.isLocked(this.target.name)) {
@@ -130,15 +132,15 @@ export abstract class BaseBuilder<T extends Target = Target> {
       // Determine stdio configuration based on log capture option
       let stdio: any = 'inherit';
       let logStream: any = null;
-      
+
       if (options.captureLogs && options.logFile) {
         // Create log directory if it doesn't exist
         const logDir = dirname(options.logFile);
         mkdirSync(logDir, { recursive: true });
-        
+
         // Create write stream for log file
         logStream = createWriteStream(options.logFile, { flags: 'w' });
-        
+
         // Capture stdout and stderr but keep stdin inherited
         stdio = ['inherit', 'pipe', 'pipe'];
       }
@@ -151,12 +153,17 @@ export abstract class BaseBuilder<T extends Target = Target> {
       });
 
       // If capturing logs, pipe stdout and stderr to both log file and console
-      if (options.captureLogs && logStream && this.currentProcess.stdout && this.currentProcess.stderr) {
+      if (
+        options.captureLogs &&
+        logStream &&
+        this.currentProcess.stdout &&
+        this.currentProcess.stderr
+      ) {
         this.currentProcess.stdout.on('data', (data) => {
           logStream.write(data);
           process.stdout.write(data); // Also write to console
         });
-        
+
         this.currentProcess.stderr.on('data', (data) => {
           logStream.write(data);
           process.stderr.write(data); // Also write to console
@@ -212,7 +219,7 @@ export abstract class BaseBuilder<T extends Target = Target> {
     const remainingCount = changedFiles.length - maxFilesToShow;
 
     let fileList = filesToShow.join(', ');
-    
+
     if (remainingCount > 0) {
       fileList += `, +${remainingCount} more`;
     }

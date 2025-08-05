@@ -233,7 +233,7 @@ export class IntelligentBuildQueue {
     // Build options for log capture
     const buildOptions = {
       captureLogs: true,
-      logFile: FileSystemUtils.getLogFilePath(projectRoot, target.name)
+      logFile: FileSystemUtils.getLogFilePath(projectRoot, target.name),
     };
 
     // Execute the build

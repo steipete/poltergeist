@@ -95,16 +95,13 @@ describe('Performance Tests', () => {
 
       // Should build only once with all files
       expect(testBuilder?.build).toHaveBeenCalledTimes(1);
-      expect(testBuilder?.build).toHaveBeenCalledWith([
-        'src/file1.ts',
-        'src/file2.ts',
-        'src/file3.ts',
-        'src/file4.ts',
-        'src/file5.ts',
-      ], expect.objectContaining({
-        captureLogs: true,
-        logFile: expect.stringContaining('test-build.log')
-      }));
+      expect(testBuilder?.build).toHaveBeenCalledWith(
+        ['src/file1.ts', 'src/file2.ts', 'src/file3.ts', 'src/file4.ts', 'src/file5.ts'],
+        expect.objectContaining({
+          captureLogs: true,
+          logFile: expect.stringContaining('test-build.log'),
+        })
+      );
     });
 
     it('should reset debounce timer on new changes', async () => {
@@ -144,10 +141,13 @@ describe('Performance Tests', () => {
 
       // Now should build with both files
       expect(testBuilder?.build).toHaveBeenCalledTimes(1);
-      expect(testBuilder?.build).toHaveBeenCalledWith(['src/file1.ts', 'src/file2.ts'], expect.objectContaining({
-        captureLogs: true,
-        logFile: expect.stringContaining('test-build.log')
-      }));
+      expect(testBuilder?.build).toHaveBeenCalledWith(
+        ['src/file1.ts', 'src/file2.ts'],
+        expect.objectContaining({
+          captureLogs: true,
+          logFile: expect.stringContaining('test-build.log'),
+        })
+      );
     });
 
     it('should handle different settling delays per target', async () => {
@@ -221,10 +221,13 @@ describe('Performance Tests', () => {
 
       // Fast target should build
       expect(fastBuilder?.build).toHaveBeenCalledTimes(1);
-      expect(fastBuilder?.build).toHaveBeenCalledWith(['fast/file.ts'], expect.objectContaining({
-        captureLogs: true,
-        logFile: expect.stringContaining('fast-build.log')
-      }));
+      expect(fastBuilder?.build).toHaveBeenCalledWith(
+        ['fast/file.ts'],
+        expect.objectContaining({
+          captureLogs: true,
+          logFile: expect.stringContaining('fast-build.log'),
+        })
+      );
 
       // Clear mock
       vi.mocked(fastBuilder?.build).mockClear();
@@ -239,10 +242,13 @@ describe('Performance Tests', () => {
 
       // Slow target should now build
       expect(slowBuilder?.build).toHaveBeenCalledTimes(1);
-      expect(slowBuilder?.build).toHaveBeenCalledWith(['slow/file.ts'], expect.objectContaining({
-        captureLogs: true,
-        logFile: expect.stringContaining('slow-build.log')
-      }));
+      expect(slowBuilder?.build).toHaveBeenCalledWith(
+        ['slow/file.ts'],
+        expect.objectContaining({
+          captureLogs: true,
+          logFile: expect.stringContaining('slow-build.log'),
+        })
+      );
     });
 
     it('should accumulate files during settling period', async () => {
@@ -281,14 +287,13 @@ describe('Performance Tests', () => {
       }
 
       expect(testBuilder?.build).toHaveBeenCalledTimes(1);
-      expect(testBuilder?.build).toHaveBeenCalledWith([
-        'src/index.ts',
-        'src/utils.ts',
-        'src/types.ts',
-      ], expect.objectContaining({
-        captureLogs: true,
-        logFile: expect.stringContaining('test-build.log')
-      }));
+      expect(testBuilder?.build).toHaveBeenCalledWith(
+        ['src/index.ts', 'src/utils.ts', 'src/types.ts'],
+        expect.objectContaining({
+          captureLogs: true,
+          logFile: expect.stringContaining('test-build.log'),
+        })
+      );
     });
   });
 

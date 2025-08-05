@@ -40,40 +40,45 @@ describe('Logs Command', () => {
 
     // Create a test config file
     const configPath = join(testDir, 'poltergeist.config.json');
-    writeFileSync(configPath, JSON.stringify({
-      version: '1.0',
-      projectType: 'node',
-      targets: [{
-        name: 'test-target',
-        type: 'executable',
-        enabled: true,
-        buildCommand: 'echo "test"',
-        outputPath: './dist/test',
-        watchPaths: ['src/**/*.ts']
-      }],
-      watchman: {
-        useDefaultExclusions: true,
-        excludeDirs: [],
+    writeFileSync(
+      configPath,
+      JSON.stringify({
+        version: '1.0',
         projectType: 'node',
-        maxFileEvents: 10000,
-        recrawlThreshold: 3,
-        settlingDelay: 1000
-      },
-      buildScheduling: {
-        parallelization: 1,
-        prioritization: {
+        targets: [
+          {
+            name: 'test-target',
+            type: 'executable',
+            enabled: true,
+            buildCommand: 'echo "test"',
+            outputPath: './dist/test',
+            watchPaths: ['src/**/*.ts'],
+          },
+        ],
+        watchman: {
+          useDefaultExclusions: true,
+          excludeDirs: [],
+          projectType: 'node',
+          maxFileEvents: 10000,
+          recrawlThreshold: 3,
+          settlingDelay: 1000,
+        },
+        buildScheduling: {
+          parallelization: 1,
+          prioritization: {
+            enabled: true,
+            focusDetectionWindow: 300000,
+          },
+        },
+        notifications: {
           enabled: true,
-          focusDetectionWindow: 300000
-        }
-      },
-      notifications: {
-        enabled: true
-      },
-      logging: {
-        file: '.poltergeist.log',
-        level: 'info'
-      }
-    }));
+        },
+        logging: {
+          file: '.poltergeist.log',
+          level: 'info',
+        },
+      })
+    );
   });
 
   afterEach(() => {
@@ -109,7 +114,7 @@ describe('Logs Command', () => {
       return {
         exitCode: 0,
         stdout: stdout.join('\n'),
-        stderr: stderr.join('\n')
+        stderr: stderr.join('\n'),
       };
     } catch (error) {
       const errorMessage = error instanceof Error ? error.message : String(error);
@@ -119,14 +124,14 @@ describe('Logs Command', () => {
           exitCode: code,
           stdout: stdout.join('\n'),
           stderr: stderr.join('\n'),
-          error
+          error,
         };
       }
       return {
         exitCode: 1,
         stdout: stdout.join('\n'),
         stderr: stderr.join('\n'),
-        error
+        error,
       };
     }
   }
@@ -138,45 +143,45 @@ describe('Logs Command', () => {
         timestamp: '2025-08-05T10:00:00.000Z',
         level: 'info',
         message: 'Starting Poltergeist',
-        target: 'test-target'
+        target: 'test-target',
       },
       {
         timestamp: '2025-08-05T10:00:01.000Z',
         level: 'success',
         message: 'Build completed successfully',
         target: 'test-target',
-        buildTime: 1500
+        buildTime: 1500,
       },
       {
         timestamp: '2025-08-05T10:00:02.000Z',
         level: 'warn',
         message: 'File watcher warning',
         target: 'test-target',
-        files: ['src/test.ts']
+        files: ['src/test.ts'],
       },
       {
         timestamp: '2025-08-05T10:00:03.000Z',
         level: 'error',
         message: 'Build failed',
         target: 'test-target',
-        exitCode: 1
+        exitCode: 1,
       },
       {
         timestamp: '2025-08-05T10:00:04.000Z',
         level: 'info',
         message: 'Starting other target',
-        target: 'other-target'
+        target: 'other-target',
       },
       {
         timestamp: '2025-08-05T10:00:05.000Z',
         level: 'debug',
         message: 'Debug information',
         target: 'test-target',
-        pid: 12345
-      }
+        pid: 12345,
+      },
     ];
 
-    const logContent = logEntries.map(entry => JSON.stringify(entry)).join('\n');
+    const logContent = logEntries.map((entry) => JSON.stringify(entry)).join('\n');
     writeFileSync(logFile, logContent);
   }
 
@@ -248,7 +253,7 @@ describe('Logs Command', () => {
       const result = await runLogsCommand(['--json', '--lines', '2']);
 
       expect(result.exitCode).toBe(0);
-      
+
       // Should be valid JSON
       let json;
       expect(() => {
@@ -270,11 +275,9 @@ describe('Logs Command', () => {
       // Should show last 2 entries for test-target only
       expect(result.stdout).toContain('[test-target]');
       expect(result.stdout).not.toContain('[other-target]');
-      
+
       // Count the number of log entries (lines containing target markers)
-      const logLines = result.stdout.split('\n').filter(line => 
-        line.includes('[test-target]')
-      );
+      const logLines = result.stdout.split('\n').filter((line) => line.includes('[test-target]'));
       expect(logLines.length).toBe(2);
     });
   });
@@ -314,16 +317,16 @@ describe('Logs Command', () => {
         timestamp: '2025-08-05T10:00:00.000Z',
         level: 'info',
         message: 'Valid entry',
-        target: 'test-target'
+        target: 'test-target',
       });
-      
+
       const logContent = [
         validEntry,
         'invalid json line',
         '{"incomplete": "json"',
-        validEntry
+        validEntry,
       ].join('\n');
-      
+
       writeFileSync(logFile, logContent);
 
       const result = await runLogsCommand();
@@ -332,9 +335,7 @@ describe('Logs Command', () => {
       // Should still display valid entries
       expect(result.stdout).toContain('Valid entry');
       // Should have exactly 2 valid entries
-      const logLines = result.stdout.split('\n').filter(line => 
-        line.includes('Valid entry')
-      );
+      const logLines = result.stdout.split('\n').filter((line) => line.includes('Valid entry'));
       expect(logLines.length).toBe(2);
     });
   });
@@ -347,41 +348,47 @@ describe('Logs Command', () => {
     it('should respect custom config path', async () => {
       const customConfigPath = join(testDir, 'custom.config.json');
       const customLogFile = join(testDir, 'custom.log');
-      
-      writeFileSync(customConfigPath, JSON.stringify({
-        version: '1.0',
-        projectType: 'node',
-        targets: [],
-        watchman: {
-          useDefaultExclusions: true,
-          excludeDirs: [],
-          projectType: 'node',
-          maxFileEvents: 10000,
-          recrawlThreshold: 3,
-          settlingDelay: 1000
-        },
-        buildScheduling: {
-          parallelization: 1,
-          prioritization: {
-            enabled: true,
-            focusDetectionWindow: 300000
-          }
-        },
-        notifications: {
-          enabled: true
-        },
-        logging: {
-          file: 'custom.log',
-          level: 'info'
-        }
-      }));
 
-      writeFileSync(customLogFile, JSON.stringify({
-        timestamp: '2025-08-05T10:00:00.000Z',
-        level: 'info',
-        message: 'Custom log entry',
-        target: 'custom-target'
-      }));
+      writeFileSync(
+        customConfigPath,
+        JSON.stringify({
+          version: '1.0',
+          projectType: 'node',
+          targets: [],
+          watchman: {
+            useDefaultExclusions: true,
+            excludeDirs: [],
+            projectType: 'node',
+            maxFileEvents: 10000,
+            recrawlThreshold: 3,
+            settlingDelay: 1000,
+          },
+          buildScheduling: {
+            parallelization: 1,
+            prioritization: {
+              enabled: true,
+              focusDetectionWindow: 300000,
+            },
+          },
+          notifications: {
+            enabled: true,
+          },
+          logging: {
+            file: 'custom.log',
+            level: 'info',
+          },
+        })
+      );
+
+      writeFileSync(
+        customLogFile,
+        JSON.stringify({
+          timestamp: '2025-08-05T10:00:00.000Z',
+          level: 'info',
+          message: 'Custom log entry',
+          target: 'custom-target',
+        })
+      );
 
       const result = await runLogsCommand(['--config', customConfigPath]);
 

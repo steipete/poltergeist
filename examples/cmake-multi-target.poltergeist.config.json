@@ -1,0 +1,82 @@
+{
+  "version": "1.0",
+  "projectType": "cmake",
+  "targets": [
+    {
+      "name": "core-lib",
+      "type": "cmake-library",
+      "targetName": "core",
+      "libraryType": "static",
+      "buildType": "Debug",
+      "parallel": true,
+      "watchPaths": [
+        "**/CMakeLists.txt",
+        "core/**/*.{cpp,h}"
+      ],
+      "settlingDelay": 500
+    },
+    {
+      "name": "main-app",
+      "type": "cmake-executable",
+      "targetName": "app",
+      "buildType": "Debug",
+      "parallel": true,
+      "watchPaths": [
+        "**/CMakeLists.txt",
+        "app/**/*.{cpp,h}",
+        "core/**/*.h"
+      ],
+      "settlingDelay": 1000
+    },
+    {
+      "name": "tests",
+      "type": "cmake-custom",
+      "targetName": "test",
+      "buildType": "Debug",
+      "parallel": true,
+      "watchPaths": [
+        "**/CMakeLists.txt",
+        "tests/**/*.{cpp,h}",
+        "core/**/*.h"
+      ],
+      "settlingDelay": 1000
+    },
+    {
+      "name": "docs",
+      "type": "cmake-custom",
+      "targetName": "docs",
+      "watchPaths": [
+        "**/CMakeLists.txt",
+        "docs/**/*.{md,rst}",
+        "include/**/*.h"
+      ],
+      "settlingDelay": 2000
+    }
+  ],
+  "watchman": {
+    "useDefaultExclusions": true,
+    "excludeDirs": ["build", "docs/generated"],
+    "projectType": "cmake",
+    "maxFileEvents": 10000,
+    "recrawlThreshold": 5,
+    "settlingDelay": 1000
+  },
+  "buildScheduling": {
+    "parallelization": 2,
+    "prioritization": {
+      "enabled": true,
+      "focusDetectionWindow": 300000,
+      "priorityDecayTime": 1800000,
+      "buildTimeoutMultiplier": 2.0
+    }
+  },
+  "notifications": {
+    "enabled": true,
+    "buildSuccess": true,
+    "buildFailed": true
+  },
+  "logging": {
+    "level": "debug",
+    "file": ".poltergeist.log"
+  }
+}

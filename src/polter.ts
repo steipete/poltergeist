@@ -35,7 +35,7 @@ function readLastLines(filePath: string, lines: number): string[] {
     if (!existsSync(filePath)) {
       return [];
     }
-    
+
     const content = readFileSync(filePath, 'utf-8');
     const allLines = content.trim().split('\n');
     return allLines.slice(-lines);
@@ -109,12 +109,12 @@ async function waitForBuildCompletion(
   logOptions: LogOptions = { showLogs: true, logLines: 5 }
 ): Promise<'success' | 'failed' | 'timeout'> {
   const startTime = Date.now();
-  
+
   // Use ora for professional spinner with automatic cursor management
   const spinner = ora({
     text: 'Build in progress...',
     color: 'cyan',
-    spinner: 'dots'
+    spinner: 'dots',
   });
 
   // Start spinner (automatically handles TTY detection and cursor hiding)
@@ -126,13 +126,13 @@ async function waitForBuildCompletion(
   // Update elapsed time and build logs periodically
   const timeInterval = setInterval(() => {
     const elapsed = Date.now() - startTime;
-    
+
     if (logOptions.showLogs) {
       // Read actual log file
       const logLines = readLastLines(logFile, logOptions.logLines);
-      
+
       if (logLines.length > 0) {
-        const logText = logLines.map(line => `│ ${line.trim()}`).join('\n');
+        const logText = logLines.map((line) => `│ ${line.trim()}`).join('\n');
         spinner.text = `Build in progress... ${Math.round(elapsed / 100) / 10}s\n${logText}`;
       } else {
         spinner.text = `Build in progress... ${Math.round(elapsed / 100) / 10}s`;
@@ -163,9 +163,9 @@ async function waitForBuildCompletion(
         const finalStatus = await getBuildStatus(projectRoot, target, {
           checkProcessForBuilding: true,
         });
-        
+
         clearInterval(timeInterval);
-        
+
         if (finalStatus === 'success') {
           spinner.succeed('Build completed successfully');
           return 'success';
@@ -306,7 +306,7 @@ function executeTarget(target: Target, projectRoot: string, args: string[]): Pro
     // Get output path based on target type
     let binaryPath: string;
     if ('outputPath' in target) {
-      binaryPath = resolvePath(projectRoot, target.outputPath);
+      binaryPath = resolvePath(projectRoot, target.outputPath!);
     } else {
       console.error(chalk.red(`❌ Target '${target.name}' does not have an output path`));
       resolve(1);
@@ -393,7 +393,9 @@ async function runWrapperWithDefaults(
       const discovery = await ConfigurationManager.discoverAndLoadConfig();
       if (!discovery) {
         console.error(chalk.red('❌ No poltergeist.config.json found'));
-        console.error(chalk.yellow('💡 Run this command from within a Poltergeist-managed project'));
+        console.error(
+          chalk.yellow('💡 Run this command from within a Poltergeist-managed project')
+        );
         console.error(chalk.gray('\nTo get started with Poltergeist:'));
         console.error(chalk.gray('   • Run: poltergeist init'));
         console.error(chalk.gray('   • Or create a poltergeist.config.json file'));
@@ -525,7 +527,7 @@ async function runWrapper(
 
         const result = await waitForBuildCompletion(projectRoot, target, options.timeout, {
           showLogs: options.showLogs,
-          logLines: options.logLines
+          logLines: options.logLines,
         });
 
         if (result === 'timeout') {

@@ -16,6 +16,7 @@ import { PriorityEngine } from './priority-engine.js';
 import { type PoltergeistState, StateManager } from './state.js';
 import type { BuildSchedulingConfig, BuildStatus, PoltergeistConfig, Target } from './types.js';
 import { BuildStatusManager } from './utils/build-status-manager.js';
+import { ConfigurationManager } from './utils/config-manager.js';
 import { FileSystemUtils } from './utils/filesystem.js';
 import { ProcessManager } from './utils/process-manager.js';
 import { WatchmanClient } from './watchman.js';
@@ -30,9 +31,19 @@ interface TargetState {
   buildTimer?: NodeJS.Timeout;
 }
 
+interface ConfigChanges {
+  targetsAdded: Target[];
+  targetsRemoved: string[];
+  targetsModified: Array<{ name: string; oldTarget: Target; newTarget: Target }>;
+  watchmanChanged: boolean;
+  notificationsChanged: boolean;
+  buildSchedulingChanged: boolean;
+}
+
 export class Poltergeist {
   private config: PoltergeistConfig;
   private projectRoot: string;
+  private configPath?: string;
   private logger: Logger;
   private stateManager: IStateManager;
   private processManager: ProcessManager;
@@ -52,10 +63,12 @@ export class Poltergeist {
     config: PoltergeistConfig,
     projectRoot: string,
     logger: Logger,
-    deps: PoltergeistDependencies
+    deps: PoltergeistDependencies,
+    configPath?: string
   ) {
     this.config = config;
     this.projectRoot = projectRoot;
+    this.configPath = configPath;
     this.logger = logger;
 
     // Use injected dependencies
@@ -252,6 +265,27 @@ export class Poltergeist {
         throw error; // Fail fast - no pattern fixing
       }
     }
+
+    // Subscribe to configuration file changes for automatic reloading
+    if (this.configPath) {
+      try {
+        await this.watchman.subscribe(
+          this.projectRoot,
+          'poltergeist_config',
+          {
+            expression: ['match', 'poltergeist.config.json', 'wholename'],
+            fields: ['name', 'exists', 'type'],
+          },
+          (files) => {
+            this.handleConfigChange(files);
+          }
+        );
+        this.logger.info('🔧 Watching configuration file for changes');
+      } catch (error) {
+        this.logger.warn(`⚠️ Failed to watch config file: ${error}`);
+        // Don't fail startup if config watching fails
+      }
+    }
   }
 
   /**
@@ -360,7 +394,7 @@ export class Poltergeist {
     try {
       const buildOptions = {
         captureLogs: true,
-        logFile: FileSystemUtils.getLogFilePath(this.projectRoot, state.target.name)
+        logFile: FileSystemUtils.getLogFilePath(this.projectRoot, state.target.name),
       };
       const status = await state.builder.build(changedFiles, buildOptions);
       state.lastBuild = status;
@@ -513,6 +547,223 @@ export class Poltergeist {
     }
 
     return status;
+  }
+
+  /**
+   * Handle configuration file changes for automatic reloading
+   */
+  private async handleConfigChange(files: Array<{ name: string; exists: boolean }>): Promise<void> {
+    const configChanged = files.some((f) => f.name === 'poltergeist.config.json' && f.exists);
+    if (!configChanged || !this.configPath) return;
+
+    this.logger.info('🔄 Configuration file changed, reloading...');
+
+    try {
+      // Reload configuration
+      const newConfig = await ConfigurationManager.loadConfigFromPath(this.configPath);
+
+      // Compare configs and determine what needs to be restarted
+      const changes = this.detectConfigChanges(this.config, newConfig);
+
+      // Apply changes
+      await this.applyConfigChanges(newConfig, changes);
+
+      this.config = newConfig;
+      this.logger.info('✅ Configuration reloaded successfully');
+    } catch (error) {
+      this.logger.error(
+        `❌ Failed to reload configuration: ${error instanceof Error ? error.message : error}`
+      );
+      // Continue with old config
+    }
+  }
+
+  /**
+   * Detect changes between old and new configuration
+   */
+  private detectConfigChanges(
+    oldConfig: PoltergeistConfig,
+    newConfig: PoltergeistConfig
+  ): ConfigChanges {
+    const changes: ConfigChanges = {
+      targetsAdded: [],
+      targetsRemoved: [],
+      targetsModified: [],
+      watchmanChanged: false,
+      notificationsChanged: false,
+      buildSchedulingChanged: false,
+    };
+
+    // Create maps for easier comparison
+    const oldTargets = new Map(oldConfig.targets.map((t) => [t.name, t]));
+    const newTargets = new Map(newConfig.targets.map((t) => [t.name, t]));
+
+    // Find added targets
+    for (const [name, target] of newTargets) {
+      if (!oldTargets.has(name)) {
+        changes.targetsAdded.push(target);
+      }
+    }
+
+    // Find removed targets
+    for (const [name] of oldTargets) {
+      if (!newTargets.has(name)) {
+        changes.targetsRemoved.push(name);
+      }
+    }
+
+    // Find modified targets
+    for (const [name, newTarget] of newTargets) {
+      const oldTarget = oldTargets.get(name);
+      if (oldTarget && !this.targetsEqual(oldTarget, newTarget)) {
+        changes.targetsModified.push({ name, oldTarget, newTarget });
+      }
+    }
+
+    // Check for other changes
+    changes.watchmanChanged =
+      JSON.stringify(oldConfig.watchman) !== JSON.stringify(newConfig.watchman);
+    changes.notificationsChanged =
+      JSON.stringify(oldConfig.notifications) !== JSON.stringify(newConfig.notifications);
+    changes.buildSchedulingChanged =
+      JSON.stringify(oldConfig.buildScheduling) !== JSON.stringify(newConfig.buildScheduling);
+
+    return changes;
+  }
+
+  /**
+   * Compare two targets for equality
+   */
+  private targetsEqual(target1: Target, target2: Target): boolean {
+    // Deep comparison of target properties that affect builds
+    return JSON.stringify(target1) === JSON.stringify(target2);
+  }
+
+  /**
+   * Apply configuration changes gracefully
+   */
+  private async applyConfigChanges(
+    newConfig: PoltergeistConfig,
+    changes: ConfigChanges
+  ): Promise<void> {
+    this.logger.debug(
+      `Applying config changes: ${changes.targetsAdded.length} added, ${changes.targetsRemoved.length} removed, ${changes.targetsModified.length} modified`
+    );
+
+    // Remove obsolete targets
+    for (const targetName of changes.targetsRemoved) {
+      this.logger.info(`🗑️ Removing target: ${targetName}`);
+      await this.stop(targetName);
+    }
+
+    // Stop and remove modified targets (they'll be re-added with new config)
+    for (const { name } of changes.targetsModified) {
+      this.logger.info(`🔄 Updating target: ${name}`);
+      await this.stop(name);
+    }
+
+    // Update global settings that affect the core system
+    if (changes.buildSchedulingChanged) {
+      this.logger.info('🔄 Updating build scheduling configuration');
+      this.buildSchedulingConfig = {
+        parallelization: 2,
+        prioritization: {
+          enabled: true,
+          focusDetectionWindow: 300000,
+          priorityDecayTime: 1800000,
+          buildTimeoutMultiplier: 2.0,
+        },
+        ...newConfig.buildScheduling,
+      };
+
+      // Reinitialize priority engine if needed
+      if (this.buildSchedulingConfig.prioritization.enabled && !this.priorityEngine) {
+        this.priorityEngine = new PriorityEngine(this.buildSchedulingConfig, this.logger);
+      }
+    }
+
+    if (changes.notificationsChanged) {
+      this.logger.info('🔄 Updating notification settings');
+      if (newConfig.notifications?.enabled && !this.notifier) {
+        this.notifier = new BuildNotifier(newConfig.notifications);
+      } else if (!newConfig.notifications?.enabled && this.notifier) {
+        this.notifier = undefined;
+      }
+    }
+
+    // Add new and modified targets
+    const targetsToAdd = [
+      ...changes.targetsAdded,
+      ...changes.targetsModified.map((m) => m.newTarget),
+    ];
+    for (const target of targetsToAdd) {
+      if (!target.enabled) {
+        this.logger.debug(`Skipping disabled target: ${target.name}`);
+        continue;
+      }
+
+      this.logger.info(`➕ Adding target: ${target.name}`);
+
+      try {
+        const builder = this.builderFactory.createBuilder(
+          target,
+          this.projectRoot,
+          this.logger,
+          this.stateManager
+        );
+        await builder.validate();
+
+        this.targetStates.set(target.name, {
+          target,
+          builder,
+          watching: false,
+          pendingFiles: new Set(),
+        });
+
+        // Register with intelligent build queue if enabled
+        if (this.buildQueue) {
+          this.buildQueue.registerTarget(target, builder);
+        }
+
+        // Initialize state file
+        await this.stateManager.initializeState(target);
+      } catch (error) {
+        this.logger.error(`❌ Failed to add target ${target.name}: ${error}`);
+      }
+    }
+
+    // If we have target changes, we need to update file watching subscriptions
+    if (
+      changes.targetsAdded.length > 0 ||
+      changes.targetsRemoved.length > 0 ||
+      changes.targetsModified.length > 0
+    ) {
+      this.logger.info('🔄 Updating file watch subscriptions');
+
+      // Unsubscribe from all existing subscriptions (except config)
+      if (this.watchman) {
+        // Note: This is a simplified approach. In a more sophisticated implementation,
+        // we would track individual subscriptions and only update the ones that changed.
+        try {
+          await this.watchman.disconnect();
+          await this.watchman.connect();
+          await this.watchman.watchProject(this.projectRoot);
+          await this.subscribeToChanges();
+        } catch (error) {
+          this.logger.error(`❌ Failed to update file watching: ${error}`);
+        }
+      }
+    }
+
+    // Update Watchman configuration if needed
+    if (changes.watchmanChanged) {
+      this.logger.info('🔄 Updating Watchman configuration');
+      try {
+        await this.setupWatchmanConfig();
+      } catch (error) {
+        this.logger.error(`❌ Failed to update Watchman config: ${error}`);
+      }
+    }
   }
 
   /**

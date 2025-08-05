@@ -3,15 +3,18 @@
 import chalk from 'chalk';
 // Updated CLI for generic target system
 import { Command } from 'commander';
-import { createReadStream, existsSync, readFileSync, statSync, watchFile } from 'fs';
+import { createReadStream, existsSync, readFileSync, statSync, watchFile, writeFileSync } from 'fs';
+import { join } from 'path';
 import { createInterface } from 'readline';
 import packageJson from '../package.json' with { type: 'json' };
 // import { Poltergeist } from './poltergeist.js';
 import { ConfigurationError } from './config.js';
 import { createPoltergeist } from './factories.js';
 import { createLogger } from './logger.js';
-import type { PoltergeistConfig } from './types.js';
+import type { PoltergeistConfig, ProjectType } from './types.js';
+import { CMakeProjectAnalyzer } from './utils/cmake-analyzer.js';
 import { ConfigurationManager } from './utils/config-manager.js';
+import { WatchmanConfigManager } from './watchman-config.js';
 
 const { version } = packageJson;
 
@@ -25,10 +28,14 @@ program
 // Helper function to load config and handle errors
 async function loadConfiguration(
   configPath?: string
-): Promise<{ config: PoltergeistConfig; projectRoot: string }> {
+): Promise<{ config: PoltergeistConfig; projectRoot: string; configPath: string }> {
   try {
     const result = await ConfigurationManager.getConfig(configPath);
-    return { config: result.config, projectRoot: result.projectRoot };
+    return {
+      config: result.config,
+      projectRoot: result.projectRoot,
+      configPath: result.configPath,
+    };
   } catch (error) {
     if (error instanceof ConfigurationError) {
       console.error(chalk.red(error.message));
@@ -63,7 +70,7 @@ program
   .action(async (options) => {
     console.log(chalk.gray('👻 [Poltergeist] Summoning Poltergeist to watch your project...'));
 
-    const { config, projectRoot } = await loadConfiguration(options.config);
+    const { config, projectRoot, configPath } = await loadConfiguration(options.config);
 
     // Validate target if specified
     if (options.target) {
@@ -93,7 +100,7 @@ program
     );
 
     try {
-      const poltergeist = createPoltergeist(config, projectRoot, logger);
+      const poltergeist = createPoltergeist(config, projectRoot, logger, configPath);
       await poltergeist.start(options.target);
     } catch (error) {
       console.error(chalk.red(`👻 [Poltergeist] Failed to start Poltergeist: ${error}`));
@@ -110,11 +117,11 @@ program
   .action(async (options) => {
     console.log(chalk.gray('👻 [Poltergeist] Putting Poltergeist to rest...'));
 
-    const { config, projectRoot } = await loadConfiguration(options.config);
+    const { config, projectRoot, configPath } = await loadConfiguration(options.config);
 
     try {
       const logger = createLogger(config.logging?.level || 'info');
-      const poltergeist = createPoltergeist(config, projectRoot, logger);
+      const poltergeist = createPoltergeist(config, projectRoot, logger, configPath);
       await poltergeist.stop(options.target);
       console.log(chalk.green('👻 [Poltergeist] Poltergeist is now at rest'));
     } catch (error) {
@@ -132,18 +139,18 @@ program
   .action(async (options) => {
     console.log(chalk.gray('👻 [Poltergeist] Restarting...'));
 
-    const { config, projectRoot } = await loadConfiguration(options.config);
+    const { config, projectRoot, configPath } = await loadConfiguration(options.config);
     const logger = createLogger(config.logging?.level || 'info');
 
     try {
       // First stop Poltergeist
       console.log(chalk.gray('👻 [Poltergeist] Stopping current instance...'));
-      const poltergeist = createPoltergeist(config, projectRoot, logger);
+      const poltergeist = createPoltergeist(config, projectRoot, logger, configPath);
       await poltergeist.stop(options.target);
-      
+
       // Wait a moment to ensure clean shutdown
-      await new Promise(resolve => setTimeout(resolve, 1000));
-      
+      await new Promise((resolve) => setTimeout(resolve, 1000));
+
       // Clear Watchman cache if requested
       if (!options.cache) {
         console.log(chalk.gray('👻 [Poltergeist] Clearing Watchman cache...'));
@@ -154,10 +161,10 @@ program
           logger.warn('Failed to clear Watchman cache:', error);
         }
       }
-      
+
       // Then start it again as a detached process
       console.log(chalk.gray(`👻 [Poltergeist] Starting new instance... v${version}`));
-      
+
       // Build the start command
       const startArgs = ['start'];
       if (options.target) {
@@ -166,18 +173,18 @@ program
       if (options.config) {
         startArgs.push('--config', options.config);
       }
-      
+
       // Spawn detached process
       const { spawn } = await import('child_process');
       const child = spawn('node', [process.argv[1], ...startArgs], {
         detached: true,
         stdio: 'ignore',
-        cwd: process.cwd()
+        cwd: process.cwd(),
       });
-      
+
       // Detach the child process
       child.unref();
-      
+
       console.log(chalk.green(`👻 [Poltergeist] Successfully restarted! (PID: ${child.pid})`));
     } catch (error) {
       console.error(chalk.red(`👻 [Poltergeist] Failed to restart: ${error}`));
@@ -192,11 +199,11 @@ program
   .option('-c, --config <path>', 'Path to config file')
   .option('--json', 'Output status as JSON')
   .action(async (options) => {
-    const { config, projectRoot } = await loadConfiguration(options.config);
+    const { config, projectRoot, configPath } = await loadConfiguration(options.config);
 
     try {
       const logger = createLogger(config.logging?.level || 'info');
-      const poltergeist = createPoltergeist(config, projectRoot, logger);
+      const poltergeist = createPoltergeist(config, projectRoot, logger, configPath);
       const status = await poltergeist.getStatus(options.target);
 
       if (options.json) {
@@ -215,7 +222,7 @@ program
           }
         } else {
           // All targets status
-          const targets = Object.keys(status).filter(key => !key.startsWith('_'));
+          const targets = Object.keys(status).filter((key) => !key.startsWith('_'));
           if (targets.length === 0) {
             console.log(chalk.gray('No targets configured'));
           } else {
@@ -351,14 +358,17 @@ interface LogEntry {
 }
 
 // Display logs with formatting and filtering
-async function displayLogs(logFile: string, options: {
-  target?: string;
-  lines: string;
-  follow?: boolean;
-  json?: boolean;
-}): Promise<void> {
+async function displayLogs(
+  logFile: string,
+  options: {
+    target?: string;
+    lines: string;
+    follow?: boolean;
+    json?: boolean;
+  }
+): Promise<void> {
   const maxLines = Number.parseInt(options.lines, 10);
-  
+
   if (options.follow) {
     await followLogs(logFile, options.target, options.json);
     return;
@@ -366,7 +376,7 @@ async function displayLogs(logFile: string, options: {
 
   // Read and parse log entries
   const logEntries = await readLogEntries(logFile, options.target, maxLines);
-  
+
   if (logEntries.length === 0) {
     if (options.target) {
       console.log(chalk.yellow(`No logs found for target: ${options.target}`));
@@ -387,55 +397,61 @@ async function displayLogs(logFile: string, options: {
 }
 
 // Read and parse log entries from file
-async function readLogEntries(logFile: string, targetFilter?: string, maxLines?: number): Promise<LogEntry[]> {
+async function readLogEntries(
+  logFile: string,
+  targetFilter?: string,
+  maxLines?: number
+): Promise<LogEntry[]> {
   const content = readFileSync(logFile, 'utf-8');
-  const lines = content.trim().split('\n').filter(line => line.trim());
-  
+  const lines = content
+    .trim()
+    .split('\n')
+    .filter((line) => line.trim());
+
   const entries: LogEntry[] = [];
-  
+
   for (const line of lines) {
     try {
       const entry = JSON.parse(line) as LogEntry;
-      
+
       // Filter by target if specified
       if (targetFilter && entry.target !== targetFilter) {
         continue;
       }
-      
+
       entries.push(entry);
-    } catch (error) {
-      // Skip malformed log lines
-      continue;
-    }
+    } catch (error) {}
   }
 
   // Return last N lines if maxLines specified
   if (maxLines && entries.length > maxLines) {
     return entries.slice(-maxLines);
   }
-  
+
   return entries;
 }
 
 // Format a single log entry for display
 function formatLogEntry(entry: LogEntry): void {
   // Handle timestamp - winston gives us HH:mm:ss format, so use it directly
-  const timestamp = entry.timestamp.includes(':') ? entry.timestamp : new Date(entry.timestamp).toLocaleString();
+  const timestamp = entry.timestamp.includes(':')
+    ? entry.timestamp
+    : new Date(entry.timestamp).toLocaleString();
   const level = formatLogLevel(entry.level);
   const target = entry.target ? chalk.blue(`[${entry.target}]`) : '';
   const message = entry.message;
-  
+
   console.log(`${chalk.gray(timestamp)} ${level} ${target} ${message}`);
-  
+
   // Show additional metadata if present
   const metadata = { ...entry };
   delete (metadata as any).timestamp;
   delete (metadata as any).level;
   delete (metadata as any).message;
   delete (metadata as any).target;
-  
+
   const metadataKeys = Object.keys(metadata);
-  if (metadataKeys.length > 0 && metadataKeys.some(key => metadata[key] !== undefined)) {
+  if (metadataKeys.length > 0 && metadataKeys.some((key) => metadata[key] !== undefined)) {
     console.log(chalk.gray(`  ${JSON.stringify(metadata)}`));
   }
 }
@@ -459,45 +475,49 @@ function formatLogLevel(level: string): string {
 }
 
 // Follow logs in real-time
-async function followLogs(logFile: string, targetFilter?: string, jsonOutput?: boolean): Promise<void> {
+async function followLogs(
+  logFile: string,
+  targetFilter?: string,
+  jsonOutput?: boolean
+): Promise<void> {
   let fileSize = statSync(logFile).size;
-  
+
   console.log(chalk.blue('👻 Following Poltergeist logs... (Press Ctrl+C to exit)'));
   if (targetFilter) {
     console.log(chalk.gray(`Filtering for target: ${targetFilter}`));
   }
   console.log(chalk.gray('═'.repeat(50)));
-  
+
   // Display existing logs first
   const existingEntries = await readLogEntries(logFile, targetFilter, 20);
   if (jsonOutput) {
-    existingEntries.forEach(entry => console.log(JSON.stringify(entry)));
+    existingEntries.forEach((entry) => console.log(JSON.stringify(entry)));
   } else {
     existingEntries.forEach(formatLogEntry);
   }
-  
+
   // Watch for new log entries
   watchFile(logFile, { interval: 500 }, (curr) => {
     if (curr.size > fileSize) {
       const stream = createReadStream(logFile, {
         start: fileSize,
-        encoding: 'utf-8'
+        encoding: 'utf-8',
       });
-      
+
       const rl = createInterface({
         input: stream,
-        crlfDelay: Infinity
+        crlfDelay: Number.POSITIVE_INFINITY,
       });
-      
+
       rl.on('line', (line) => {
         try {
           const entry = JSON.parse(line) as LogEntry;
-          
+
           // Filter by target if specified
           if (targetFilter && entry.target !== targetFilter) {
             return;
           }
-          
+
           if (jsonOutput) {
             console.log(JSON.stringify(entry));
           } else {
@@ -507,16 +527,174 @@ async function followLogs(logFile: string, targetFilter?: string, jsonOutput?: b
           // Skip malformed lines
         }
       });
-      
+
       fileSize = curr.size;
     }
   });
-  
+
   // Keep process alive
   return new Promise(() => {
     // This promise never resolves to keep the follow active
     // User exits with Ctrl+C
   });
+}
+
+program
+  .command('init')
+  .description('Initialize Poltergeist configuration for your project')
+  .option('--cmake', 'Initialize for CMake project')
+  .option('--auto', 'Auto-detect project type')
+  .option('--preset <name>', 'Use specific CMake preset')
+  .option('--generator <gen>', 'CMake generator to use')
+  .option('--build-dir <dir>', 'Build directory', 'build')
+  .option('--dry-run', 'Show what would be generated without creating config')
+  .action(async (options) => {
+    const projectRoot = process.cwd();
+    const configPath = join(projectRoot, 'poltergeist.config.json');
+
+    // Check if config already exists
+    if (existsSync(configPath) && !options.dryRun) {
+      console.error(chalk.red('❌ poltergeist.config.json already exists!'));
+      console.error(chalk.yellow('Remove it first or use --dry-run to preview changes.'));
+      process.exit(1);
+    }
+
+    console.log(chalk.gray('👻 [Poltergeist] Initializing configuration...'));
+
+    // Detect project type
+    let projectType: ProjectType;
+
+    if (options.cmake) {
+      projectType = 'cmake';
+    } else if (options.auto) {
+      const logger = createLogger();
+      const watchmanManager = new WatchmanConfigManager(projectRoot, logger);
+      projectType = await watchmanManager.detectProjectType();
+      console.log(chalk.blue(`Auto-detected project type: ${projectType}`));
+    } else {
+      // Interactive prompt would go here, for now default to auto-detect
+      const logger = createLogger();
+      const watchmanManager = new WatchmanConfigManager(projectRoot, logger);
+      projectType = await watchmanManager.detectProjectType();
+      console.log(chalk.blue(`Auto-detected project type: ${projectType}`));
+    }
+
+    let config: PoltergeistConfig;
+
+    if (projectType === 'cmake') {
+      try {
+        const analyzer = new CMakeProjectAnalyzer(projectRoot);
+        console.log(chalk.gray('Analyzing CMake project...'));
+        const analysis = await analyzer.analyzeProject();
+
+        console.log(chalk.green(`✅ Found ${analysis.targets.length} CMake targets`));
+        if (analysis.generator) {
+          console.log(chalk.blue(`📊 Generator: ${analysis.generator}`));
+        }
+
+        // Generate configuration
+        const targets = analyzer.generatePoltergeistTargets(analysis);
+
+        config = {
+          version: '1.0',
+          projectType: 'cmake',
+          targets,
+          watchman: {
+            excludeDirs: [analysis.buildDirectory || 'build'],
+          },
+          notifications: {
+            successSound: 'Glass',
+            failureSound: 'Basso',
+          },
+        };
+
+        // Apply options
+        if (options.generator) {
+          targets.forEach((target) => {
+            if ('generator' in target && target.generator !== undefined) {
+              target.generator = options.generator;
+            }
+          });
+        }
+        if (options.buildDir && options.buildDir !== 'build') {
+          config.watchman.excludeDirs = [options.buildDir];
+        }
+      } catch (error) {
+        console.error(chalk.red(`Failed to analyze CMake project: ${error}`));
+        process.exit(1);
+      }
+    } else {
+      // Generate config for other project types
+      config = generateDefaultConfig(projectType);
+    }
+
+    const configJson = JSON.stringify(config, null, 2);
+
+    if (options.dryRun) {
+      console.log(chalk.yellow('\n--dry-run mode, would create:'));
+      console.log(chalk.gray('poltergeist.config.json:'));
+      console.log(configJson);
+    } else {
+      writeFileSync(configPath, configJson, 'utf-8');
+      console.log(chalk.green('✅ Created poltergeist.config.json'));
+      console.log(chalk.blue(`\nNext steps:`));
+      console.log(chalk.gray('  1. Review and adjust the configuration as needed'));
+      console.log(chalk.gray('  2. Run "poltergeist haunt" to start watching'));
+    }
+  });
+
+// Helper function to generate default config for non-CMake projects
+function generateDefaultConfig(projectType: ProjectType): PoltergeistConfig {
+  const baseConfig: PoltergeistConfig = {
+    version: '1.0',
+    projectType,
+    targets: [],
+    notifications: {
+      successSound: 'Glass',
+      failureSound: 'Basso',
+    },
+  };
+
+  // Add default targets based on project type
+  switch (projectType) {
+    case 'node':
+      baseConfig.targets.push({
+        name: 'dev',
+        type: 'executable',
+        buildCommand: 'npm run build',
+        outputPath: './dist/index.js',
+        watchPaths: ['src/**/*.{ts,js}', 'package.json'],
+      });
+      break;
+    case 'rust':
+      baseConfig.targets.push({
+        name: 'debug',
+        type: 'executable',
+        buildCommand: 'cargo build',
+        outputPath: './target/debug/app',
+        watchPaths: ['src/**/*.rs', 'Cargo.toml'],
+      });
+      break;
+    case 'python':
+      baseConfig.targets.push({
+        name: 'test',
+        type: 'test',
+        testCommand: 'python -m pytest',
+        watchPaths: ['**/*.py', 'requirements.txt'],
+      });
+      break;
+    case 'swift':
+      baseConfig.targets.push({
+        name: 'debug',
+        type: 'executable',
+        buildCommand: 'swift build',
+        outputPath: '.build/debug/App',
+        watchPaths: ['Sources/**/*.swift', 'Package.swift'],
+      });
+      break;
+  }
+
+  return baseConfig;
 }
 
 program
@@ -540,7 +718,9 @@ program
     try {
       await displayLogs(logFile, options);
     } catch (error) {
-      console.error(chalk.red(`Failed to read logs: ${error instanceof Error ? error.message : error}`));
+      console.error(
+        chalk.red(`Failed to read logs: ${error instanceof Error ? error.message : error}`)
+      );
       process.exit(1);
     }
   });
@@ -667,7 +847,8 @@ program.on('option:mac', () => warnOldFlag('--mac', '--target <name>'));
 // Parse arguments only when run directly (not when imported for testing)
 // Allow execution when imported by wrapper scripts (like poltergeist.ts)
 const isDirectRun = import.meta.url === `file://${process.argv[1]}`;
-const isWrapperRun = process.argv[1]?.endsWith('poltergeist.ts') || process.argv[1]?.endsWith('poltergeist');
+const isWrapperRun =
+  process.argv[1]?.endsWith('poltergeist.ts') || process.argv[1]?.endsWith('poltergeist');
 
 if (isDirectRun || isWrapperRun) {
   program.parse(process.argv);

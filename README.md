@@ -36,12 +36,13 @@ Poltergeist offers both a **Node.js CLI** for universal development and a **nati
 - **Intelligent Build Prioritization**: Automatic priority scoring based on focus patterns and user behavior
 - **Smart Build Queue Management**: Configurable parallelization with intelligent deduplication and scheduling
 - **Focus Pattern Detection**: Automatically detects which targets you're actively working on
-- **Intelligent Project Detection**: Automatically detects Swift, Node.js, Rust, Python, and mixed projects
+- **Intelligent Project Detection**: Automatically detects Swift, Node.js, Rust, Python, CMake, and mixed projects
 - **Smart Configuration**: Project-specific exclusions with performance profiles (conservative, balanced, aggressive)
 - **Native Notifications**: macOS notifications with customizable sounds for build status
 - **Concurrent Build Protection**: Intelligent locking prevents overlapping builds
 - **Advanced State Management**: Process tracking, build history, and heartbeat monitoring
 - **Cross-Platform**: Works on macOS, Linux, and Windows
+- **Automatic Configuration Reloading**: Changes to `poltergeist.config.json` are detected and applied without manual restart
 
 ## Quick Start
 
@@ -61,7 +62,13 @@ npx @steipete/poltergeist haunt
 
 ### Basic Usage
 
-1. Create a `poltergeist.config.json` in your project root:
+1. For CMake projects, use auto-initialization:
+
+```bash
+poltergeist init --cmake
+```
+
+Or manually create a `poltergeist.config.json` in your project root:
 
 ```json
 {
@@ -71,19 +78,11 @@ npx @steipete/poltergeist haunt
     {
       "name": "my-cli",
       "type": "executable",
-      "enabled": true,
       "buildCommand": "./scripts/build.sh",
       "outputPath": "./bin/mycli",
       "watchPaths": ["src/**/*.{swift,h}"]
     }
-  ],
-  "watchman": {
-    "useDefaultExclusions": true,
-    "excludeDirs": [],
-    "maxFileEvents": 10000,
-    "recrawlThreshold": 3,
-    "settlingDelay": 1000
-  }
+  ]
 }
 ```
 
@@ -117,7 +116,7 @@ Essential configuration structure:
 ```json
 {
   "version": "1.0",
-  "projectType": "swift|node|rust|python|mixed",
+  "projectType": "swift|node|rust|python|cmake|mixed",
   "targets": [
     {
       "name": "my-app",
@@ -129,6 +128,34 @@ Essential configuration structure:
   ],
   "buildScheduling": { "parallelization": 2 },
   "notifications": { "enabled": true }
+}
+```
+
+### Smart Defaults
+
+Poltergeist uses sensible defaults to keep configurations minimal. Only specify what differs from defaults:
+
+#### Default Values (don't specify these):
+- `enabled: true` - Targets are enabled by default
+- `settlingDelay: 1000` - 1 second delay before building
+- `debounceInterval: 3000` - 3 seconds between builds
+- `useDefaultExclusions: true` - Standard exclusions enabled
+- `profile: "balanced"` - Balanced performance profile
+- `autoOptimize: true` - Performance optimization enabled
+- `notifications.enabled: true` - Notifications are on
+- `buildStart: false` - No notification on build start
+- `buildSuccess: true` - Notify on successful builds
+- `buildFailed: true` - Notify on failed builds
+
+#### Only Specify What's Different:
+```json
+{
+  "targets": [{
+    "name": "my-app",
+    "buildCommand": "./build.sh",
+    "watchPaths": ["src/**/*.{c,h}"],
+    "settlingDelay": 2000  // Only if you need 2s instead of default 1s
+  }]
 }
 ```
 
@@ -182,26 +209,39 @@ Reduce repetition with brace expansion patterns:
 ```
 
 <details>
-<summary>Full configuration options</summary>
+<summary>Full configuration options (with defaults shown for reference)</summary>
 
 ```json
 {
   "version": "1.0",
-  "projectType": "swift|node|rust|python|mixed",
+  "projectType": "swift|node|rust|python|cmake|mixed",
   "targets": [/* target configs */],
   "watchman": {
-    "useDefaultExclusions": true,
+    "useDefaultExclusions": true,        // default: true
     "excludeDirs": ["custom", "exclusions"],
-    "maxFileEvents": 10000,
+    "maxFileEvents": 10000,              // default: 10000
     "rules": [{"pattern": "**/test_output/**", "action": "ignore"}]
   },
-  "performance": {"profile": "balanced", "autoOptimize": true},
-  "buildScheduling": {
-    "parallelization": 2,
-    "prioritization": {"enabled": true, "focusDetectionWindow": 300000}
+  "performance": {
+    "profile": "balanced",               // default: "balanced"
+    "autoOptimize": true                 // default: true
   },
-  "notifications": {"enabled": true, "successSound": "Glass"},
-  "logging": {"file": ".poltergeist.log", "level": "info"}
+  "buildScheduling": {
+    "parallelization": 2,                // default: 2
+    "prioritization": {
+      "enabled": true,                   // default: true
+      "focusDetectionWindow": 300000     // default: 300000 (5 min)
+    }
+  },
+  "notifications": {
+    "enabled": true,                     // default: true
+    "successSound": "Glass",
+    "failureSound": "Basso"
+  },
+  "logging": {
+    "file": ".poltergeist.log",         // default: ".poltergeist.log"
+    "level": "info"                     // default: "info"
+  }
 }
 ```
 </details>
@@ -219,6 +259,9 @@ Poltergeist supports multiple target types with specific optimizations:
 | `test` | Test suites | `testCommand`, `coverageFile` |
 | `docker` | Containerized apps | `imageName`, `dockerfile`, `tags` |
 | `custom` | Custom builds | Flexible `config` object |
+| `cmake-executable` | CMake executables | `targetName`, `generator`, `buildType` |
+| `cmake-library` | CMake libraries | `targetName`, `libraryType`, `generator` |
+| `cmake-custom` | CMake custom targets | `targetName`, custom CMake commands |
 
 <details>
 <summary>Example target configurations</summary>
@@ -250,6 +293,50 @@ Poltergeist supports multiple target types with specific optimizations:
 ```
 </details>
 
+### CMake Support
+
+Poltergeist includes comprehensive CMake support with automatic target detection:
+
+#### Auto-Initialization
+```bash
+# Automatically detect and configure all CMake targets
+poltergeist init --cmake
+
+# Options
+poltergeist init --cmake --generator Ninja    # Specify generator
+poltergeist init --cmake --preset debug        # Use CMake preset
+poltergeist init --cmake --dry-run            # Preview configuration
+```
+
+#### CMake Features
+- **Automatic Target Detection**: Parses `CMakeLists.txt` to find all targets
+- **Smart Reconfiguration**: Automatically runs `cmake` when CMakeLists.txt changes  
+- **Multi-Generator Support**: Works with Ninja, Make, Visual Studio, Xcode
+- **Build Type Management**: Supports Debug, Release, RelWithDebInfo, MinSizeRel
+- **Preset Integration**: Works with `CMakePresets.json`
+- **Parallel Builds**: Uses `cmake --build --parallel` by default
+
+#### Example CMake Configuration
+```json
+{
+  "version": "1.0",
+  "projectType": "cmake",
+  "targets": [
+    {
+      "name": "my-app",
+      "type": "cmake-executable",
+      "targetName": "my-app",        // CMake target name
+      "buildType": "Debug",          // Debug, Release, etc.
+      "watchPaths": [
+        "**/CMakeLists.txt",
+        "src/**/*.{cpp,h}",
+        "cmake/**/*.cmake"
+      ]
+    }
+  ]
+}
+```
+
 ### Smart Project Detection
 
 Poltergeist automatically detects your project type based on configuration files:
@@ -260,6 +347,7 @@ Poltergeist automatically detects your project type based on configuration files
 | `node` | `package.json` | `node_modules`, build outputs, logs |
 | `rust` | `Cargo.toml` | `target/`, Cargo artifacts |
 | `python` | `pyproject.toml`, `requirements.txt` | `__pycache__`, virtual envs |
+| `cmake` | `CMakeLists.txt` | `build/`, `CMakeFiles/`, `CMakeCache.txt` |
 | `mixed` | Multiple indicators | Combined exclusions from all types |
 
 ### Performance Profiles
@@ -652,15 +740,11 @@ poltergeist status --target my-app
         "{src,include}/**/*.{c,cpp,h}",
         "{CMakeLists.txt,CMakePresets.json}"
       ],
-      "settlingDelay": 1000,
       "environment": { "CMAKE_BUILD_TYPE": "Debug" }
     }
   ],
   "watchman": {
-    "excludeDirs": ["build", "target"],
-    "rules": [
-      { "pattern": "**/*.{o,a}", "action": "ignore", "reason": "Compiled artifacts" }
-    ]
+    "excludeDirs": ["build", "target"]
   }
 }
 ```
@@ -680,7 +764,7 @@ poltergeist status --target my-app
         "**/*.{xcodeproj,xcconfig,entitlements,plist}",
         "**/*.{xib,storyboard,xcassets}"
       ],
-      "settlingDelay": 1500
+      "settlingDelay": 1500  // Only if needed, default is 1000ms
     }
   ]
 }

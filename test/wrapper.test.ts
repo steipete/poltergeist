@@ -7,7 +7,7 @@ import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 
 describe('Poltergeist Wrapper Script', () => {
   const wrapperScript = resolve(process.cwd(), 'poltergeist.ts');
-  
+
   beforeEach(() => {
     // Ensure the wrapper script exists
     if (!existsSync(wrapperScript)) {
@@ -20,7 +20,10 @@ describe('Poltergeist Wrapper Script', () => {
   });
 
   // Helper function to run the wrapper script
-  function runWrapper(args: string[] = [], timeout = 5000): Promise<{
+  function runWrapper(
+    args: string[] = [],
+    timeout = 5000
+  ): Promise<{
     stdout: string;
     stderr: string;
     exitCode: number;
@@ -107,13 +110,13 @@ describe('Poltergeist Wrapper Script', () => {
       const result = await runWrapper(['status', '--json']);
 
       expect(result.exitCode).toBe(0);
-      
+
       // Should be valid JSON
       let json;
       expect(() => {
         json = JSON.parse(result.stdout);
       }).not.toThrow();
-      
+
       expect(json).toBeDefined();
       expect(typeof json).toBe('object');
     });

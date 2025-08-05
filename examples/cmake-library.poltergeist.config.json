@@ -1,0 +1,53 @@
+{
+  "version": "1.0",
+  "projectType": "cmake",
+  "targets": [
+    {
+      "name": "mylib",
+      "type": "cmake-library",
+      "targetName": "mylib",
+      "libraryType": "static",
+      "generator": "Unix Makefiles",
+      "buildType": "Release",
+      "parallel": true,
+      "watchPaths": [
+        "**/CMakeLists.txt",
+        "src/**/*.{c,h}",
+        "include/**/*.h"
+      ],
+      "settlingDelay": 1000
+    },
+    {
+      "name": "mylib-shared",
+      "type": "cmake-library",
+      "targetName": "mylib-shared",
+      "libraryType": "shared",
+      "generator": "Unix Makefiles",
+      "buildType": "Release",
+      "parallel": true,
+      "watchPaths": [
+        "**/CMakeLists.txt",
+        "src/**/*.{c,h}",
+        "include/**/*.h"
+      ],
+      "settlingDelay": 1000
+    }
+  ],
+  "watchman": {
+    "useDefaultExclusions": true,
+    "excludeDirs": ["build"],
+    "projectType": "cmake",
+    "maxFileEvents": 10000,
+    "recrawlThreshold": 5,
+    "settlingDelay": 1000
+  },
+  "notifications": {
+    "enabled": true,
+    "buildSuccess": true,
+    "buildFailed": true
+  },
+  "logging": {
+    "level": "info",
+    "file": ".poltergeist.log"
+  }
+}

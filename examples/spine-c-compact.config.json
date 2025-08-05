@@ -1,0 +1,126 @@
+{
+  "version": "1.0",
+  "projectType": "mixed",
+  "targets": [
+    {
+      "name": "spine-c-debug",
+      "type": "library",
+      "enabled": true,
+      "buildCommand": "./build.sh",
+      "outputPath": "./build/libspine-c.a",
+      "watchPaths": [
+        "src/**/*.{c,cpp,h}",
+        "include/**/*.h",
+        "{CMakeLists.txt,CMakePresets.json}"
+      ],
+      "settlingDelay": 1000,
+      "debounceInterval": 3000,
+      "environment": {
+        "CMAKE_BUILD_TYPE": "Debug"
+      }
+    },
+    {
+      "name": "spine-c-release",
+      "type": "library",
+      "enabled": false,
+      "buildCommand": "./build.sh release",
+      "outputPath": "./build/libspine-c.a",
+      "watchPaths": [
+        "src/**/*.{c,cpp,h}",
+        "include/**/*.h",
+        "{CMakeLists.txt,CMakePresets.json}"
+      ],
+      "settlingDelay": 1000,
+      "debounceInterval": 3000,
+      "environment": {
+        "CMAKE_BUILD_TYPE": "Release"
+      }
+    },
+    {
+      "name": "headless-test",
+      "type": "executable",
+      "enabled": true,
+      "buildCommand": "./build.sh",
+      "outputPath": "./build/headless-test",
+      "watchPaths": [
+        "{src,include}/**/*.{c,cpp,h}",
+        "tests/headless-test.c",
+        "{CMakeLists.txt,CMakePresets.json}"
+      ],
+      "settlingDelay": 1000,
+      "debounceInterval": 3000,
+      "environment": {
+        "CMAKE_BUILD_TYPE": "Debug"
+      }
+    },
+    {
+      "name": "codegen",
+      "type": "custom",
+      "enabled": false,
+      "buildCommand": "./build.sh codegen",
+      "watchPaths": [
+        "codegen/src/**/*.ts",
+        "codegen/{package,tsconfig}.json",
+        "../spine-cpp/**/*.{h,cpp}"
+      ],
+      "settlingDelay": 2000,
+      "debounceInterval": 5000,
+      "config": {
+        "description": "Regenerate C bindings from C++ sources"
+      }
+    }
+  ],
+  "watchman": {
+    "useDefaultExclusions": true,
+    "excludeDirs": [
+      "build",
+      "poltergeist",
+      "tests/rust-wasm/target",
+      "codegen/{node_modules,dist}"
+    ],
+    "rules": [
+      {
+        "pattern": "**/{build,target}/**",
+        "action": "ignore",
+        "reason": "Build artifacts"
+      },
+      {
+        "pattern": "**/*.{o,a}",
+        "action": "ignore",
+        "reason": "Compiled artifacts"
+      }
+    ],
+    "maxFileEvents": 15000,
+    "recrawlThreshold": 5,
+    "settlingDelay": 1000
+  },
+  "buildScheduling": {
+    "parallelization": 2,
+    "prioritization": {
+      "enabled": true,
+      "focusDetectionWindow": 300000,
+      "priorityDecayTime": 1800000,
+      "buildTimeoutMultiplier": 2.5
+    }
+  },
+  "performance": {
+    "profile": "balanced",
+    "autoOptimize": true,
+    "metrics": {
+      "enabled": true,
+      "reportInterval": 300
+    }
+  },
+  "notifications": {
+    "enabled": true,
+    "buildStart": false,
+    "buildSuccess": true,
+    "buildFailed": true,
+    "successSound": "Glass",
+    "failureSound": "Basso"
+  },
+  "logging": {
+    "level": "info",
+    "file": ".poltergeist.log"
+  }
+}

@@ -1,0 +1,40 @@
+{
+  "version": "1.0",
+  "projectType": "cmake",
+  "targets": [
+    {
+      "name": "my-app",
+      "type": "cmake-executable",
+      "targetName": "my-app",
+      "generator": "Ninja",
+      "buildType": "Debug",
+      "parallel": true,
+      "watchPaths": [
+        "**/CMakeLists.txt",
+        "src/**/*.{cpp,h}",
+        "include/**/*.h",
+        "cmake/**/*.cmake"
+      ],
+      "settlingDelay": 1000
+    }
+  ],
+  "watchman": {
+    "useDefaultExclusions": true,
+    "excludeDirs": ["build", "_build", "out"],
+    "projectType": "cmake",
+    "maxFileEvents": 10000,
+    "recrawlThreshold": 5,
+    "settlingDelay": 1000
+  },
+  "notifications": {
+    "enabled": true,
+    "buildSuccess": true,
+    "buildFailed": true,
+    "successSound": "Glass",
+    "failureSound": "Basso"
+  },
+  "logging": {
+    "level": "info",
+    "file": ".poltergeist.log"
+  }
+}

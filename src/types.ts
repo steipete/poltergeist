@@ -19,13 +19,16 @@ export type TargetType =
   | 'framework'
   | 'test'
   | 'docker'
-  | 'custom';
+  | 'custom'
+  | 'cmake-executable'
+  | 'cmake-library'
+  | 'cmake-custom';
 
 // Base target interface
 export interface BaseTarget {
   name: string;
   type: TargetType;
-  enabled: boolean;
+  enabled?: boolean; // Defaults to true
   buildCommand?: string;
   watchPaths: string[];
   settlingDelay?: number;
@@ -93,6 +96,37 @@ export interface CustomTarget extends BaseTarget {
   config?: Record<string, unknown>;
 }
 
+// CMake-specific target types
+export interface CMakeExecutableTarget extends BaseTarget {
+  type: 'cmake-executable';
+  generator?: string;
+  buildType?: 'Debug' | 'Release' | 'RelWithDebInfo' | 'MinSizeRel';
+  cmakeArgs?: string[];
+  targetName: string; // CMake target name (may differ from Poltergeist name)
+  outputPath?: string;
+  parallel?: boolean;
+}
+
+export interface CMakeLibraryTarget extends BaseTarget {
+  type: 'cmake-library';
+  generator?: string;
+  buildType?: 'Debug' | 'Release' | 'RelWithDebInfo' | 'MinSizeRel';
+  cmakeArgs?: string[];
+  targetName: string;
+  libraryType: 'static' | 'shared';
+  outputPath?: string;
+  parallel?: boolean;
+}
+
+export interface CMakeCustomTarget extends BaseTarget {
+  type: 'cmake-custom';
+  generator?: string;
+  buildType?: 'Debug' | 'Release' | 'RelWithDebInfo' | 'MinSizeRel';
+  cmakeArgs?: string[];
+  targetName: string;
+  parallel?: boolean;
+}
+
 /**
  * Union type encompassing all supported target types.
  * Each target type has specific properties for its build requirements.
@@ -105,10 +139,13 @@ export type Target =
   | FrameworkTarget
   | TestTarget
   | DockerTarget
-  | CustomTarget;
+  | CustomTarget
+  | CMakeExecutableTarget
+  | CMakeLibraryTarget
+  | CMakeCustomTarget;
 
 // Project types for smart defaults
-export type ProjectType = 'swift' | 'node' | 'rust' | 'python' | 'mixed';
+export type ProjectType = 'swift' | 'node' | 'rust' | 'python' | 'cmake' | 'mixed';
 
 // Performance profiles
 export type PerformanceProfile = 'conservative' | 'balanced' | 'aggressive';
@@ -228,8 +265,19 @@ export interface PoltergeistConfig {
 // Zod schemas for validation
 export const BaseTargetSchema = z.object({
   name: z.string().min(1),
-  type: z.enum(['executable', 'app-bundle', 'library', 'framework', 'test', 'docker', 'custom']),
-  enabled: z.boolean(),
+  type: z.enum([
+    'executable',
+    'app-bundle',
+    'library',
+    'framework',
+    'test',
+    'docker',
+    'custom',
+    'cmake-executable',
+    'cmake-library',
+    'cmake-custom',
+  ]),
+  enabled: z.boolean().default(true),
   buildCommand: z.string().optional(),
   watchPaths: z.array(z.string()),
   settlingDelay: z.number().optional(),
@@ -290,6 +338,36 @@ export const CustomTargetSchema = BaseTargetSchema.extend({
   config: z.record(z.string(), z.any()).optional(),
 });
 
+export const CMakeExecutableTargetSchema = BaseTargetSchema.extend({
+  type: z.literal('cmake-executable'),
+  generator: z.string().optional(),
+  buildType: z.enum(['Debug', 'Release', 'RelWithDebInfo', 'MinSizeRel']).optional(),
+  cmakeArgs: z.array(z.string()).optional(),
+  targetName: z.string(),
+  outputPath: z.string().optional(),
+  parallel: z.boolean().optional(),
+});
+
+export const CMakeLibraryTargetSchema = BaseTargetSchema.extend({
+  type: z.literal('cmake-library'),
+  generator: z.string().optional(),
+  buildType: z.enum(['Debug', 'Release', 'RelWithDebInfo', 'MinSizeRel']).optional(),
+  cmakeArgs: z.array(z.string()).optional(),
+  targetName: z.string(),
+  libraryType: z.enum(['static', 'shared']),
+  outputPath: z.string().optional(),
+  parallel: z.boolean().optional(),
+});
+
+export const CMakeCustomTargetSchema = BaseTargetSchema.extend({
+  type: z.literal('cmake-custom'),
+  generator: z.string().optional(),
+  buildType: z.enum(['Debug', 'Release', 'RelWithDebInfo', 'MinSizeRel']).optional(),
+  cmakeArgs: z.array(z.string()).optional(),
+  targetName: z.string(),
+  parallel: z.boolean().optional(),
+});
+
 export const TargetSchema = z.discriminatedUnion('type', [
   ExecutableTargetSchema,
   AppBundleTargetSchema,
@@ -298,6 +376,9 @@ export const TargetSchema = z.discriminatedUnion('type', [
   TestTargetSchema,
   DockerTargetSchema,
   CustomTargetSchema,
+  CMakeExecutableTargetSchema,
+  CMakeLibraryTargetSchema,
+  CMakeCustomTargetSchema,
 ]);
 
 export const ExclusionRuleSchema = z.object({
@@ -319,7 +400,7 @@ export const PerformanceConfigSchema = z.object({
 export const WatchmanConfigSchema = z.object({
   useDefaultExclusions: z.boolean().default(true),
   excludeDirs: z.array(z.string()).default([]),
-  projectType: z.enum(['swift', 'node', 'rust', 'python', 'mixed']),
+  projectType: z.enum(['swift', 'node', 'rust', 'python', 'cmake', 'mixed']),
   maxFileEvents: z.number().default(10000),
   recrawlThreshold: z.number().default(5),
   settlingDelay: z.number().default(1000),
@@ -338,7 +419,7 @@ export const BuildSchedulingConfigSchema = z.object({
 
 export const PoltergeistConfigSchema = z.object({
   version: z.literal('1.0'),
-  projectType: z.enum(['swift', 'node', 'rust', 'python', 'mixed']),
+  projectType: z.enum(['swift', 'node', 'rust', 'python', 'cmake', 'mixed']),
   targets: z.array(TargetSchema),
   watchman: WatchmanConfigSchema,
   performance: PerformanceConfigSchema.optional(),

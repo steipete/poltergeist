@@ -15,11 +15,12 @@ import { WatchmanClient } from './watchman.js';
 export function createPoltergeist(
   config: PoltergeistConfig,
   projectRoot: string,
-  logger?: Logger
+  logger?: Logger,
+  configPath?: string
 ): Poltergeist {
   const actualLogger = logger || createLogger();
   const deps = createDefaultDependencies(projectRoot, actualLogger);
-  return new Poltergeist(config, projectRoot, actualLogger, deps);
+  return new Poltergeist(config, projectRoot, actualLogger, deps, configPath);
 }
 
 /**
@@ -29,9 +30,10 @@ export function createPoltergeistWithDeps(
   config: PoltergeistConfig,
   projectRoot: string,
   deps: PoltergeistDependencies,
-  logger: Logger
+  logger: Logger,
+  configPath?: string
 ): Poltergeist {
-  return new Poltergeist(config, projectRoot, logger, deps);
+  return new Poltergeist(config, projectRoot, logger, deps, configPath);
 }
 
 /**
