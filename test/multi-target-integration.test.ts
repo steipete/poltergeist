@@ -191,10 +191,16 @@ describe('Multi-Target Integration Tests', () => {
       // Both targets should rebuild with the shared file
       expect(harness.builderFactory.builders.get('backend')?.build).toHaveBeenCalledWith([
         'shared/types.ts',
-      ]);
+      ], expect.objectContaining({
+        captureLogs: true,
+        logFile: expect.stringContaining('backend-build.log')
+      }));
       expect(harness.builderFactory.builders.get('frontend')?.build).toHaveBeenCalledWith([
         'shared/types.ts',
-      ]);
+      ], expect.objectContaining({
+        captureLogs: true,
+        logFile: expect.stringContaining('frontend-build.log')
+      }));
     });
 
     it('should deduplicate builds when same file triggers multiple targets', async () => {

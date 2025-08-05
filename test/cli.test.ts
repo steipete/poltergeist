@@ -748,7 +748,7 @@ describe('CLI Commands', () => {
       const result = await runCLI(['logs']);
 
       expect(result.exitCode).toBe(0);
-      expect(result.stdout).toContain('Log viewing implementation needed');
+      expect(result.stdout).toContain('No logs found');
     });
 
     it('should fail when log file does not exist', async () => {

@@ -243,7 +243,10 @@ describe('Poltergeist', () => {
       await vi.advanceTimersByTimeAsync(100);
 
       // Should build after settling delay
-      expect(cliBuilder?.build).toHaveBeenCalledWith(['src/main.ts', 'src/utils.ts']);
+      expect(cliBuilder?.build).toHaveBeenCalledWith(['src/main.ts', 'src/utils.ts'], expect.objectContaining({
+        captureLogs: true,
+        logFile: expect.stringContaining('cli-build.log')
+      }));
     });
 
     it('should reset timer on subsequent file changes', async () => {
@@ -274,7 +277,10 @@ describe('Poltergeist', () => {
       }
 
       // Should build with both files
-      expect(cliBuilder?.build).toHaveBeenCalledWith(['src/main.ts', 'src/utils.ts']);
+      expect(cliBuilder?.build).toHaveBeenCalledWith(['src/main.ts', 'src/utils.ts'], expect.objectContaining({
+        captureLogs: true,
+        logFile: expect.stringContaining('cli-build.log')
+      }));
     });
 
     it('should ignore non-existent files', async () => {
@@ -294,7 +300,10 @@ describe('Poltergeist', () => {
       await vi.advanceTimersByTimeAsync(100);
 
       // Should only build with existing file
-      expect(cliBuilder?.build).toHaveBeenCalledWith(['src/exists.ts']);
+      expect(cliBuilder?.build).toHaveBeenCalledWith(['src/exists.ts'], expect.objectContaining({
+        captureLogs: true,
+        logFile: expect.stringContaining('cli-build.log')
+      }));
     });
 
     it('should ignore non-file changes', async () => {

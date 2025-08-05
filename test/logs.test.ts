@@ -271,9 +271,9 @@ describe('Logs Command', () => {
       expect(result.stdout).toContain('[test-target]');
       expect(result.stdout).not.toContain('[other-target]');
       
-      // Count the number of log entries (lines containing timestamps)
+      // Count the number of log entries (lines containing target markers)
       const logLines = result.stdout.split('\n').filter(line => 
-        line.includes('AM ') || line.includes('PM ')
+        line.includes('[test-target]')
       );
       expect(logLines.length).toBe(2);
     });

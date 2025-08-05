@@ -1,7 +1,7 @@
 {
   "name": "@steipete/poltergeist",
-  "version": "1.1.0",
-  "description": "The ghost that keeps your builds fresh - a universal file watcher with auto-rebuild for any language or build system. Testing both logging fixes!",
+  "version": "1.2.0",
+  "description": "The ghost that keeps your builds fresh - a universal file watcher with auto-rebuild for any language or build system",
   "keywords": [
     "build",
     "watchman",
