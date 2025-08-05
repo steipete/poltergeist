@@ -51,73 +51,120 @@ async function loadConfiguration(
 program
   .command('haunt')
   .alias('start')
-  .description('Start watching and auto-building your project')
+  .description('Start watching and auto-building your project (runs as daemon by default)')
   .option('-t, --target <name>', 'Target to build (omit to build all enabled targets)')
   .option('-c, --config <path>', 'Path to config file')
   .option('-v, --verbose', 'Enable verbose logging')
+  .option('-f, --foreground', 'Run in foreground (blocking mode)')
   .action(async (options) => {
-    console.log(chalk.gray('👻 [Poltergeist] Summoning Poltergeist to watch your project...'));
-
     const { config, projectRoot, configPath } = await loadConfiguration(options.config);
 
     // Validate target if specified
     if (options.target) {
       validateTarget(options.target, config);
-      console.log(chalk.gray(`👻 [Poltergeist] Building target: ${options.target}`));
     } else {
       const enabledTargets = config.targets.filter((t) => t.enabled);
       if (enabledTargets.length === 0) {
         console.error(chalk.red('No enabled targets found in configuration'));
         process.exit(1);
       }
-      console.log(
-        chalk.gray(`👻 [Poltergeist] Building ${enabledTargets.length} enabled target(s)`)
-      );
     }
 
-    // Create logger
     const logger = createLogger(
       config.logging?.file || '.poltergeist.log',
       config.logging?.level || 'info'
     );
 
-    try {
-      const poltergeist = createPoltergeist(config, projectRoot, logger, configPath);
-      await poltergeist.start(options.target);
-    } catch (error) {
-      console.error(chalk.red(`👻 [Poltergeist] Failed to start Poltergeist: ${error}`));
-      process.exit(1);
+    if (!options.foreground) {
+      // Daemon mode (default)
+      try {
+        const { DaemonManager } = await import('./daemon/daemon-manager.js');
+        const daemon = new DaemonManager(logger);
+        
+        // Check if already running
+        if (await daemon.isDaemonRunning(projectRoot)) {
+          console.log(chalk.yellow('👻 Poltergeist daemon is already running for this project'));
+          console.log(chalk.gray('Use "poltergeist status" to see details'));
+          console.log(chalk.gray('Use "poltergeist stop" to stop the daemon'));
+          process.exit(1);
+        }
+        
+        console.log(chalk.gray('👻 [Poltergeist] Starting daemon...'));
+        
+        // Start daemon
+        const pid = await daemon.startDaemon(config, {
+          projectRoot,
+          configPath,
+          target: options.target,
+          verbose: options.verbose
+        });
+        
+        console.log(chalk.green(`👻 Poltergeist daemon started (PID: ${pid})`));
+        console.log(chalk.gray('Use "poltergeist logs" to see output'));
+        console.log(chalk.gray('Use "poltergeist status" to check build status'));
+        console.log(chalk.gray('Use "poltergeist stop" to stop watching'));
+      } catch (error) {
+        console.error(chalk.red(`👻 [Poltergeist] Failed to start daemon: ${error}`));
+        process.exit(1);
+      }
+    } else {
+      // Foreground mode (traditional blocking behavior)
+      console.log(chalk.gray('👻 [Poltergeist] Running in foreground mode...'));
+      
+      if (options.target) {
+        console.log(chalk.gray(`👻 [Poltergeist] Building target: ${options.target}`));
+      } else {
+        const enabledTargets = config.targets.filter((t) => t.enabled);
+        console.log(
+          chalk.gray(`👻 [Poltergeist] Building ${enabledTargets.length} enabled target(s)`)
+        );
+      }
+
+      try {
+        const poltergeist = createPoltergeist(config, projectRoot, logger, configPath);
+        await poltergeist.start(options.target);
+      } catch (error) {
+        console.error(chalk.red(`👻 [Poltergeist] Failed to start Poltergeist: ${error}`));
+        process.exit(1);
+      }
     }
   });
 
 program
   .command('stop')
   .alias('rest')
-  .description('Stop Poltergeist')
-  .option('-t, --target <name>', 'Stop specific target only')
+  .description('Stop Poltergeist daemon')
   .option('-c, --config <path>', 'Path to config file')
   .action(async (options) => {
-    console.log(chalk.gray('👻 [Poltergeist] Putting Poltergeist to rest...'));
-
-    const { config, projectRoot, configPath } = await loadConfiguration(options.config);
+    const { config, projectRoot } = await loadConfiguration(options.config);
+    const logger = createLogger(config.logging?.level || 'info');
 
     try {
-      const logger = createLogger(config.logging?.level || 'info');
-      const poltergeist = createPoltergeist(config, projectRoot, logger, configPath);
-      await poltergeist.stop(options.target);
-      console.log(chalk.green('👻 [Poltergeist] Poltergeist is now at rest'));
+      const { DaemonManager } = await import('./daemon/daemon-manager.js');
+      const daemon = new DaemonManager(logger);
+      
+      // Check if daemon is running
+      if (!await daemon.isDaemonRunning(projectRoot)) {
+        console.log(chalk.yellow('👻 No Poltergeist daemon running for this project'));
+        process.exit(1);
+      }
+
+      console.log(chalk.gray('👻 [Poltergeist] Stopping daemon...'));
+      await daemon.stopDaemon(projectRoot);
+      console.log(chalk.green('👻 [Poltergeist] Daemon stopped successfully'));
     } catch (error) {
-      console.error(chalk.red(`👻 [Poltergeist] Failed to stop: ${error}`));
+      console.error(chalk.red(`👻 [Poltergeist] Failed to stop daemon: ${error}`));
       process.exit(1);
     }
   });
 
 program
   .command('restart')
-  .description('Restart Poltergeist (stop and start again)')
-  .option('-t, --target <name>', 'Restart specific target only')
+  .description('Restart Poltergeist daemon')
   .option('-c, --config <path>', 'Path to config file')
-  .option('-n, --no-cache', 'Clear Watchman cache on restart')
+  .option('-f, --foreground', 'Restart in foreground mode')
+  .option('-v, --verbose', 'Enable verbose logging')
+  .option('-t, --target <name>', 'Target to build')
   .action(async (options) => {
     console.log(chalk.gray('👻 [Poltergeist] Restarting...'));
 
@@ -125,51 +172,38 @@ program
     const logger = createLogger(config.logging?.level || 'info');
 
     try {
-      // First stop Poltergeist
-      console.log(chalk.gray('👻 [Poltergeist] Stopping current instance...'));
-      const poltergeist = createPoltergeist(config, projectRoot, logger, configPath);
-      await poltergeist.stop(options.target);
-
-      // Wait a moment to ensure clean shutdown
-      await new Promise((resolve) => setTimeout(resolve, 1000));
-
-      // Clear Watchman cache if requested
-      if (!options.cache) {
-        console.log(chalk.gray('👻 [Poltergeist] Clearing Watchman cache...'));
-        try {
-          const { execSync } = await import('child_process');
-          execSync('watchman watch-del-all', { stdio: 'ignore' });
-        } catch (error) {
-          logger.warn('Failed to clear Watchman cache:', error);
-        }
+      const { DaemonManager } = await import('./daemon/daemon-manager.js');
+      const daemon = new DaemonManager(logger);
+      
+      // Check if daemon is running
+      const isRunning = await daemon.isDaemonRunning(projectRoot);
+      
+      if (isRunning) {
+        console.log(chalk.gray('👻 [Poltergeist] Stopping current daemon...'));
+        await daemon.stopDaemon(projectRoot);
+        
+        // Wait a moment to ensure clean shutdown
+        await new Promise((resolve) => setTimeout(resolve, 1000));
       }
 
-      // Then start it again as a detached process
-      console.log(chalk.gray(`👻 [Poltergeist] Starting new instance... v${version}`));
-
-      // Build the start command
-      const startArgs = ['start'];
-      if (options.target) {
-        startArgs.push('--target', options.target);
+      if (options.foreground) {
+        // Restart in foreground mode
+        console.log(chalk.gray('👻 [Poltergeist] Starting in foreground mode...'));
+        const poltergeist = createPoltergeist(config, projectRoot, logger, configPath);
+        await poltergeist.start(options.target);
+      } else {
+        // Restart as daemon
+        console.log(chalk.gray('👻 [Poltergeist] Starting new daemon...'));
+        const pid = await daemon.startDaemon(config, {
+          projectRoot,
+          configPath,
+          target: options.target,
+          verbose: options.verbose
+        });
+        console.log(chalk.green(`👻 Poltergeist daemon restarted (PID: ${pid})`));
       }
-      if (options.config) {
-        startArgs.push('--config', options.config);
-      }
-
-      // Spawn detached process
-      const { spawn } = await import('child_process');
-      const child = spawn('node', [process.argv[1], ...startArgs], {
-        detached: true,
-        stdio: 'ignore',
-        cwd: process.cwd(),
-      });
-
-      // Detach the child process
-      child.unref();
-
-      console.log(chalk.green(`👻 [Poltergeist] Successfully restarted! (PID: ${child.pid})`));
     } catch (error) {
-      console.error(chalk.red(`👻 [Poltergeist] Failed to restart: ${error}`));
+      console.error(chalk.red(`👻 [Poltergeist] Restart failed: ${error}`));
       process.exit(1);
     }
   });

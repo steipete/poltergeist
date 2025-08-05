@@ -152,14 +152,20 @@ describe('CLI Xcode Helper Functions', () => {
     it('should detect build scripts correctly', () => {
       mkdirSync('scripts', { recursive: true });
       writeFileSync('scripts/build.sh', '#!/bin/bash\nxcodebuild');
-      require('fs').chmodSync('scripts/build.sh', '755');
+      
+      // Only test chmod on non-Windows platforms
+      if (process.platform !== 'win32') {
+        require('fs').chmodSync('scripts/build.sh', '755');
+      }
 
       expect(existsSync('scripts/build.sh')).toBe(true);
 
-      // Check if file is executable (has execute permission)
-      const stats = require('fs').statSync('scripts/build.sh');
-      const isExecutable = (stats.mode & 0o111) !== 0;
-      expect(isExecutable).toBe(true);
+      // Skip executable check on Windows (doesn't support Unix permissions)
+      if (process.platform !== 'win32') {
+        const stats = require('fs').statSync('scripts/build.sh');
+        const isExecutable = (stats.mode & 0o111) !== 0;
+        expect(isExecutable).toBe(true);
+      }
     });
 
     it('should handle iOS detection patterns', () => {

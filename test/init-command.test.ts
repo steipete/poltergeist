@@ -1,5 +1,5 @@
 import { execSync } from 'child_process';
-import { mkdtempSync, readFileSync, rmSync } from 'fs';
+import { existsSync, mkdtempSync, readFileSync, rmSync } from 'fs';
 import { tmpdir } from 'os';
 import { join } from 'path';
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
@@ -8,6 +8,22 @@ import type { PoltergeistConfig } from '../src/types';
 describe('poltergeist init - Smart Defaults', () => {
   let tempDir: string;
   const cli = join(__dirname, '..', 'dist', 'cli.js');
+
+  // Helper function to run init command and get config
+  function runInitAndGetConfig(args = '--auto'): PoltergeistConfig {
+    const result = execSync(`node "${cli}" init ${args}`, { 
+      stdio: 'pipe',
+      cwd: tempDir,
+      encoding: 'utf-8'
+    });
+
+    const configPath = join(tempDir, 'poltergeist.config.json');
+    if (!existsSync(configPath)) {
+      throw new Error(`Config file not created at ${configPath}. Output: ${result}`);
+    }
+
+    return JSON.parse(readFileSync(configPath, 'utf-8'));
+  }
 
   beforeEach(() => {
     // Create a temporary directory for each test
@@ -35,11 +51,7 @@ describe('poltergeist init - Smart Defaults', () => {
     });
 
     it('should generate minimal config without defaults', () => {
-      execSync(`node ${cli} init --auto`, { stdio: 'pipe' });
-
-      const config: PoltergeistConfig = JSON.parse(
-        readFileSync('poltergeist.config.json', 'utf-8')
-      );
+      const config = runInitAndGetConfig();
 
       // Should have essential fields
       expect(config.version).toBe('1.0');
@@ -120,11 +132,7 @@ let package = Package(
     });
 
     it('should generate minimal Swift config', () => {
-      execSync(`node ${cli} init --auto`, { stdio: 'pipe' });
-
-      const config: PoltergeistConfig = JSON.parse(
-        readFileSync('poltergeist.config.json', 'utf-8')
-      );
+      const config = runInitAndGetConfig();
 
       expect(config.projectType).toBe('swift');
       expect(config.targets[0].watchPaths).toContain('Sources/**/*.swift');
@@ -147,11 +155,7 @@ let package = Package(
       mkdirSync('MyApp', { recursive: true });
       writeFileSync('MyApp/AppDelegate.swift', 'import UIKit');
 
-      execSync(`node ${cli} init --auto`, { stdio: 'pipe' });
-
-      const config: PoltergeistConfig = JSON.parse(
-        readFileSync('poltergeist.config.json', 'utf-8')
-      );
+      const config = runInitAndGetConfig();
 
       expect(config.projectType).toBe('swift');
       expect(config.targets).toHaveLength(1);
@@ -168,11 +172,7 @@ let package = Package(
       mkdirSync('MyApp', { recursive: true });
       writeFileSync('MyApp/main.swift', 'print("Hello")');
 
-      execSync(`node ${cli} init --auto`, { stdio: 'pipe' });
-
-      const config: PoltergeistConfig = JSON.parse(
-        readFileSync('poltergeist.config.json', 'utf-8')
-      );
+      const config = runInitAndGetConfig();
 
       expect(config.projectType).toBe('swift');
       expect(config.targets[0].buildCommand).toContain('xcodebuild -workspace MyApp.xcworkspace');
@@ -183,11 +183,7 @@ let package = Package(
       writeFileSync('ios/MyApp-iOS.xcodeproj/project.pbxproj', 'mock pbxproj');
       writeFileSync('ios/Info.plist', '<plist></plist>');
 
-      execSync(`node ${cli} init --auto`, { stdio: 'pipe' });
-
-      const config: PoltergeistConfig = JSON.parse(
-        readFileSync('poltergeist.config.json', 'utf-8')
-      );
+      const config = runInitAndGetConfig();
 
       expect(config.targets[0].name).toBe('myapp-ios');
       expect(config.targets[0].enabled).toBe(false); // iOS disabled by default
@@ -200,13 +196,11 @@ let package = Package(
       mkdirSync('mac/scripts', { recursive: true });
       writeFileSync('mac/MyApp.xcodeproj/project.pbxproj', 'mock pbxproj');
       writeFileSync('mac/scripts/build.sh', '#!/bin/bash\nxcodebuild');
-      require('fs').chmodSync('mac/scripts/build.sh', '755');
+      if (process.platform !== 'win32') {
+        require('fs').chmodSync('mac/scripts/build.sh', '755');
+      }
 
-      execSync(`node ${cli} init --auto`, { stdio: 'pipe' });
-
-      const config: PoltergeistConfig = JSON.parse(
-        readFileSync('poltergeist.config.json', 'utf-8')
-      );
+      const config = runInitAndGetConfig();
 
       expect(config.targets[0].buildCommand).toBe(
         'cd mac && ./scripts/build.sh --configuration Debug'
@@ -225,11 +219,7 @@ let package = Package(
       mkdirSync('mac/App-Mac.xcodeproj', { recursive: true });
       writeFileSync('mac/App-Mac.xcodeproj/project.pbxproj', 'mock');
 
-      execSync(`node ${cli} init --auto`, { stdio: 'pipe' });
-
-      const config: PoltergeistConfig = JSON.parse(
-        readFileSync('poltergeist.config.json', 'utf-8')
-      );
+      const config = runInitAndGetConfig();
 
       expect(config.targets).toHaveLength(3);
       expect(config.targets.map((t) => t.name)).toContain('app');
@@ -254,11 +244,7 @@ let package = Package(
       mkdirSync('mac/VibeTunnel.xcodeproj', { recursive: true });
       writeFileSync('mac/VibeTunnel.xcodeproj/project.pbxproj', 'mock');
 
-      execSync(`node ${cli} init --auto`, { stdio: 'pipe' });
-
-      const config: PoltergeistConfig = JSON.parse(
-        readFileSync('poltergeist.config.json', 'utf-8')
-      );
+      const config = runInitAndGetConfig();
 
       // Should have unique names
       const targetNames = config.targets.map((t) => t.name);
@@ -269,11 +255,7 @@ let package = Package(
       mkdirSync('vibetunnel/VibeTunnel.xcodeproj', { recursive: true });
       writeFileSync('vibetunnel/VibeTunnel.xcodeproj/project.pbxproj', 'mock');
 
-      execSync(`node ${cli} init --auto`, { stdio: 'pipe' });
-
-      const config: PoltergeistConfig = JSON.parse(
-        readFileSync('poltergeist.config.json', 'utf-8')
-      );
+      const config = runInitAndGetConfig();
 
       expect(config.targets[0].bundleId).toBe('sh.vibetunnel.vibetunnel');
     });
@@ -282,11 +264,7 @@ let package = Package(
       mkdirSync('MyApp.xcodeproj', { recursive: true });
       writeFileSync('MyApp.xcodeproj/project.pbxproj', 'mock');
 
-      execSync(`node ${cli} init --auto`, { stdio: 'pipe' });
-
-      const config: PoltergeistConfig = JSON.parse(
-        readFileSync('poltergeist.config.json', 'utf-8')
-      );
+      const config = runInitAndGetConfig();
 
       // Check minimal config structure
       expect(config.version).toBe('1.0');
@@ -309,8 +287,9 @@ let package = Package(
     });
 
     it('should show minimal config without creating file', () => {
-      const output = execSync(`node ${cli} init --auto --dry-run`, {
+      const output = execSync(`node "${cli}" init --auto --dry-run`, {
         encoding: 'utf-8',
+        cwd: tempDir
       });
 
       // Should show preview
@@ -318,7 +297,8 @@ let package = Package(
       expect(output).toContain('poltergeist.config.json:');
 
       // Config should not be created
-      expect(() => readFileSync('poltergeist.config.json')).toThrow();
+      const configPath = join(tempDir, 'poltergeist.config.json');
+      expect(existsSync(configPath)).toBe(false);
 
       // Output should show minimal config
       expect(output).not.toContain('"enabled": true');

@@ -81,6 +81,7 @@ poltergeist haunt        # Runs as background daemon (default)
 poltergeist status       # Check what's running
 ```
 
+
 3. **Execute Fresh Builds** - Use `polter` to ensure you never run stale code:
 
 ```bash
@@ -89,6 +90,8 @@ polter my-app --help     # All arguments passed through
 ```
 
 That's it! Poltergeist now watches your files and rebuilds automatically.
+
+Each project gets its own background process, but `poltergeist status` shows everything through a shared state system in `/tmp/poltergeist/`. One project crashing never affects others.
 
 ## Table of Contents
 

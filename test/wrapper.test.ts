@@ -29,9 +29,14 @@ describe('Poltergeist Wrapper Script', () => {
     exitCode: number;
   }> {
     return new Promise((resolve, reject) => {
-      const child = spawn('npx', ['tsx', wrapperScript, ...args], {
+      // Use platform-specific command
+      const isWindows = process.platform === 'win32';
+      const npxCmd = isWindows ? 'npx.cmd' : 'npx';
+      
+      const child = spawn(npxCmd, ['tsx', wrapperScript, ...args], {
         stdio: 'pipe',
         timeout,
+        shell: isWindows, // Use shell on Windows
       });
 
       let stdout = '';
