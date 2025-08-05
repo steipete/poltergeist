@@ -89,7 +89,11 @@ Or manually create a `poltergeist.config.json` in your project root:
 2. Start watching:
 
 ```bash
+# Start as daemon (default - non-blocking)
 poltergeist haunt
+
+# Start in foreground (traditional blocking mode)
+poltergeist haunt --foreground
 ```
 
 ## Requirements
@@ -439,15 +443,42 @@ Includes 70+ optimized patterns: version control (`.git`), build artifacts (`nod
 
 ## Command Line Interface
 
+### Daemon Mode (New Default)
+
+Starting with version 1.4.0, Poltergeist runs as a daemon by default:
+
+- **Non-blocking**: Returns control to your terminal immediately
+- **Background operation**: Continues watching and building in the background
+- **Better for automation**: Easier integration with scripts and CI/CD
+- **Logs**: Output saved to log files, viewable with `poltergeist logs`
+
+```bash
+# Start daemon (default)
+poltergeist haunt
+
+# Check status
+poltergeist status
+
+# View logs
+poltergeist logs          # Show recent logs
+poltergeist logs -f       # Follow logs (like tail -f)
+
+# Stop daemon
+poltergeist stop
+
+# Run in foreground (traditional mode)
+poltergeist haunt --foreground
+```
+
 ### Commands
 
 | Command | Description |
 |---------|-------------|
-| `poltergeist haunt\|start [options]` | Start watching and auto-building your project |
-| `poltergeist stop\|rest [options]` | Stop Poltergeist |
-| `poltergeist restart [options]` | Restart Poltergeist (stop and start again) |
+| `poltergeist haunt\|start [options]` | Start watching and auto-building (daemon by default) |
+| `poltergeist stop\|rest [options]` | Stop the Poltergeist daemon |
+| `poltergeist restart [options]` | Restart Poltergeist daemon |
 | `poltergeist status [options]` | Check Poltergeist status |
-| `poltergeist logs [options]` | Show Poltergeist logs |
+| `poltergeist logs [options]` | Show daemon logs (`-f` to follow) |
 | `poltergeist list [options]` | List all configured targets |
 | `poltergeist clean [options]` | Clean up stale state files |
 
@@ -459,6 +490,7 @@ poltergeist haunt [options]
   -t, --target <name>   Target to build (omit to build all enabled targets)
   -c, --config <path>   Path to config file
   -v, --verbose         Enable verbose logging
+  -f, --foreground      Run in foreground (blocking mode)
 ```
 
 #### `stop` / `rest`
@@ -471,9 +503,9 @@ poltergeist stop [options]
 #### `restart`
 ```bash
 poltergeist restart [options]
-  -t, --target <name>   Restart specific target only
   -c, --config <path>   Path to config file
-  -n, --no-cache       Clear Watchman cache on restart
+  -f, --foreground      Restart in foreground mode
+  -v, --verbose         Enable verbose logging
 ```
 
 #### `status`
@@ -526,6 +558,32 @@ Target: poltergeist-cli
   Builder: Executable
   Output: /Users/steipete/Projects/poltergeist/dist/cli.js
 ```
+
+### Helpful Error Messages
+
+Poltergeist provides intelligent error messages with suggestions when you specify an invalid target:
+
+```bash
+$ poltergeist logs peekaboo-mac
+
+❌ Target 'peekaboo-mac' not found
+
+Available targets:
+  • poltergeist-cli (executable)
+  • poltergeist-mac (app-bundle) [disabled]
+  • test-runner (test)
+
+Did you mean 'poltergeist-mac'?
+
+Usage: npx poltergeist logs <target> [options]
+Example: npx poltergeist logs poltergeist-cli --tail 50
+```
+
+**Features:**
+- **Target listing**: Shows all configured targets with their types and status
+- **Fuzzy matching**: Suggests similar target names for typos
+- **Usage examples**: Provides correct command syntax with available targets
+- **Works across commands**: The same helpful errors appear for `logs`, `wait`, `status`, and `haunt` commands
 
 ### Configuration Changes
 
