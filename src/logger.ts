@@ -194,6 +194,7 @@ export function createLogger(logFile?: string, logLevel?: string): Logger {
             sinks: logFile ? ['console', 'file'] : ['console'],
           },
         ],
+        reset: true, // Allow reconfiguration for tests
       });
 
       const logger = getLogger(['poltergeist']);
