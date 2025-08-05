@@ -104,7 +104,7 @@ poltergeist haunt
   - **Windows**: [Chocolatey package](https://facebook.github.io/watchman/docs/install#windows) or manual install
 
 ### macOS App
-- **macOS 12.0+** (Monterey or later)
+- **macOS 14.0+** (Sonoma or later)
 - **Apple Silicon & Intel** both supported
 - **Automatic CLI integration** when installed
 
