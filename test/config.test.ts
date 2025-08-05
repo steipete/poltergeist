@@ -361,6 +361,115 @@ describe('ConfigLoader', () => {
       });
     });
 
+    it('should default notifications.enabled to true when not specified', () => {
+      const config = createValidConfig({
+        targets: [
+          {
+            name: 'cli',
+            type: 'executable',
+            enabled: true,
+            buildCommand: 'npm run build',
+            outputPath: './dist/cli',
+            watchPaths: ['src/**/*'],
+          },
+        ],
+        notifications: {
+          successSound: 'Glass',
+          failureSound: 'Basso',
+        },
+      });
+
+      writeFileSync(configPath, JSON.stringify(config, null, 2));
+      const loader = new ConfigLoader(configPath);
+      const loaded = loader.loadConfig();
+
+      expect(loaded.notifications).toBeDefined();
+      expect(loaded.notifications?.enabled).toBe(true);
+      expect(loaded.notifications?.successSound).toBe('Glass');
+      expect(loaded.notifications?.failureSound).toBe('Basso');
+    });
+
+    it('should allow minimal notifications config with just sounds', () => {
+      const config = createValidConfig({
+        targets: [
+          {
+            name: 'cli',
+            type: 'executable',
+            enabled: true,
+            buildCommand: 'npm run build',
+            outputPath: './dist/cli',
+            watchPaths: ['src/**/*'],
+          },
+        ],
+        notifications: {
+          successSound: 'Hero',
+        },
+      });
+
+      writeFileSync(configPath, JSON.stringify(config, null, 2));
+      const loader = new ConfigLoader(configPath);
+      const loaded = loader.loadConfig();
+
+      expect(loaded.notifications).toBeDefined();
+      expect(loaded.notifications?.enabled).toBe(true);
+      expect(loaded.notifications?.successSound).toBe('Hero');
+      expect(loaded.notifications?.failureSound).toBeUndefined();
+    });
+
+    it('should allow empty notifications config', () => {
+      const config = createValidConfig({
+        targets: [
+          {
+            name: 'cli',
+            type: 'executable',
+            enabled: true,
+            buildCommand: 'npm run build',
+            outputPath: './dist/cli',
+            watchPaths: ['src/**/*'],
+          },
+        ],
+        notifications: {},
+      });
+
+      writeFileSync(configPath, JSON.stringify(config, null, 2));
+      const loader = new ConfigLoader(configPath);
+      const loaded = loader.loadConfig();
+
+      expect(loaded.notifications).toBeDefined();
+      expect(loaded.notifications?.enabled).toBe(true);
+      expect(loaded.notifications?.successSound).toBeUndefined();
+      expect(loaded.notifications?.failureSound).toBeUndefined();
+    });
+
+    it('should respect explicit notifications.enabled = false', () => {
+      const config = createValidConfig({
+        targets: [
+          {
+            name: 'cli',
+            type: 'executable',
+            enabled: true,
+            buildCommand: 'npm run build',
+            outputPath: './dist/cli',
+            watchPaths: ['src/**/*'],
+          },
+        ],
+        notifications: {
+          enabled: false,
+          successSound: 'Glass',
+          failureSound: 'Basso',
+        },
+      });
+
+      writeFileSync(configPath, JSON.stringify(config, null, 2));
+      const loader = new ConfigLoader(configPath);
+      const loaded = loader.loadConfig();
+
+      expect(loaded.notifications).toBeDefined();
+      expect(loaded.notifications?.enabled).toBe(false);
+      expect(loaded.notifications?.successSound).toBe('Glass');
+      expect(loaded.notifications?.failureSound).toBe('Basso');
+    });
+
     it('should load logging config', () => {
       const config = createValidConfig({
         targets: [
@@ -418,6 +527,99 @@ describe('ConfigLoader', () => {
       const loader = new ConfigLoader(configPath);
 
       expect(() => loader.loadConfig()).toThrow();
+    });
+  });
+
+  describe('Minimal Config Validation', () => {
+    it('should accept minimal config with only required fields', () => {
+      const config = {
+        version: '1.0',
+        projectType: 'cmake',
+        targets: [
+          {
+            name: 'minimal',
+            type: 'cmake-custom',
+            targetName: 'minimal',
+            watchPaths: ['src/**/*.c'],
+          },
+        ],
+        watchman: {
+          projectType: 'cmake',
+          excludeDirs: ['build'],
+        },
+        notifications: {
+          successSound: 'Glass',
+          failureSound: 'Basso',
+        },
+      };
+
+      writeFileSync(configPath, JSON.stringify(config, null, 2));
+      const loader = new ConfigLoader(configPath);
+      const loaded = loader.loadConfig();
+
+      expect(loaded.projectType).toBe('cmake');
+      expect(loaded.targets).toHaveLength(1);
+      expect(loaded.targets[0].name).toBe('minimal');
+      expect(loaded.notifications?.enabled).toBe(true);
+    });
+
+    it('should accept config without watchman if defaults can be applied', () => {
+      const config = {
+        version: '1.0',
+        projectType: 'cmake',
+        targets: [
+          {
+            name: 'test',
+            type: 'cmake-custom',
+            targetName: 'test',
+            watchPaths: ['**/*.cmake'],
+          },
+        ],
+        watchman: {
+          projectType: 'cmake',
+        },
+      };
+
+      writeFileSync(configPath, JSON.stringify(config, null, 2));
+      const loader = new ConfigLoader(configPath);
+      const loaded = loader.loadConfig();
+
+      expect(loaded.watchman.projectType).toBe('cmake');
+      expect(loaded.watchman.useDefaultExclusions).toBe(true);
+      expect(loaded.watchman.excludeDirs).toEqual([]);
+      expect(loaded.watchman.maxFileEvents).toBe(10000);
+      expect(loaded.watchman.recrawlThreshold).toBe(5);
+      expect(loaded.watchman.settlingDelay).toBe(1000);
+    });
+
+    it('should accept config without notifications', () => {
+      const config = {
+        version: '1.0',
+        projectType: 'swift',
+        targets: [
+          {
+            name: 'app',
+            type: 'executable',
+            buildCommand: 'swift build',
+            outputPath: '.build/debug/app',
+            watchPaths: ['Sources/**/*.swift'],
+          },
+        ],
+        watchman: {
+          useDefaultExclusions: true,
+          excludeDirs: [],
+          projectType: 'swift',
+          maxFileEvents: 10000,
+          recrawlThreshold: 5,
+          settlingDelay: 1000,
+        },
+      };
+
+      writeFileSync(configPath, JSON.stringify(config, null, 2));
+      const loader = new ConfigLoader(configPath);
+      const loaded = loader.loadConfig();
+
+      expect(loaded.notifications).toBeUndefined();
     });
   });
 

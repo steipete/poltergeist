@@ -1,0 +1,9 @@
+build/
+CMakeFiles/
+CMakeCache.txt
+cmake_install.cmake
+Makefile
+*.a
+test_mathlib
+poltergeist.config.json
+.poltergeist.log

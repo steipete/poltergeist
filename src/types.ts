@@ -426,7 +426,7 @@ export const PoltergeistConfigSchema = z.object({
   buildScheduling: BuildSchedulingConfigSchema.optional(),
   notifications: z
     .object({
-      enabled: z.boolean(),
+      enabled: z.boolean().optional().default(true),
       successSound: z.string().optional(),
       failureSound: z.string().optional(),
     })

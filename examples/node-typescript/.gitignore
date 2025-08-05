@@ -1,0 +1,5 @@
+node_modules/
+dist/
+poltergeist.config.json
+.poltergeist.log
+npm-debug.log*

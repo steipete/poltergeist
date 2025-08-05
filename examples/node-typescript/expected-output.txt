@@ -1,0 +1,2 @@
+Hello from TypeScript! Built at:
+Node version: v

@@ -245,6 +245,13 @@ export class WatchmanConfigManager {
       const files = await fs.readdir(this.projectRoot);
       const fileSet = new Set(files);
 
+      // Check for Xcode projects first (highest priority for macOS/iOS development)
+      const hasXcodeProject = files.some(f => f.endsWith('.xcodeproj') || f.endsWith('.xcworkspace'));
+      if (hasXcodeProject) {
+        this.logger.debug('Detected Xcode project (.xcodeproj/.xcworkspace found)');
+        return 'swift';
+      }
+
       // Check for definitive indicators in order of specificity
       if (fileSet.has('Package.swift')) {
         this.logger.debug('Detected Swift project (Package.swift found)');
@@ -277,7 +284,7 @@ export class WatchmanConfigManager {
 
       // Check for multiple project types
       const indicators = [
-        fileSet.has('Package.swift') ? 'swift' : null,
+        hasXcodeProject || fileSet.has('Package.swift') ? 'swift' : null,
         fileSet.has('package.json') ? 'node' : null,
         fileSet.has('Cargo.toml') ? 'rust' : null,
         fileSet.has('pyproject.toml') || fileSet.has('requirements.txt') ? 'python' : null,

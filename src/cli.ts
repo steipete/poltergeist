@@ -4,7 +4,8 @@ import chalk from 'chalk';
 // Updated CLI for generic target system
 import { Command } from 'commander';
 import { createReadStream, existsSync, readFileSync, statSync, watchFile, writeFileSync } from 'fs';
-import { join } from 'path';
+import { readdir } from 'fs/promises';
+import path, { join } from 'path';
 import { createInterface } from 'readline';
 import packageJson from '../package.json' with { type: 'json' };
 // import { Poltergeist } from './poltergeist.js';
@@ -600,6 +601,7 @@ program
           projectType: 'cmake',
           targets,
           watchman: {
+            projectType: 'cmake',
             excludeDirs: [analysis.buildDirectory || 'build'],
           },
           notifications: {
@@ -616,16 +618,108 @@ program
             }
           });
         }
-        if (options.buildDir && options.buildDir !== 'build') {
-          config.watchman.excludeDirs = [options.buildDir];
-        }
       } catch (error) {
         console.error(chalk.red(`Failed to analyze CMake project: ${error}`));
         process.exit(1);
       }
     } else {
       // Generate config for other project types
-      config = generateDefaultConfig(projectType);
+      if (projectType === 'swift') {
+        // Look for Xcode projects
+        const xcodeProjects = await findXcodeProjects(projectRoot);
+        
+        if (xcodeProjects.length > 0) {
+          console.log(chalk.green(`✅ Found ${xcodeProjects.length} Xcode project(s)`));
+          
+          const targets: any[] = [];
+          
+          for (const project of xcodeProjects) {
+            const projectDir = path.dirname(project.path);
+            const projectName = path.basename(project.path, path.extname(project.path));
+            const relativeDir = path.relative(projectRoot, projectDir) || '.';
+            const isIOS = projectName.toLowerCase().includes('ios') || 
+                         project.path.toLowerCase().includes('/ios/');
+            
+            // Create a sanitized target name
+            const targetName = projectName.toLowerCase()
+              .replace(/[^a-z0-9]/g, '')
+              .replace(/ios$/, '') || 'app';
+            
+            const buildScript = existsSync(path.join(projectDir, 'scripts', 'build.sh'));
+            const buildCommand = buildScript ?
+              `cd ${relativeDir} && ./scripts/build.sh --configuration Debug` :
+              `cd ${relativeDir} && xcodebuild -project ${path.basename(project.path)} -scheme ${project.scheme || projectName} -configuration Debug build`;
+            
+            targets.push({
+              name: isIOS ? `${targetName}-ios` : targetName,
+              type: 'app-bundle',
+              enabled: !isIOS, // Enable macOS by default, disable iOS
+              buildCommand,
+              outputPath: `./${relativeDir}/build/Debug/${projectName}.app`,
+              bundleId: guessBundleId(projectName, project.path),
+              watchPaths: [
+                `${relativeDir}/**/*.swift`,
+                `${relativeDir}/**/*.xcodeproj/**`,
+                `${relativeDir}/**/*.xcconfig`,
+                `${relativeDir}/**/*.entitlements`,
+                `${relativeDir}/**/*.plist`
+              ],
+              settlingDelay: 1500,
+              debounceInterval: 3000,
+              environment: {
+                CONFIGURATION: 'Debug'
+              }
+            });
+          }
+          
+          config = {
+            version: '1.0',
+            projectType: 'swift',
+            targets,
+            watchman: {
+              useDefaultExclusions: true,
+              excludeDirs: ['node_modules', 'dist', 'build', 'DerivedData', '.git'],
+              projectType: 'swift',
+              maxFileEvents: 10000,
+              recrawlThreshold: 5,
+              settlingDelay: 1000
+            },
+            buildScheduling: {
+              parallelization: 2,
+              prioritization: {
+                enabled: true,
+                focusDetectionWindow: 300000,
+                priorityDecayTime: 1800000,
+                buildTimeoutMultiplier: 2.0
+              }
+            },
+            notifications: {
+              enabled: true,
+              buildStart: false,
+              buildSuccess: true,
+              buildFailed: true,
+              successSound: 'Glass',
+              failureSound: 'Basso'
+            },
+            performance: {
+              profile: 'balanced',
+              autoOptimize: true,
+              metrics: {
+                enabled: true,
+                reportInterval: 300
+              }
+            },
+            logging: {
+              level: 'info',
+              file: '.poltergeist.log'
+            }
+          };
+        } else {
+          config = generateDefaultConfig(projectType);
+        }
+      } else {
+        config = generateDefaultConfig(projectType);
+      }
     }
 
     const configJson = JSON.stringify(config, null, 2);
@@ -642,6 +736,59 @@ program
       console.log(chalk.gray('  2. Run "poltergeist haunt" to start watching'));
     }
   });
+
+// Helper function to find Xcode projects in directory
+async function findXcodeProjects(
+  rootPath: string,
+  maxDepth: number = 2
+): Promise<Array<{ path: string; type: 'xcodeproj' | 'xcworkspace'; scheme?: string }>> {
+  const projects: Array<{ path: string; type: 'xcodeproj' | 'xcworkspace'; scheme?: string }> = [];
+  
+  async function scan(dir: string, depth: number) {
+    if (depth > maxDepth) return;
+    
+    try {
+      const entries = await readdir(dir, { withFileTypes: true });
+      
+      for (const entry of entries) {
+        const fullPath = join(dir, entry.name);
+        
+        if (entry.isDirectory()) {
+          if (entry.name.endsWith('.xcworkspace')) {
+            projects.push({ path: fullPath, type: 'xcworkspace' });
+          } else if (entry.name.endsWith('.xcodeproj')) {
+            const scheme = entry.name.replace('.xcodeproj', '');
+            projects.push({ path: fullPath, type: 'xcodeproj', scheme });
+          } else if (!entry.name.startsWith('.') && entry.name !== 'node_modules') {
+            await scan(fullPath, depth + 1);
+          }
+        }
+      }
+    } catch (error) {
+      // Ignore permission errors
+    }
+  }
+  
+  await scan(rootPath, 0);
+  return projects;
+}
+
+// Helper to guess bundle ID from project
+function guessBundleId(projectName: string, projectPath: string): string {
+  // Common patterns
+  const cleanName = projectName.toLowerCase()
+    .replace(/[^a-z0-9]/g, '')
+    .replace(/ios$/, '');
+  
+  // Try to extract from common patterns
+  if (projectPath.includes('vibetunnel')) {
+    return projectPath.includes('ios') ? 
+      'sh.vibetunnel.vibetunnel.ios' : 
+      'sh.vibetunnel.vibetunnel';
+  }
+  
+  return `com.example.${cleanName}`;
+}
 
 // Helper function to generate default config for non-CMake projects
 function generateDefaultConfig(projectType: ProjectType): PoltergeistConfig {

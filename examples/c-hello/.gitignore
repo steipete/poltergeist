@@ -1,0 +1,4 @@
+hello
+*.o
+poltergeist.config.json
+.poltergeist.log

@@ -1,14 +1,38 @@
-# Poltergeist Configuration Examples
+# Poltergeist Examples
 
-This directory contains example configurations for different project types and development scenarios. Each example demonstrates best practices and common patterns for Poltergeist v1.0.
+This directory contains example configurations and minimal test projects for Poltergeist v1.0.
 
-## Quick Start
+## Test Projects (E2E Testing)
 
-1. Copy the relevant example configuration to your project root as `poltergeist.config.json`
-2. Customize the target names, paths, and commands for your specific project
-3. Run `poltergeist haunt` to start watching and building
+These are minimal, runnable projects for end-to-end testing:
 
-## Available Examples
+### c-hello/
+Simple C program demonstrating basic file watching and Makefile builds.
+```bash
+cd c-hello && make && ./hello
+```
+
+### node-typescript/
+TypeScript Node.js app testing npm build integration.
+```bash
+cd node-typescript && npm install && npm run build && npm start
+```
+
+### cmake-library/
+CMake static library with tests, demonstrating automatic target detection.
+```bash
+cd cmake-library && cmake -B build && cmake --build build && ./build/test_mathlib
+```
+
+## Running E2E Tests
+
+```bash
+./run-all-examples.sh  # Run all example projects
+```
+
+## Configuration Examples
+
+Copy these to your project as `poltergeist.config.json`:
 
 ### Swift Package Manager (`swift-spm.poltergeist.config.json`)
 

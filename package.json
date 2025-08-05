@@ -54,6 +54,8 @@
     "start": "node dist/cli.js",
     "test": "vitest",
     "test:windows-ci": "vitest --config vitest.config.windows-ci.ts",
+    "test:e2e": "npm run build && cd examples && ./run-all-examples.sh",
+    "test:all": "npm test && npm run test:e2e",
     "lint": "biome check src test",
     "lint:fix": "biome check src test --write",
     "format": "biome format src test --write",
