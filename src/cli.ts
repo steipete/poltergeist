@@ -934,6 +934,8 @@ program
       }
     }
 
+    // Target validation already done above
+
     const logFile = config.logging?.file || '.poltergeist.log';
     if (!existsSync(logFile)) {
       console.error(chalk.red(`No log file found: ${logFile}`));
