@@ -12,6 +12,10 @@
   A universal file watcher with auto-rebuild for any language or build system
 </div>
 
+Poltergeist is an AI-friendly universal file-watcher that auto-detects any project and rebuilds them as soon as a file has been changed.
+
+Works on macOS, Linux, and Windows, using Node and Watchman 
+
 ## Dual Platform Support
 
 Poltergeist offers both a **Node.js CLI** for universal development and a **native macOS app** for enhanced monitoring:
