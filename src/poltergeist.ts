@@ -483,19 +483,25 @@ export class Poltergeist {
       const stateFile = await this.stateManager.readState(targetName);
 
       if (state && stateFile) {
+        const targetConfig = this.config.targets.find((t) => t.name === targetName);
         status[targetName] = {
           status: state.watching ? 'watching' : 'idle',
           process: stateFile.process,
           lastBuild: stateFile.lastBuild || state.lastBuild,
           appInfo: stateFile.appInfo,
           pendingFiles: state.pendingFiles.size,
+          buildStats: stateFile.buildStats,
+          buildCommand: targetConfig?.buildCommand,
         };
       } else if (stateFile) {
+        const targetConfig = this.config.targets.find((t) => t.name === targetName);
         status[targetName] = {
           status: stateFile.process.isActive ? 'running' : 'stopped',
           process: stateFile.process,
           lastBuild: stateFile.lastBuild,
           appInfo: stateFile.appInfo,
+          buildStats: stateFile.buildStats,
+          buildCommand: targetConfig?.buildCommand,
         };
       } else {
         status[targetName] = { status: 'not found' };
@@ -515,6 +521,8 @@ export class Poltergeist {
             lastBuild: stateFile.lastBuild || state.lastBuild,
             appInfo: stateFile.appInfo,
             pendingFiles: state.pendingFiles.size,
+            buildStats: stateFile.buildStats,
+            buildCommand: target.buildCommand,
           };
         } else if (stateFile) {
           status[target.name] = {
@@ -524,6 +532,8 @@ export class Poltergeist {
             process: stateFile.process,
             lastBuild: stateFile.lastBuild,
             appInfo: stateFile.appInfo,
+            buildStats: stateFile.buildStats,
+            buildCommand: target.buildCommand,
           };
         } else {
           status[target.name] = {

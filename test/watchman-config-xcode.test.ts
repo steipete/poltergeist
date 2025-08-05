@@ -232,7 +232,7 @@ describe('WatchmanConfigManager - Xcode Project Detection', () => {
     });
 
     it('should validate patterns and warn about problematic ones', () => {
-      const warnSpy = vi.spyOn(logger, 'warn');
+      const warnSpy = jest.spyOn(logger, 'warn');
 
       manager.validateWatchPattern('.git/**');
       expect(warnSpy).toHaveBeenCalledWith(
@@ -248,7 +248,7 @@ describe('WatchmanConfigManager - Xcode Project Detection', () => {
 
   describe('Configuration validation', () => {
     it('should validate all watch patterns in config', () => {
-      const validateSpy = vi.spyOn(manager, 'validateWatchPattern');
+      const validateSpy = jest.spyOn(manager, 'validateWatchPattern');
 
       const config = {
         version: '1.0' as const,
@@ -296,7 +296,7 @@ describe('WatchmanConfigManager - Xcode Project Detection', () => {
             buildCommand: 'xcodebuild',
             outputPath: './build/App.app',
             bundleId: 'com.example.app',
-            watchPaths: ['', null as any], // Invalid patterns
+            watchPaths: ['', null as unknown as string], // Invalid patterns
             settlingDelay: 1000,
           },
         ],

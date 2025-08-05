@@ -114,7 +114,8 @@ describe('CLI Xcode Helper Functions', () => {
       ];
 
       // These would be actual tests if guessBundleId was exported
-      testCases.forEach(({ projectName, projectPath, expected }) => {
+      testCases.forEach(() => {
+        // Test cases would go here if guessBundleId was exported
         // const bundleId = guessBundleId(projectName, projectPath);
         // expect(bundleId).toBe(expected);
       });

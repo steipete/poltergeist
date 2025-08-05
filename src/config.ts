@@ -1,6 +1,7 @@
 // Configuration parser for the new generic target system
 import { existsSync, readFileSync } from 'fs';
 import { dirname, resolve } from 'path';
+import { ZodError } from 'zod';
 import { type PoltergeistConfig, PoltergeistConfigSchema } from './types.js';
 // import { Logger } from './logger.js';
 
@@ -155,12 +156,8 @@ export class ConfigLoader {
 
       return validated;
     } catch (error) {
-      if (error instanceof Error && error.name === 'ZodError') {
-        const zodError = error as any;
-        const issues =
-          zodError.errors?.map?.((e: any) => `  - ${e.path.join('.')}: ${e.message}`).join('\n') ||
-          zodError.message ||
-          'Unknown validation error';
+      if (error instanceof ZodError) {
+        const issues = error.issues.map((e) => `  - ${e.path.join('.')}: ${e.message}`).join('\n');
         throw new ConfigurationError(`Configuration validation failed:\n${issues}`);
       }
       throw error;

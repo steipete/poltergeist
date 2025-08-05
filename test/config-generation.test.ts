@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import type { PoltergeistConfig } from '../src/types';
+import type { CMakeExecutableTarget, PoltergeistConfig } from '../src/types';
 
 // Import the generateDefaultConfig function from cli.ts
 // Since it's not exported, we'll need to extract it or test via the CLI
@@ -105,7 +105,7 @@ describe('Config Generation - Smart Defaults', () => {
             targetName: 'my-app',
             buildType: 'Debug',
             watchPaths: ['**/CMakeLists.txt', 'src/**/*.{cpp,h}', 'cmake/**/*.cmake'],
-          } as any, // Using any to bypass strict typing for cmake-specific fields
+          } as CMakeExecutableTarget,
         ],
         watchman: {
           excludeDirs: ['build'],

@@ -492,7 +492,7 @@ export class CMakeProjectAnalyzer {
     });
   }
 
-  private generateTargetWatchPatterns(target: CMakeTarget, analysis: CMakeAnalysis): string[] {
+  generateTargetWatchPatterns(target: CMakeTarget, analysis: CMakeAnalysis): string[] {
     const patterns: string[] = ['**/CMakeLists.txt'];
 
     // Add source files for this target
@@ -502,8 +502,15 @@ export class CMakeProjectAnalyzer {
         patterns.push(`${dir}/**/*.{c,cpp,cxx,cc,h,hpp,hxx}`);
       });
     } else {
-      // Fallback to general patterns
-      patterns.push(...this.generateWatchPatterns(analysis));
+      // Fallback to general patterns with all C/C++ extensions
+      patterns.push('**/CMakeLists.txt');
+      patterns.push('cmake/**/*.cmake');
+      patterns.push('**/*.{c,cpp,cxx,cc,h,hpp,hxx}');
+
+      // Add specific source directories
+      for (const dir of analysis.sourceDirectories) {
+        patterns.push(`${dir}/**/*.{c,cpp,cxx,cc,h,hpp,hxx}`);
+      }
     }
 
     // Optimize patterns using brace expansion
@@ -514,92 +521,202 @@ export class CMakeProjectAnalyzer {
   /**
    * Optimize watch patterns by consolidating paths using brace expansion
    */
-  private optimizeWatchPatterns(patterns: string[]): string[] {
-    // First pass: group patterns by their structure
-    const groups = new Map<string, string[]>();
-    const standalone: string[] = [];
+  optimizeWatchPatterns(patterns: string[]): string[] {
+    // Remove duplicates first
+    const uniquePatterns = [...new Set(patterns)];
 
-    patterns.forEach((pattern) => {
-      // Skip patterns that already use brace expansion
-      if (pattern.includes('{')) {
-        standalone.push(pattern);
-        return;
-      }
-
-      // Try to find the common prefix and suffix
-      const parts = pattern.split('/');
-      let found = false;
-
-      // Look for patterns with the same structure but different directory names
-      for (let i = 1; i < parts.length - 1; i++) {
-        const prefix = parts.slice(0, i).join('/');
-        const suffix = parts.slice(i + 1).join('/');
-        const key = `${prefix}|${suffix}`;
-
-        // Check if this creates a meaningful group
-        if (suffix.includes('**') || suffix.includes('*')) {
-          if (!groups.has(key)) {
-            groups.set(key, []);
-          }
-          groups.get(key)?.push(parts[i]);
-          found = true;
-          break;
-        }
-      }
-
-      if (!found) {
-        standalone.push(pattern);
-      }
-    });
-
-    // Second pass: build optimized patterns
-    const optimized: string[] = [];
-
-    // Add standalone patterns
-    optimized.push(...standalone);
-
-    // Add grouped patterns
-    groups.forEach((dirs, key) => {
-      if (dirs.length === 1) {
-        // Only one directory, reconstruct the original
-        const [prefix, suffix] = key.split('|');
-        optimized.push(`${prefix}/${dirs[0]}/${suffix}`);
-      } else {
-        // Multiple directories, use brace expansion
-        const [prefix, suffix] = key.split('|');
-        const uniqueDirs = [...new Set(dirs)].sort();
-        optimized.push(`${prefix}/{${uniqueDirs.join(',')}}/${suffix}`);
-      }
-    });
-
-    // Remove duplicates that might have been covered by parent patterns
-    const filtered = optimized.filter((pattern, index) => {
-      // Check if this pattern is redundant
-      for (let i = 0; i < optimized.length; i++) {
-        if (i !== index && this.isPatternRedundant(pattern, optimized[i])) {
+    // First, remove redundant patterns (subdirectories covered by parent patterns)
+    const nonRedundant = uniquePatterns.filter((pattern, index) => {
+      for (let i = 0; i < uniquePatterns.length; i++) {
+        if (i !== index && this.isPatternRedundant(pattern, uniquePatterns[i])) {
           return false;
         }
       }
       return true;
     });
 
-    return filtered.sort();
+    // Separate patterns by type
+    const patternsWithBraces: string[] = [];
+    const nonWildcardPatterns: string[] = [];
+    const wildcardPatterns: string[] = [];
+
+    nonRedundant.forEach((pattern) => {
+      // Check if pattern has directory-level braces (not extension braces)
+      const hasDirectoryBraces = pattern
+        .split('/')
+        .some((part) => part.includes('{') && !part.startsWith('*.{'));
+
+      if (hasDirectoryBraces) {
+        patternsWithBraces.push(pattern);
+      } else if (!pattern.includes('*')) {
+        nonWildcardPatterns.push(pattern);
+      } else {
+        wildcardPatterns.push(pattern);
+      }
+    });
+
+    // Group patterns that can be optimized
+    const groups = new Map<string, Set<string>>();
+    const processed = new Set<string>();
+
+    // Find patterns that differ only in one directory part
+    for (let i = 0; i < wildcardPatterns.length; i++) {
+      if (processed.has(wildcardPatterns[i])) continue;
+
+      const pattern1 = wildcardPatterns[i];
+      const parts1 = pattern1.split('/');
+      const matches: string[] = [pattern1];
+
+      // Find other patterns that differ in only one part
+      for (let j = i + 1; j < wildcardPatterns.length; j++) {
+        if (processed.has(wildcardPatterns[j])) continue;
+
+        const pattern2 = wildcardPatterns[j];
+        const parts2 = pattern2.split('/');
+
+        // Patterns must have same number of parts
+        if (parts1.length !== parts2.length) continue;
+
+        // Find which part differs
+        let diffIndex = -1;
+        let allOthersSame = true;
+
+        for (let k = 0; k < parts1.length; k++) {
+          if (parts1[k] !== parts2[k]) {
+            if (diffIndex === -1) {
+              diffIndex = k;
+            } else {
+              // More than one difference
+              allOthersSame = false;
+              break;
+            }
+          }
+        }
+
+        // If exactly one part differs and it doesn't contain wildcards
+        if (
+          allOthersSame &&
+          diffIndex !== -1 &&
+          !parts1[diffIndex].includes('*') &&
+          !parts2[diffIndex].includes('*')
+        ) {
+          matches.push(pattern2);
+        }
+      }
+
+      // If we found matches, create a group
+      if (matches.length > 1) {
+        // Find the differing part index
+        const parts = matches[0].split('/');
+        let diffIndex = -1;
+
+        for (let k = 0; k < parts.length; k++) {
+          const values = new Set(matches.map((m) => m.split('/')[k]));
+          if (values.size > 1) {
+            diffIndex = k;
+            break;
+          }
+        }
+
+        if (diffIndex !== -1) {
+          const prefix = parts.slice(0, diffIndex).join('/');
+          const suffix = parts.slice(diffIndex + 1).join('/');
+          const key = `${prefix}|${suffix}`;
+
+          groups.set(key, new Set(matches.map((m) => m.split('/')[diffIndex])));
+          matches.forEach((m) => processed.add(m));
+        }
+      }
+    }
+
+    // Build result
+    const result: string[] = [];
+
+    // Add optimized patterns
+    groups.forEach((dirsSet, key) => {
+      const [prefix, suffix] = key.split('|');
+      const dirs = Array.from(dirsSet).sort();
+
+      let pattern: string;
+      if (prefix && suffix) {
+        pattern = `${prefix}/{${dirs.join(',')}}/${suffix}`;
+      } else if (prefix) {
+        pattern = `${prefix}/{${dirs.join(',')}}`;
+      } else if (suffix) {
+        pattern = `{${dirs.join(',')}}/${suffix}`;
+      } else {
+        pattern = `{${dirs.join(',')}}`;
+      }
+      result.push(pattern);
+    });
+
+    // Add unprocessed wildcard patterns
+    wildcardPatterns.forEach((pattern) => {
+      if (!processed.has(pattern)) {
+        result.push(pattern);
+      }
+    });
+
+    // Add back patterns with directory braces
+    result.push(...patternsWithBraces);
+
+    // Add non-wildcard patterns
+    result.push(...nonWildcardPatterns);
+
+    return result.sort();
   }
 
   /**
    * Check if pattern1 is redundant given pattern2 exists
    */
-  private isPatternRedundant(pattern1: string, pattern2: string): boolean {
-    // If pattern2 already covers pattern1's directory at a higher level
-    if (pattern2.includes('/**/*') && pattern1.includes('/**/*')) {
-      const base1 = pattern1.substring(0, pattern1.indexOf('/**/*'));
-      const base2 = pattern2.substring(0, pattern2.indexOf('/**/*'));
+  isPatternRedundant(pattern1: string, pattern2: string): boolean {
+    // Same patterns are not redundant to each other
+    if (pattern1 === pattern2) {
+      return false;
+    }
 
-      // If pattern1 is a subdirectory of pattern2
-      if (base1.startsWith(`${base2}/`)) {
+    // Extract base paths and extensions
+    const getPatternParts = (pattern: string) => {
+      // Find the last occurrence of common wildcard patterns
+      const wildcards = ['/**/*.', '/**/*', '/**/'];
+      for (const wc of wildcards) {
+        const idx = pattern.indexOf(wc);
+        if (idx !== -1) {
+          return {
+            base: pattern.substring(0, idx),
+            wildcard: wc,
+            extension: pattern.substring(idx + wc.length),
+          };
+        }
+      }
+      return null;
+    };
+
+    const parts1 = getPatternParts(pattern1);
+    const parts2 = getPatternParts(pattern2);
+
+    // Both must be wildcard patterns
+    if (!parts1 || !parts2) {
+      return false;
+    }
+
+    // Only consider a pattern redundant if pattern2 has no base (matches everything)
+    // and pattern1 has a specific base path
+    if (!parts2.base && parts1.base) {
+      // Check if extensions match
+      if (parts1.extension === parts2.extension) {
         return true;
       }
     }
+
+    // Check if pattern1 is a subdirectory of pattern2
+    if (parts1.base && parts2.base && parts1.base.startsWith(`${parts2.base}/`)) {
+      // If extensions match, pattern1 is redundant
+      if (parts1.extension === parts2.extension) {
+        return true;
+      }
+    }
+
     return false;
   }
 

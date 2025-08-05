@@ -18,6 +18,13 @@ export interface AppInfo {
   iconPath?: string;
 }
 
+export interface BuildStatistics {
+  successfulBuilds: Array<{ duration: number; timestamp: string }>;
+  averageDuration: number;
+  minDuration?: number;
+  maxDuration?: number;
+}
+
 export interface PoltergeistState {
   version: string;
   projectPath: string;
@@ -29,6 +36,7 @@ export interface PoltergeistState {
   process: ProcessInfo;
   lastBuild?: BuildStatus;
   appInfo?: AppInfo;
+  buildStats?: BuildStatistics;
 }
 
 export class StateManager implements IStateManager {
@@ -114,6 +122,38 @@ export class StateManager implements IStateManager {
     }
 
     state.lastBuild = buildStatus;
+
+    // Update build statistics for successful builds
+    if (buildStatus.status === 'success' && (buildStatus.duration || buildStatus.buildTime)) {
+      const duration = buildStatus.duration || buildStatus.buildTime || 0;
+
+      if (!state.buildStats) {
+        state.buildStats = {
+          successfulBuilds: [],
+          averageDuration: 0,
+        };
+      }
+
+      // Add this build to the history
+      state.buildStats.successfulBuilds.push({
+        duration,
+        timestamp: buildStatus.timestamp,
+      });
+
+      // Keep only the last 10 builds
+      if (state.buildStats.successfulBuilds.length > 10) {
+        state.buildStats.successfulBuilds = state.buildStats.successfulBuilds.slice(-10);
+      }
+
+      // Calculate statistics
+      const durations = state.buildStats.successfulBuilds.map((b) => b.duration);
+      state.buildStats.averageDuration = Math.round(
+        durations.reduce((a, b) => a + b, 0) / durations.length
+      );
+      state.buildStats.minDuration = Math.min(...durations);
+      state.buildStats.maxDuration = Math.max(...durations);
+    }
+
     await this.writeState(targetName);
   }
 

@@ -269,6 +269,13 @@ interface StatusObject {
     iconPath?: string;
   };
   pendingFiles?: number;
+  buildCommand?: string;
+  buildStats?: {
+    averageDuration: number;
+    minDuration?: number;
+    maxDuration?: number;
+    successfulBuilds?: Array<{ duration: number; timestamp: string }>;
+  };
 }
 
 function formatTargetStatus(name: string, status: unknown): void {
@@ -299,9 +306,32 @@ function formatTargetStatus(name: string, status: unknown): void {
   if (statusObj.lastBuild) {
     console.log(`  Last Build: ${new Date(statusObj.lastBuild.timestamp).toLocaleString()}`);
     console.log(`  Build Status: ${formatStatus(statusObj.lastBuild.status)}`);
+
+    // Show build command if building
+    if (statusObj.lastBuild.status === 'building' && statusObj.buildCommand) {
+      console.log(`  Command: ${statusObj.buildCommand}`);
+    }
+
     if (statusObj.lastBuild.duration) {
       console.log(`  Build Time: ${statusObj.lastBuild.duration}ms`);
     }
+
+    // Show elapsed time and estimate if building
+    if (statusObj.lastBuild.status === 'building') {
+      const elapsed = Date.now() - new Date(statusObj.lastBuild.timestamp).getTime();
+      const elapsedSec = Math.round(elapsed / 1000);
+      let timeInfo = `  Elapsed: ${elapsedSec}s`;
+
+      // Add estimate if we have build statistics
+      if (statusObj.buildStats && statusObj.buildStats.averageDuration) {
+        const avgSec = Math.round(statusObj.buildStats.averageDuration / 1000);
+        const remainingSec = Math.max(0, avgSec - elapsedSec);
+        timeInfo += ` / ~${avgSec}s (${remainingSec}s remaining)`;
+      }
+
+      console.log(timeInfo);
+    }
+
     if (statusObj.lastBuild.gitHash) {
       console.log(`  Git Hash: ${statusObj.lastBuild.gitHash}`);
     }
@@ -331,6 +361,20 @@ function formatTargetStatus(name: string, status: unknown): void {
   // Pending files
   if (statusObj.pendingFiles !== undefined && statusObj.pendingFiles > 0) {
     console.log(`  Pending Files: ${chalk.yellow(statusObj.pendingFiles)}`);
+  }
+
+  // Show agent instructions if not in TTY and building
+  if (!process.stdout.isTTY && statusObj.lastBuild?.status === 'building') {
+    console.log();
+    if (statusObj.buildStats && statusObj.buildStats.averageDuration) {
+      const avgSec = Math.round(statusObj.buildStats.averageDuration / 1000);
+      const recommendedTimeout = avgSec + 30; // Add 30s buffer
+      console.log(`Use 'poltergeist wait ${name}' (timeout: ${recommendedTimeout}s recommended)`);
+    } else {
+      console.log(`Use 'poltergeist wait ${name}'`);
+    }
+    console.log(`Or 'poltergeist logs ${name} -f' for detailed output.`);
+    console.log(`DO NOT run build commands manually unless build fails.`);
   }
 }
 
@@ -683,7 +727,7 @@ program
 
             // For iOS targets, add enabled: false
             if (isIOS) {
-              (target as any).enabled = false;
+              target.enabled = false;
             }
 
             targets.push(target);
@@ -825,15 +869,69 @@ function generateDefaultConfig(projectType: ProjectType): PoltergeistConfig {
 }
 
 program
-  .command('logs')
+  .command('logs [target]')
   .description('Show Poltergeist logs')
-  .option('-t, --target <name>', 'Show logs for specific target')
-  .option('-n, --lines <number>', 'Number of lines to show', '50')
+  .option('-t, --tail <number>', 'Number of lines to show (default: 100)')
   .option('-f, --follow', 'Follow log output')
   .option('-c, --config <path>', 'Path to config file')
   .option('--json', 'Output logs in JSON format')
-  .action(async (options) => {
-    const { config } = await loadConfiguration(options.config);
+  .action(async (targetName, options) => {
+    const { config, projectRoot } = await loadConfiguration(options.config);
+
+    // Handle smart defaults for log display
+    let logTarget = targetName;
+
+    if (!targetName) {
+      // No target specified - need to be smart about it
+      const logger = createLogger(config.logging?.level || 'info');
+      const poltergeist = createPoltergeist(config, projectRoot, logger, options.config || '');
+      const status = await poltergeist.getStatus();
+
+      // Find active or recent builds
+      const targetStatuses: Array<{ name: string; status: StatusObject }> = [];
+      for (const [name, targetStatus] of Object.entries(status)) {
+        if (name.startsWith('_')) continue;
+        targetStatuses.push({ name, status: targetStatus as StatusObject });
+      }
+
+      if (targetStatuses.length === 0) {
+        console.error(chalk.red('No targets found'));
+        process.exit(1);
+      } else if (targetStatuses.length === 1) {
+        // Single target, use it
+        logTarget = targetStatuses[0].name;
+      } else {
+        // Multiple targets - check for currently building ones
+        const buildingTargets = targetStatuses.filter(
+          (t) => t.status.lastBuild?.status === 'building'
+        );
+
+        if (buildingTargets.length === 1) {
+          // Single building target, use it
+          logTarget = buildingTargets[0].name;
+        } else if (buildingTargets.length > 1) {
+          // Multiple building targets
+          console.error(chalk.red('❌ Multiple targets available. Please specify:'));
+          for (const t of buildingTargets) {
+            console.error(`   - ${t.name} (currently building)`);
+          }
+          console.error(`   Usage: poltergeist logs <target>`);
+          process.exit(1);
+        } else {
+          // No building targets, show all available
+          console.error(chalk.red('❌ Multiple targets available. Please specify:'));
+          for (const t of targetStatuses) {
+            const lastBuild = t.status.lastBuild;
+            const buildInfo = lastBuild
+              ? `(last built ${new Date(lastBuild.timestamp).toLocaleString()})`
+              : '(never built)';
+            console.error(`   - ${t.name} ${buildInfo}`);
+          }
+          console.error(`   Usage: poltergeist logs <target>`);
+          process.exit(1);
+        }
+      }
+    }
 
     const logFile = config.logging?.file || '.poltergeist.log';
     if (!existsSync(logFile)) {
@@ -843,7 +941,14 @@ program
     }
 
     try {
-      await displayLogs(logFile, options);
+      // Use tail option or default to 100 lines
+      const lines = options.tail || '100';
+      await displayLogs(logFile, {
+        target: logTarget,
+        lines,
+        follow: options.follow,
+        json: options.json,
+      });
     } catch (error) {
       console.error(
         chalk.red(`Failed to read logs: ${error instanceof Error ? error.message : error}`)
@@ -851,6 +956,188 @@ program
       process.exit(1);
     }
   });
+
+program
+  .command('wait [target]')
+  .description('Wait for a build to complete')
+  .option('-c, --config <path>', 'Path to config file')
+  .option('--timeout <seconds>', 'Maximum time to wait', '300')
+  .option('--log-lines <number>', 'Number of log lines to show in TTY mode', '5')
+  .action(async (targetName, options) => {
+    const { config, projectRoot } = await loadConfiguration(options.config);
+    const logger = createLogger(config.logging?.level || 'info');
+    const timeout = Number.parseInt(options.timeout) * 1000;
+    const logLines = Number.parseInt(options.logLines);
+
+    try {
+      const poltergeist = createPoltergeist(config, projectRoot, logger, options.config || '');
+      const status = await poltergeist.getStatus();
+
+      // Find active builds
+      const activeBuilds: Array<{ name: string; status: any }> = [];
+      for (const [name, targetStatus] of Object.entries(status)) {
+        if (name.startsWith('_')) continue;
+        const statusObj = targetStatus as StatusObject;
+        if (statusObj.lastBuild?.status === 'building') {
+          activeBuilds.push({ name, status: statusObj });
+        }
+      }
+
+      // Determine which target to wait for
+      let targetToWait: string | undefined;
+      let targetStatus: StatusObject | undefined;
+
+      if (targetName) {
+        // Specific target requested
+        const statusObj = status[targetName] as StatusObject;
+        if (!statusObj) {
+          console.error(chalk.red(`Target '${targetName}' not found`));
+          process.exit(1);
+        }
+        if (statusObj.lastBuild?.status !== 'building') {
+          console.log(chalk.yellow(`Target '${targetName}' is not currently building`));
+          process.exit(0);
+        }
+        targetToWait = targetName;
+        targetStatus = statusObj;
+      } else if (activeBuilds.length === 0) {
+        console.log(chalk.yellow('No builds currently active'));
+        process.exit(0);
+      } else if (activeBuilds.length === 1) {
+        // Single active build, use it
+        targetToWait = activeBuilds[0].name;
+        targetStatus = activeBuilds[0].status;
+      } else {
+        // Multiple active builds, require target specification
+        console.error(chalk.red('❌ Multiple targets building. Please specify:'));
+        for (const build of activeBuilds) {
+          const cmd = build.status.buildCommand || 'unknown command';
+          const elapsed = Date.now() - new Date(build.status.lastBuild.timestamp).getTime();
+          const elapsedSec = Math.round(elapsed / 1000);
+          console.error(`   - ${build.name}: ${cmd} (${elapsedSec}s elapsed)`);
+        }
+        console.error(`   Usage: poltergeist wait <target>`);
+        process.exit(1);
+      }
+
+      // At this point targetToWait and targetStatus are guaranteed to be defined
+      if (!targetToWait || !targetStatus) {
+        // This should never happen due to the logic above, but TypeScript needs this
+        console.error(chalk.red('Internal error: target not properly selected'));
+        process.exit(1);
+      }
+
+      // Now wait for the build
+      const startTime = Date.now();
+      const buildCommand = targetStatus.buildCommand || 'build command';
+
+      if (process.stdout.isTTY) {
+        // TTY mode: show animation and live logs
+        console.log(chalk.blue(`🔨 Building ${targetToWait}...`));
+        console.log(`   Command: ${buildCommand}`);
+        console.log();
+
+        // TODO: Add spinner animation and live log streaming
+        await waitForBuildWithProgress(poltergeist, targetToWait, timeout, logLines);
+      } else {
+        // Non-TTY mode: minimal output for agents
+        console.log(`⏳ Waiting for '${targetToWait}' build...`);
+        console.log(`   Command: ${buildCommand}`);
+
+        const elapsed = Date.now() - new Date(targetStatus.lastBuild!.timestamp).getTime();
+        const elapsedSec = Math.round(elapsed / 1000);
+        let remainingInfo = '';
+
+        if (targetStatus.buildStats?.averageDuration) {
+          const avgSec = Math.round(targetStatus.buildStats.averageDuration / 1000);
+          const remainingSec = Math.max(0, avgSec - elapsedSec);
+          remainingInfo = `, ~${remainingSec}s remaining`;
+        }
+
+        console.log(`   Started: ${elapsedSec}s ago${remainingInfo}`);
+
+        // Wait for build completion
+        const result = await waitForBuildCompletion(poltergeist, targetToWait, timeout);
+
+        const totalTime = Math.round((Date.now() - startTime) / 1000);
+        if (result.success) {
+          console.log(`✅ Build completed successfully (${totalTime}s)`);
+          process.exit(0);
+        } else {
+          console.log(`❌ Build failed (${totalTime}s)`);
+          if (result.error) {
+            console.log(`   Error: ${result.error}`);
+          }
+          process.exit(1);
+        }
+      }
+    } catch (error) {
+      console.error(chalk.red(`Failed to wait for build: ${error}`));
+      process.exit(1);
+    }
+  });
+
+// Helper function to wait for build completion
+async function waitForBuildCompletion(
+  poltergeist: any,
+  targetName: string,
+  timeout: number
+): Promise<{ success: boolean; error?: string }> {
+  const startTime = Date.now();
+
+  while (Date.now() - startTime < timeout) {
+    const status = await poltergeist.getStatus(targetName);
+    const targetStatus = status[targetName] as StatusObject;
+
+    if (!targetStatus) {
+      return { success: false, error: 'Target disappeared' };
+    }
+
+    const buildStatus = targetStatus.lastBuild?.status;
+    if (buildStatus === 'success') {
+      return { success: true };
+    } else if (buildStatus === 'failure' || buildStatus === 'failed') {
+      return {
+        success: false,
+        error: targetStatus.lastBuild?.errorSummary || targetStatus.lastBuild?.error,
+      };
+    } else if (buildStatus !== 'building') {
+      // Build is no longer active
+      return { success: false, error: `Build ended with status: ${buildStatus}` };
+    }
+
+    // Wait a bit before checking again
+    await new Promise((resolve) => setTimeout(resolve, 1000));
+  }
+
+  return { success: false, error: 'Timeout exceeded' };
+}
+
+// Helper function for TTY mode with progress
+async function waitForBuildWithProgress(
+  poltergeist: any,
+  targetName: string,
+  timeout: number,
+  logLines: number
+): Promise<void> {
+  // TODO: Implement spinner animation and live log streaming
+  // For now, use simple polling
+  // logLines will be used when we implement live log streaming
+  void logLines; // Mark as intentionally unused for now
+
+  const result = await waitForBuildCompletion(poltergeist, targetName, timeout);
+
+  if (!result.success) {
+    console.error(chalk.red(`\n❌ Build failed`));
+    if (result.error) {
+      console.error(`   Error: ${result.error}`);
+    }
+    process.exit(1);
+  }
+
+  console.log(chalk.green(`\n✅ Build completed successfully`));
+  process.exit(0);
+}
 
 program
   .command('list')
