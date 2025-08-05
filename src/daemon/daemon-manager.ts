@@ -6,6 +6,7 @@ import { dirname, join, sep } from 'path';
 import type { Logger } from '../logger.js';
 import type { PoltergeistConfig } from '../types.js';
 import { FileSystemUtils } from '../utils/filesystem.js';
+import { ProcessManager } from '../utils/process-manager.js';
 
 export interface DaemonInfo {
   pid: number;
@@ -68,10 +69,9 @@ export class DaemonManager {
       const info: DaemonInfo = JSON.parse(content);
 
       // Check if process is actually running
-      try {
-        process.kill(info.pid, 0); // Signal 0 = check if process exists
+      if (ProcessManager.isProcessAlive(info.pid)) {
         return true;
-      } catch {
+      } else {
         // Process doesn't exist, clean up stale info file
         await this.cleanupDaemonInfo(projectPath);
         return false;
@@ -97,10 +97,9 @@ export class DaemonManager {
       const info: DaemonInfo = JSON.parse(content);
 
       // Verify process is running
-      try {
-        process.kill(info.pid, 0);
+      if (ProcessManager.isProcessAlive(info.pid)) {
         return info;
-      } catch {
+      } else {
         await this.cleanupDaemonInfo(projectPath);
         return null;
       }
@@ -245,11 +244,10 @@ export class DaemonManager {
     const startTime = Date.now();
 
     while (Date.now() - startTime < timeout) {
-      try {
-        process.kill(pid, 0);
+      if (ProcessManager.isProcessAlive(pid)) {
         // Process still exists, wait a bit
         await new Promise((resolve) => setTimeout(resolve, 100));
-      } catch {
+      } else {
         // Process no longer exists
         return;
       }

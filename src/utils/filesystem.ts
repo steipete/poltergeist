@@ -60,17 +60,6 @@ export class FileSystemUtils {
     return join(FileSystemUtils.getStateDirectory(), fileName);
   }
 
-  /**
-   * Check if a process is still alive by sending signal 0
-   */
-  public static isProcessAlive(pid: number): boolean {
-    try {
-      process.kill(pid, 0);
-      return true;
-    } catch {
-      return false;
-    }
-  }
 
   /**
    * Safely read a JSON file with error handling

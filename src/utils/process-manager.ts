@@ -62,11 +62,30 @@ export class ProcessManager {
    * Check if a process is still alive by sending signal 0
    */
   public static isProcessAlive(pid: number): boolean {
-    try {
-      process.kill(pid, 0);
-      return true;
-    } catch {
-      return false;
+    if (process.platform === 'win32') {
+      // On Windows, process.kill(pid, 0) doesn't work reliably
+      // Use a Windows-specific approach
+      try {
+        const { execSync } = require('child_process');
+        // Check if process exists using tasklist
+        const output = execSync(`tasklist /FI "PID eq ${pid}" /FO CSV /NH`, {
+          encoding: 'utf8',
+          windowsHide: true,
+          stdio: ['ignore', 'pipe', 'ignore'], // Suppress stderr
+        });
+        // If the output contains the PID, the process exists
+        return output.includes(pid.toString());
+      } catch {
+        return false;
+      }
+    } else {
+      // On Unix, signal 0 checks if process exists
+      try {
+        process.kill(pid, 0);
+        return true;
+      } catch {
+        return false;
+      }
     }
   }
 
