@@ -357,7 +357,11 @@ export class Poltergeist {
     state.pendingFiles.clear();
 
     try {
-      const status = await state.builder.build(changedFiles);
+      const buildOptions = {
+        captureLogs: true,
+        logFile: `/tmp/poltergeist/${state.target.name}-build.log`
+      };
+      const status = await state.builder.build(changedFiles, buildOptions);
       state.lastBuild = status;
 
       // Send notification

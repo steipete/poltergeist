@@ -224,10 +224,16 @@ export class IntelligentBuildQueue {
    * Execute the actual build
    */
   private async executeBuild(request: QueuedBuild): Promise<BuildStatus> {
-    const { builder, triggeringFiles } = request;
+    const { builder, triggeringFiles, target } = request;
+
+    // Build options for log capture
+    const buildOptions = {
+      captureLogs: true,
+      logFile: `/tmp/poltergeist/${target.name}-build.log`
+    };
 
     // Execute the build
-    return await builder.build(triggeringFiles);
+    return await builder.build(triggeringFiles, buildOptions);
   }
 
   /**

@@ -1,9 +1,16 @@
 // Base builder class for all target types
 import { type ChildProcess, execSync, spawn } from 'child_process';
+import { createWriteStream, mkdirSync } from 'fs';
+import { dirname } from 'path';
 import type { Logger } from '../logger.js';
 import type { StateManager } from '../state.js';
 import type { BuildStatus, Target } from '../types.js';
 import { BuildStatusManager } from '../utils/build-status-manager.js';
+
+export interface BuildOptions {
+  captureLogs?: boolean;
+  logFile?: string;
+}
 
 export abstract class BaseBuilder<T extends Target = Target> {
   protected target: T;
@@ -19,7 +26,7 @@ export abstract class BaseBuilder<T extends Target = Target> {
     this.stateManager = stateManager;
   }
 
-  public async build(changedFiles: string[]): Promise<BuildStatus> {
+  public async build(changedFiles: string[], options: BuildOptions = {}): Promise<BuildStatus> {
     this.logger.info(`[${this.target.name}] Building with ${changedFiles.length} changed file(s)`);
 
     // Check if already building using state manager
@@ -48,7 +55,7 @@ export abstract class BaseBuilder<T extends Target = Target> {
       await this.preBuild(changedFiles);
 
       // Execute build command
-      await this.executeBuild();
+      await this.executeBuild(options);
 
       // Post-build hook
       await this.postBuild();
@@ -105,7 +112,7 @@ export abstract class BaseBuilder<T extends Target = Target> {
     return this.target.buildCommand || '';
   }
 
-  protected async executeBuild(): Promise<void> {
+  protected async executeBuild(options: BuildOptions = {}): Promise<void> {
     return new Promise((resolve, reject) => {
       const command = this.getExecutionCommand();
       if (!command) {
@@ -118,14 +125,46 @@ export abstract class BaseBuilder<T extends Target = Target> {
         ...this.target.environment,
       };
 
+      // Determine stdio configuration based on log capture option
+      let stdio: any = 'inherit';
+      let logStream: any = null;
+      
+      if (options.captureLogs && options.logFile) {
+        // Create log directory if it doesn't exist
+        const logDir = dirname(options.logFile);
+        mkdirSync(logDir, { recursive: true });
+        
+        // Create write stream for log file
+        logStream = createWriteStream(options.logFile, { flags: 'w' });
+        
+        // Capture stdout and stderr but keep stdin inherited
+        stdio = ['inherit', 'pipe', 'pipe'];
+      }
+
       this.currentProcess = spawn(command, {
         cwd: this.projectRoot,
         env,
         shell: true,
-        stdio: 'inherit',
+        stdio,
       });
 
+      // If capturing logs, pipe stdout and stderr to both log file and console
+      if (options.captureLogs && logStream && this.currentProcess.stdout && this.currentProcess.stderr) {
+        this.currentProcess.stdout.on('data', (data) => {
+          logStream.write(data);
+          process.stdout.write(data); // Also write to console
+        });
+        
+        this.currentProcess.stderr.on('data', (data) => {
+          logStream.write(data);
+          process.stderr.write(data); // Also write to console
+        });
+      }
+
       this.currentProcess.on('close', (code) => {
+        if (logStream) {
+          logStream.end();
+        }
         this.currentProcess = undefined;
         if (code === 0) {
           resolve();
@@ -135,6 +174,9 @@ export abstract class BaseBuilder<T extends Target = Target> {
       });
 
       this.currentProcess.on('error', (error) => {
+        if (logStream) {
+          logStream.end();
+        }
         this.currentProcess = undefined;
         reject(error);
       });

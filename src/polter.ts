@@ -13,9 +13,9 @@
 import chalk from 'chalk';
 import { spawn } from 'child_process';
 import { Command } from 'commander';
-import { existsSync } from 'fs';
+import { existsSync, readFileSync } from 'fs';
 import ora from 'ora';
-import { resolve as resolvePath } from 'path';
+import { resolve as resolvePath, join } from 'path';
 import type { PoltergeistState } from './state.js';
 import type { Target } from './types.js';
 import { BuildStatusManager } from './utils/build-status-manager.js';
@@ -25,6 +25,23 @@ import { FileSystemUtils } from './utils/filesystem.js';
 interface LogOptions {
   showLogs: boolean;
   logLines: number;
+}
+
+/**
+ * Read the last N lines from a file
+ */
+function readLastLines(filePath: string, lines: number): string[] {
+  try {
+    if (!existsSync(filePath)) {
+      return [];
+    }
+    
+    const content = readFileSync(filePath, 'utf-8');
+    const allLines = content.trim().split('\n');
+    return allLines.slice(-lines);
+  } catch (error) {
+    return [];
+  }
 }
 
 /**
@@ -103,22 +120,23 @@ async function waitForBuildCompletion(
   // Start spinner (automatically handles TTY detection and cursor hiding)
   spinner.start();
 
+  // Determine log file path
+  const logFile = join('/tmp/poltergeist', `${target.name}-build.log`);
+
   // Update elapsed time and build logs periodically
   const timeInterval = setInterval(() => {
     const elapsed = Date.now() - startTime;
     
     if (logOptions.showLogs) {
-      // TODO: Replace with actual log tailing
-      const mockLogs = [
-        '[INFO] Compiling TypeScript files...',
-        '[INFO] Processing src/polter.ts',
-        '[WARN] Unused import in utils.ts',
-        '[INFO] Generating type definitions',
-        '[INFO] Build in progress...'
-      ].slice(-logOptions.logLines);
+      // Read actual log file
+      const logLines = readLastLines(logFile, logOptions.logLines);
       
-      const logText = mockLogs.map(line => `│ ${line}`).join('\n');
-      spinner.text = `Build in progress... ${Math.round(elapsed / 100) / 10}s\n${logText}`;
+      if (logLines.length > 0) {
+        const logText = logLines.map(line => `│ ${line.trim()}`).join('\n');
+        spinner.text = `Build in progress... ${Math.round(elapsed / 100) / 10}s\n${logText}`;
+      } else {
+        spinner.text = `Build in progress... ${Math.round(elapsed / 100) / 10}s`;
+      }
     } else {
       spinner.text = `Build in progress... ${Math.round(elapsed / 100) / 10}s`;
     }
@@ -355,6 +373,70 @@ function executeTarget(target: Target, projectRoot: string, args: string[]): Pro
 }
 
 /**
+ * Wrapper that handles default target selection
+ */
+async function runWrapperWithDefaults(
+  targetName: string | undefined,
+  args: string[],
+  options: {
+    timeout: number;
+    force: boolean;
+    noWait: boolean;
+    verbose: boolean;
+    showLogs: boolean;
+    logLines: number;
+  }
+) {
+  // If no target specified, try to find the first configured executable target
+  if (!targetName) {
+    try {
+      const discovery = await ConfigurationManager.discoverAndLoadConfig();
+      if (!discovery) {
+        console.error(chalk.red('❌ No poltergeist.config.json found'));
+        console.error(chalk.yellow('💡 Run this command from within a Poltergeist-managed project'));
+        console.error(chalk.gray('\nTo get started with Poltergeist:'));
+        console.error(chalk.gray('   • Run: poltergeist init'));
+        console.error(chalk.gray('   • Or create a poltergeist.config.json file'));
+        console.error(chalk.gray('   • Then use: poltergeist start'));
+        process.exit(1);
+      }
+
+      const { config } = discovery;
+      const executableTargets = ConfigurationManager.getExecutableTargets(config);
+
+      if (executableTargets.length === 0) {
+        console.error(chalk.red('❌ No executable targets configured'));
+        console.error(chalk.yellow('💡 Configure an executable target in poltergeist.config.json'));
+        console.error(chalk.gray('\nExample configuration:'));
+        console.error(chalk.gray('   {'));
+        console.error(chalk.gray('     "targets": ['));
+        console.error(chalk.gray('       {'));
+        console.error(chalk.gray('         "name": "my-app",'));
+        console.error(chalk.gray('         "type": "executable",'));
+        console.error(chalk.gray('         "enabled": true,'));
+        console.error(chalk.gray('         "buildCommand": "npm run build",'));
+        console.error(chalk.gray('         "outputPath": "./dist/app.js",'));
+        console.error(chalk.gray('         "watchPaths": ["src/**/*.ts"]'));
+        console.error(chalk.gray('       }'));
+        console.error(chalk.gray('     ]'));
+        console.error(chalk.gray('   }'));
+        console.error(chalk.gray('\nThen run: polter my-app'));
+        process.exit(1);
+      }
+
+      targetName = executableTargets[0].name;
+      console.log(chalk.blue(`🎯 Using default target: ${targetName}`));
+    } catch (error) {
+      console.error(chalk.red('❌ Failed to load configuration'));
+      console.error(chalk.red(`   ${error instanceof Error ? error.message : error}`));
+      process.exit(1);
+    }
+  }
+
+  await runWrapper(targetName, args, options);
+}
+
+/**
  * Main pgrun execution logic
  */
 async function runWrapper(
@@ -532,7 +614,7 @@ program
   .option('--no-logs', 'Disable build log streaming during progress')
   .option('--log-lines <number>', 'Number of log lines to show', '5')
   .allowUnknownOption()
-  .action(async (target: string, args: string[], options) => {
+  .action(async (target: string | undefined, args: string[], options) => {
     const parsedOptions = {
       timeout: Number.parseInt(options.timeout, 10),
       force: options.force,
@@ -542,7 +624,7 @@ program
       logLines: Number.parseInt(options.logLines, 10),
     };
 
-    await runWrapper(target, args, parsedOptions);
+    await runWrapperWithDefaults(target, args, parsedOptions);
   });
 
 // Handle unhandled promise rejections
