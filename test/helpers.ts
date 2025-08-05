@@ -119,6 +119,7 @@ export function createMockBuilder(
     validate: vi.fn().mockResolvedValue(undefined),
     stop: vi.fn(),
     getOutputInfo: vi.fn().mockReturnValue(`Built ${targetName}`),
+    getProjectRoot: vi.fn().mockReturnValue('/test/project'),
     // Add required properties from BaseBuilder
     target: { name: targetName } as Target,
     projectRoot: '/test/project',
@@ -160,6 +161,7 @@ export function createControllableMockBuilder(targetName: string): {
     validate: vi.fn().mockResolvedValue(undefined),
     stop: vi.fn(),
     getOutputInfo: vi.fn().mockReturnValue(`Built ${targetName}`),
+    getProjectRoot: vi.fn().mockReturnValue('/test/project'),
     target: { name: targetName } as Target,
     projectRoot: '/test/project',
     logger: createMockLogger(),
