@@ -244,14 +244,14 @@ export interface PoltergeistConfig {
   /** Array of build targets to watch and build */
   targets: Target[];
   /** Watchman file watching configuration */
-  watchman: WatchmanConfig;
+  watchman?: WatchmanConfig;
   /** Performance optimization settings */
   performance?: PerformanceConfig;
   /** Build queue and prioritization settings */
   buildScheduling?: BuildSchedulingConfig;
   /** macOS notification preferences */
   notifications?: {
-    enabled: boolean;
+    enabled?: boolean;
     successSound?: string;
     failureSound?: string;
   };
@@ -421,7 +421,7 @@ export const PoltergeistConfigSchema = z.object({
   version: z.literal('1.0'),
   projectType: z.enum(['swift', 'node', 'rust', 'python', 'cmake', 'mixed']),
   targets: z.array(TargetSchema),
-  watchman: WatchmanConfigSchema,
+  watchman: WatchmanConfigSchema.optional(),
   performance: PerformanceConfigSchema.optional(),
   buildScheduling: BuildSchedulingConfigSchema.optional(),
   notifications: z

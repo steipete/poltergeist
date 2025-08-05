@@ -428,7 +428,14 @@ export class WatchmanConfigManager {
    */
   async generateWatchmanConfig(config: PoltergeistConfig): Promise<Record<string, unknown>> {
     const projectType = config.projectType;
-    const watchmanConfig = config.watchman;
+    const watchmanConfig = config.watchman || {
+      useDefaultExclusions: true,
+      excludeDirs: [],
+      projectType: config.projectType,
+      maxFileEvents: 10000,
+      recrawlThreshold: 5,
+      settlingDelay: 1000,
+    };
     const performanceProfile = config.performance?.profile || 'balanced';
 
     // Get optimized exclusions
@@ -493,7 +500,7 @@ export class WatchmanConfigManager {
     }
 
     // Validate exclusion rules
-    if (config.watchman.rules) {
+    if (config.watchman?.rules) {
       for (const rule of config.watchman.rules) {
         this.validateWatchPattern(rule.pattern);
       }
@@ -565,7 +572,7 @@ export class WatchmanConfigManager {
     const exclusions = this.getOptimizedExclusions(
       config.projectType,
       config.performance?.profile || 'balanced',
-      config.watchman.excludeDirs
+      config.watchman?.excludeDirs || []
     );
 
     // Limit subscription exclusions to prevent overly complex expressions
@@ -612,8 +619,8 @@ export class WatchmanConfigManager {
     const totalExclusions = Array.isArray(watchmanConfig.ignore_dirs)
       ? watchmanConfig.ignore_dirs.length
       : 0;
-    const customExclusions = config.watchman.excludeDirs.length;
-    const ruleExclusions = config.watchman.rules?.filter((r) => r.enabled !== false).length || 0;
+    const customExclusions = config.watchman?.excludeDirs?.length || 0;
+    const ruleExclusions = config.watchman?.rules?.filter((r) => r.enabled !== false).length || 0;
 
     this.logger.info('🎯 Watchman Optimization Summary:');
     this.logger.info(`  • Project Type: ${projectType}`);
@@ -623,8 +630,8 @@ export class WatchmanConfigManager {
     if (ruleExclusions > 0) {
       this.logger.info(`  • Rule-based Exclusions: ${ruleExclusions}`);
     }
-    this.logger.info(`  • Max File Events: ${config.watchman.maxFileEvents}`);
-    this.logger.info(`  • Recrawl Threshold: ${config.watchman.recrawlThreshold}`);
+    this.logger.info(`  • Max File Events: ${config.watchman?.maxFileEvents || 10000}`);
+    this.logger.info(`  • Recrawl Threshold: ${config.watchman?.recrawlThreshold || 5}`);
 
     if (config.performance?.autoOptimize) {
       this.logger.info('  • Auto-optimization: Enabled');

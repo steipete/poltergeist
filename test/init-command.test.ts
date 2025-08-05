@@ -54,11 +54,10 @@ describe('poltergeist init - Smart Defaults', () => {
       expect(config.targets[0]).not.toHaveProperty('enabled');
       expect(config.targets[0]).not.toHaveProperty('settlingDelay');
       expect(config.targets[0]).not.toHaveProperty('debounceInterval');
-      expect(config).not.toHaveProperty('watchman.useDefaultExclusions');
+      expect(config).not.toHaveProperty('watchman');
       expect(config).not.toHaveProperty('performance');
       expect(config).not.toHaveProperty('logging');
-      expect(config.notifications).not.toHaveProperty('enabled');
-      expect(config.notifications).not.toHaveProperty('buildStart');
+      expect(config).not.toHaveProperty('notifications');
     });
   });
 
@@ -277,7 +276,7 @@ let package = Package(
       expect(config.targets[0].bundleId).toBe('sh.vibetunnel.vibetunnel');
     });
 
-    it('should create comprehensive Swift configuration', () => {
+    it('should create minimal Swift configuration', () => {
       mkdirSync('MyApp.xcodeproj', { recursive: true });
       writeFileSync('MyApp.xcodeproj/project.pbxproj', 'mock');
 
@@ -287,48 +286,18 @@ let package = Package(
         readFileSync('poltergeist.config.json', 'utf-8')
       );
 
-      // Check comprehensive config structure
-      expect(config.watchman).toMatchObject({
-        useDefaultExclusions: true,
-        excludeDirs: expect.arrayContaining(['DerivedData', '.git', 'build']),
-        projectType: 'swift',
-        maxFileEvents: 10000,
-        recrawlThreshold: 5,
-        settlingDelay: 1000
-      });
-
-      expect(config.buildScheduling).toMatchObject({
-        parallelization: 2,
-        prioritization: {
-          enabled: true,
-          focusDetectionWindow: 300000,
-          priorityDecayTime: 1800000,
-          buildTimeoutMultiplier: 2.0
-        }
-      });
-
-      expect(config.notifications).toMatchObject({
-        enabled: true,
-        buildStart: false,
-        buildSuccess: true,
-        buildFailed: true,
-        successSound: 'Glass',
-        failureSound: 'Basso'
-      });
-
-      expect(config.performance).toMatchObject({
-        profile: 'balanced',
-        autoOptimize: true,
-        metrics: {
-          enabled: true,
-          reportInterval: 300
-        }
-      });
-
-      expect(config.logging).toMatchObject({
-        level: 'info',
-        file: '.poltergeist.log'
-      });
+      // Check minimal config structure
+      expect(config.version).toBe('1.0');
+      expect(config.projectType).toBe('swift');
+      expect(config.targets).toHaveLength(1);
+      expect(config.targets[0].type).toBe('app-bundle');
+      
+      // Should NOT have these properties in minimal config
+      expect(config).not.toHaveProperty('watchman');
+      expect(config).not.toHaveProperty('notifications');
+      expect(config).not.toHaveProperty('performance');
+      expect(config).not.toHaveProperty('buildScheduling');
+      expect(config).not.toHaveProperty('logging');
     });
   });
 

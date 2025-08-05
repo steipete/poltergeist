@@ -92,7 +92,7 @@ export class CMakeProjectAnalyzer {
 
   private async parseCMakeFiles(): Promise<CMakeTarget[]> {
     const targets: CMakeTarget[] = [];
-    const cmakeFiles = await glob('**/CMakeLists.txt', {
+    const cmakeFiles = await glob(['CMakeLists.txt', '**/CMakeLists.txt'], {
       cwd: this.projectRoot,
       ignore: ['build/**', '_build/**', 'out/**', '**/CMakeFiles/**'],
     });
@@ -104,11 +104,11 @@ export class CMakeProjectAnalyzer {
 
       // Parse add_executable
       const execMatches = content.matchAll(
-        /add_executable\s*\(\s*(\w+)(?:\s+WIN32)?(?:\s+MACOSX_BUNDLE)?\s+((?:[^)]+|\s)+)\)/gm
+        /add_executable\s*\(\s*([\w-]+)(?:\s+WIN32)?(?:\s+MACOSX_BUNDLE)?(?:\s+([^)]+))?\s*\)/gm
       );
       for (const match of execMatches) {
         const name = match[1];
-        const sources = this.parseSourceList(match[2], fileDir);
+        const sources = match[2] ? this.parseSourceList(match[2], fileDir) : [];
         targets.push({
           name,
           type: 'executable',
@@ -120,12 +120,12 @@ export class CMakeProjectAnalyzer {
 
       // Parse add_library
       const libMatches = content.matchAll(
-        /add_library\s*\(\s*(\w+)\s+(STATIC|SHARED|MODULE|INTERFACE|OBJECT)?\s*((?:[^)]+|\s)+)\)/gm
+        /add_library\s*\(\s*([\w-]+)(?:\s+(STATIC|SHARED|MODULE|INTERFACE|OBJECT))?(?:\s+([^)]+))?\s*\)/gm
       );
       for (const match of libMatches) {
         const name = match[1];
         const libType = match[2] || 'STATIC';
-        const sources = libType !== 'INTERFACE' ? this.parseSourceList(match[3], fileDir) : [];
+        const sources = libType !== 'INTERFACE' && match[3] ? this.parseSourceList(match[3], fileDir) : [];
 
         targets.push({
           name,
@@ -137,7 +137,7 @@ export class CMakeProjectAnalyzer {
       }
 
       // Parse add_custom_target
-      const customMatches = content.matchAll(/add_custom_target\s*\(\s*(\w+)/gm);
+      const customMatches = content.matchAll(/add_custom_target\s*\(\s*([\w-]+)/gm);
       for (const match of customMatches) {
         targets.push({
           name: match[1],

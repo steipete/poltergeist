@@ -804,44 +804,241 @@ poltergeist status --target my-app
 
 </details>
 
-## State Management
+## Architecture
 
-### Unified State System
+### Multi-Project Process Model
 
-Poltergeist uses a lock-free state management system with atomic operations:
+Poltergeist uses a **distributed architecture** where each project runs its own independent background process:
 
-- **Single state file per target**: Cross-platform temp directory (`/tmp/poltergeist/` on Unix, `%TEMP%\poltergeist` on Windows)
-- **Atomic writes**: Temp file + rename for consistency
-- **Heartbeat monitoring**: Process liveness detection
-- **Build history**: Track success/failure patterns
-- **Cross-tool compatibility**: State readable by external tools
+#### Per-Project Processes
+```bash
+# Terminal 1 - Project A
+cd ~/projects/my-app
+poltergeist haunt  # Starts separate background process for my-app
 
-### State File Structure
+# Terminal 2 - Project B  
+cd ~/projects/spine-c
+poltergeist haunt  # Starts separate background process for spine-c
+
+# Terminal 3 - From anywhere
+cd ~
+poltergeist status  # Shows ALL projects: my-app + spine-c
+```
+
+#### How It Works
+1. **Isolation**: Each `poltergeist haunt` spawns an independent Node.js process
+2. **State Discovery**: Commands scan `/tmp/poltergeist/` to find all active projects
+3. **Global Commands**: `status`, `clean`, etc. work across all projects simultaneously
+4. **Per-Project Commands**: `stop --target`, `restart --target` affect specific targets
+
+#### Benefits
+- **Reliability**: One project crashing doesn't affect others
+- **Flexibility**: Start/stop projects independently  
+- **Performance**: No single bottleneck across all projects
+- **Cross-Terminal**: Start in one terminal, manage from another
+- **Scalability**: Handle 10+ projects without performance degradation
+
+### Dual-Platform Communication
+
+The **Node.js CLI** and **macOS app** communicate through shared state files, not direct IPC:
+
+```
+Node.js CLI Process          macOS Native App
+       ↓                            ↓
+   Builds targets              Monitors state
+   Updates state               Shows notifications
+       ↓                            ↓
+       ┌─────────────────────────────┐
+       │   /tmp/poltergeist/         │
+       │   ├── project-a.state       │
+       │   ├── project-b.state       │
+       │   └── project-c.state       │
+       └─────────────────────────────┘
+                Shared State Files
+```
+
+This design enables:
+- **Platform Independence**: CLI works without macOS app
+- **Real-time Sync**: macOS app instantly reflects CLI changes
+- **Crash Resilience**: Either component can restart independently
+
+## State Management & Logging
+
+### Atomic State System
+
+Poltergeist uses a **lock-free state management system** with atomic file operations to ensure data consistency across multiple processes and tools.
+
+#### State File Locations
+- **Unix/Linux/macOS**: `/tmp/poltergeist/`
+- **Windows**: `%TEMP%\poltergeist\`
+- **File Pattern**: `{projectName}-{hash}-{target}.state`
+
+```bash
+/tmp/poltergeist/
+├── my-app-abc123-frontend.state      # Frontend target
+├── my-app-abc123-backend.state       # Backend target  
+├── spine-c-def456-debug.state        # CMake debug build
+├── another-project-ghi789-main.state # Main executable
+└── ...
+```
+
+#### Atomic Write Operations
+
+All state updates use **atomic writes** to prevent corruption:
+
+1. **Write to temp file**: `{target}.state.tmp.{pid}`
+2. **Atomic rename**: `mv temp → {target}.state` 
+3. **Lock-free**: No file locking, no deadlocks
+
+This ensures state files are **never partially written** and can be safely read by multiple processes simultaneously.
+
+#### State File Structure
 
 ```json
 {
-  "target": "my-app",
-  "status": "running",
+  "version": "1.0",
+  "projectPath": "/Users/dev/my-project",
+  "projectName": "my-project", 
+  "target": "frontend",
   "process": {
     "pid": 12345,
     "hostname": "MacBook-Pro.local",
-    "startTime": "2025-08-02T20:15:30.000Z",
-    "heartbeat": "2025-08-02T20:16:00.000Z"
+    "isActive": true,
+    "startTime": "2025-08-05T20:15:30.000Z",
+    "lastHeartbeat": "2025-08-05T20:16:00.000Z"
   },
-  "build": {
-    "status": "success",
-    "startTime": "2025-08-02T20:15:45.000Z",
-    "endTime": "2025-08-02T20:15:47.500Z",
+  "lastBuild": {
+    "status": "success|failure|building|idle",
+    "timestamp": "2025-08-05T20:15:47.500Z",
     "duration": 2500,
     "gitHash": "abc123f",
-    "outputPath": "./bin/myapp"
+    "builder": "CMake-Executable/Ninja",
+    "errorSummary": "Optional error message"
   },
-  "app": {
+  "appInfo": {
     "bundleId": "com.example.myapp",
-    "path": "/Applications/MyApp.app"
+    "outputPath": "./build/Debug/MyApp.app",
+    "iconPath": "./assets/icon.png"
   }
 }
 ```
+
+#### Heartbeat Monitoring
+
+Each Poltergeist process updates its heartbeat every **30 seconds**:
+
+- **Active Process**: `lastHeartbeat` within 30 seconds → `isActive: true`
+- **Stale Process**: `lastHeartbeat` older than 30 seconds → `isActive: false`
+- **Automatic Cleanup**: `poltergeist clean` removes stale state files
+
+### Logging System
+
+#### Structured JSON Logging
+
+Poltergeist uses **structured JSON logs** with Winston for machine-readable output:
+
+```json
+{"timestamp":"2025-08-05T20:15:30.123Z","level":"info","message":"Build completed successfully","target":"frontend","duration":2500,"gitHash":"abc123f"}
+{"timestamp":"2025-08-05T20:15:35.456Z","level":"error","message":"Build failed","target":"backend","exitCode":1,"errorSummary":"Compilation error in main.cpp:42"}
+```
+
+#### Log File Management
+
+- **Location**: `.poltergeist.log` in project root (configurable via `logging.file`)
+- **Rotation**: Automatic rotation prevents unlimited growth
+- **Multi-Target**: Single log file contains all targets with filtering support
+- **Real-time**: `poltergeist logs --follow` for live monitoring
+- **Build Observation**: Log files provide detailed build progress and error details beyond state files
+
+#### Log Commands
+
+```bash
+# View recent logs
+poltergeist logs                    # Last 50 lines, all targets
+poltergeist logs --target frontend  # Filter by target
+poltergeist logs --lines 100        # Show more lines
+
+# Follow logs in real-time
+poltergeist logs --follow           # All targets
+poltergeist logs --follow --target backend
+
+# JSON output for processing
+poltergeist logs --json | jq '.level == "error"'
+```
+
+#### Build Status Observation
+
+Poltergeist provides **multiple layers** for observing build status and progress:
+
+##### 1. State Files (Current Status)
+```bash
+# Quick status check - current build state only
+jq -r '.lastBuild.status' /tmp/poltergeist/my-project-*-frontend.state
+# Output: "success" | "failure" | "building" | "idle"
+
+# Get build duration and error summary
+jq -r '.lastBuild | "\(.status) - \(.duration)ms - \(.errorSummary // "no errors")"' /tmp/poltergeist/*.state
+```
+
+##### 2. Log Files (Detailed History)
+```bash
+# Watch build progress in real-time
+poltergeist logs --follow --target frontend
+
+# Find recent build failures with details
+poltergeist logs --json | jq 'select(.level == "error" and .target == "frontend")'
+
+# Monitor build times over time
+poltergeist logs --json | jq 'select(.message | contains("Build completed")) | {target, duration, timestamp}'
+```
+
+##### 3. Combined Monitoring Workflow
+```bash
+# Terminal 1: Watch logs for detailed progress
+poltergeist logs --follow
+
+# Terminal 2: Check current status across all projects  
+watch -n 2 'poltergeist status'
+
+# Terminal 3: Monitor specific build metrics
+watch -n 5 'find /tmp/poltergeist -name "*.state" -exec jq -r "\"\\(.target): \\(.lastBuild.status) (\\(.lastBuild.duration // 0)ms)\"" {} \;'
+```
+
+**Key Differences:**
+- **State Files**: Current snapshot, fast access, minimal details
+- **Log Files**: Complete history, detailed errors, build output, timestamps
+- **Combined**: State files for quick checks, logs for debugging and analysis
+
+### Cross-Tool Integration
+
+The state files are designed for **external tool integration**:
+
+#### Shell Scripts
+```bash
+# Check if project is building
+if jq -r '.lastBuild.status' /tmp/poltergeist/my-project-*.state | grep -q "building"; then
+  echo "Build in progress..."
+fi
+```
+
+#### IDEs and Editors
+```javascript
+// VS Code extension example
+const stateFiles = glob('/tmp/poltergeist/*.state');
+const buildStatuses = stateFiles.map(file => JSON.parse(fs.readFileSync(file)));
+```
+
+#### CI/CD Integration
+```yaml
+# GitHub Actions example
+- name: Wait for Poltergeist build
+  run: |
+    while [[ $(jq -r '.lastBuild.status' /tmp/poltergeist/*-main.state) == "building" ]]; do
+      sleep 5
+    done
+```
+
+This architecture enables rich integrations while maintaining simplicity and reliability across all supported platforms.
 
 ## Development
 

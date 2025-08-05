@@ -138,7 +138,21 @@ export class ConfigLoader {
 
   private validateConfig(config: unknown): PoltergeistConfig {
     try {
-      return PoltergeistConfigSchema.parse(config);
+      const validated = PoltergeistConfigSchema.parse(config);
+      
+      // Apply default watchman config if not specified
+      if (!validated.watchman) {
+        validated.watchman = {
+          useDefaultExclusions: true,
+          excludeDirs: [],
+          projectType: validated.projectType,
+          maxFileEvents: 10000,
+          recrawlThreshold: 5,
+          settlingDelay: 1000,
+        };
+      }
+      
+      return validated;
     } catch (error) {
       if (error instanceof Error && error.name === 'ZodError') {
         const zodError = error as unknown as { errors: Array<{ path: string[]; message: string }> };

@@ -119,8 +119,12 @@ export class Poltergeist {
     await this.setupWatchmanConfig();
 
     // Initialize notifier if enabled and not already injected
-    if (this.config.notifications?.enabled && !this.notifier) {
-      this.notifier = new BuildNotifier(this.config.notifications);
+    if (this.config.notifications?.enabled !== false && !this.notifier) {
+      this.notifier = new BuildNotifier({
+        enabled: this.config.notifications?.enabled ?? true,
+        successSound: this.config.notifications?.successSound,
+        failureSound: this.config.notifications?.failureSound,
+      });
     }
 
     // Initialize intelligent build queue now that notifier is available
@@ -684,9 +688,13 @@ export class Poltergeist {
 
     if (changes.notificationsChanged) {
       this.logger.info('🔄 Updating notification settings');
-      if (newConfig.notifications?.enabled && !this.notifier) {
-        this.notifier = new BuildNotifier(newConfig.notifications);
-      } else if (!newConfig.notifications?.enabled && this.notifier) {
+      if (newConfig.notifications?.enabled !== false && !this.notifier) {
+        this.notifier = new BuildNotifier({
+          enabled: newConfig.notifications?.enabled ?? true,
+          successSound: newConfig.notifications?.successSound,
+          failureSound: newConfig.notifications?.failureSound,
+        });
+      } else if (newConfig.notifications?.enabled === false && this.notifier) {
         this.notifier = undefined;
       }
     }
