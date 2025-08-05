@@ -14,16 +14,31 @@
 
 Poltergeist is an AI-friendly universal file-watcher that auto-detects any project and rebuilds them as soon as a file has been changed. Think `npm run dev` for native apps, with automatic configuration, notifications and a smart build queue. It stands on the shoulders of [giants](https://facebook.github.io/watchman/) and fills the glue layer that’s been missing.
 
-Works on macOS, Linux, and Windows, using Node.js 20+ and uses [Watchman](https://facebook.github.io/watchman/) under the hood.
+Works on macOS, Linux, and Windows. Available as a standalone binary (no Node.js required) or npm package.
 
-Requires Watchman to be installed:
+## Installation
+
+### Homebrew (macOS, ARM64)
+
+```bash
+brew tap steipete/tap
+brew install poltergeist
+```
+
+### npm (all platforms)
+
+```bash
+npm install -g @steipete/poltergeist
+```
+
+### Requirements
+
+Poltergeist requires [Watchman](https://facebook.github.io/watchman/) to be installed:
   - **macOS**: `brew install watchman`
   - **Linux**: [Installation guide](https://facebook.github.io/watchman/docs/install#linux)
   - **Windows**: [Chocolatey package](https://facebook.github.io/watchman/docs/install#windows) or manual install
 
-Poltergeist offers both a **Node.js CLI** for universal development and a **native macOS app** for enhanced monitoring:
-
-Note: The optional macOS 14+ app is still in development and will be available from [releases](https://github.com/steipete/poltergeist/releases) soon.
+Poltergeist offers both a **CLI tool** for universal development and a **native macOS app** for enhanced monitoring (coming soon).
 
 ## Features
 
