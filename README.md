@@ -12,41 +12,47 @@
   A universal file watcher with auto-rebuild for any language or build system
 </div>
 
-Poltergeist is an AI-friendly universal file-watcher that auto-detects any project and rebuilds them as soon as a file has been changed.
+Poltergeist is an AI-friendly universal file-watcher that auto-detects any project and rebuilds them as soon as a file has been changed. Think `npm run dev` for native apps, with automatic configuration, notifications and a smart build queue. It stands on the shoulders of [giants](https://facebook.github.io/watchman/) and fills the glue layer that’s been missing.
 
-Works on macOS, Linux, and Windows, using Node and Watchman 
+Works on macOS, Linux, and Windows, using Node.js 20+ and uses [Watchman](https://facebook.github.io/watchman/) under the hood.
 
-## Dual Platform Support
+Requires Watchman to be installed:
+  - **macOS**: `brew install watchman`
+  - **Linux**: [Installation guide](https://facebook.github.io/watchman/docs/install#linux)
+  - **Windows**: [Chocolatey package](https://facebook.github.io/watchman/docs/install#windows) or manual install
 
 Poltergeist offers both a **Node.js CLI** for universal development and a **native macOS app** for enhanced monitoring:
 
-### CLI Tool (Cross-Platform)
-- **Universal**: Works on macOS, Linux, and Windows  
-- **Node.js 20+** required
-- **Watchman support**: All platforms officially supported
-- Install: `npm install -g @steipete/poltergeist`
-
-### macOS App (Native)
-- **Native performance** with Swift 6
-- **Real-time monitoring** in menu bar
-- **System notifications** with build status
-- **Download**: Get the latest `.dmg` from [releases](https://github.com/steipete/poltergeist/releases)</div>
+Note: The optional macOS 14+ app is still in development and will be available from [releases](https://github.com/steipete/poltergeist/releases) soon.
 
 ## Features
 
-- **Universal Target System**: Support for executables, app bundles, libraries, frameworks, tests, Docker containers, and custom builds
-- **Smart Execution Wrapper**: `polter` command ensures you never run stale or failed builds
+- **Universal Target System**: Support for anything you can build - executables, app bundles, libraries, frameworks, tests, Docker containers, ...
+- **Smart Execution Wrapper**: `polter` command that waits for a build to complete, then starts it
 - **Efficient File Watching**: Powered by Facebook's Watchman with smart exclusions and performance optimization
-- **Intelligent Build Prioritization**: Automatic priority scoring based on focus patterns and user behavior
-- **Smart Build Queue Management**: Configurable parallelization with intelligent deduplication and scheduling
-- **Focus Pattern Detection**: Automatically detects which targets you're actively working on
-- **Intelligent Project Detection**: Automatically detects Swift, Node.js, Rust, Python, CMake, and mixed projects
-- **Smart Configuration**: Project-specific exclusions with performance profiles (conservative, balanced, aggressive)
-- **Native Notifications**: macOS notifications with customizable sounds for build status
+- **Intelligent Build Prioritization**: Having multiple projects that share code? Polgergeist will compile the right one first, based on which files you edited in the past
+- **Automatic Project Configuration**: Just type `poltergeist init` and it'll parse your folder and set up the config.
+- **Native Notifications**: System notifications with customizable sounds and icon for build status
 - **Concurrent Build Protection**: Intelligent locking prevents overlapping builds
 - **Advanced State Management**: Process tracking, build history, and heartbeat monitoring
-- **Cross-Platform**: Works on macOS, Linux, and Windows
 - **Automatic Configuration Reloading**: Changes to `poltergeist.config.json` are detected and applied without manual restart
+
+## Designed for Humans and Agents
+
+Polgergeist has been designed with an agentic workflow in mind. As soon as your agent starts editing files, we'll start a background compile process. Further edits will cancel and re-compile as needed. Since agents are relatively slow, there's a good chance your project already finished compiling before the agent tries to even run it. Benefits:
+
+- Agents don't have to call build manually anymore
+- They call your executable directly with `polter` as prefix, which waits until the build is complete.
+- Faster loops, fewer wasted tokens
+
+Commands have been designed with the least surprises, the cli works just like what agents expect, and there's plenty aliases so things will just work, even if your agent gets confused.
+
+Examples:
+- `haunt` is used to start the daemon, but `start` is also a valid alias
+- Commands that are executed in a non-tty environment have added helpful messages for agents
+- Fuzzy matching will find targets even if they are misspelled
+- Build time is tracked, so agents can set their timeout correctly for waiting
+- Commands are token conservative by default and don't emit the full build log
 
 ## Quick Start
 
@@ -58,64 +64,168 @@ Install globally via npm:
 npm install -g @steipete/poltergeist
 ```
 
-Or run directly using npx:
-
-```bash
-npx @steipete/poltergeist haunt
-```
-
 ### Basic Usage
 
-1. For CMake projects, use auto-initialization:
+1. **Automatic Configuration** - Let Poltergeist analyze your project:
 
 ```bash
-poltergeist init --cmake
+poltergeist init
 ```
 
-Or manually create a `poltergeist.config.json` in your project root:
+This automatically detects your project type (Swift, Node.js, Rust, Python, CMake, etc.) and creates an optimized configuration.
 
-```json
-{
-  "version": "1.0",
-  "projectType": "swift",
-  "targets": [
-    {
-      "name": "my-cli",
-      "type": "executable",
-      "buildCommand": "./scripts/build.sh",
-      "outputPath": "./bin/mycli",
-      "watchPaths": ["src/**/*.{swift,h}"]
-    }
-  ]
-}
-```
-
-2. Start watching:
+2. **Start Watching** - Begin auto-building on file changes:
 
 ```bash
-# Start as daemon (default - non-blocking)
+poltergeist haunt        # Runs as background daemon (default)
+poltergeist status       # Check what's running
+```
+
+3. **Execute Fresh Builds** - Use `polter` to ensure you never run stale code:
+
+```bash
+polter my-app            # Waits for build, then runs fresh binary
+polter my-app --help     # All arguments passed through
+```
+
+That's it! Poltergeist now watches your files and rebuilds automatically.
+
+## Table of Contents
+
+- [Features](#features)
+- [Designed for Humans and Agents](#designed-for-humans-and-agents)
+- [Quick Start](#quick-start)
+- [Command Line Interface](#command-line-interface)
+  - [Core Commands](#core-commands-poltergeist)
+  - [Smart Execution](#smart-execution-with-polter)
+- [Configuration](#configuration)
+  - [Automatic Detection](#automatic-project-detection)
+  - [Configuration Schema](#configuration-schema)
+  - [Target Types](#target-types)
+  - [Watch Patterns](#watch-path-patterns)
+- [Advanced Features](#advanced-features)
+  - [Smart Defaults](#smart-defaults)
+  - [CMake Support](#cmake-support)
+  - [Performance Profiles](#performance-profiles)
+  - [Build Prioritization](#intelligent-build-prioritization)
+- [Architecture](#architecture)
+- [Examples](#examples)
+- [Development](#development)
+- [License](#license)
+
+## Command Line Interface
+
+Poltergeist provides two main commands: `poltergeist` for managing the file watcher daemon, and `polter` for executing fresh builds.
+
+### Core Commands (poltergeist)
+
+#### Starting and Managing the Daemon
+
+```bash
+# Start watching (runs as background daemon by default)
 poltergeist haunt
+poltergeist start         # Alias for haunt
 
-# Start in foreground (traditional blocking mode)
-poltergeist haunt --foreground
+# Check what's running
+poltergeist status        # Shows all active projects and their build status
+
+# View build logs
+poltergeist logs          # Recent logs
+poltergeist logs -f       # Follow logs in real-time
+
+# Stop watching
+poltergeist stop          # Stop all targets
+poltergeist stop --target my-app  # Stop specific target
 ```
 
-## Requirements
+#### Project Management
 
-### CLI Tool
-- **Node.js 20.0.0** or higher
-- **[Watchman](https://facebook.github.io/watchman/)** (must be installed separately)
-- **Cross-platform**: macOS, Linux, Windows
-  - **macOS**: `brew install watchman`
-  - **Linux**: [Installation guide](https://facebook.github.io/watchman/docs/install#linux)
-  - **Windows**: [Chocolatey package](https://facebook.github.io/watchman/docs/install#windows) or manual install
+```bash
+# Initialize configuration
+poltergeist init          # Auto-detect and create config
+poltergeist init --cmake  # Specialized CMake detection
 
-### macOS App
-- **macOS 14.0+** (Sonoma or later)
-- **Apple Silicon & Intel** both supported
-- **Automatic CLI integration** when installed
+# List configured targets
+poltergeist list          # Shows all targets and their status
+
+# Clean up old state files
+poltergeist clean         # Remove stale state files
+poltergeist clean --all   # Remove all state files
+```
+
+### Smart Execution with polter
+
+The `polter` command ensures you always run fresh builds:
+
+```bash
+# Basic usage
+polter <target-name> [arguments...]
+
+# Examples
+polter my-app                    # Run after build completes
+polter my-app --port 8080       # All arguments passed through
+polter backend serve --watch    # Complex commands work too
+
+# Options
+polter my-app --timeout 60000   # Wait up to 60 seconds
+polter my-app --force           # Run even if build failed
+polter my-app --verbose         # Show build progress
+```
+
+**How it works:**
+1. Checks if target is currently building
+2. Waits for build to complete (with progress updates)
+3. Fails immediately if build failed
+4. Executes the fresh binary with your arguments
+
+### Daemon Mode Details
+
+Since v1.4.0, Poltergeist runs as a **daemon by default**:
+
+- **Non-blocking**: Returns control immediately
+- **Background builds**: Continues watching/building after terminal closes
+- **Multi-project**: Each project runs independently
+- **Persistent logs**: Access logs anytime with `poltergeist logs`
+
+To run in traditional foreground mode:
+```bash
+poltergeist haunt --foreground   # Blocks terminal, shows output directly
+```
+
+### Command Reference
+
+| Command | Description | Example |
+|---------|-------------|---------|
+| `haunt` / `start` | Start watching and building | `poltergeist haunt --target frontend` |
+| `stop` / `rest` | Stop the daemon | `poltergeist stop` |
+| `restart` | Restart the daemon | `poltergeist restart` |
+| `status` | Show build status | `poltergeist status --json` |
+| `logs` | View daemon logs | `poltergeist logs -f -n 100` |
+| `list` | List all targets | `poltergeist list` |
+| `init` | Create configuration | `poltergeist init --cmake` |
+| `clean` | Clean state files | `poltergeist clean --dry-run` |
+| `polter` | Execute fresh builds | `polter my-app --help` |
 
 ## Configuration
+
+Poltergeist can automatically detect and configure most projects, but also supports detailed manual configuration.
+
+### Automatic Project Detection
+
+Run `poltergeist init` to automatically:
+- Detect project type (Swift, Node.js, Rust, Python, CMake, etc.)
+- Find build commands and output paths
+- Configure optimal watch patterns
+- Set up smart exclusions
+- Generate `poltergeist.config.json`
+
+Project detection looks for:
+- `Package.swift` → Swift Package Manager
+- `package.json` → Node.js/npm
+- `Cargo.toml` → Rust/Cargo
+- `CMakeLists.txt` → CMake projects
+- `pyproject.toml` → Python projects
+- And more...
 
 ### Configuration Schema
 
@@ -139,33 +249,22 @@ Essential configuration structure:
 }
 ```
 
-### Smart Defaults
+### Target Types
 
-Poltergeist uses sensible defaults to keep configurations minimal. Only specify what differs from defaults:
+Poltergeist supports multiple target types with specific optimizations:
 
-#### Default Values (don't specify these):
-- `enabled: true` - Targets are enabled by default
-- `settlingDelay: 1000` - 1 second delay before building
-- `debounceInterval: 3000` - 3 seconds between builds
-- `useDefaultExclusions: true` - Standard exclusions enabled
-- `profile: "balanced"` - Balanced performance profile
-- `autoOptimize: true` - Performance optimization enabled
-- `notifications.enabled: true` - Notifications are on
-- `buildStart: false` - No notification on build start
-- `buildSuccess: true` - Notify on successful builds
-- `buildFailed: true` - Notify on failed builds
-
-#### Only Specify What's Different:
-```json
-{
-  "targets": [{
-    "name": "my-app",
-    "buildCommand": "./build.sh",
-    "watchPaths": ["src/**/*.{c,h}"],
-    "settlingDelay": 2000  // Only if you need 2s instead of default 1s
-  }]
-}
-```
+| Type | Use Case | Key Properties |
+|------|----------|----------------|
+| `executable` | CLI tools, binaries | `outputPath`, standard execution |
+| `app-bundle` | macOS/iOS apps | `bundleId`, `autoRelaunch`, app lifecycle |
+| `library` | Static/dynamic libs | `libraryType`, linking optimization |
+| `framework` | macOS/iOS frameworks | Platform-specific builds |
+| `test` | Test suites | `testCommand`, `coverageFile` |
+| `docker` | Containerized apps | `imageName`, `dockerfile`, `tags` |
+| `custom` | Custom builds | Flexible `config` object |
+| `cmake-executable` | CMake executables | `targetName`, `generator`, `buildType` |
+| `cmake-library` | CMake libraries | `targetName`, `libraryType`, `generator` |
+| `cmake-custom` | CMake custom targets | `targetName`, custom CMake commands |
 
 ### Watch Path Patterns
 
@@ -216,6 +315,64 @@ Reduce repetition with brace expansion patterns:
 ]
 ```
 
+### Smart Defaults
+
+Poltergeist uses sensible defaults to keep configurations minimal. Only specify what differs from defaults:
+
+#### Default Values (don't specify these):
+- `enabled: true` - Targets are enabled by default
+- `settlingDelay: 1000` - 1 second delay before building
+- `debounceInterval: 3000` - 3 seconds between builds
+- `useDefaultExclusions: true` - Standard exclusions enabled
+- `profile: "balanced"` - Balanced performance profile
+- `autoOptimize: true` - Performance optimization enabled
+- `notifications.enabled: true` - Notifications are on
+- `buildStart: false` - No notification on build start
+- `buildSuccess: true` - Notify on successful builds
+- `buildFailed: true` - Notify on failed builds
+
+#### Only Specify What's Different:
+```json
+{
+  "targets": [{
+    "name": "my-app",
+    "buildCommand": "./build.sh",
+    "watchPaths": ["src/**/*.{c,h}"],
+    "settlingDelay": 2000  // Only if you need 2s instead of default 1s
+  }]
+}
+```
+
+<details>
+<summary>Example target configurations</summary>
+
+```json
+{
+  "targets": [
+    {
+      "name": "cli-tool",
+      "type": "executable",
+      "buildCommand": "cargo build --release",
+      "outputPath": "./target/release/myapp"
+    },
+    {
+      "name": "mac-app",
+      "type": "app-bundle",
+      "buildCommand": "xcodebuild -scheme MyApp",
+      "bundleId": "com.example.myapp",
+      "autoRelaunch": true
+    },
+    {
+      "name": "tests",
+      "type": "test",
+      "testCommand": "npm test",
+      "watchPaths": ["src/**/*", "test/**/*"]
+    }
+  ]
+}
+```
+</details>
+
 <details>
 <summary>Full configuration options (with defaults shown for reference)</summary>
 
@@ -254,52 +411,7 @@ Reduce repetition with brace expansion patterns:
 ```
 </details>
 
-### Target Types
-
-Poltergeist supports multiple target types with specific optimizations:
-
-| Type | Use Case | Key Properties |
-|------|----------|----------------|
-| `executable` | CLI tools, binaries | `outputPath`, standard execution |
-| `app-bundle` | macOS/iOS apps | `bundleId`, `autoRelaunch`, app lifecycle |
-| `library` | Static/dynamic libs | `libraryType`, linking optimization |
-| `framework` | macOS/iOS frameworks | Platform-specific builds |
-| `test` | Test suites | `testCommand`, `coverageFile` |
-| `docker` | Containerized apps | `imageName`, `dockerfile`, `tags` |
-| `custom` | Custom builds | Flexible `config` object |
-| `cmake-executable` | CMake executables | `targetName`, `generator`, `buildType` |
-| `cmake-library` | CMake libraries | `targetName`, `libraryType`, `generator` |
-| `cmake-custom` | CMake custom targets | `targetName`, custom CMake commands |
-
-<details>
-<summary>Example target configurations</summary>
-
-```json
-{
-  "targets": [
-    {
-      "name": "cli-tool",
-      "type": "executable",
-      "buildCommand": "cargo build --release",
-      "outputPath": "./target/release/myapp"
-    },
-    {
-      "name": "mac-app",
-      "type": "app-bundle",
-      "buildCommand": "xcodebuild -scheme MyApp",
-      "bundleId": "com.example.myapp",
-      "autoRelaunch": true
-    },
-    {
-      "name": "tests",
-      "type": "test",
-      "testCommand": "npm test",
-      "watchPaths": ["src/**/*", "test/**/*"]
-    }
-  ]
-}
-```
-</details>
+## Advanced Features
 
 ### CMake Support
 
@@ -331,13 +443,13 @@ poltergeist init --cmake --dry-run            # Preview configuration
   "projectType": "cmake",
   "targets": [
     {
-      "name": "my-app",
+      "name": "spine-c-debug",
       "type": "cmake-executable",
-      "targetName": "my-app",        // CMake target name
-      "buildType": "Debug",          // Debug, Release, etc.
+      "targetName": "spine-c",
+      "buildType": "Debug",
       "watchPaths": [
         "**/CMakeLists.txt",
-        "src/**/*.{cpp,h}",
+        "src/**/*.{c,cpp,h}",
         "cmake/**/*.cmake"
       ]
     }
@@ -349,23 +461,18 @@ poltergeist init --cmake --dry-run            # Preview configuration
 
 Poltergeist automatically optimizes watch patterns using brace expansion and redundancy elimination:
 
-#### Automatic Optimization
 - **Brace Expansion**: Consolidates similar paths (e.g., `foo/{bar,baz}/**/*.c`)
 - **Redundancy Elimination**: Removes subdirectory patterns when parent is already watched
 - **Size Reduction**: Typically reduces configuration size by 40-70%
 
-#### Example
 ```json
-// Before optimization (generated patterns):
+// Before optimization:
 "watchPaths": [
   "spine-c-unit-tests/memory/**/*.{c,cpp,h}",
   "spine-c-unit-tests/minicppunit/**/*.{c,cpp,h}",
-  "spine-c-unit-tests/teamcity/**/*.{c,cpp,h}",
   "spine-c-unit-tests/tests/**/*.{c,cpp,h}",
   "spine-c/include/**/*.{c,cpp,h}",
-  "spine-c/include/spine/**/*.{c,cpp,h}",
-  "spine-c/src/**/*.{c,cpp,h}",
-  "spine-c/src/spine/**/*.{c,cpp,h}"
+  "spine-c/src/**/*.{c,cpp,h}"
 ]
 
 // After optimization (automatic):
@@ -376,22 +483,11 @@ Poltergeist automatically optimizes watch patterns using brace expansion and red
 ]
 ```
 
-This optimization happens automatically during `poltergeist init` and reduces both config file size and Watchman's processing overhead.
-
-### Smart Project Detection
-
-Poltergeist automatically detects your project type based on configuration files:
-
-| Project Type | Detection Files | Optimized For |
-|-------------|----------------|---------------|
-| `swift` | `Package.swift` | SPM, Xcode, `.build`, `DerivedData` |
-| `node` | `package.json` | `node_modules`, build outputs, logs |
-| `rust` | `Cargo.toml` | `target/`, Cargo artifacts |
-| `python` | `pyproject.toml`, `requirements.txt` | `__pycache__`, virtual envs |
-| `cmake` | `CMakeLists.txt` | `build/`, `CMakeFiles/`, `CMakeCache.txt` |
-| `mixed` | Multiple indicators | Combined exclusions from all types |
+This happens automatically during `poltergeist init`.
 
 ### Performance Profiles
+
+Optimize Poltergeist for your project size and needs:
 
 ```json
 {
@@ -420,9 +516,14 @@ Automatically builds what you're working on first using focus detection and prio
 
 ### Smart Exclusions
 
-Includes 70+ optimized patterns: version control (`.git`), build artifacts (`node_modules`, `DerivedData`, `target/`), IDE files (`.vscode`, `.idea`), OS files (`.DS_Store`), and project-specific exclusions.
+Poltergeist includes 70+ optimized exclusion patterns:
+- **Version Control**: `.git`, `.svn`, `.hg`
+- **Build Artifacts**: `node_modules`, `DerivedData`, `target/`, `build/`
+- **IDE Files**: `.vscode`, `.idea`, `*.xcworkspace`
+- **OS Files**: `.DS_Store`, `Thumbs.db`
+- **Project-specific**: Language and framework-specific patterns
 
-### Advanced Configuration
+### Advanced Configuration Options
 
 <details>
 <summary>Custom exclusions, environment variables, timeouts</summary>
@@ -445,153 +546,9 @@ Includes 70+ optimized patterns: version control (`.git`), build artifacts (`nod
 ```
 </details>
 
-## Command Line Interface
+### Configuration Reloading
 
-### Daemon Mode (New Default)
-
-Starting with version 1.4.0, Poltergeist runs as a daemon by default:
-
-- **Non-blocking**: Returns control to your terminal immediately
-- **Background operation**: Continues watching and building in the background
-- **Better for automation**: Easier integration with scripts and CI/CD
-- **Logs**: Output saved to log files, viewable with `poltergeist logs`
-
-```bash
-# Start daemon (default)
-poltergeist haunt
-
-# Check status
-poltergeist status
-
-# View logs
-poltergeist logs          # Show recent logs
-poltergeist logs -f       # Follow logs (like tail -f)
-
-# Stop daemon
-poltergeist stop
-
-# Run in foreground (traditional mode)
-poltergeist haunt --foreground
-```
-
-### Commands
-
-| Command | Description |
-|---------|-------------|
-| `poltergeist haunt\|start [options]` | Start watching and auto-building (daemon by default) |
-| `poltergeist stop\|rest [options]` | Stop the Poltergeist daemon |
-| `poltergeist restart [options]` | Restart Poltergeist daemon |
-| `poltergeist status [options]` | Check Poltergeist status |
-| `poltergeist logs [options]` | Show daemon logs (`-f` to follow) |
-| `poltergeist list [options]` | List all configured targets |
-| `poltergeist clean [options]` | Clean up stale state files |
-
-### Options
-
-#### `haunt` / `start`
-```bash
-poltergeist haunt [options]
-  -t, --target <name>   Target to build (omit to build all enabled targets)
-  -c, --config <path>   Path to config file
-  -v, --verbose         Enable verbose logging
-  -f, --foreground      Run in foreground (blocking mode)
-```
-
-#### `stop` / `rest`
-```bash
-poltergeist stop [options]
-  -t, --target <name>   Stop specific target only
-  -c, --config <path>   Path to config file
-```
-
-#### `restart`
-```bash
-poltergeist restart [options]
-  -c, --config <path>   Path to config file
-  -f, --foreground      Restart in foreground mode
-  -v, --verbose         Enable verbose logging
-```
-
-#### `status`
-```bash
-poltergeist status [options]
-  -t, --target <name>   Check specific target status
-  -c, --config <path>   Path to config file
-  --json               Output status as JSON
-```
-
-#### `logs`
-```bash
-poltergeist logs [options]
-  -t, --target <name>   Show logs for specific target
-  -n, --lines <number>  Number of lines to show (default: 50)
-  -f, --follow          Follow log output
-  -c, --config <path>   Path to config file
-  --json                Output logs in JSON format
-```
-
-#### `list`
-```bash
-poltergeist list [options]
-  -c, --config <path>   Path to config file
-```
-
-#### `clean`
-```bash
-poltergeist clean [options]
-  -a, --all            Remove all state files, not just stale ones
-  -d, --days <number>  Remove state files older than N days (default: 7)
-  --dry-run            Show what would be removed without actually removing
-```
-
-### Status Output
-
-```bash
-$ poltergeist status
-
-👻 Poltergeist Status
-══════════════════════════════════════════════════
-Target: poltergeist-cli
-  Status: running
-  Process: Running (PID: 1652 on Peters-MBP.localdomain)
-  Heartbeat: ✓ Active (8s ago)
-  Last Build: 8/5/2025, 4:57:20 AM
-  Build Status: ✅ Success
-  Build Time: 765ms
-  Git Hash: d762366
-  Builder: Executable
-  Output: /Users/steipete/Projects/poltergeist/dist/cli.js
-```
-
-### Helpful Error Messages
-
-Poltergeist provides intelligent error messages with suggestions when you specify an invalid target:
-
-```bash
-$ poltergeist logs peekaboo-mac
-
-❌ Target 'peekaboo-mac' not found
-
-Available targets:
-  • poltergeist-cli (executable)
-  • poltergeist-mac (app-bundle) [disabled]
-  • test-runner (test)
-
-Did you mean 'poltergeist-mac'?
-
-Usage: npx poltergeist logs <target> [options]
-Example: npx poltergeist logs poltergeist-cli --tail 50
-```
-
-**Features:**
-- **Target listing**: Shows all configured targets with their types and status
-- **Fuzzy matching**: Suggests similar target names for typos
-- **Usage examples**: Provides correct command syntax with available targets
-- **Works across commands**: The same helpful errors appear for `logs`, `wait`, `status`, and `haunt` commands
-
-### Configuration Changes
-
-Poltergeist loads configuration once at startup. **Configuration changes require a restart** to take effect.
+Poltergeist loads configuration once at startup. **Configuration changes require a restart** to take effect:
 
 ```bash
 # Restart to apply configuration changes
@@ -599,149 +556,15 @@ poltergeist restart
 
 # Or restart specific target only
 poltergeist restart --target my-app
-
-# Clear Watchman cache on restart (if needed)
-poltergeist restart --no-cache
 ```
 
-#### Common Configuration Workflow
+**When to Restart:**
+- After changing build commands or watch paths
+- After modifying notification settings
+- After adjusting performance profiles
+- After updating exclusion rules
 
-1. **Edit** `poltergeist.config.json`
-2. **Restart** with `poltergeist restart`
-3. **Verify** with `poltergeist status`
 
-#### When to Restart
-
-Restart after changing:
-- Target configurations (build commands, watch paths)
-- Notification settings
-- Watchman exclusions or performance settings
-- Build scheduling options
-
-> **Design Note**: Configuration is loaded once for reliability and performance. This prevents configuration corruption during builds and avoids file watching overhead for rarely-changed config files.
-
-## Smart Execution with polter
-
-Never run stale or failed builds again! The `polter` command is a smart wrapper that ensures you always execute fresh binaries.
-
-### The Problem & Solution
-
-```bash
-# 😱 Without polter - might run stale builds:
-./dist/my-tool deploy --production   # Disaster if using old code!
-
-# ✅ With polter - always fresh builds:
-polter my-tool deploy --production    # Waits for build, guarantees fresh code
-```
-
-### How It Works
-
-1. **State Discovery**: Finds your project's poltergeist configuration
-2. **Build Status Check**: Reads current build state from temp directory (`/tmp/poltergeist/` on Unix, `%TEMP%\poltergeist` on Windows)
-3. **Smart Waiting**: Waits for in-progress builds with live progress
-4. **Fail Fast**: Immediately exits on build failures with clear messages
-5. **Fresh Execution**: Only runs executables when builds are confirmed fresh
-6. **Graceful Fallback**: When Poltergeist isn't running, executes potentially stale binaries with warnings
-
-### Fallback Behavior
-
-When Poltergeist is not running or configuration is missing, `polter` gracefully falls back to stale execution:
-
-```bash
-⚠️  POLTERGEIST NOT RUNNING - EXECUTING POTENTIALLY STALE BINARY
-   The binary may be outdated. For fresh builds, start Poltergeist:
-   npm run poltergeist:haunt
-
-✅ Running binary: my-app (potentially stale)
-```
-
-**Fallback Logic**:
-1. **No config found**: Attempts to find binary in common locations (`./`, `./build/`, `./dist/`)
-2. **Target not configured**: Searches for binary even if not in Poltergeist config
-3. **Binary discovery**: Tries multiple paths and handles suffix variations (`-cli`, `-app`)
-4. **Smart execution**: Detects file type (`.js`, `.py`, `.sh`) and uses appropriate interpreter
-5. **Clear warnings**: Always warns when running without build verification
-
-This ensures `polter` never completely blocks your workflow, while clearly indicating when builds might be stale.
-
-### Installation & Basic Usage
-
-```bash
-# Global installation (recommended)
-npm install -g @steipete/poltergeist
-
-# Now polter is available globally
-polter <target-name> [target-arguments...]
-
-# Examples:
-polter my-app --timeout 60000    # Wait up to 60 seconds
-polter my-app --force            # Run even if build failed
-polter my-app --no-wait          # Fail immediately if building
-polter my-app --verbose          # Show detailed progress
-
-# Create convenient aliases
-alias myapp="polter my-app"
-alias dev="polter dev-server --watch"
-```
-
-### Status Messages
-
-```bash
-🔨 Waiting for build to complete... (8s elapsed)
-❌ Build failed! Cannot execute stale binary.
-✅ Build completed successfully! Executing fresh binary...
-```
-
-<details>
-<summary>Integration examples and advanced usage</summary>
-
-#### Shell Integration
-```bash
-# .bashrc/.zshrc aliases (after global install)
-alias myapp="polter my-app-target"
-alias dev="polter dev-server --watch"
-alias pb="polter peekaboo"  # For Peekaboo users
-
-# package.json scripts
-{
-  "scripts": {
-    "start": "polter web-server --port 3000",
-    "deploy:prod": "polter deploy-tool --env production"
-  }
-}
-
-# No wrapper scripts needed - use polter directly!
-```
-
-#### Multi-Service Configuration
-```json
-{
-  "targets": [
-    {"name": "api", "buildCommand": "go build -o ./bin/api ./cmd/api"},
-    {"name": "worker", "buildCommand": "go build -o ./bin/worker ./cmd/worker"},
-    {"name": "frontend", "buildCommand": "npm run build"}
-  ]
-}
-```
-
-```bash
-polter api --port 8080        # Fresh API server
-polter worker --queue jobs    # Fresh worker process
-polter frontend --serve       # Fresh frontend build
-```
-
-#### Troubleshooting
-```bash
-# Timeout issues
-export POLTER_DEFAULT_TIMEOUT=60000
-polter my-app
-
-# Configuration check
-polter --verbose my-app 2>&1 | grep "Config"
-poltergeist status --target my-app
-```
-
-</details>
 
 ## Examples
 
@@ -1226,10 +1049,34 @@ Created and maintained by [Peter Steinberger](https://github.com/steipete)
 
 ## Acknowledgments
 
-- **[Watchman](https://facebook.github.io/watchman/)** for efficient file watching
-- **[Zod](https://zod.dev/)** for runtime type validation
-- **[Winston](https://github.com/winstonjs/winston)** for structured logging
-- **[Commander.js](https://github.com/tj/commander.js)** for CLI framework
+Built with these excellent open source projects:
+
+### Core Dependencies
+- **[Watchman](https://facebook.github.io/watchman/)** - Facebook's efficient file watching service
+- **[Commander.js](https://github.com/tj/commander.js)** - Complete CLI framework
+- **[Zod](https://zod.dev/)** - TypeScript-first schema validation with static type inference
+- **[Winston](https://github.com/winstonjs/winston)** - Universal logging library with support for multiple transports
+
+### Build & Development
+- **[TypeScript](https://www.typescriptlang.org/)** - JavaScript with syntax for types
+- **[Vitest](https://vitest.dev/)** - Blazing fast unit test framework
+- **[Biome](https://biomejs.dev/)** - Fast formatter and linter for JavaScript, TypeScript, and more
+- **[TSX](https://github.com/privatenumber/tsx)** - TypeScript execute and REPL for Node.js
+- **[TypeDoc](https://typedoc.org/)** - Documentation generator for TypeScript projects
+
+### User Experience
+- **[Chalk](https://github.com/chalk/chalk)** - Terminal string styling done right
+- **[Ora](https://github.com/sindresorhus/ora)** - Elegant terminal spinners
+- **[Node Notifier](https://github.com/mikaelbr/node-notifier)** - Cross-platform native notifications
+
+### Utilities
+- **[Picomatch](https://github.com/micromatch/picomatch)** - Blazing fast and accurate glob matcher
+- **[Write File Atomic](https://github.com/npm/write-file-atomic)** - Write files atomically and reliably
+- **[fb-watchman](https://github.com/facebook/watchman)** - JavaScript client for Facebook's Watchman service
+
+### Special Thanks
+- All contributors and users who have helped shape Poltergeist
+- The open source community for creating these amazing tools
 
 ---
 
