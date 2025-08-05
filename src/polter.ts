@@ -15,7 +15,7 @@ import { spawn } from 'child_process';
 import { Command } from 'commander';
 import { existsSync, readFileSync } from 'fs';
 import ora from 'ora';
-import { resolve as resolvePath, join } from 'path';
+import { resolve as resolvePath } from 'path';
 import type { PoltergeistState } from './state.js';
 import type { Target } from './types.js';
 import { BuildStatusManager } from './utils/build-status-manager.js';
@@ -120,8 +120,8 @@ async function waitForBuildCompletion(
   // Start spinner (automatically handles TTY detection and cursor hiding)
   spinner.start();
 
-  // Determine log file path
-  const logFile = join('/tmp/poltergeist', `${target.name}-build.log`);
+  // Determine log file path using consistent naming
+  const logFile = FileSystemUtils.getLogFilePath(projectRoot, target.name);
 
   // Update elapsed time and build logs periodically
   const timeInterval = setInterval(() => {

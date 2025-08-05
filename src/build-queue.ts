@@ -6,6 +6,7 @@ import type { BuildNotifier } from './notifier.js';
 import type { PriorityEngine } from './priority-engine.js';
 import type { BuildRequest, BuildSchedulingConfig, BuildStatus, Target } from './types.js';
 import { BuildStatusManager } from './utils/build-status-manager.js';
+import { FileSystemUtils } from './utils/filesystem.js';
 
 interface QueuedBuild extends BuildRequest {
   builder: BaseBuilder;
@@ -226,10 +227,13 @@ export class IntelligentBuildQueue {
   private async executeBuild(request: QueuedBuild): Promise<BuildStatus> {
     const { builder, triggeringFiles, target } = request;
 
+    // Get projectRoot from builder (all builders have this property)
+    const projectRoot = (builder as any).projectRoot;
+
     // Build options for log capture
     const buildOptions = {
       captureLogs: true,
-      logFile: `/tmp/poltergeist/${target.name}-build.log`
+      logFile: FileSystemUtils.getLogFilePath(projectRoot, target.name)
     };
 
     // Execute the build

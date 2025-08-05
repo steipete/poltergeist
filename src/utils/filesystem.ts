@@ -43,6 +43,24 @@ export class FileSystemUtils {
   }
 
   /**
+   * Generate build log file name with project context
+   * Uses same naming convention as state files for consistency
+   */
+  public static generateLogFileName(projectRoot: string, targetName: string): string {
+    const projectName = projectRoot.split(sep).pop() || 'unknown';
+    const projectHash = createHash('sha256').update(projectRoot).digest('hex').substring(0, 8);
+    return `${projectName}-${projectHash}-${targetName}-build.log`;
+  }
+
+  /**
+   * Get full path to build log file for a target
+   */
+  public static getLogFilePath(projectRoot: string, targetName: string): string {
+    const fileName = FileSystemUtils.generateLogFileName(projectRoot, targetName);
+    return join(FileSystemUtils.getStateDirectory(), fileName);
+  }
+
+  /**
    * Check if a process is still alive by sending signal 0
    */
   public static isProcessAlive(pid: number): boolean {

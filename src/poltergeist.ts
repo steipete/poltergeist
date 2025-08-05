@@ -16,6 +16,7 @@ import { PriorityEngine } from './priority-engine.js';
 import { type PoltergeistState, StateManager } from './state.js';
 import type { BuildSchedulingConfig, BuildStatus, PoltergeistConfig, Target } from './types.js';
 import { BuildStatusManager } from './utils/build-status-manager.js';
+import { FileSystemUtils } from './utils/filesystem.js';
 import { ProcessManager } from './utils/process-manager.js';
 import { WatchmanClient } from './watchman.js';
 import { WatchmanConfigManager } from './watchman-config.js';
@@ -359,7 +360,7 @@ export class Poltergeist {
     try {
       const buildOptions = {
         captureLogs: true,
-        logFile: `/tmp/poltergeist/${state.target.name}-build.log`
+        logFile: FileSystemUtils.getLogFilePath(this.projectRoot, state.target.name)
       };
       const status = await state.builder.build(changedFiles, buildOptions);
       state.lastBuild = status;
