@@ -6,7 +6,7 @@
   <a href="https://nodejs.org"><img src="https://img.shields.io/badge/Node.js-20%2B-339933?style=for-the-badge&logo=node.js&logoColor=white" alt="Node.js 20+"></a>
   <a href="https://github.com/steipete/poltergeist"><img src="https://img.shields.io/badge/platforms-macOS%20%7C%20Linux%20%7C%20Windows-blue?style=for-the-badge" alt="Platforms"></a>
   <a href="LICENSE"><img src="https://img.shields.io/badge/license-MIT-green?style=for-the-badge" alt="MIT License"></a>
-  <a href="https://github.com/steipete/poltergeist/actions/workflows/ci.yml"><img src="https://github.com/steipete/poltergeist/actions/workflows/ci.yml/badge.svg" alt="CI Status"></a>
+  <a href="https://github.com/steipete/poltergeist/actions/workflows/ci.yml"><img src="https://img.shields.io/github/actions/workflow/status/steipete/poltergeist/ci.yml?style=for-the-badge&logo=github&label=CI" alt="CI Status"></a>
 
   **The ghost that keeps your builds fresh** 👻  
   A universal file watcher with auto-rebuild for any language or build system
