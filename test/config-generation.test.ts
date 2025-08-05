@@ -104,11 +104,7 @@ describe('Config Generation - Smart Defaults', () => {
             type: 'cmake-executable' as const,
             targetName: 'my-app',
             buildType: 'Debug',
-            watchPaths: [
-              '**/CMakeLists.txt',
-              'src/**/*.{cpp,h}',
-              'cmake/**/*.cmake',
-            ],
+            watchPaths: ['**/CMakeLists.txt', 'src/**/*.{cpp,h}', 'cmake/**/*.cmake'],
           } as any, // Using any to bypass strict typing for cmake-specific fields
         ],
         watchman: {
@@ -200,7 +196,9 @@ describe('Config Generation - Smart Defaults', () => {
       const reduction = ((verboseSize - minimalSize) / verboseSize) * 100;
 
       expect(reduction).toBeGreaterThan(50);
-      console.log(`Size reduction: ${reduction.toFixed(1)}% (${verboseSize} → ${minimalSize} bytes)`);
+      console.log(
+        `Size reduction: ${reduction.toFixed(1)}% (${verboseSize} → ${minimalSize} bytes)`
+      );
     });
   });
 
@@ -222,10 +220,10 @@ describe('Config Generation - Smart Defaults', () => {
     it('should combine related file extensions', () => {
       // Instead of separate entries
       const verbose = ['src/**/*.c', 'src/**/*.cpp', 'src/**/*.h'];
-      
+
       // Should be combined
       const optimized = 'src/**/*.{c,cpp,h}';
-      
+
       expect(optimized.length).toBeLessThan(verbose.join('", "').length);
     });
   });

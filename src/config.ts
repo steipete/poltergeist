@@ -139,7 +139,7 @@ export class ConfigLoader {
   private validateConfig(config: unknown): PoltergeistConfig {
     try {
       const validated = PoltergeistConfigSchema.parse(config);
-      
+
       // Apply default watchman config if not specified
       if (!validated.watchman) {
         validated.watchman = {
@@ -151,7 +151,7 @@ export class ConfigLoader {
           settlingDelay: 1000,
         };
       }
-      
+
       return validated;
     } catch (error) {
       if (error instanceof Error && error.name === 'ZodError') {

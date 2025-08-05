@@ -246,7 +246,9 @@ export class WatchmanConfigManager {
       const fileSet = new Set(files);
 
       // Check for Xcode projects first (highest priority for macOS/iOS development)
-      const hasXcodeProject = files.some(f => f.endsWith('.xcodeproj') || f.endsWith('.xcworkspace'));
+      const hasXcodeProject = files.some(
+        (f) => f.endsWith('.xcodeproj') || f.endsWith('.xcworkspace')
+      );
       if (hasXcodeProject) {
         this.logger.debug('Detected Xcode project (.xcodeproj/.xcworkspace found)');
         return 'swift';

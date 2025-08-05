@@ -47,7 +47,7 @@ describe('Smart Defaults Integration', () => {
       // Verify the config loads without errors
       const { ConfigurationManager } = await import('../src/utils/config-manager');
       const result = await ConfigurationManager.getConfig('./poltergeist.config.json');
-      
+
       expect(result.config).toBeDefined();
       expect(result.config.targets[0].name).toBe('build');
     });
@@ -115,7 +115,7 @@ describe('Smart Defaults Integration', () => {
     it('should work with ultra-minimal Swift config', async () => {
       // Create Package.swift to trigger Swift detection
       writeFileSync('Package.swift', '// swift-tools-version:5.5');
-      
+
       const swiftConfig = {
         version: '1.0',
         targets: [
@@ -237,7 +237,7 @@ describe('Smart Defaults Integration', () => {
       const minimalJson = JSON.stringify(minimalConfig, null, 2);
 
       const reduction = ((verboseJson.length - minimalJson.length) / verboseJson.length) * 100;
-      
+
       console.log(`Verbose: ${verboseJson.length} bytes`);
       console.log(`Minimal: ${minimalJson.length} bytes`);
       console.log(`Reduction: ${reduction.toFixed(1)}%`);

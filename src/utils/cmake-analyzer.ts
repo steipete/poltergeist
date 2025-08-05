@@ -125,7 +125,8 @@ export class CMakeProjectAnalyzer {
       for (const match of libMatches) {
         const name = match[1];
         const libType = match[2] || 'STATIC';
-        const sources = libType !== 'INTERFACE' && match[3] ? this.parseSourceList(match[3], fileDir) : [];
+        const sources =
+          libType !== 'INTERFACE' && match[3] ? this.parseSourceList(match[3], fileDir) : [];
 
         targets.push({
           name,

@@ -626,31 +626,34 @@ program
       if (projectType === 'swift') {
         // Look for Xcode projects
         const xcodeProjects = await findXcodeProjects(projectRoot);
-        
+
         if (xcodeProjects.length > 0) {
           console.log(chalk.green(`✅ Found ${xcodeProjects.length} Xcode project(s)`));
-          
+
           const targets: any[] = [];
-          
+
           for (const project of xcodeProjects) {
             const projectDir = path.dirname(project.path);
             const projectName = path.basename(project.path, path.extname(project.path));
             const relativeDir = path.relative(projectRoot, projectDir) || '.';
-            const isIOS = projectName.toLowerCase().includes('ios') || 
-                         project.path.toLowerCase().includes('/ios/');
-            
+            const isIOS =
+              projectName.toLowerCase().includes('ios') ||
+              project.path.toLowerCase().includes('/ios/');
+
             // Create a sanitized target name
-            const targetName = projectName.toLowerCase()
-              .replace(/[^a-z0-9]/g, '')
-              .replace(/ios$/, '') || 'app';
-            
+            const targetName =
+              projectName
+                .toLowerCase()
+                .replace(/[^a-z0-9]/g, '')
+                .replace(/ios$/, '') || 'app';
+
             const buildScript = existsSync(path.join(projectDir, 'scripts', 'build.sh'));
-            const buildCommand = buildScript ?
-              `cd ${relativeDir} && ./scripts/build.sh --configuration Debug` :
-              project.type === 'xcworkspace' ?
-                `cd ${relativeDir} && xcodebuild -workspace ${path.basename(project.path)} -scheme ${project.scheme || projectName} -configuration Debug build` :
-                `cd ${relativeDir} && xcodebuild -project ${path.basename(project.path)} -scheme ${project.scheme || projectName} -configuration Debug build`;
-            
+            const buildCommand = buildScript
+              ? `cd ${relativeDir} && ./scripts/build.sh --configuration Debug`
+              : project.type === 'xcworkspace'
+                ? `cd ${relativeDir} && xcodebuild -workspace ${path.basename(project.path)} -scheme ${project.scheme || projectName} -configuration Debug build`
+                : `cd ${relativeDir} && xcodebuild -project ${path.basename(project.path)} -scheme ${project.scheme || projectName} -configuration Debug build`;
+
             targets.push({
               name: isIOS ? `${targetName}-ios` : targetName,
               type: 'app-bundle',
@@ -663,16 +666,16 @@ program
                 `${relativeDir}/**/*.xcodeproj/**`,
                 `${relativeDir}/**/*.xcconfig`,
                 `${relativeDir}/**/*.entitlements`,
-                `${relativeDir}/**/*.plist`
+                `${relativeDir}/**/*.plist`,
               ],
               settlingDelay: 1500,
               debounceInterval: 3000,
               environment: {
-                CONFIGURATION: 'Debug'
-              }
+                CONFIGURATION: 'Debug',
+              },
             });
           }
-          
+
           config = {
             version: '1.0',
             projectType: 'swift',
@@ -707,16 +710,16 @@ async function findXcodeProjects(
   maxDepth: number = 2
 ): Promise<Array<{ path: string; type: 'xcodeproj' | 'xcworkspace'; scheme?: string }>> {
   const projects: Array<{ path: string; type: 'xcodeproj' | 'xcworkspace'; scheme?: string }> = [];
-  
+
   async function scan(dir: string, depth: number) {
     if (depth > maxDepth) return;
-    
+
     try {
       const entries = await readdir(dir, { withFileTypes: true });
-      
+
       for (const entry of entries) {
         const fullPath = join(dir, entry.name);
-        
+
         if (entry.isDirectory()) {
           if (entry.name.endsWith('.xcworkspace')) {
             projects.push({ path: fullPath, type: 'xcworkspace' });
@@ -732,7 +735,7 @@ async function findXcodeProjects(
       // Ignore permission errors
     }
   }
-  
+
   await scan(rootPath, 0);
   return projects;
 }
@@ -740,17 +743,18 @@ async function findXcodeProjects(
 // Helper to guess bundle ID from project
 function guessBundleId(projectName: string, projectPath: string): string {
   // Common patterns
-  const cleanName = projectName.toLowerCase()
+  const cleanName = projectName
+    .toLowerCase()
     .replace(/[^a-z0-9]/g, '')
     .replace(/ios$/, '');
-  
+
   // Try to extract from common patterns
   if (projectPath.includes('vibetunnel')) {
-    return projectPath.includes('ios') ? 
-      'sh.vibetunnel.vibetunnel.ios' : 
-      'sh.vibetunnel.vibetunnel';
+    return projectPath.includes('ios')
+      ? 'sh.vibetunnel.vibetunnel.ios'
+      : 'sh.vibetunnel.vibetunnel';
   }
-  
+
   return `com.example.${cleanName}`;
 }
 

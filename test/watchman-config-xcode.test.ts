@@ -98,7 +98,7 @@ describe('WatchmanConfigManager - Xcode Project Detection', () => {
   describe('Swift project exclusions', () => {
     it('should generate correct exclusions for swift projects', () => {
       const exclusions = manager.getOptimizedExclusions('swift', 'balanced', []);
-      
+
       // Check for Swift-specific exclusions
       expect(exclusions).toContain('.build');
       expect(exclusions).toContain('DerivedData');
@@ -108,7 +108,7 @@ describe('WatchmanConfigManager - Xcode Project Detection', () => {
       expect(exclusions).toContain('*.framework');
       expect(exclusions).toContain('*.app');
       expect(exclusions).toContain('*.swiftmodule');
-      
+
       // Check for universal exclusions
       expect(exclusions).toContain('.git');
       expect(exclusions).toContain('.DS_Store');
@@ -117,7 +117,7 @@ describe('WatchmanConfigManager - Xcode Project Detection', () => {
     it('should include custom exclusions', () => {
       const customExclusions = ['CustomBuild', 'Pods'];
       const exclusions = manager.getOptimizedExclusions('swift', 'balanced', customExclusions);
-      
+
       expect(exclusions).toContain('CustomBuild');
       expect(exclusions).toContain('Pods');
     });
@@ -125,10 +125,10 @@ describe('WatchmanConfigManager - Xcode Project Detection', () => {
     it('should handle performance profiles correctly', () => {
       const conservativeExclusions = manager.getOptimizedExclusions('swift', 'conservative', []);
       const aggressiveExclusions = manager.getOptimizedExclusions('swift', 'aggressive', []);
-      
+
       // Conservative should have fewer exclusions
       expect(conservativeExclusions.length).toBeLessThan(aggressiveExclusions.length);
-      
+
       // Conservative should still include critical exclusions
       expect(conservativeExclusions).toContain('.git');
       expect(conservativeExclusions).toContain('DerivedData');
@@ -155,18 +155,18 @@ describe('WatchmanConfigManager - Xcode Project Detection', () => {
       };
 
       const watchmanConfig = await manager.generateWatchmanConfig(config);
-      
+
       // Check basic structure
       expect(watchmanConfig.ignore_dirs).toBeInstanceOf(Array);
       expect(watchmanConfig.ignore_vcs).toEqual(['.git', '.svn', '.hg', '.bzr']);
-      
+
       // Check performance settings
       expect(watchmanConfig.idle_reap_age_seconds).toBe(300);
       expect(watchmanConfig.gc_age_seconds).toBe(259200);
       expect(watchmanConfig.gc_interval_seconds).toBe(86400);
       expect(watchmanConfig.max_files).toBe(5000);
       expect(watchmanConfig.settle).toBe(500);
-      
+
       // Check Swift-specific optimizations
       expect(watchmanConfig.defer).toContain('*.xcodeproj/**');
       expect(watchmanConfig.defer).toContain('*.xcworkspace/**');
@@ -192,7 +192,7 @@ describe('WatchmanConfigManager - Xcode Project Detection', () => {
 
       const watchmanConfig = await manager.generateWatchmanConfig(config);
       const ignoreDirs = watchmanConfig.ignore_dirs as string[];
-      
+
       expect(ignoreDirs).toContain('Pods');
       expect(ignoreDirs).toContain('Carthage');
     });
@@ -230,12 +230,12 @@ describe('WatchmanConfigManager - Xcode Project Detection', () => {
 
     it('should validate patterns and warn about problematic ones', () => {
       const warnSpy = vi.spyOn(logger, 'warn');
-      
+
       manager.validateWatchPattern('.git/**');
       expect(warnSpy).toHaveBeenCalledWith(
         expect.stringContaining('includes commonly excluded directory')
       );
-      
+
       manager.validateWatchPattern('node_modules/**');
       expect(warnSpy).toHaveBeenCalledWith(
         expect.stringContaining('includes commonly excluded directory')
@@ -246,7 +246,7 @@ describe('WatchmanConfigManager - Xcode Project Detection', () => {
   describe('Configuration validation', () => {
     it('should validate all watch patterns in config', () => {
       const validateSpy = vi.spyOn(manager, 'validateWatchPattern');
-      
+
       const config = {
         version: '1.0' as const,
         projectType: 'swift' as ProjectType,
@@ -276,7 +276,7 @@ describe('WatchmanConfigManager - Xcode Project Detection', () => {
       };
 
       manager.validateConfiguration(config);
-      
+
       expect(validateSpy).toHaveBeenCalledWith('**/*.swift');
       expect(validateSpy).toHaveBeenCalledWith('Resources/**');
     });
