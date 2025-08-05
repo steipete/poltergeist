@@ -222,6 +222,8 @@ export class DaemonManager {
    */
   private async saveDaemonInfo(projectPath: string, info: DaemonInfo): Promise<void> {
     const infoPath = this.getDaemonInfoPath(projectPath);
+    // Ensure the directory exists before writing
+    await mkdir(dirname(infoPath), { recursive: true });
     await writeFile(infoPath, JSON.stringify(info, null, 2));
   }
 

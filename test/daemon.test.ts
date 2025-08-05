@@ -3,7 +3,7 @@ import { fork } from 'child_process';
 import { createHash } from 'crypto';
 import { existsSync } from 'fs';
 import { mkdir, readFile, rm, writeFile } from 'fs/promises';
-import { join } from 'path';
+import { dirname, join, sep } from 'path';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { DaemonManager } from '../dist/daemon/daemon-manager.js';
 import { createLogger } from '../dist/logger.js';
@@ -30,7 +30,8 @@ describe('DaemonManager', () => {
   beforeEach(async () => {
     logger = createLogger();
     daemon = new DaemonManager(logger);
-    testProjectPath = '/test/project';
+    // Use a more realistic test path that works on all platforms
+    testProjectPath = process.platform === 'win32' ? 'C:\\test\\project' : '/test/project';
     stateDir = FileSystemUtils.getStateDirectory();
 
     // Ensure state directory exists
@@ -42,7 +43,7 @@ describe('DaemonManager', () => {
 
   afterEach(async () => {
     // Clean up any test files
-    const projectName = testProjectPath.split('/').pop() || 'unknown';
+    const projectName = testProjectPath.split(sep).pop() || 'unknown';
     const hash = getProjectHash(testProjectPath);
     const daemonInfoPath = join(stateDir, `${projectName}-${hash}-daemon.json`);
     const logFilePath = join(stateDir, `${projectName}-${hash}-daemon.log`);
@@ -66,7 +67,7 @@ describe('DaemonManager', () => {
     });
 
     it('should return false when daemon info exists but process is dead', async () => {
-      const projectName = testProjectPath.split('/').pop() || 'unknown';
+      const projectName = testProjectPath.split(sep).pop() || 'unknown';
       const hash = getProjectHash(testProjectPath);
       const daemonInfoPath = join(stateDir, `${projectName}-${hash}-daemon.json`);
 
@@ -89,7 +90,7 @@ describe('DaemonManager', () => {
     });
 
     it('should return true when daemon is actually running', async () => {
-      const projectName = testProjectPath.split('/').pop() || 'unknown';
+      const projectName = testProjectPath.split(sep).pop() || 'unknown';
       const hash = getProjectHash(testProjectPath);
       const daemonInfoPath = join(stateDir, `${projectName}-${hash}-daemon.json`);
 
@@ -163,7 +164,7 @@ describe('DaemonManager', () => {
       );
 
       // Verify daemon info was saved
-      const projectName = testProjectPath.split('/').pop() || 'unknown';
+      const projectName = testProjectPath.split(sep).pop() || 'unknown';
       const hash = getProjectHash(testProjectPath);
       const daemonInfoPath = join(stateDir, `${projectName}-${hash}-daemon.json`);
       const savedInfo = JSON.parse(await readFile(daemonInfoPath, 'utf-8'));
@@ -174,7 +175,7 @@ describe('DaemonManager', () => {
 
     it('should fail if daemon is already running', async () => {
       // Set up existing daemon
-      const projectName = testProjectPath.split('/').pop() || 'unknown';
+      const projectName = testProjectPath.split(sep).pop() || 'unknown';
       const hash = getProjectHash(testProjectPath);
       const daemonInfoPath = join(stateDir, `${projectName}-${hash}-daemon.json`);
 
@@ -279,7 +280,7 @@ describe('DaemonManager', () => {
 
   describe('stopDaemon', () => {
     it('should successfully stop a running daemon', async () => {
-      const projectName = testProjectPath.split('/').pop() || 'unknown';
+      const projectName = testProjectPath.split(sep).pop() || 'unknown';
       const hash = getProjectHash(testProjectPath);
       const daemonInfoPath = join(stateDir, `${projectName}-${hash}-daemon.json`);
 
@@ -345,7 +346,7 @@ describe('DaemonManager', () => {
     });
 
     it('should read and return log lines', async () => {
-      const projectName = testProjectPath.split('/').pop() || 'unknown';
+      const projectName = testProjectPath.split(sep).pop() || 'unknown';
       const hash = getProjectHash(testProjectPath);
       const logFilePath = join(stateDir, `${projectName}-${hash}-daemon.log`);
 
@@ -355,7 +356,7 @@ Line 3
 Line 4
 Line 5`;
 
-      await mkdir(stateDir, { recursive: true });
+      await mkdir(dirname(logFilePath), { recursive: true });
       await writeFile(logFilePath, logContent);
 
       const logs = await daemon.readLogFile(testProjectPath);
@@ -363,13 +364,13 @@ Line 5`;
     });
 
     it('should limit returned lines when specified', async () => {
-      const projectName = testProjectPath.split('/').pop() || 'unknown';
+      const projectName = testProjectPath.split(sep).pop() || 'unknown';
       const hash = getProjectHash(testProjectPath);
       const logFilePath = join(stateDir, `${projectName}-${hash}-daemon.log`);
 
       const logContent = Array.from({ length: 10 }, (_, i) => `Line ${i + 1}`).join('\n');
 
-      await mkdir(stateDir, { recursive: true });
+      await mkdir(dirname(logFilePath), { recursive: true });
       await writeFile(logFilePath, logContent);
 
       const logs = await daemon.readLogFile(testProjectPath, 3);
@@ -384,7 +385,7 @@ Line 5`;
     });
 
     it('should return daemon info when daemon is running', async () => {
-      const projectName = testProjectPath.split('/').pop() || 'unknown';
+      const projectName = testProjectPath.split(sep).pop() || 'unknown';
       const hash = getProjectHash(testProjectPath);
       const daemonInfoPath = join(stateDir, `${projectName}-${hash}-daemon.json`);
 
