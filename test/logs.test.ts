@@ -197,7 +197,9 @@ describe('Logs Command', () => {
       expect(result.stdout).toContain('Build completed successfully');
       expect(result.stdout).toContain('Build failed');
       expect(result.stdout).toContain('[test-target]');
-      expect(result.stdout).toContain('[other-target]');
+      // When no target is specified and only one target is configured,
+      // logs are filtered to that target automatically
+      expect(result.stdout).not.toContain('[other-target]');
     });
 
     it('should show error when no log file exists', async () => {
@@ -224,7 +226,7 @@ describe('Logs Command', () => {
     });
 
     it('should filter logs by target', async () => {
-      const result = await runLogsCommand(['--target', 'other-target']);
+      const result = await runLogsCommand(['other-target']);
 
       expect(result.exitCode).toBe(0);
       expect(result.stdout).toContain('Starting other target');
@@ -233,24 +235,26 @@ describe('Logs Command', () => {
     });
 
     it('should show message when target has no logs', async () => {
-      const result = await runLogsCommand(['--target', 'nonexistent-target']);
+      const result = await runLogsCommand(['nonexistent-target']);
 
       expect(result.exitCode).toBe(0);
       expect(result.stdout).toContain('No logs found for target: nonexistent-target');
     });
 
     it('should limit number of lines', async () => {
-      const result = await runLogsCommand(['--lines', '2']);
+      const result = await runLogsCommand(['--tail', '2']);
 
       expect(result.exitCode).toBe(0);
-      // Should only show the last 2 entries
-      expect(result.stdout).toContain('Starting other target');
+      // Should only show the last 2 entries from test-target
+      // (since no target specified and only test-target is configured)
+      expect(result.stdout).toContain('Build failed');
       expect(result.stdout).toContain('Debug information');
       expect(result.stdout).not.toContain('Starting Poltergeist');
+      expect(result.stdout).not.toContain('Build completed successfully');
     });
 
     it('should output JSON format', async () => {
-      const result = await runLogsCommand(['--json', '--lines', '2']);
+      const result = await runLogsCommand(['--json', '--tail', '2']);
 
       expect(result.exitCode).toBe(0);
 
@@ -269,7 +273,7 @@ describe('Logs Command', () => {
     });
 
     it('should combine target filter and line limit', async () => {
-      const result = await runLogsCommand(['--target', 'test-target', '--lines', '2']);
+      const result = await runLogsCommand(['test-target', '--tail', '2']);
 
       expect(result.exitCode).toBe(0);
       // Should show last 2 entries for test-target only
@@ -354,7 +358,16 @@ describe('Logs Command', () => {
         JSON.stringify({
           version: '1.0',
           projectType: 'node',
-          targets: [],
+          targets: [
+            {
+              name: 'custom-target',
+              type: 'executable',
+              enabled: true,
+              buildCommand: 'echo "custom"',
+              outputPath: './dist/custom',
+              watchPaths: ['src/**/*.ts'],
+            },
+          ],
           watchman: {
             useDefaultExclusions: true,
             excludeDirs: [],

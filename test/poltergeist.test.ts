@@ -515,6 +515,8 @@ describe('Poltergeist', () => {
           outputPath: '/dist/cli',
         },
         pendingFiles: 0,
+        buildStats: undefined,
+        buildCommand: 'npm run build',
       });
 
       expect(status).toHaveProperty('app');
@@ -543,6 +545,8 @@ describe('Poltergeist', () => {
         },
         appInfo: undefined,
         pendingFiles: 0,
+        buildStats: undefined,
+        buildCommand: 'npm run build',
       });
       // When intelligent build scheduling is enabled, status may include _buildQueue
       const targetKeys = Object.keys(status).filter((key) => !key.startsWith('_'));
@@ -582,6 +586,8 @@ describe('Poltergeist', () => {
           timestamp: '2023-01-01T00:00:00Z',
         },
         appInfo: undefined,
+        buildStats: undefined,
+        buildCommand: 'npm run build',
       });
       // When intelligent build scheduling is enabled, status may include _buildQueue
       const targetKeys = Object.keys(status).filter((key) => !key.startsWith('_'));
