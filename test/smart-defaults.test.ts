@@ -141,10 +141,11 @@ describe('Smart Defaults Integration', () => {
         ],
       };
 
-      writeFileSync('poltergeist.config.json', JSON.stringify(swiftConfig, null, 2));
+      const configPath = join(process.cwd(), 'poltergeist.config.json');
+      writeFileSync(configPath, JSON.stringify(swiftConfig, null, 2));
 
       const { ConfigLoader } = await import('../src/config');
-      const loader = new ConfigLoader('./poltergeist.config.json');
+      const loader = new ConfigLoader(configPath);
       const config = loader.loadConfig();
 
       // Project type is explicitly set in minimal config

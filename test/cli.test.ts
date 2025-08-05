@@ -10,111 +10,112 @@ import type { PoltergeistConfig } from '../src/types.js';
 // This gives us better control and avoids needing to build the CLI first
 
 // Use vi.hoisted to ensure mocks are defined before imports
-const { mockPoltergeist, mockStateManager, mockConfigLoader, mockLogger, mockDaemonManager } = vi.hoisted(() => {
-  const { existsSync, readFileSync } = require('fs');
-  const mockPoltergeist = {
-    start: vi.fn().mockResolvedValue(undefined),
-    stop: vi.fn().mockResolvedValue(undefined),
-    getStatus: vi.fn().mockResolvedValue({
-      'test-target': {
-        status: 'idle',
-        enabled: true,
-        type: 'executable',
-        process: {
-          pid: 1234,
-          isActive: true,
-          hostname: 'test-host',
-          lastHeartbeat: new Date().toISOString(),
+const { mockPoltergeist, mockStateManager, mockConfigLoader, mockLogger, mockDaemonManager } =
+  vi.hoisted(() => {
+    const { existsSync, readFileSync } = require('fs');
+    const mockPoltergeist = {
+      start: vi.fn().mockResolvedValue(undefined),
+      stop: vi.fn().mockResolvedValue(undefined),
+      getStatus: vi.fn().mockResolvedValue({
+        'test-target': {
+          status: 'idle',
+          enabled: true,
+          type: 'executable',
+          process: {
+            pid: 1234,
+            isActive: true,
+            hostname: 'test-host',
+            lastHeartbeat: new Date().toISOString(),
+          },
         },
-      },
-    }),
-  };
-
-  const mockDaemonManager = {
-    isDaemonRunning: vi.fn().mockResolvedValue(false),
-    startDaemon: vi.fn().mockResolvedValue(12345),
-    stopDaemon: vi.fn().mockResolvedValue(undefined),
-    readLogFile: vi.fn().mockResolvedValue(['Log line 1', 'Log line 2']),
-    getDaemonInfo: vi.fn().mockResolvedValue(null),
-  };
-
-  const mockStateManager = vi.fn().mockImplementation(() => ({
-    readState: vi.fn().mockResolvedValue({
-      projectName: 'test-project',
-      target: 'test-target',
-      process: {
-        isActive: false,
-        lastHeartbeat: new Date(Date.now() - 8 * 24 * 60 * 60 * 1000).toISOString(),
-      },
-    }),
-    removeState: vi.fn().mockResolvedValue(undefined),
-  }));
-
-  // Add static method
-  mockStateManager.listAllStates = vi.fn().mockResolvedValue(['test-state.state']);
-
-  const mockConfigLoader = vi.fn().mockImplementation((path) => {
-    // Return default config unless overridden
-    return {
-      loadConfig: vi.fn().mockImplementation(() => {
-        // Check if a config file exists and read it
-        if (existsSync(path)) {
-          const content = readFileSync(path, 'utf-8');
-          return JSON.parse(content);
-        }
-        // Return default config
-        return {
-          version: '1.0',
-          projectType: 'node',
-          targets: [
-            {
-              name: 'test-target',
-              type: 'executable',
-              enabled: true,
-              buildCommand: 'echo "Building"',
-              outputPath: './dist/test',
-              watchPaths: ['src/**/*.ts'],
-            },
-          ],
-          watchman: {
-            useDefaultExclusions: true,
-            excludeDirs: [],
-            projectType: 'node',
-            maxFileEvents: 10000,
-            recrawlThreshold: 3,
-            settlingDelay: 1000,
-          },
-          buildScheduling: {
-            parallelization: 1,
-            prioritization: {
-              enabled: true,
-              focusDetectionWindow: 300000,
-            },
-          },
-          notifications: {
-            enabled: true,
-          },
-        };
       }),
-      getProjectRoot: vi.fn().mockReturnValue(process.cwd()),
+    };
+
+    const mockDaemonManager = {
+      isDaemonRunning: vi.fn().mockResolvedValue(false),
+      startDaemon: vi.fn().mockResolvedValue(12345),
+      stopDaemon: vi.fn().mockResolvedValue(undefined),
+      readLogFile: vi.fn().mockResolvedValue(['Log line 1', 'Log line 2']),
+      getDaemonInfo: vi.fn().mockResolvedValue(null),
+    };
+
+    const mockStateManager = vi.fn().mockImplementation(() => ({
+      readState: vi.fn().mockResolvedValue({
+        projectName: 'test-project',
+        target: 'test-target',
+        process: {
+          isActive: false,
+          lastHeartbeat: new Date(Date.now() - 8 * 24 * 60 * 60 * 1000).toISOString(),
+        },
+      }),
+      removeState: vi.fn().mockResolvedValue(undefined),
+    }));
+
+    // Add static method
+    mockStateManager.listAllStates = vi.fn().mockResolvedValue(['test-state.state']);
+
+    const mockConfigLoader = vi.fn().mockImplementation((path) => {
+      // Return default config unless overridden
+      return {
+        loadConfig: vi.fn().mockImplementation(() => {
+          // Check if a config file exists and read it
+          if (existsSync(path)) {
+            const content = readFileSync(path, 'utf-8');
+            return JSON.parse(content);
+          }
+          // Return default config
+          return {
+            version: '1.0',
+            projectType: 'node',
+            targets: [
+              {
+                name: 'test-target',
+                type: 'executable',
+                enabled: true,
+                buildCommand: 'echo "Building"',
+                outputPath: './dist/test',
+                watchPaths: ['src/**/*.ts'],
+              },
+            ],
+            watchman: {
+              useDefaultExclusions: true,
+              excludeDirs: [],
+              projectType: 'node',
+              maxFileEvents: 10000,
+              recrawlThreshold: 3,
+              settlingDelay: 1000,
+            },
+            buildScheduling: {
+              parallelization: 1,
+              prioritization: {
+                enabled: true,
+                focusDetectionWindow: 300000,
+              },
+            },
+            notifications: {
+              enabled: true,
+            },
+          };
+        }),
+        getProjectRoot: vi.fn().mockReturnValue(process.cwd()),
+      };
+    });
+
+    const mockLogger = {
+      info: vi.fn(),
+      error: vi.fn(),
+      warn: vi.fn(),
+      debug: vi.fn(),
+    };
+
+    return {
+      mockPoltergeist,
+      mockStateManager,
+      mockConfigLoader,
+      mockLogger,
+      mockDaemonManager,
     };
   });
-
-  const mockLogger = {
-    info: vi.fn(),
-    error: vi.fn(),
-    warn: vi.fn(),
-    debug: vi.fn(),
-  };
-
-  return {
-    mockPoltergeist,
-    mockStateManager,
-    mockConfigLoader,
-    mockLogger,
-    mockDaemonManager,
-  };
-});
 
 vi.mock('../src/factories.js', () => ({
   createPoltergeist: vi.fn().mockReturnValue(mockPoltergeist),
@@ -217,9 +218,11 @@ describe('CLI Commands', () => {
     mockConsoleLog.mockClear();
     mockConsoleError.mockClear();
     mockExit.mockClear();
-    
+
     // Reset daemon manager mocks
-    mockDaemonManager.isDaemonRunning.mockReset().mockResolvedValue(options?.daemonRunning ?? false);
+    mockDaemonManager.isDaemonRunning
+      .mockReset()
+      .mockResolvedValue(options?.daemonRunning ?? false);
     mockDaemonManager.startDaemon.mockReset().mockResolvedValue(12345);
     mockDaemonManager.stopDaemon.mockReset();
     if (options?.daemonStopError) {
@@ -346,9 +349,7 @@ describe('CLI Commands', () => {
       const result = await runCLI(['start', '--target', 'test-target']);
 
       expect(result.exitCode).toBe(0);
-      expect(mockConsoleLog).toHaveBeenCalledWith(
-        expect.stringContaining('Starting daemon...')
-      );
+      expect(mockConsoleLog).toHaveBeenCalledWith(expect.stringContaining('Starting daemon...'));
       expect(mockConsoleLog).toHaveBeenCalledWith(
         expect.stringContaining('Poltergeist daemon started (PID:')
       );
@@ -437,9 +438,7 @@ describe('CLI Commands', () => {
       const result = await runCLI(['haunt', '--config', customConfigPath]);
 
       expect(result.exitCode).toBe(0);
-      expect(mockConsoleLog).toHaveBeenCalledWith(
-        expect.stringContaining('Starting daemon...')
-      );
+      expect(mockConsoleLog).toHaveBeenCalledWith(expect.stringContaining('Starting daemon...'));
       expect(mockConsoleLog).toHaveBeenCalledWith(
         expect.stringContaining('Poltergeist daemon started (PID:')
       );
@@ -464,9 +463,7 @@ describe('CLI Commands', () => {
       const result = await runCLI(['stop'], { daemonRunning: true });
 
       expect(result.exitCode).toBe(0);
-      expect(mockConsoleLog).toHaveBeenCalledWith(
-        expect.stringContaining('Stopping daemon...')
-      );
+      expect(mockConsoleLog).toHaveBeenCalledWith(expect.stringContaining('Stopping daemon...'));
       expect(mockConsoleLog).toHaveBeenCalledWith(
         expect.stringContaining('Daemon stopped successfully')
       );
@@ -478,21 +475,21 @@ describe('CLI Commands', () => {
       const result = await runCLI(['rest'], { daemonRunning: true });
 
       expect(result.exitCode).toBe(0);
-      expect(mockConsoleLog).toHaveBeenCalledWith(
-        expect.stringContaining('Stopping daemon...')
-      );
+      expect(mockConsoleLog).toHaveBeenCalledWith(expect.stringContaining('Stopping daemon...'));
     });
 
     it('should handle stop errors gracefully', async () => {
       createTestConfig();
 
-      const result = await runCLI(['stop'], { 
-        daemonRunning: true, 
-        daemonStopError: new Error('Stop failed') 
+      const result = await runCLI(['stop'], {
+        daemonRunning: true,
+        daemonStopError: new Error('Stop failed'),
       });
 
       expect(result.exitCode).toBe(1);
-      expect(mockConsoleError).toHaveBeenCalledWith(expect.stringContaining('Failed to stop daemon:'));
+      expect(mockConsoleError).toHaveBeenCalledWith(
+        expect.stringContaining('Failed to stop daemon:')
+      );
     });
 
     it('should handle no daemon running', async () => {

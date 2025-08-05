@@ -433,21 +433,23 @@ describe('Configuration Reloading Integration', () => {
         },
       };
 
-      let _configChangeCallback: Function | undefined;
+      let _configChangeCallback: ((files: Array<{ name: string }>) => void) | undefined;
 
       // Capture the callback and simulate immediate config change during startup
-      enhancedMocks.watchmanClient!.subscribe = vi
-        .fn()
-        .mockImplementation((_projectRoot, subscriptionName, _subscription, callback) => {
-          if (subscriptionName === 'poltergeist_config') {
-            _configChangeCallback = callback;
-            // Simulate immediate config change
-            setTimeout(() => {
-              callback([{ name: 'poltergeist.config.json', exists: true }]);
-            }, 10);
-          }
-          return Promise.resolve();
-        });
+      if (enhancedMocks.watchmanClient) {
+        enhancedMocks.watchmanClient.subscribe = vi
+          .fn()
+          .mockImplementation((_projectRoot, subscriptionName, _subscription, callback) => {
+            if (subscriptionName === 'poltergeist_config') {
+              _configChangeCallback = callback;
+              // Simulate immediate config change
+              setTimeout(() => {
+                callback([{ name: 'poltergeist.config.json', exists: true }]);
+              }, 10);
+            }
+            return Promise.resolve();
+          });
+      }
 
       const { ConfigurationManager } = await import('../src/utils/config-manager.js');
       vi.spyOn(ConfigurationManager, 'loadConfigFromPath').mockResolvedValue({

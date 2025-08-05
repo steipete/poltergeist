@@ -1,3 +1,4 @@
+import type { ChildProcess } from 'child_process';
 import { fork } from 'child_process';
 import { createHash } from 'crypto';
 import { existsSync } from 'fs';
@@ -134,7 +135,7 @@ describe('DaemonManager', () => {
         kill: vi.fn(),
       };
 
-      (fork as any).mockReturnValue(mockChild);
+      vi.mocked(fork).mockReturnValue(mockChild as unknown as ChildProcess);
 
       const pid = await daemon.startDaemon(config, {
         projectRoot: testProjectPath,
@@ -207,7 +208,7 @@ describe('DaemonManager', () => {
         kill: vi.fn(),
       };
 
-      (fork as any).mockReturnValue(mockChild);
+      vi.mocked(fork).mockReturnValue(mockChild as unknown as ChildProcess);
 
       await expect(
         daemon.startDaemon(config, {
@@ -225,7 +226,7 @@ describe('DaemonManager', () => {
 
       // Mock fork to simulate timeout
       const mockChild = {
-        once: vi.fn((event, callback) => {
+        once: vi.fn((event, _callback) => {
           if (event === 'error') {
             // Don't call error callback
           }
@@ -234,18 +235,17 @@ describe('DaemonManager', () => {
         kill: vi.fn(),
       };
 
-      (fork as any).mockReturnValue(mockChild);
+      vi.mocked(fork).mockReturnValue(mockChild as unknown as ChildProcess);
 
       // Temporarily reduce timeout for testing
       const originalTimeout = setTimeout;
-      let timeoutCallback: any;
-      (global as any).setTimeout = vi.fn((cb: any, ms: number) => {
+      const globalWithTimeout = global as typeof global & { setTimeout: typeof setTimeout };
+      globalWithTimeout.setTimeout = vi.fn((cb: () => void, ms: number) => {
         if (ms === 10000) {
-          timeoutCallback = cb;
           // Call it immediately for testing
           process.nextTick(cb);
         }
-        return {} as any;
+        return {} as NodeJS.Timeout;
       });
 
       await expect(
@@ -257,7 +257,7 @@ describe('DaemonManager', () => {
       expect(mockChild.kill).toHaveBeenCalled();
 
       // Restore original setTimeout
-      (global as any).setTimeout = originalTimeout;
+      globalWithTimeout.setTimeout = originalTimeout;
     });
   });
 
@@ -289,10 +289,16 @@ describe('DaemonManager', () => {
           return true;
         }
         return true;
-      }) as any;
+      }) as typeof process.kill;
 
-      // Mock waitForProcessExit
-      vi.spyOn(daemon as any, 'waitForProcessExit').mockResolvedValue(undefined);
+      // Mock waitForProcessExit - access private method for testing
+      interface DaemonManagerWithPrivate {
+        waitForProcessExit: (pid: number, timeout: number) => Promise<void>;
+      }
+      vi.spyOn(
+        daemon as unknown as DaemonManagerWithPrivate,
+        'waitForProcessExit'
+      ).mockResolvedValue(undefined);
 
       await daemon.stopDaemon(testProjectPath);
 

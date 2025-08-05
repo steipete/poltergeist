@@ -22,6 +22,12 @@ export interface DaemonOptions {
   verbose?: boolean;
 }
 
+interface DaemonMessage {
+  type: 'started' | 'error';
+  pid?: number;
+  error?: string;
+}
+
 export class DaemonManager {
   private logger: Logger;
 
@@ -148,7 +154,7 @@ export class DaemonManager {
         reject(new Error('Daemon startup timeout'));
       }, 10000); // 10 second timeout
 
-      child.once('message', async (message: any) => {
+      child.once('message', async (message: DaemonMessage) => {
         clearTimeout(timeout);
 
         if (message.type === 'started' && message.pid) {

@@ -26,7 +26,7 @@ class DaemonLogger {
     this.level = level;
   }
 
-  private async log(level: string, message: string, ...args: any[]): Promise<void> {
+  private async log(level: string, message: string, ...args: unknown[]): Promise<void> {
     const timestamp = new Date().toISOString();
     const formattedMessage = `[${timestamp}] [${level}] ${message} ${args.length > 0 ? JSON.stringify(args) : ''}\n`;
 
@@ -34,26 +34,26 @@ class DaemonLogger {
       await appendFile(this.logFile, formattedMessage);
     } catch (error) {
       // If log file doesn't exist, create it
-      if ((error as any).code === 'ENOENT') {
+      if ((error as NodeJS.ErrnoException).code === 'ENOENT') {
         await mkdir(dirname(this.logFile), { recursive: true });
         await writeFile(this.logFile, formattedMessage);
       }
     }
   }
 
-  async info(message: string, ...args: any[]): Promise<void> {
+  async info(message: string, ...args: unknown[]): Promise<void> {
     await this.log('INFO', message, ...args);
   }
 
-  async error(message: string, ...args: any[]): Promise<void> {
+  async error(message: string, ...args: unknown[]): Promise<void> {
     await this.log('ERROR', message, ...args);
   }
 
-  async warn(message: string, ...args: any[]): Promise<void> {
+  async warn(message: string, ...args: unknown[]): Promise<void> {
     await this.log('WARN', message, ...args);
   }
 
-  async debug(message: string, ...args: any[]): Promise<void> {
+  async debug(message: string, ...args: unknown[]): Promise<void> {
     if (this.level === 'debug') {
       await this.log('DEBUG', message, ...args);
     }
@@ -72,8 +72,17 @@ async function runDaemon(args: DaemonArgs): Promise<void> {
   try {
     await logger.info('Daemon starting', { projectRoot, target });
 
+    // Create logger adapter that matches the Logger interface
+    const loggerAdapter = {
+      info: (message: string, metadata?: unknown) => logger.info(message, metadata),
+      error: (message: string, metadata?: unknown) => logger.error(message, metadata),
+      warn: (message: string, metadata?: unknown) => logger.warn(message, metadata),
+      debug: (message: string, metadata?: unknown) => logger.debug(message, metadata),
+      success: (message: string, metadata?: unknown) => logger.info(`✅ ${message}`, metadata),
+    };
+
     // Create Poltergeist instance with file logger
-    const poltergeist = createPoltergeist(config, projectRoot, logger as any, configPath);
+    const poltergeist = createPoltergeist(config, projectRoot, loggerAdapter, configPath);
 
     // Handle shutdown signals
     const shutdown = async (signal: string) => {

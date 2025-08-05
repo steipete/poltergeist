@@ -266,10 +266,20 @@ describe('Logs Command', () => {
 
       expect(Array.isArray(json)).toBe(true);
       expect(json).toHaveLength(2);
-      expect((json as any[])[0]).toHaveProperty('timestamp');
-      expect((json as any[])[0]).toHaveProperty('level');
-      expect((json as any[])[0]).toHaveProperty('message');
-      expect((json as any[])[0]).toHaveProperty('target');
+
+      interface LogEntry {
+        timestamp: string;
+        level: string;
+        message: string;
+        target: string;
+        metadata?: unknown;
+      }
+
+      const logEntries = json as LogEntry[];
+      expect(logEntries[0]).toHaveProperty('timestamp');
+      expect(logEntries[0]).toHaveProperty('level');
+      expect(logEntries[0]).toHaveProperty('message');
+      expect(logEntries[0]).toHaveProperty('target');
     });
 
     it('should combine target filter and line limit', async () => {

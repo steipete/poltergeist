@@ -313,6 +313,6 @@ function writeFileSync(path: string, content: string): void {
   require('fs').writeFileSync(path, content, 'utf-8');
 }
 
-function mkdirSync(path: string, options?: any): void {
+function mkdirSync(path: string, options?: { recursive?: boolean }): void {
   require('fs').mkdirSync(path, options);
 }

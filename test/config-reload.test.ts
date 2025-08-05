@@ -4,6 +4,27 @@ import { beforeEach, describe, expect, test, vi } from 'vitest';
 import { createTestHarness } from '../src/factories.js';
 import type { PoltergeistConfig } from '../src/types.js';
 
+// Type to access private methods for testing
+interface PoltergeistWithPrivate {
+  detectConfigChanges: (
+    oldConfig: PoltergeistConfig,
+    newConfig: PoltergeistConfig
+  ) => {
+    added: string[];
+    removed: string[];
+    modified: string[];
+  };
+  handleConfigChange: (changes: Array<{ name: string; exists: boolean }>) => Promise<void>;
+  applyConfigChanges: (
+    newConfig: PoltergeistConfig,
+    changes: {
+      added: string[];
+      removed: string[];
+      modified: string[];
+    }
+  ) => Promise<void>;
+}
+
 describe('Configuration Reloading', () => {
   const baseConfig: PoltergeistConfig = {
     version: '1.0',
@@ -54,7 +75,9 @@ describe('Configuration Reloading', () => {
     );
 
     // Use reflection to access private method for testing
-    const detectChanges = (poltergeist as any).detectConfigChanges.bind(poltergeist);
+    const detectChanges = (
+      poltergeist as unknown as PoltergeistWithPrivate
+    ).detectConfigChanges.bind(poltergeist);
 
     const newConfig = {
       ...baseConfig,
@@ -90,7 +113,9 @@ describe('Configuration Reloading', () => {
       configPath
     );
 
-    const detectChanges = (poltergeist as any).detectConfigChanges.bind(poltergeist);
+    const detectChanges = (
+      poltergeist as unknown as PoltergeistWithPrivate
+    ).detectConfigChanges.bind(poltergeist);
 
     const newConfig = {
       ...baseConfig,
@@ -115,7 +140,9 @@ describe('Configuration Reloading', () => {
       configPath
     );
 
-    const detectChanges = (poltergeist as any).detectConfigChanges.bind(poltergeist);
+    const detectChanges = (
+      poltergeist as unknown as PoltergeistWithPrivate
+    ).detectConfigChanges.bind(poltergeist);
 
     const newConfig = {
       ...baseConfig,
@@ -146,12 +173,14 @@ describe('Configuration Reloading', () => {
       configPath
     );
 
-    const detectChanges = (poltergeist as any).detectConfigChanges.bind(poltergeist);
+    const detectChanges = (
+      poltergeist as unknown as PoltergeistWithPrivate
+    ).detectConfigChanges.bind(poltergeist);
 
     const newConfig = {
       ...baseConfig,
       watchman: {
-        ...baseConfig.watchman!,
+        ...(baseConfig.watchman || {}),
         settlingDelay: 2000, // Changed settling delay
       },
     };
@@ -187,13 +216,13 @@ describe('Configuration Reloading', () => {
     );
 
     // Mock watchman subscribe to verify it gets called for config file
-    const subscribeMock = enhancedMocks.watchmanClient?.subscribe as any;
+    const subscribeMock = enhancedMocks.watchmanClient?.subscribe as ReturnType<typeof vi.fn>;
 
     await poltergeist.start();
 
     // Check that subscribe was called for config file watching
     const configSubscriptionCall = subscribeMock.mock.calls.find(
-      (call: any[]) => call[1] === 'poltergeist_config'
+      (call: unknown[]) => call[1] === 'poltergeist_config'
     );
 
     expect(configSubscriptionCall).toBeDefined();
@@ -230,9 +259,9 @@ describe('Configuration Reloading', () => {
     await expect(poltergeist.start()).resolves.not.toThrow();
 
     // Should not set up config file watching
-    const subscribeMock = enhancedMocks.watchmanClient?.subscribe as any;
+    const subscribeMock = enhancedMocks.watchmanClient?.subscribe as ReturnType<typeof vi.fn>;
     const configSubscriptionCall = subscribeMock.mock.calls.find(
-      (call: any[]) => call[1] === 'poltergeist_config'
+      (call: unknown[]) => call[1] === 'poltergeist_config'
     );
 
     expect(configSubscriptionCall).toBeUndefined();
@@ -277,8 +306,12 @@ describe('Configuration Reloading', () => {
       };
 
       // Access private method for testing
-      const applyChanges = (poltergeist as any).applyConfigChanges.bind(poltergeist);
-      const detectChanges = (poltergeist as any).detectConfigChanges.bind(poltergeist);
+      const applyChanges = (
+        poltergeist as unknown as PoltergeistWithPrivate
+      ).applyConfigChanges.bind(poltergeist);
+      const detectChanges = (
+        poltergeist as unknown as PoltergeistWithPrivate
+      ).detectConfigChanges.bind(poltergeist);
 
       const changes = detectChanges(baseConfig, newConfig);
       await applyChanges(newConfig, changes);
@@ -322,8 +355,12 @@ describe('Configuration Reloading', () => {
       };
 
       // Access private method for testing
-      const applyChanges = (poltergeist as any).applyConfigChanges.bind(poltergeist);
-      const detectChanges = (poltergeist as any).detectConfigChanges.bind(poltergeist);
+      const applyChanges = (
+        poltergeist as unknown as PoltergeistWithPrivate
+      ).applyConfigChanges.bind(poltergeist);
+      const detectChanges = (
+        poltergeist as unknown as PoltergeistWithPrivate
+      ).detectConfigChanges.bind(poltergeist);
 
       const changes = detectChanges(baseConfig, newConfig);
       await applyChanges(newConfig, changes);
@@ -368,8 +405,12 @@ describe('Configuration Reloading', () => {
         },
       };
 
-      const applyChanges = (poltergeist as any).applyConfigChanges.bind(poltergeist);
-      const detectChanges = (poltergeist as any).detectConfigChanges.bind(poltergeist);
+      const applyChanges = (
+        poltergeist as unknown as PoltergeistWithPrivate
+      ).applyConfigChanges.bind(poltergeist);
+      const detectChanges = (
+        poltergeist as unknown as PoltergeistWithPrivate
+      ).detectConfigChanges.bind(poltergeist);
 
       const changes = detectChanges(baseConfig, newConfig);
       expect(changes.notificationsChanged).toBe(true);
@@ -414,8 +455,12 @@ describe('Configuration Reloading', () => {
         },
       };
 
-      const applyChanges = (poltergeist as any).applyConfigChanges.bind(poltergeist);
-      const detectChanges = (poltergeist as any).detectConfigChanges.bind(poltergeist);
+      const applyChanges = (
+        poltergeist as unknown as PoltergeistWithPrivate
+      ).applyConfigChanges.bind(poltergeist);
+      const detectChanges = (
+        poltergeist as unknown as PoltergeistWithPrivate
+      ).detectConfigChanges.bind(poltergeist);
 
       const changes = detectChanges(baseConfig, newConfig);
       expect(changes.buildSchedulingChanged).toBe(true);
@@ -456,7 +501,9 @@ describe('Configuration Reloading', () => {
         new Error('Invalid configuration file')
       );
 
-      const handleConfigChange = (poltergeist as any).handleConfigChange.bind(poltergeist);
+      const handleConfigChange = (
+        poltergeist as unknown as PoltergeistWithPrivate
+      ).handleConfigChange.bind(poltergeist);
 
       // Should not throw, just log error
       await expect(
@@ -514,8 +561,12 @@ describe('Configuration Reloading', () => {
         ],
       };
 
-      const applyChanges = (poltergeist as any).applyConfigChanges.bind(poltergeist);
-      const detectChanges = (poltergeist as any).detectConfigChanges.bind(poltergeist);
+      const applyChanges = (
+        poltergeist as unknown as PoltergeistWithPrivate
+      ).applyConfigChanges.bind(poltergeist);
+      const detectChanges = (
+        poltergeist as unknown as PoltergeistWithPrivate
+      ).detectConfigChanges.bind(poltergeist);
 
       const changes = detectChanges(baseConfig, newConfig);
 
@@ -542,14 +593,16 @@ describe('Configuration Reloading', () => {
       };
 
       // Make watchman subscription fail for config file
-      enhancedMocks.watchmanClient!.subscribe = vi
-        .fn()
-        .mockImplementation((_projectRoot, subscriptionName) => {
-          if (subscriptionName === 'poltergeist_config') {
-            throw new Error('Watchman subscription failed');
-          }
-          return Promise.resolve();
-        });
+      if (enhancedMocks.watchmanClient) {
+        enhancedMocks.watchmanClient.subscribe = vi
+          .fn()
+          .mockImplementation((_projectRoot, subscriptionName) => {
+            if (subscriptionName === 'poltergeist_config') {
+              throw new Error('Watchman subscription failed');
+            }
+            return Promise.resolve();
+          });
+      }
 
       const poltergeist = new (await import('../src/poltergeist.js')).Poltergeist(
         baseConfig,
@@ -583,17 +636,19 @@ describe('Configuration Reloading', () => {
         },
       };
 
-      let configChangeCallback: Function | undefined;
+      let configChangeCallback: ((files: Array<{ name: string }>) => void) | undefined;
 
       // Capture the callback for config file watching
-      enhancedMocks.watchmanClient!.subscribe = vi
-        .fn()
-        .mockImplementation((_projectRoot, subscriptionName, _subscription, callback) => {
-          if (subscriptionName === 'poltergeist_config') {
-            configChangeCallback = callback;
-          }
-          return Promise.resolve();
-        });
+      if (enhancedMocks.watchmanClient) {
+        enhancedMocks.watchmanClient.subscribe = vi
+          .fn()
+          .mockImplementation((_projectRoot, subscriptionName, _subscription, callback) => {
+            if (subscriptionName === 'poltergeist_config') {
+              configChangeCallback = callback;
+            }
+            return Promise.resolve();
+          });
+      }
 
       const poltergeist = new (await import('../src/poltergeist.js')).Poltergeist(
         baseConfig,
@@ -637,7 +692,8 @@ describe('Configuration Reloading', () => {
       );
 
       // Check if success message was logged - it might have been interrupted by the test ending
-      const allCalls = (harness.logger.info as any).mock.calls.map((call: any[]) => call[0]);
+      const infoMock = harness.logger.info as ReturnType<typeof vi.fn>;
+      const allCalls = infoMock.mock.calls.map((call: unknown[]) => call[0]);
       const hasSuccessMessage = allCalls.some((msg: string) =>
         msg.includes('Configuration reloaded successfully')
       );
@@ -664,16 +720,18 @@ describe('Configuration Reloading', () => {
         },
       };
 
-      let configChangeCallback: Function | undefined;
+      let configChangeCallback: ((files: Array<{ name: string }>) => void) | undefined;
 
-      enhancedMocks.watchmanClient!.subscribe = vi
-        .fn()
-        .mockImplementation((_projectRoot, subscriptionName, _subscription, callback) => {
-          if (subscriptionName === 'poltergeist_config') {
-            configChangeCallback = callback;
-          }
-          return Promise.resolve();
-        });
+      if (enhancedMocks.watchmanClient) {
+        enhancedMocks.watchmanClient.subscribe = vi
+          .fn()
+          .mockImplementation((_projectRoot, subscriptionName, _subscription, callback) => {
+            if (subscriptionName === 'poltergeist_config') {
+              configChangeCallback = callback;
+            }
+            return Promise.resolve();
+          });
+      }
 
       const poltergeist = new (await import('../src/poltergeist.js')).Poltergeist(
         baseConfig,
@@ -710,16 +768,18 @@ describe('Configuration Reloading', () => {
         },
       };
 
-      let configChangeCallback: Function | undefined;
+      let configChangeCallback: ((files: Array<{ name: string }>) => void) | undefined;
 
-      enhancedMocks.watchmanClient!.subscribe = vi
-        .fn()
-        .mockImplementation((_projectRoot, subscriptionName, _subscription, callback) => {
-          if (subscriptionName === 'poltergeist_config') {
-            configChangeCallback = callback;
-          }
-          return Promise.resolve();
-        });
+      if (enhancedMocks.watchmanClient) {
+        enhancedMocks.watchmanClient.subscribe = vi
+          .fn()
+          .mockImplementation((_projectRoot, subscriptionName, _subscription, callback) => {
+            if (subscriptionName === 'poltergeist_config') {
+              configChangeCallback = callback;
+            }
+            return Promise.resolve();
+          });
+      }
 
       const poltergeist = new (await import('../src/poltergeist.js')).Poltergeist(
         baseConfig,

@@ -1057,7 +1057,7 @@ program
         // Multiple building targets
         console.error(chalk.red('❌ Multiple targets building. Please specify:'));
         for (const { name, status } of activeBuilds) {
-          const buildCommand = (status as any).buildCommand || 'build command unknown';
+          const buildCommand = (status as StatusObject).buildCommand || 'build command unknown';
           console.error(`   ${chalk.cyan(name)}: ${chalk.gray(buildCommand)}`);
         }
         console.error(`   Usage: poltergeist wait <target>`);
@@ -1068,8 +1068,8 @@ program
       if (!process.stdout.isTTY) {
         // Agent mode - minimal output
         console.log(`⏳ Waiting for '${targetToWait}' build...`);
-        if ((targetStatus as any).buildCommand) {
-          console.log(`Command: ${(targetStatus as any).buildCommand}`);
+        if (targetStatus.buildCommand) {
+          console.log(`Command: ${targetStatus.buildCommand}`);
         }
 
         // Show time estimate if available
@@ -1077,8 +1077,8 @@ program
           const elapsed = Date.now() - new Date(targetStatus.lastBuild.timestamp).getTime();
           const elapsedSec = Math.round(elapsed / 1000);
 
-          if ((targetStatus as any).buildStats?.averageDuration) {
-            const avgSec = Math.round((targetStatus as any).buildStats.averageDuration / 1000);
+          if (targetStatus.buildStats?.averageDuration) {
+            const avgSec = Math.round(targetStatus.buildStats.averageDuration / 1000);
             const remaining = Math.max(0, avgSec - elapsedSec);
             console.log(`Started: ${elapsedSec}s ago, ~${remaining}s remaining`);
           } else {
@@ -1106,8 +1106,14 @@ program
         }
 
         // Get updated status
-        const updatedStatus = await poltergeist.getStatus(targetToWait!);
-        const targetUpdate = updatedStatus[targetToWait!] as StatusObject;
+        if (!targetToWait) {
+          // This should never happen due to the logic above
+          console.log(chalk.red('❌ Build failed'));
+          console.log('Error: No target selected');
+          process.exit(1);
+        }
+        const updatedStatus = await poltergeist.getStatus(targetToWait);
+        const targetUpdate = updatedStatus[targetToWait] as StatusObject;
 
         if (!targetUpdate) {
           console.log(chalk.red('❌ Build failed'));

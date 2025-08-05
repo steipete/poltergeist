@@ -1,4 +1,3 @@
-import chalk from 'chalk';
 import { describe, expect, it, vi } from 'vitest';
 import type { PoltergeistConfig } from '../src/types.js';
 import { formatAvailableTargets, validateTarget } from '../src/utils/target-validator.js';

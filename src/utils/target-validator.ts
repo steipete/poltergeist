@@ -1,5 +1,5 @@
 import chalk from 'chalk';
-import type { PoltergeistConfig } from '../types.js';
+import type { PoltergeistConfig, Target } from '../types.js';
 
 /**
  * Calculate Levenshtein distance between two strings for fuzzy matching
@@ -111,5 +111,7 @@ export function validateTarget(targetName: string, config: PoltergeistConfig): v
  */
 export function getTargetOrFail(targetName: string, config: PoltergeistConfig) {
   validateTarget(targetName, config);
-  return config.targets.find((t) => t.name === targetName)!;
+  const target = config.targets.find((t) => t.name === targetName);
+  // We know the target exists because validateTarget would have thrown otherwise
+  return target as Target;
 }
