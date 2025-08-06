@@ -45,13 +45,31 @@ function readLastLines(filePath: string, lines: number): string[] {
 }
 
 /**
+ * Checks if Poltergeist is currently running for this target
+ */
+function isPoltergeistRunning(state: PoltergeistState | null): boolean {
+  if (!state || !state.process) {
+    return false;
+  }
+  
+  // Check if process is marked as active and heartbeat is recent (within last 10 seconds)
+  if (state.process.lastHeartbeat) {
+    const heartbeatAge = Date.now() - new Date(state.process.lastHeartbeat).getTime();
+    // Consider running if heartbeat within 10 seconds AND process is marked active
+    return state.process.isActive && heartbeatAge < 10000;
+  }
+  
+  return false;
+}
+
+/**
  * Gets build status for a target by reading state file directly
  */
 async function getBuildStatus(
   projectRoot: string,
   target: Target,
   options?: { checkProcessForBuilding?: boolean }
-): Promise<'building' | 'failed' | 'success' | 'unknown'> {
+): Promise<'building' | 'failed' | 'success' | 'unknown' | 'poltergeist-not-running'> {
   try {
     const stateFilePath = FileSystemUtils.getStateFilePath(projectRoot, target.name);
 
@@ -63,6 +81,11 @@ async function getBuildStatus(
 
     if (!state) {
       return 'unknown';
+    }
+    
+    // Check if Poltergeist is running
+    if (!isPoltergeistRunning(state)) {
+      return 'poltergeist-not-running';
     }
 
     // Note: state.process is the Poltergeist watcher process, not build process
@@ -467,6 +490,8 @@ async function runWrapper(
   // Special handling for peekaboo - suppress all non-error output for complete transparency
   const isSilentTarget = targetName === 'peekaboo';
   const effectiveVerbose = isSilentTarget ? false : options.verbose;
+  let poltergeistNotRunning = false;
+  
   try {
     // Find poltergeist config
     const discovery = await ConfigurationManager.discoverAndLoadConfig();
@@ -529,9 +554,23 @@ async function runWrapper(
     if (effectiveVerbose) {
       console.log(chalk.blue(`📊 Build status: ${status}`));
     }
+    
+    // Check if Poltergeist is not running
+    if (status === 'poltergeist-not-running') {
+      poltergeistNotRunning = true;
+      if (!isSilentTarget) {
+        console.warn(chalk.yellow('⚠️  POLTERGEIST NOT RUNNING - EXECUTING POTENTIALLY STALE BINARY'));
+        console.warn(chalk.yellow('   The binary may be outdated. For fresh builds, start Poltergeist:'));
+        console.warn(chalk.yellow('   npm run poltergeist:haunt'));
+        console.warn('');
+      }
+    }
 
     // Handle different build states
     switch (status) {
+      case 'poltergeist-not-running':
+        // Already handled warning above, proceed with execution
+        break;
       case 'building': {
         // Build is in progress - lastBuild.status === 'building'
         if (options.noWait) {
@@ -588,7 +627,7 @@ async function runWrapper(
         break;
 
       case 'unknown':
-        if (!isSilentTarget) {
+        if (!isSilentTarget && !poltergeistNotRunning) {
           console.warn(chalk.yellow('⚠️  Build status unknown, proceeding...'));
         }
         break;

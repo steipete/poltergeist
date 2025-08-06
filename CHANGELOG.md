@@ -20,6 +20,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - When target name is `peekaboo`, all non-error output is suppressed for clean forwarding
   - Enables transparent binary execution without wrapper noise
   - Other targets retain normal logging behavior
+
+### Fixed
+- **Poltergeist status detection**: The `polter` command now properly detects when Poltergeist is not running
+  - Shows warning when executing potentially stale binaries
+  - Checks process heartbeat to determine if Poltergeist is actively running
+  - Warning suppressed for `peekaboo` target to maintain clean output
 - **Breaking**: Renamed `pgrun` command to `polter` for better branding and clarity
   - Global binary now available as `polter` instead of `pgrun`
   - All documentation and examples updated to use new command name
