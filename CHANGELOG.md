@@ -7,90 +7,115 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.6.0] - 2025-01-06
+
 ### Added
-- ✅ **Windows Support**: Full cross-platform compatibility for Windows 10/11
-  - Cross-platform temp directory handling using `os.tmpdir()`
-  - Windows-specific process timeout optimizations
-  - Windows CI testing with GitHub Actions
-  - Updated documentation with Windows installation guide
-- Windows-specific CI job with platform validation tests
-- **Verbose status output**: Added `--verbose` / `-v` flag to `poltergeist status` command
-  - Shows process uptime and start time
-  - Displays build exit codes for failed builds
-  - Shows full build command in verbose mode
-  - Includes detailed build statistics (average/min/max durations)
-  - Lists recent successful builds with timestamps
+- Enhanced status command with `--verbose` / `-v` flag for detailed build information
+  - Process uptime and start time display
+  - Build exit codes for failed builds
+  - Full build command visibility
+  - Comprehensive build statistics (average, minimum, and maximum durations)
+  - Recent successful builds history with timestamps
+- Git hooks for preventing large file commits
+  - Automatic detection of files larger than 100MB
+  - Pre-commit validation to maintain repository health
+- NPM builder support for Node.js projects
+  - Automatic package.json detection
+  - Integrated npm script execution
+- Self-building capability for Poltergeist development
+  - Poltergeist can now watch and rebuild itself
+  - Streamlined development workflow
 
 ### Changed
-- **Silent mode for specific targets**: The `polter` command now supports silent execution for specific targets
-  - When target name is `peekaboo`, all non-error output is suppressed for clean forwarding
-  - Enables transparent binary execution without wrapper noise
-  - Other targets retain normal logging behavior
+- Silent mode for specific targets in `polter` command
+  - Target `peekaboo` executes with suppressed output for clean binary forwarding
+  - Maintains standard logging for all other targets
 
 ### Fixed
-- **Poltergeist status detection**: The `polter` command now properly detects when Poltergeist is not running
-  - Shows warning when executing potentially stale binaries
-  - Checks process heartbeat to determine if Poltergeist is actively running
-  - Warning suppressed for `peekaboo` target to maintain clean output
-- **Breaking**: Renamed `pgrun` command to `polter` for better branding and clarity
-  - Global binary now available as `polter` instead of `pgrun`
-  - All documentation and examples updated to use new command name
-  - Backward compatibility note: `pgrun` is no longer available, use `polter`
-- **Breaking**: Unified temp directory usage across CLI and macOS app
-  - CLI now uses `os.tmpdir()` instead of hardcoded `/tmp/poltergeist`
-  - macOS app updated to use same cross-platform temp directory
-  - Supports `POLTERGEIST_STATE_DIR` environment variable override
-- Enhanced CI pipeline with multi-platform testing (Ubuntu, macOS, Windows)
-- Updated README with comprehensive Windows support documentation
-- Added Windows, Linux, and cross-platform keywords to package.json
+- Poltergeist daemon detection in `polter` command
+  - Proper heartbeat checking to verify active daemon status
+  - Warning messages for potentially stale binary execution
+  - Automatic suppression for `peekaboo` target
 
-### Fixed  
-- Cross-platform path separator handling in filename generation
-- Root directory detection for Windows drive letters
-- Process parameter naming conflict in ProcessManager
+## [1.5.1] - 2025-01-03
+
+### Changed
+- Replaced Pino with LogTape for zero-dependency logging solution
+  - Reduced overall package size
+  - Improved logging performance
+  - Maintained full API compatibility
+
+### Fixed
+- Logger unit tests updated for LogTape compatibility
+- Linting issues resolved in logger implementation
+
+## [1.5.0] - 2025-01-02
+
+### Added
+- Full Windows 10/11 support with cross-platform compatibility
+  - Cross-platform temp directory handling via `os.tmpdir()`
+  - Windows-specific process timeout optimizations
+  - Comprehensive Windows CI testing pipeline
+  - Windows installation documentation
+- Homebrew installation method for macOS ARM64 users
+  - Official tap: `brew tap steipete/tap && brew install poltergeist`
+
+### Changed
+- **Breaking**: Renamed `pgrun` command to `polter`
+  - Improved branding and command clarity
+  - All documentation updated with new command
+- **Breaking**: Unified temp directory usage across platforms
+  - CLI and macOS app now use consistent temp directory
+  - Environment variable `POLTERGEIST_STATE_DIR` for custom paths
+- Enhanced CI pipeline with multi-platform testing matrix
+
+### Fixed
+- Cross-platform path separator handling
+- Windows drive letter root directory detection
+- Process parameter naming conflicts in ProcessManager
+- Windows-specific test compatibility issues
 
 ## [1.0.0] - 2025-08-03
 
 ### Added
-- Dedicated changelog moved from README for better maintainability
+- Dedicated CHANGELOG.md file for improved release tracking
 
 ### Changed  
-- Updated dependencies: winston 3.15.0 → 3.17.0, zod 4.0.0 → 4.0.14, tsx 4.20.0 → 4.20.3
-- Consolidated README documentation with collapsible sections for improved readability
-- Official stable release - graduated from beta to production-ready 1.0.0
+- Updated dependencies to latest stable versions
+  - winston 3.15.0 → 3.17.0
+  - zod 4.0.0 → 4.0.14
+  - tsx 4.20.0 → 4.20.3
+- Consolidated README documentation with improved organization
+- Official stable release marking production readiness
 
 ### Fixed
-- All 318 tests passing with full backward compatibility maintained
-
----
+- Complete test suite validation (318 tests passing)
+- Full backward compatibility maintained
 
 ## [1.0.0-beta.1] - 2025-08-03
 
 ### Fixed
-- Mac app state file parsing for projects with hyphens in names using robust regex-based hash extraction
-- Staleness threshold consistency between CLI (5 minutes) and Mac app (previously 30 seconds)  
-- CI pipeline test execution order to prevent missing module errors
+- Mac app state file parsing for hyphenated project names
+- Staleness threshold consistency (5 minutes across CLI and Mac app)
+- CI pipeline test execution order
 
 ### Changed
-- Replaced custom glob matcher (70+ lines) with battle-tested picomatch library
-- Removed legacy status format support for cleaner codebase
-- Improved code maintainability with net reduction of 76 lines
+- Replaced custom glob matcher with picomatch library
+- Removed legacy status format support
+- Improved codebase maintainability (-76 lines)
 
 ### Added
-- picomatch dependency for robust glob pattern matching
-- Comprehensive documentation of build system improvements
-
----
+- picomatch dependency for robust pattern matching
 
 ## [1.0.0-beta.0] - 2025-08-02
 
 ### Added
 - Initial beta release
-- Universal target system supporting executables, app bundles, libraries, frameworks, tests, Docker containers
-- Smart execution wrapper (polter) ensuring fresh builds
+- Universal target system for multiple build types
+- Smart execution wrapper (polter) for fresh builds
 - Intelligent build prioritization and queue management
-- Focus pattern detection and smart configuration
+- Focus pattern detection and configuration
 - Native notifications with concurrent build protection
-- Advanced state management with process tracking
+- Advanced state management and process tracking
 - Cross-platform support (macOS, Linux, Windows)
 - macOS companion app for status bar monitoring

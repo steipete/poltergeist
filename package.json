@@ -1,6 +1,6 @@
 {
   "name": "@steipete/poltergeist",
-  "version": "1.5.1",
+  "version": "1.6.0",
   "description": "The ghost that keeps your builds fresh - a universal file watcher with auto-rebuild for any language or build system",
   "keywords": [
     "build",
