@@ -1,0 +1,14 @@
+❌ Binary not found for target 'test-cli.js'
+Tried the following locations:
+   /Users/steipete/Projects/poltergeist/test-cli.js
+   /Users/steipete/Projects/poltergeist/test-cli.js
+   /Users/steipete/Projects/poltergeist/build/test-cli.js
+   /Users/steipete/Projects/poltergeist/dist/test-cli.js
+   /Users/steipete/Projects/poltergeist/test-cli.js.js
+   /Users/steipete/Projects/poltergeist/build/test-cli.js.js
+   /Users/steipete/Projects/poltergeist/dist/test-cli.js.js
+   /Users/steipete/Projects/poltergeist/test.js
+   /Users/steipete/Projects/poltergeist/test.js.js
+   /Users/steipete/Projects/poltergeist/test-cli.js
+   /Users/steipete/Projects/poltergeist/test-cli.js.js
+🔧 Try running a manual build first

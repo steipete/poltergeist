@@ -1,0 +1,10 @@
+{
+  "name": "npm-builder-example",
+  "version": "1.0.0",
+  "description": "Example project to test NPM builder in Poltergeist",
+  "main": "dist/index.js",
+  "scripts": {
+    "build": "echo 'Building NPM project...' && mkdir -p dist && echo 'console.log(\"NPM Builder Example Works!\");' > dist/index.js",
+    "clean": "rm -rf dist"
+  }
+}

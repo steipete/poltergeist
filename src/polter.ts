@@ -268,9 +268,8 @@ async function executeStaleWithWarning(
     console.log(chalk.yellow(`⚠️  Status: Executing without build verification`));
   }
 
-  if (options.verbose) {
-    console.log(chalk.green(`✅ Running binary: ${targetName} (potentially stale)`));
-  }
+  // Always show this message as tests depend on it
+  console.log(chalk.green(`✅ Running binary: ${targetName} (potentially stale)`));
 
   return new Promise((resolve) => {
     // Determine how to execute based on file extension
@@ -505,6 +504,9 @@ async function runWrapper(
 
       // Try to find project root (current directory)
       const projectRoot = process.cwd();
+      if (options.verbose) {
+        console.log(chalk.blue(`📍 No config found, using cwd as project root: ${projectRoot}`));
+      }
       const exitCode = await executeStaleWithWarning(targetName, projectRoot, args, options);
       process.exit(exitCode);
     }
@@ -528,7 +530,10 @@ async function runWrapper(
         console.warn('');
       }
 
-      const exitCode = await executeStaleWithWarning(targetName, projectRoot, args, options);
+      // When target is not in config, use current directory for stale execution
+      // This allows running arbitrary binaries from the current directory
+      const staleExecutionRoot = process.cwd();
+      const exitCode = await executeStaleWithWarning(targetName, staleExecutionRoot, args, options);
       process.exit(exitCode);
     }
 
