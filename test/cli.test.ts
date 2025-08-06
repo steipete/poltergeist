@@ -540,7 +540,7 @@ describe('CLI Commands', () => {
 
     it('should show verbose output with --verbose flag', async () => {
       createTestConfig();
-      
+
       // Mock with verbose data
       mockPoltergeist.getStatus.mockResolvedValue({
         'test-target': {
@@ -585,7 +585,7 @@ describe('CLI Commands', () => {
 
     it('should show verbose output with -v shorthand', async () => {
       createTestConfig();
-      
+
       // Mock with verbose data
       mockPoltergeist.getStatus.mockResolvedValue({
         'test-target': {
@@ -618,7 +618,7 @@ describe('CLI Commands', () => {
 
     it('should not show verbose details without --verbose flag', async () => {
       createTestConfig();
-      
+
       // Mock with verbose data available
       mockPoltergeist.getStatus.mockResolvedValue({
         'test-target': {
