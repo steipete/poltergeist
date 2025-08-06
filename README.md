@@ -96,6 +96,7 @@ This automatically detects your project type (Swift, Node.js, Rust, Python, CMak
 ```bash
 poltergeist haunt        # Runs as background daemon (default)
 poltergeist status       # Check what's running
+poltergeist status -v    # Show detailed status with build stats
 ```
 
 
@@ -219,7 +220,7 @@ poltergeist haunt --foreground   # Blocks terminal, shows output directly
 | `haunt` / `start` | Start watching and building | `poltergeist haunt --target frontend` |
 | `stop` / `rest` | Stop the daemon | `poltergeist stop` |
 | `restart` | Restart the daemon | `poltergeist restart` |
-| `status` | Show build status | `poltergeist status --json` |
+| `status` | Show build status | `poltergeist status --verbose` |
 | `logs` | View daemon logs | `poltergeist logs -f -n 100` |
 | `list` | List all targets | `poltergeist list` |
 | `init` | Create configuration | `poltergeist init --cmake` |

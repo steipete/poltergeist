@@ -14,6 +14,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - Windows CI testing with GitHub Actions
   - Updated documentation with Windows installation guide
 - Windows-specific CI job with platform validation tests
+- **Verbose status output**: Added `--verbose` / `-v` flag to `poltergeist status` command
+  - Shows process uptime and start time
+  - Displays build exit codes for failed builds
+  - Shows full build command in verbose mode
+  - Includes detailed build statistics (average/min/max durations)
+  - Lists recent successful builds with timestamps
 
 ### Changed
 - **Silent mode for specific targets**: The `polter` command now supports silent execution for specific targets

@@ -220,6 +220,7 @@ program
   .description('Check Poltergeist status')
   .option('-t, --target <name>', 'Check specific target status')
   .option('-c, --config <path>', 'Path to config file')
+  .option('-v, --verbose', 'Show detailed status information')
   .option('--json', 'Output status as JSON')
   .action(async (options) => {
     const { config, projectRoot, configPath } = await loadConfiguration(options.config);
@@ -241,7 +242,7 @@ program
           if (!targetStatus) {
             console.log(chalk.yellow(`Target '${options.target}' not found`));
           } else {
-            formatTargetStatus(options.target, targetStatus);
+            formatTargetStatus(options.target, targetStatus, options.verbose);
           }
         } else {
           // All targets status
@@ -250,7 +251,7 @@ program
             console.log(chalk.gray('No targets configured'));
           } else {
             targets.forEach((name) => {
-              formatTargetStatus(name, status[name]);
+              formatTargetStatus(name, status[name], options.verbose);
               console.log(); // Empty line between targets
             });
           }
@@ -270,6 +271,7 @@ interface StatusObject {
     hostname: string;
     isActive: boolean;
     lastHeartbeat?: string;
+    startTime?: string;
   };
   lastBuild?: {
     timestamp: string;
@@ -300,7 +302,7 @@ interface StatusObject {
   };
 }
 
-function formatTargetStatus(name: string, status: unknown): void {
+function formatTargetStatus(name: string, status: unknown, verbose?: boolean): void {
   const statusObj = status as StatusObject;
   console.log(chalk.cyan(`Target: ${name}`));
   console.log(`  Status: ${formatStatus(statusObj.status || 'unknown')}`);
@@ -314,6 +316,14 @@ function formatTargetStatus(name: string, status: unknown): void {
       const heartbeatStatus =
         heartbeatAge < 30000 ? chalk.green('✓ Active') : chalk.yellow('⚠ Stale');
       console.log(`  Heartbeat: ${heartbeatStatus} (${Math.round(heartbeatAge / 1000)}s ago)`);
+      
+      // Show uptime in verbose mode
+      if (verbose && statusObj.process.startTime) {
+        const uptime = Date.now() - new Date(statusObj.process.startTime).getTime();
+        const uptimeMinutes = Math.floor(uptime / 60000);
+        const uptimeSeconds = Math.floor((uptime % 60000) / 1000);
+        console.log(`  Uptime: ${uptimeMinutes}m ${uptimeSeconds}s`);
+      }
     } else {
       console.log(`  Process: ${chalk.gray('Not running')}`);
     }
@@ -365,6 +375,16 @@ function formatTargetStatus(name: string, status: unknown): void {
     } else if (statusObj.lastBuild.error) {
       console.log(`  Error: ${chalk.red(statusObj.lastBuild.error)}`);
     }
+    
+    // Show verbose build details
+    if (verbose) {
+      if (statusObj.lastBuild.exitCode !== undefined) {
+        console.log(`  Exit Code: ${statusObj.lastBuild.exitCode}`);
+      }
+      if (statusObj.buildCommand) {
+        console.log(`  Build Command: ${chalk.gray(statusObj.buildCommand)}`);
+      }
+    }
   }
 
   // App information
@@ -377,6 +397,28 @@ function formatTargetStatus(name: string, status: unknown): void {
     }
     if (statusObj.appInfo.iconPath) {
       console.log(`  Icon: ${statusObj.appInfo.iconPath}`);
+    }
+  }
+
+  // Build statistics (verbose mode)
+  if (verbose && statusObj.buildStats) {
+    console.log(chalk.gray('  Build Statistics:'));
+    if (statusObj.buildStats.averageDuration) {
+      console.log(`    Average Duration: ${Math.round(statusObj.buildStats.averageDuration / 1000)}s`);
+    }
+    if (statusObj.buildStats.minDuration !== undefined) {
+      console.log(`    Min Duration: ${Math.round(statusObj.buildStats.minDuration / 1000)}s`);
+    }
+    if (statusObj.buildStats.maxDuration !== undefined) {
+      console.log(`    Max Duration: ${Math.round(statusObj.buildStats.maxDuration / 1000)}s`);
+    }
+    if (statusObj.buildStats.successfulBuilds && statusObj.buildStats.successfulBuilds.length > 0) {
+      console.log(`    Recent Successful Builds:`)
+      statusObj.buildStats.successfulBuilds.slice(0, 3).forEach(build => {
+        const timestamp = new Date(build.timestamp).toLocaleTimeString();
+        const duration = Math.round(build.duration / 1000);
+        console.log(`      - ${timestamp}: ${duration}s`);
+      });
     }
   }
 
