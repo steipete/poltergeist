@@ -20,6 +20,7 @@ export type TargetType =
   | 'test'
   | 'docker'
   | 'custom'
+  | 'npm'
   | 'cmake-executable'
   | 'cmake-library'
   | 'cmake-custom';
@@ -96,6 +97,15 @@ export interface CustomTarget extends BaseTarget {
   config?: Record<string, unknown>;
 }
 
+// NPM target (Node.js/TypeScript projects)
+export interface NPMTarget extends BaseTarget {
+  type: 'npm';
+  buildScript?: string; // default: 'build'
+  packageManager?: 'npm' | 'yarn' | 'pnpm' | 'bun' | 'auto'; // default: 'auto' (detect from lockfiles)
+  outputPaths?: string[]; // required for validation
+  installOnChange?: boolean; // default: true when package.json changes
+}
+
 // CMake-specific target types
 export interface CMakeExecutableTarget extends BaseTarget {
   type: 'cmake-executable';
@@ -140,6 +150,7 @@ export type Target =
   | TestTarget
   | DockerTarget
   | CustomTarget
+  | NPMTarget
   | CMakeExecutableTarget
   | CMakeLibraryTarget
   | CMakeCustomTarget;
@@ -273,6 +284,7 @@ export const BaseTargetSchema = z.object({
     'test',
     'docker',
     'custom',
+    'npm',
     'cmake-executable',
     'cmake-library',
     'cmake-custom',
@@ -338,6 +350,14 @@ export const CustomTargetSchema = BaseTargetSchema.extend({
   config: z.record(z.string(), z.any()).optional(),
 });
 
+export const NPMTargetSchema = BaseTargetSchema.extend({
+  type: z.literal('npm'),
+  buildScript: z.string().optional(),
+  packageManager: z.enum(['npm', 'yarn', 'pnpm', 'bun', 'auto']).optional(),
+  outputPaths: z.array(z.string()).optional(),
+  installOnChange: z.boolean().optional(),
+});
+
 export const CMakeExecutableTargetSchema = BaseTargetSchema.extend({
   type: z.literal('cmake-executable'),
   generator: z.string().optional(),
@@ -376,6 +396,7 @@ export const TargetSchema = z.discriminatedUnion('type', [
   TestTargetSchema,
   DockerTargetSchema,
   CustomTargetSchema,
+  NPMTargetSchema,
   CMakeExecutableTargetSchema,
   CMakeLibraryTargetSchema,
   CMakeCustomTargetSchema,

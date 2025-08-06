@@ -777,6 +777,15 @@ program
     } else {
       writeFileSync(configPath, configJson, 'utf-8');
       console.log(chalk.green('✅ Created poltergeist.config.json'));
+      
+      // Recommend CLAUDE.md for AI agents
+      console.log(chalk.blue('\n📋 For AI Agent Integration (Claude, Cursor, etc.):'));
+      console.log(chalk.gray('  Consider adding a CLAUDE.md file with instructions like:'));
+      console.log(chalk.gray('  • NEVER manually run build commands when Poltergeist is running'));
+      console.log(chalk.gray('  • ALWAYS use "polter <target>" to ensure fresh builds'));
+      console.log(chalk.gray('  • Poltergeist automatically detects changes and rebuilds'));
+      console.log(chalk.gray('  This helps AI agents work better with your project!'));
+      
       console.log(chalk.blue(`\nNext steps:`));
       console.log(chalk.gray('  1. Review and adjust the configuration as needed'));
       console.log(chalk.gray('  2. Run "poltergeist haunt" to start watching'));

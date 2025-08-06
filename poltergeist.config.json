@@ -4,61 +4,19 @@
   "targets": [
     {
       "name": "poltergeist-cli",
-      "type": "executable",
-      "enabled": true,
-      "buildCommand": "npm run build",
-      "outputPath": "./dist/cli.js",
-      "watchPaths": [
-        "src/**/*.ts",
-        "test/**/*.ts", 
-        "package.json",
-        "tsconfig.json",
-        "vitest.config.ts"
-      ],
-      "settlingDelay": 1000,
-      "environment": {
-        "NODE_ENV": "development"
-      }
+      "type": "npm",
+      "watchPaths": ["src/**/*.ts"],
+      "outputPaths": ["dist/cli.js", "dist/polter.js"]
+    },
+    {
+      "name": "poltergeist-mac",
+      "type": "app-bundle",
+      "enabled": false,
+      "platform": "macos",
+      "buildCommand": "cd apps/mac && ./scripts/build.sh",
+      "bundleId": "com.poltergeist.app",
+      "watchPaths": ["apps/mac/**/*.swift"],
+      "outputPath": "apps/mac/build/Release/Poltergeist.app"
     }
-  ],
-  "watchman": {
-    "useDefaultExclusions": true,
-    "excludeDirs": [
-      "coverage",
-      ".poltergeist.log"
-    ],
-    "projectType": "node",
-    "maxFileEvents": 10000,
-    "recrawlThreshold": 5,
-    "settlingDelay": 1000
-  },
-  "buildScheduling": {
-    "parallelization": 2,
-    "prioritization": {
-      "enabled": true,
-      "focusDetectionWindow": 300000,
-      "priorityDecayTime": 1800000,
-      "buildTimeoutMultiplier": 2.0
-    }
-  },
-  "notifications": {
-    "enabled": true,
-    "buildStart": false,
-    "buildSuccess": true,
-    "buildFailed": true,
-    "successSound": "Glass",
-    "failureSound": "Basso"
-  },
-  "performance": {
-    "profile": "balanced",
-    "autoOptimize": true,
-    "metrics": {
-      "enabled": true,
-      "reportInterval": 300
-    }
-  },
-  "logging": {
-    "level": "debug",
-    "file": ".poltergeist.log"
-  }
+  ]
 }

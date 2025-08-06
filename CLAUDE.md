@@ -2,6 +2,37 @@
 
 This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
 
+## Self-Building with Poltergeist
+
+Poltergeist can build itself! The project includes a `poltergeist.config.json` that watches its own source files.
+
+### Setup
+```bash
+# First time only - create initial build
+npm run build
+
+# Start Poltergeist to watch itself
+poltergeist start
+
+# That's it! Any changes to src/ will trigger rebuilds
+```
+
+### Using polter for fresh builds
+When working on Poltergeist itself, always use `polter` to ensure fresh binaries:
+```bash
+# Instead of: ./dist/cli.js
+# Use: polter poltergeist-cli
+
+# This ensures you're always running the latest build
+polter poltergeist-cli status
+```
+
+### Important for AI Agents
+- **NEVER manually run `npm run build`** when Poltergeist is running
+- **ALWAYS use `polter poltergeist-cli`** to run commands
+- Poltergeist detects its own changes and rebuilds automatically
+- The Mac app (poltergeist-mac target) also rebuilds automatically when enabled
+
 ## Important Rules
 
 ### No Version 2 Files

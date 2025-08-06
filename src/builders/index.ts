@@ -9,6 +9,7 @@ import { CMakeCustomBuilder } from './cmake-custom-builder.js';
 import { CMakeExecutableBuilder } from './cmake-executable-builder.js';
 import { CMakeLibraryBuilder } from './cmake-library-builder.js';
 import { ExecutableBuilder } from './executable-builder.js';
+import { NPMBuilder } from './npm-builder.js';
 
 export * from './app-bundle-builder.js';
 export * from './base-builder.js';
@@ -17,6 +18,7 @@ export * from './cmake-custom-builder.js';
 export * from './cmake-executable-builder.js';
 export * from './cmake-library-builder.js';
 export * from './executable-builder.js';
+export * from './npm-builder.js';
 
 export function createBuilder(
   target: Target,
@@ -30,6 +32,9 @@ export function createBuilder(
 
     case 'app-bundle':
       return new AppBundleBuilder(target, projectRoot, logger, stateManager);
+
+    case 'npm':
+      return new NPMBuilder(target, projectRoot, logger, stateManager);
 
     case 'cmake-executable':
       return new CMakeExecutableBuilder(target, projectRoot, logger, stateManager);

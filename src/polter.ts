@@ -661,7 +661,7 @@ const program = new Command();
 program
   .name('polter')
   .description('Smart wrapper for running executables managed by Poltergeist')
-  .version('1.0.0')
+  .version('1.5.2')
   .argument('[target]', 'Name of the target to run (defaults to first configured target)')
   .argument('[args...]', 'Arguments to pass to the target executable')
   .option('-t, --timeout <ms>', 'Build wait timeout in milliseconds', '300000')
