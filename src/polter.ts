@@ -51,14 +51,14 @@ function isPoltergeistRunning(state: PoltergeistState | null): boolean {
   if (!state || !state.process) {
     return false;
   }
-  
+
   // Check if process is marked as active and heartbeat is recent (within last 10 seconds)
   if (state.process.lastHeartbeat) {
     const heartbeatAge = Date.now() - new Date(state.process.lastHeartbeat).getTime();
     // Consider running if heartbeat within 10 seconds AND process is marked active
     return state.process.isActive && heartbeatAge < 10000;
   }
-  
+
   return false;
 }
 
@@ -82,7 +82,7 @@ async function getBuildStatus(
     if (!state) {
       return 'unknown';
     }
-    
+
     // Check if Poltergeist is running
     if (!isPoltergeistRunning(state)) {
       return 'poltergeist-not-running';
@@ -491,7 +491,7 @@ async function runWrapper(
   const isSilentTarget = targetName === 'peekaboo';
   const effectiveVerbose = isSilentTarget ? false : options.verbose;
   let poltergeistNotRunning = false;
-  
+
   try {
     // Find poltergeist config
     const discovery = await ConfigurationManager.discoverAndLoadConfig();
@@ -554,13 +554,17 @@ async function runWrapper(
     if (effectiveVerbose) {
       console.log(chalk.blue(`📊 Build status: ${status}`));
     }
-    
+
     // Check if Poltergeist is not running
     if (status === 'poltergeist-not-running') {
       poltergeistNotRunning = true;
       if (!isSilentTarget) {
-        console.warn(chalk.yellow('⚠️  POLTERGEIST NOT RUNNING - EXECUTING POTENTIALLY STALE BINARY'));
-        console.warn(chalk.yellow('   The binary may be outdated. For fresh builds, start Poltergeist:'));
+        console.warn(
+          chalk.yellow('⚠️  POLTERGEIST NOT RUNNING - EXECUTING POTENTIALLY STALE BINARY')
+        );
+        console.warn(
+          chalk.yellow('   The binary may be outdated. For fresh builds, start Poltergeist:')
+        );
         console.warn(chalk.yellow('   npm run poltergeist:haunt'));
         console.warn('');
       }

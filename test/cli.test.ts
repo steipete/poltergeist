@@ -538,6 +538,112 @@ describe('CLI Commands', () => {
       expect(json['test-target']).toHaveProperty('status', 'idle');
     });
 
+    it('should show verbose output with --verbose flag', async () => {
+      createTestConfig();
+      
+      // Mock with verbose data
+      mockPoltergeist.getStatus.mockResolvedValue({
+        'test-target': {
+          status: 'idle',
+          process: {
+            pid: 1234,
+            isActive: true,
+            hostname: 'test-host',
+            lastHeartbeat: new Date().toISOString(),
+            startTime: new Date(Date.now() - 300000).toISOString(), // 5 minutes ago
+          },
+          lastBuild: {
+            status: 'success',
+            timestamp: new Date().toISOString(),
+            duration: 2500,
+            exitCode: 0,
+          },
+          buildCommand: 'npm run build',
+          buildStats: {
+            averageDuration: 3000,
+            minDuration: 2000,
+            maxDuration: 4000,
+            successfulBuilds: [
+              { timestamp: new Date().toISOString(), duration: 2500 },
+              { timestamp: new Date().toISOString(), duration: 3500 },
+            ],
+          },
+        },
+      });
+
+      const result = await runCLI(['status', '--verbose']);
+
+      expect(result.exitCode).toBe(0);
+      expect(result.stdout).toContain('Uptime:'); // Process uptime
+      expect(result.stdout).toContain('Build Command:'); // Build command
+      expect(result.stdout).toContain('Build Statistics:'); // Build stats section
+      expect(result.stdout).toContain('Average Duration:');
+      expect(result.stdout).toContain('Min Duration:');
+      expect(result.stdout).toContain('Max Duration:');
+      expect(result.stdout).toContain('Recent Successful Builds:');
+    });
+
+    it('should show verbose output with -v shorthand', async () => {
+      createTestConfig();
+      
+      // Mock with verbose data
+      mockPoltergeist.getStatus.mockResolvedValue({
+        'test-target': {
+          status: 'idle',
+          process: {
+            pid: 1234,
+            isActive: true,
+            hostname: 'test-host',
+            lastHeartbeat: new Date().toISOString(),
+            startTime: new Date(Date.now() - 300000).toISOString(), // 5 minutes ago
+          },
+          lastBuild: {
+            status: 'failure',
+            timestamp: new Date().toISOString(),
+            duration: 2500,
+            exitCode: 1,
+            errorSummary: 'Build failed',
+          },
+          buildCommand: 'npm run build',
+        },
+      });
+
+      const result = await runCLI(['status', '-v']);
+
+      expect(result.exitCode).toBe(0);
+      expect(result.stdout).toContain('Uptime:'); // Process uptime
+      expect(result.stdout).toContain('Exit Code: 1'); // Exit code in verbose mode
+      expect(result.stdout).toContain('Build Command:'); // Build command
+    });
+
+    it('should not show verbose details without --verbose flag', async () => {
+      createTestConfig();
+      
+      // Mock with verbose data available
+      mockPoltergeist.getStatus.mockResolvedValue({
+        'test-target': {
+          status: 'idle',
+          process: {
+            pid: 1234,
+            isActive: true,
+            hostname: 'test-host',
+            lastHeartbeat: new Date().toISOString(),
+            startTime: new Date(Date.now() - 300000).toISOString(),
+          },
+          buildStats: {
+            averageDuration: 3000,
+          },
+        },
+      });
+
+      const result = await runCLI(['status']); // No verbose flag
+
+      expect(result.exitCode).toBe(0);
+      expect(result.stdout).not.toContain('Uptime:');
+      expect(result.stdout).not.toContain('Build Statistics:');
+      expect(result.stdout).not.toContain('Build Command:');
+    });
+
     it('should handle missing target', async () => {
       createTestConfig();
 

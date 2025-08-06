@@ -316,7 +316,7 @@ function formatTargetStatus(name: string, status: unknown, verbose?: boolean): v
       const heartbeatStatus =
         heartbeatAge < 30000 ? chalk.green('✓ Active') : chalk.yellow('⚠ Stale');
       console.log(`  Heartbeat: ${heartbeatStatus} (${Math.round(heartbeatAge / 1000)}s ago)`);
-      
+
       // Show uptime in verbose mode
       if (verbose && statusObj.process.startTime) {
         const uptime = Date.now() - new Date(statusObj.process.startTime).getTime();
@@ -375,7 +375,7 @@ function formatTargetStatus(name: string, status: unknown, verbose?: boolean): v
     } else if (statusObj.lastBuild.error) {
       console.log(`  Error: ${chalk.red(statusObj.lastBuild.error)}`);
     }
-    
+
     // Show verbose build details
     if (verbose) {
       if (statusObj.lastBuild.exitCode !== undefined) {
@@ -404,7 +404,9 @@ function formatTargetStatus(name: string, status: unknown, verbose?: boolean): v
   if (verbose && statusObj.buildStats) {
     console.log(chalk.gray('  Build Statistics:'));
     if (statusObj.buildStats.averageDuration) {
-      console.log(`    Average Duration: ${Math.round(statusObj.buildStats.averageDuration / 1000)}s`);
+      console.log(
+        `    Average Duration: ${Math.round(statusObj.buildStats.averageDuration / 1000)}s`
+      );
     }
     if (statusObj.buildStats.minDuration !== undefined) {
       console.log(`    Min Duration: ${Math.round(statusObj.buildStats.minDuration / 1000)}s`);
@@ -413,8 +415,8 @@ function formatTargetStatus(name: string, status: unknown, verbose?: boolean): v
       console.log(`    Max Duration: ${Math.round(statusObj.buildStats.maxDuration / 1000)}s`);
     }
     if (statusObj.buildStats.successfulBuilds && statusObj.buildStats.successfulBuilds.length > 0) {
-      console.log(`    Recent Successful Builds:`)
-      statusObj.buildStats.successfulBuilds.slice(0, 3).forEach(build => {
+      console.log(`    Recent Successful Builds:`);
+      statusObj.buildStats.successfulBuilds.slice(0, 3).forEach((build) => {
         const timestamp = new Date(build.timestamp).toLocaleTimeString();
         const duration = Math.round(build.duration / 1000);
         console.log(`      - ${timestamp}: ${duration}s`);
@@ -819,7 +821,7 @@ program
     } else {
       writeFileSync(configPath, configJson, 'utf-8');
       console.log(chalk.green('✅ Created poltergeist.config.json'));
-      
+
       // Recommend CLAUDE.md for AI agents
       console.log(chalk.blue('\n📋 For AI Agent Integration (Claude, Cursor, etc.):'));
       console.log(chalk.gray('  Consider adding a CLAUDE.md file with instructions like:'));
@@ -827,7 +829,7 @@ program
       console.log(chalk.gray('  • ALWAYS use "polter <target>" to ensure fresh builds'));
       console.log(chalk.gray('  • Poltergeist automatically detects changes and rebuilds'));
       console.log(chalk.gray('  This helps AI agents work better with your project!'));
-      
+
       console.log(chalk.blue(`\nNext steps:`));
       console.log(chalk.gray('  1. Review and adjust the configuration as needed'));
       console.log(chalk.gray('  2. Run "poltergeist haunt" to start watching'));

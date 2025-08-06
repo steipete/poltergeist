@@ -57,7 +57,7 @@ export class NPMBuilder extends BaseBuilder<NPMTarget> {
     } catch {
       throw new Error(
         `Target ${this.target.name}: ${this.packageManager} is not installed. ` +
-        `Install via: ${this.getInstallInstructions()}`
+          `Install via: ${this.getInstallInstructions()}`
       );
     }
 
@@ -82,12 +82,13 @@ export class NPMBuilder extends BaseBuilder<NPMTarget> {
 
   protected async preBuild(changedFiles: string[]): Promise<void> {
     // Check if package.json changed and auto-install is enabled
-    const packageJsonChanged = changedFiles.some(f => f.endsWith('package.json'));
-    const lockfileChanged = changedFiles.some(f => 
-      f.endsWith('package-lock.json') || 
-      f.endsWith('yarn.lock') || 
-      f.endsWith('pnpm-lock.yaml') || 
-      f.endsWith('bun.lockb')
+    const packageJsonChanged = changedFiles.some((f) => f.endsWith('package.json'));
+    const lockfileChanged = changedFiles.some(
+      (f) =>
+        f.endsWith('package-lock.json') ||
+        f.endsWith('yarn.lock') ||
+        f.endsWith('pnpm-lock.yaml') ||
+        f.endsWith('bun.lockb')
     );
 
     if ((packageJsonChanged || lockfileChanged) && this.target.installOnChange !== false) {
@@ -98,15 +99,15 @@ export class NPMBuilder extends BaseBuilder<NPMTarget> {
 
   private async runInstall(): Promise<void> {
     const command = `${this.packageManager} install`;
-    
+
     return new Promise((resolve, reject) => {
       this.logger.info(`[${this.target.name}] Running: ${command}`);
-      
+
       try {
         execSync(command, {
           cwd: this.projectRoot,
           stdio: 'inherit',
-          env: { ...process.env, ...this.target.environment }
+          env: { ...process.env, ...this.target.environment },
         });
         this.logger.info(`[${this.target.name}] Install completed`);
         resolve();
@@ -119,18 +120,18 @@ export class NPMBuilder extends BaseBuilder<NPMTarget> {
   protected async executeBuild(options: any): Promise<void> {
     const runCommand = this.packageManager === 'npm' ? 'npm run' : `${this.packageManager} run`;
     const command = `${runCommand} ${this.buildScript}`;
-    
+
     return new Promise((resolve, reject) => {
       this.logger.info(`[${this.target.name}] Running: ${command}`);
-      
+
       const startTime = Date.now();
       try {
         execSync(command, {
           cwd: this.projectRoot,
           stdio: options.captureLogs ? 'pipe' : 'inherit',
-          env: { ...process.env, ...this.target.environment }
+          env: { ...process.env, ...this.target.environment },
         });
-        
+
         const duration = Date.now() - startTime;
         this.logger.info(`[${this.target.name}] Build completed in ${duration}ms`);
         resolve();
