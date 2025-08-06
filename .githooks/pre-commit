@@ -1,0 +1,76 @@
+#!/bin/bash
+
+# Pre-commit hook to detect large files (>5MB)
+# Prevents accidental commits of large binary files
+
+# Color codes for output
+RED='\033[0;31m'
+YELLOW='\033[1;33m'
+GREEN='\033[0;32m'
+NC='\033[0m' # No Color
+
+# Size limit in bytes (5MB)
+SIZE_LIMIT=$((5 * 1024 * 1024))
+
+# Get the size limit from environment variable if set
+if [ -n "$GIT_LARGE_FILE_LIMIT" ]; then
+    SIZE_LIMIT=$((GIT_LARGE_FILE_LIMIT * 1024 * 1024))
+fi
+
+# Function to convert bytes to human readable format
+human_readable() {
+    local bytes=$1
+    if [ $bytes -ge 1073741824 ]; then
+        echo "$(echo "scale=2; $bytes/1073741824" | bc) GB"
+    elif [ $bytes -ge 1048576 ]; then
+        echo "$(echo "scale=2; $bytes/1048576" | bc) MB"
+    elif [ $bytes -ge 1024 ]; then
+        echo "$(echo "scale=2; $bytes/1024" | bc) KB"
+    else
+        echo "$bytes bytes"
+    fi
+}
+
+# Check for large files
+large_files=""
+total_large=0
+
+# Get list of staged files
+while IFS= read -r -d '' file; do
+    # Skip if file doesn't exist (deleted files)
+    if [ ! -f "$file" ]; then
+        continue
+    fi
+    
+    # Get file size
+    if [[ "$OSTYPE" == "darwin"* ]]; then
+        # macOS
+        file_size=$(stat -f%z "$file" 2>/dev/null)
+    else
+        # Linux
+        file_size=$(stat -c%s "$file" 2>/dev/null)
+    fi
+    
+    # Check if file exceeds limit
+    if [ -n "$file_size" ] && [ "$file_size" -gt "$SIZE_LIMIT" ]; then
+        human_size=$(human_readable $file_size)
+        large_files="${large_files}  ❌ ${file} (${human_size})\n"
+        ((total_large++))
+    fi
+done < <(git diff --cached --name-only -z)
+
+# If large files were found, show error and exit
+if [ $total_large -gt 0 ]; then
+    echo -e "\n${RED}🚨 LARGE FILE DETECTED! 🚨${NC}\n"
+    echo -e "The following file(s) exceed the $(echo "scale=0; $SIZE_LIMIT/1048576" | bc)MB limit:\n"
+    echo -e "${YELLOW}${large_files}${NC}"
+    echo -e "${GREEN}Options to resolve:${NC}"
+    echo -e "  1. Remove the file(s) from staging: ${YELLOW}git reset HEAD <file>${NC}"
+    echo -e "  2. Add to .gitignore if they're build artifacts"
+    echo -e "  3. Use Git LFS for large files: ${YELLOW}git lfs track <file>${NC}"
+    echo -e "  4. Compress the file(s) if possible"
+    echo -e "\n${RED}⚠️  Override (NOT RECOMMENDED):${NC} ${YELLOW}git commit --no-verify${NC}\n"
+    exit 1
+fi
+
+exit 0

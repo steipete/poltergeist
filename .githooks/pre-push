@@ -1,0 +1,91 @@
+#!/bin/bash
+
+# Pre-push hook to detect large files before pushing to remote
+# This is the last line of defense against large files
+
+# Color codes for output
+RED='\033[0;31m'
+YELLOW='\033[1;33m'
+GREEN='\033[0;32m'
+BLUE='\033[0;34m'
+NC='\033[0m' # No Color
+
+# Size limit in bytes (5MB)
+SIZE_LIMIT=$((5 * 1024 * 1024))
+
+# Get the size limit from environment variable if set
+if [ -n "$GIT_LARGE_FILE_LIMIT" ]; then
+    SIZE_LIMIT=$((GIT_LARGE_FILE_LIMIT * 1024 * 1024))
+fi
+
+# Function to convert bytes to human readable format
+human_readable() {
+    local bytes=$1
+    if [ $bytes -ge 1073741824 ]; then
+        echo "$(echo "scale=2; $bytes/1073741824" | bc) GB"
+    elif [ $bytes -ge 1048576 ]; then
+        echo "$(echo "scale=2; $bytes/1048576" | bc) MB"  
+    elif [ $bytes -ge 1024 ]; then
+        echo "$(echo "scale=2; $bytes/1024" | bc) KB"
+    else
+        echo "$bytes bytes"
+    fi
+}
+
+# Read stdin to get the refs being pushed
+while read local_ref local_sha remote_ref remote_sha; do
+    # Skip delete operations
+    if [ "$local_sha" = "0000000000000000000000000000000000000000" ]; then
+        continue
+    fi
+    
+    # Get the range of commits being pushed
+    if [ "$remote_sha" = "0000000000000000000000000000000000000000" ]; then
+        # New branch - check all commits
+        range="$local_sha"
+    else
+        # Existing branch - check new commits only
+        range="$remote_sha..$local_sha"
+    fi
+    
+    # Find large files in the commits being pushed
+    large_files=""
+    total_large=0
+    
+    # Get all files in the commit range
+    for commit in $(git rev-list "$range"); do
+        while IFS= read -r line; do
+            size=$(echo "$line" | cut -f1)
+            file=$(echo "$line" | cut -f2)
+            
+            if [ "$size" -gt "$SIZE_LIMIT" ]; then
+                human_size=$(human_readable $size)
+                commit_short=$(git rev-parse --short "$commit")
+                large_files="${large_files}  ❌ ${file} (${human_size}) in commit ${commit_short}\n"
+                ((total_large++))
+            fi
+        done < <(git diff-tree -r --no-commit-id --no-renames -z "$commit" | \
+                 xargs -0 -n1 -I{} sh -c 'git cat-file -s "$1:$2" 2>/dev/null | tr "\n" "\t" && echo "$2"' -- "$commit" {} | \
+                 grep -E "^[0-9]+")
+    done
+    
+    # If large files were found, show error and exit
+    if [ $total_large -gt 0 ]; then
+        echo -e "\n${RED}🚨 PUSH BLOCKED: LARGE FILES DETECTED! 🚨${NC}\n"
+        echo -e "The following file(s) exceed the $(echo "scale=0; $SIZE_LIMIT/1048576" | bc)MB limit:\n"
+        echo -e "${YELLOW}${large_files}${NC}"
+        echo -e "${BLUE}This is a serious issue that needs to be fixed before pushing!${NC}\n"
+        echo -e "${GREEN}Options to resolve:${NC}"
+        echo -e "  1. Remove the large file(s) from history:"
+        echo -e "     ${YELLOW}git reset --soft HEAD~1${NC} (for last commit)"
+        echo -e "     ${YELLOW}git filter-branch or BFG Repo-Cleaner${NC} (for older commits)"
+        echo -e "  2. Use Git LFS to track large files:"
+        echo -e "     ${YELLOW}git lfs track '*.bin' && git add .gitattributes${NC}"
+        echo -e "  3. If these are build artifacts, add them to .gitignore\n"
+        echo -e "${RED}⚠️  WARNING: Force pushing will still upload these large files!${NC}"
+        echo -e "${RED}⚠️  The remote repository size will increase permanently!${NC}\n"
+        exit 1
+    fi
+done
+
+exit 0

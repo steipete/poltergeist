@@ -17,3 +17,38 @@
 *.gif binary
 *.ico binary
 *.pdf binary
+
+# Git LFS patterns for large files
+# Uncomment and run 'git lfs track' to enable LFS for these patterns
+
+# Compiled binaries and executables
+# *.exe filter=lfs diff=lfs merge=lfs -text
+# *.dll filter=lfs diff=lfs merge=lfs -text
+# *.so filter=lfs diff=lfs merge=lfs -text
+# *.dylib filter=lfs diff=lfs merge=lfs -text
+
+# Archives
+# *.zip filter=lfs diff=lfs merge=lfs -text
+# *.tar filter=lfs diff=lfs merge=lfs -text
+# *.gz filter=lfs diff=lfs merge=lfs -text
+# *.7z filter=lfs diff=lfs merge=lfs -text
+# *.rar filter=lfs diff=lfs merge=lfs -text
+
+# Media files
+# *.mp4 filter=lfs diff=lfs merge=lfs -text
+# *.mov filter=lfs diff=lfs merge=lfs -text
+# *.avi filter=lfs diff=lfs merge=lfs -text
+# *.mp3 filter=lfs diff=lfs merge=lfs -text
+# *.wav filter=lfs diff=lfs merge=lfs -text
+
+# Large images
+# *.psd filter=lfs diff=lfs merge=lfs -text
+# *.ai filter=lfs diff=lfs merge=lfs -text
+# *.sketch filter=lfs diff=lfs merge=lfs -text
+
+# Database files
+# *.sqlite filter=lfs diff=lfs merge=lfs -text
+# *.db filter=lfs diff=lfs merge=lfs -text
+
+# Build artifacts specific to this project (if using LFS)
+# dist-bun/* filter=lfs diff=lfs merge=lfs -text
