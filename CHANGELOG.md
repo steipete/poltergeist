@@ -16,6 +16,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Windows-specific CI job with platform validation tests
 
 ### Changed
+- **Silent mode for specific targets**: The `polter` command now supports silent execution for specific targets
+  - When target name is `peekaboo`, all non-error output is suppressed for clean forwarding
+  - Enables transparent binary execution without wrapper noise
+  - Other targets retain normal logging behavior
 - **Breaking**: Renamed `pgrun` command to `polter` for better branding and clarity
   - Global binary now available as `polter` instead of `pgrun`
   - All documentation and examples updated to use new command name

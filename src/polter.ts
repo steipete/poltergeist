@@ -245,7 +245,9 @@ async function executeStaleWithWarning(
     console.log(chalk.yellow(`⚠️  Status: Executing without build verification`));
   }
 
-  console.log(chalk.green(`✅ Running binary: ${targetName} (potentially stale)`));
+  if (options.verbose) {
+    console.log(chalk.green(`✅ Running binary: ${targetName} (potentially stale)`));
+  }
 
   return new Promise((resolve) => {
     // Determine how to execute based on file extension
@@ -301,7 +303,12 @@ async function executeStaleWithWarning(
 /**
  * Executes the target binary with given arguments
  */
-function executeTarget(target: Target, projectRoot: string, args: string[]): Promise<number> {
+function executeTarget(
+  target: Target,
+  projectRoot: string,
+  args: string[],
+  options: { verbose: boolean }
+): Promise<number> {
   return new Promise((resolve) => {
     // Get output path based on target type
     let binaryPath: string;
@@ -320,7 +327,9 @@ function executeTarget(target: Target, projectRoot: string, args: string[]): Pro
       return;
     }
 
-    console.log(chalk.green(`✅ Running fresh binary: ${target.name}`));
+    if (options.verbose) {
+      console.log(chalk.green(`✅ Running fresh binary: ${target.name}`));
+    }
 
     // Determine how to execute based on file extension
     let command: string;
@@ -427,7 +436,9 @@ async function runWrapperWithDefaults(
       }
 
       targetName = executableTargets[0].name;
-      console.log(chalk.blue(`🎯 Using default target: ${targetName}`));
+      if (options.verbose) {
+        console.log(chalk.blue(`🎯 Using default target: ${targetName}`));
+      }
     } catch (error) {
       console.error(chalk.red('❌ Failed to load configuration'));
       console.error(chalk.red(`   ${error instanceof Error ? error.message : error}`));
@@ -453,6 +464,9 @@ async function runWrapper(
     logLines: number;
   }
 ) {
+  // Special handling for peekaboo - suppress all non-error output for complete transparency
+  const isSilentTarget = targetName === 'peekaboo';
+  const effectiveVerbose = isSilentTarget ? false : options.verbose;
   try {
     // Find poltergeist config
     const discovery = await ConfigurationManager.discoverAndLoadConfig();
@@ -504,7 +518,7 @@ async function runWrapper(
       process.exit(1);
     }
 
-    if (options.verbose) {
+    if (effectiveVerbose) {
       console.log(chalk.blue(`📍 Project root: ${projectRoot}`));
       console.log(chalk.blue(`🎯 Target: ${target.name} (${target.outputPath})`));
     }
@@ -512,7 +526,7 @@ async function runWrapper(
     // Check build status
     const status = await getBuildStatus(projectRoot, target);
 
-    if (options.verbose) {
+    if (effectiveVerbose) {
       console.log(chalk.blue(`📊 Build status: ${status}`));
     }
 
@@ -568,18 +582,20 @@ async function runWrapper(
         break;
 
       case 'success':
-        if (options.verbose) {
+        if (effectiveVerbose) {
           console.log(chalk.green('✅ Build successful'));
         }
         break;
 
       case 'unknown':
-        console.warn(chalk.yellow('⚠️  Build status unknown, proceeding...'));
+        if (!isSilentTarget) {
+          console.warn(chalk.yellow('⚠️  Build status unknown, proceeding...'));
+        }
         break;
     }
 
     // Execute the target
-    const exitCode = await executeTarget(target, projectRoot, args);
+    const exitCode = await executeTarget(target, projectRoot, args, { verbose: effectiveVerbose });
     process.exit(exitCode);
   } catch (error) {
     console.error(chalk.red('❌ Unexpected error:'));
