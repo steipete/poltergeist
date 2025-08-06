@@ -14,9 +14,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - NPM builder support for Node.js projects with automatic package.json detection
 - Self-building capability allowing Poltergeist to watch and rebuild itself
 
-### Changed
-- Silent mode for `peekaboo` target in `polter` command for clean binary forwarding
-
 ### Fixed
 - Poltergeist daemon detection in `polter` command with proper heartbeat checking
 
