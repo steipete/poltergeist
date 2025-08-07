@@ -112,30 +112,34 @@ export class DaemonManager {
    * Start a daemon process with retry logic
    */
   async startDaemonWithRetry(
-    config: PoltergeistConfig, 
-    options: DaemonOptions, 
+    config: PoltergeistConfig,
+    options: DaemonOptions,
     maxRetries = 3
   ): Promise<number> {
     let lastError: Error | undefined;
-    
+
     for (let attempt = 1; attempt <= maxRetries; attempt++) {
       try {
         this.logger.info(`Starting daemon (attempt ${attempt}/${maxRetries})...`);
         return await this.startDaemon(config, options);
       } catch (error) {
         lastError = error as Error;
-        this.logger.warn(`Daemon startup failed (attempt ${attempt}/${maxRetries}): ${lastError.message}`);
-        
+        this.logger.warn(
+          `Daemon startup failed (attempt ${attempt}/${maxRetries}): ${lastError.message}`
+        );
+
         if (attempt < maxRetries) {
           // Exponential backoff: 1s, 2s, 4s
-          const delay = Math.pow(2, attempt - 1) * 1000;
+          const delay = 2 ** (attempt - 1) * 1000;
           this.logger.info(`Retrying in ${delay}ms...`);
-          await new Promise(resolve => setTimeout(resolve, delay));
+          await new Promise((resolve) => setTimeout(resolve, delay));
         }
       }
     }
-    
-    throw new Error(`Failed to start daemon after ${maxRetries} attempts: ${lastError?.message || 'Unknown error'}`);
+
+    throw new Error(
+      `Failed to start daemon after ${maxRetries} attempts: ${lastError?.message || 'Unknown error'}`
+    );
   }
 
   /**
@@ -179,14 +183,18 @@ export class DaemonManager {
     // Wait for daemon to confirm startup
     return new Promise((resolve, reject) => {
       // Get timeout from environment variable or use default (30 seconds)
-      const timeoutMs = process.env.POLTERGEIST_DAEMON_TIMEOUT 
+      const timeoutMs = process.env.POLTERGEIST_DAEMON_TIMEOUT
         ? Number.parseInt(process.env.POLTERGEIST_DAEMON_TIMEOUT, 10)
         : 30000; // Default: 30 seconds
-        
+
       const timeout = setTimeout(() => {
         child.kill();
-        reject(new Error(`Daemon startup timeout after ${timeoutMs}ms. ` +
-          'Try setting POLTERGEIST_DAEMON_TIMEOUT environment variable to a higher value.'));
+        reject(
+          new Error(
+            `Daemon startup timeout after ${timeoutMs}ms. ` +
+              'Try setting POLTERGEIST_DAEMON_TIMEOUT environment variable to a higher value.'
+          )
+        );
       }, timeoutMs);
 
       child.once('message', async (message: DaemonMessage) => {

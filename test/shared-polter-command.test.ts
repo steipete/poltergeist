@@ -1,17 +1,17 @@
-import { describe, expect, it } from 'vitest';
 import { Command } from 'commander';
+import { describe, expect, it } from 'vitest';
 import {
-  POLTER_OPTIONS,
   configurePolterCommand,
   getPolterDescription,
+  POLTER_OPTIONS,
   parsePolterOptions,
 } from '../src/cli-shared/polter-command.js';
 
 describe('Shared Polter Command Configuration', () => {
   describe('POLTER_OPTIONS', () => {
     it('should define all required options', () => {
-      const optionFlags = POLTER_OPTIONS.map(opt => opt.flag);
-      
+      const optionFlags = POLTER_OPTIONS.map((opt) => opt.flag);
+
       expect(optionFlags).toContain('-t, --timeout <ms>');
       expect(optionFlags).toContain('-f, --force');
       expect(optionFlags).toContain('-n, --no-wait');
@@ -21,13 +21,13 @@ describe('Shared Polter Command Configuration', () => {
     });
 
     it('should have proper default values', () => {
-      const timeoutOption = POLTER_OPTIONS.find(opt => opt.flag.includes('--timeout'));
+      const timeoutOption = POLTER_OPTIONS.find((opt) => opt.flag.includes('--timeout'));
       expect(timeoutOption?.defaultValue).toBe('300000');
-      
-      const forceOption = POLTER_OPTIONS.find(opt => opt.flag.includes('--force'));
+
+      const forceOption = POLTER_OPTIONS.find((opt) => opt.flag.includes('--force'));
       expect(forceOption?.defaultValue).toBe(false);
-      
-      const logLinesOption = POLTER_OPTIONS.find(opt => opt.flag.includes('--log-lines'));
+
+      const logLinesOption = POLTER_OPTIONS.find((opt) => opt.flag.includes('--log-lines'));
       expect(logLinesOption?.defaultValue).toBe('5');
     });
   });
@@ -42,9 +42,9 @@ describe('Shared Polter Command Configuration', () => {
         logs: true,
         logLines: '10',
       };
-      
+
       const parsed = parsePolterOptions(options);
-      
+
       expect(parsed.timeout).toBe(5000);
       expect(typeof parsed.timeout).toBe('number');
     });
@@ -58,15 +58,15 @@ describe('Shared Polter Command Configuration', () => {
         logs: true,
         logLines: '10',
       };
-      
+
       const parsedWithWait = parsePolterOptions(optionsWithWait);
       expect(parsedWithWait.noWait).toBe(false); // noWait should be false
-      
+
       const optionsNoWait = {
         ...optionsWithWait,
         wait: false, // --no-wait sets wait to false
       };
-      
+
       const parsedNoWait = parsePolterOptions(optionsNoWait);
       expect(parsedNoWait.noWait).toBe(true); // noWait should be true
     });
@@ -80,15 +80,15 @@ describe('Shared Polter Command Configuration', () => {
         logs: true, // logs enabled
         logLines: '10',
       };
-      
+
       const parsedWithLogs = parsePolterOptions(optionsWithLogs);
       expect(parsedWithLogs.showLogs).toBe(true);
-      
+
       const optionsNoLogs = {
         ...optionsWithLogs,
         logs: false, // --no-logs sets logs to false
       };
-      
+
       const parsedNoLogs = parsePolterOptions(optionsNoLogs);
       expect(parsedNoLogs.showLogs).toBe(false);
     });
@@ -102,9 +102,9 @@ describe('Shared Polter Command Configuration', () => {
         logs: true,
         logLines: '25',
       };
-      
+
       const parsed = parsePolterOptions(options);
-      
+
       expect(parsed.logLines).toBe(25);
       expect(typeof parsed.logLines).toBe('number');
     });
@@ -113,13 +113,13 @@ describe('Shared Polter Command Configuration', () => {
   describe('configurePolterCommand', () => {
     it('should add all options to a command', () => {
       const command = new Command('test');
-      
+
       configurePolterCommand(command);
-      
+
       // Get all options from the command
       const commandOptions = command.options;
-      const optionFlags = commandOptions.map(opt => opt.flags);
-      
+      const optionFlags = commandOptions.map((opt) => opt.flags);
+
       expect(optionFlags).toContain('-t, --timeout <ms>');
       expect(optionFlags).toContain('-f, --force');
       expect(optionFlags).toContain('-n, --no-wait');
@@ -130,9 +130,9 @@ describe('Shared Polter Command Configuration', () => {
 
     it('should set allowUnknownOption', () => {
       const command = new Command('test');
-      
+
       configurePolterCommand(command);
-      
+
       // Commander stores this in _allowUnknownOption
       expect((command as any)._allowUnknownOption).toBe(true);
     });
@@ -141,7 +141,7 @@ describe('Shared Polter Command Configuration', () => {
   describe('getPolterDescription', () => {
     it('should return the standard description', () => {
       const description = getPolterDescription();
-      
+
       expect(description).toBe('Execute fresh binaries managed by Poltergeist');
     });
   });

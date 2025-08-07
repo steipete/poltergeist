@@ -82,10 +82,10 @@ export function configurePolterCommand(command: Command): Command {
       command.option(option.flag, option.description);
     }
   }
-  
+
   // Allow unknown options to be passed through to the target
   command.allowUnknownOption();
-  
+
   return command;
 }
 

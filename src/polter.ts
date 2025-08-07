@@ -17,6 +17,13 @@ import { existsSync, readFileSync } from 'fs';
 import ora from 'ora';
 import { resolve as resolvePath } from 'path';
 import packageJson from '../package.json' with { type: 'json' };
+import {
+  configurePolterCommand,
+  getPolterDescription,
+  type ParsedPolterOptions,
+  parsePolterOptions,
+  setupPolterErrorHandling,
+} from './cli-shared/polter-command.js';
 import type { PoltergeistState } from './state.js';
 import type { Target } from './types.js';
 import { BuildStatusManager } from './utils/build-status-manager.js';
@@ -24,7 +31,6 @@ import { CLIFormatter, type OptionInfo } from './utils/cli-formatter.js';
 import { ConfigurationManager } from './utils/config-manager.js';
 import { FileSystemUtils } from './utils/filesystem.js';
 import { poltergeistMessage } from './utils/ghost.js';
-import { configurePolterCommand, getPolterDescription, parsePolterOptions, setupPolterErrorHandling, type ParsedPolterOptions } from './cli-shared/polter-command.js';
 
 interface LogOptions {
   showLogs: boolean;
@@ -556,11 +562,7 @@ async function runWrapperWithDefaults(
 /**
  * Main pgrun execution logic
  */
-export async function runWrapper(
-  targetName: string,
-  args: string[],
-  options: ParsedPolterOptions
-) {
+export async function runWrapper(targetName: string, args: string[], options: ParsedPolterOptions) {
   // Special handling for peekaboo - suppress all non-error output for complete transparency
   const isSilentTarget = targetName === 'peekaboo';
   const effectiveVerbose = isSilentTarget ? false : options.verbose;

@@ -8,6 +8,11 @@ import { readdir } from 'fs/promises';
 import path, { join } from 'path';
 import { createInterface } from 'readline';
 import packageJson from '../package.json' with { type: 'json' };
+import {
+  configurePolterCommand,
+  getPolterDescription,
+  parsePolterOptions,
+} from './cli-shared/polter-command.js';
 // import { Poltergeist } from './poltergeist.js';
 import { ConfigurationError } from './config.js';
 import { createPoltergeist } from './factories.js';
@@ -19,7 +24,6 @@ import { ConfigurationManager } from './utils/config-manager.js';
 import { ghost, poltergeistMessage } from './utils/ghost.js';
 import { validateTarget } from './utils/target-validator.js';
 import { WatchmanConfigManager } from './watchman-config.js';
-import { configurePolterCommand, getPolterDescription, parsePolterOptions } from './cli-shared/polter-command.js';
 
 const { version } = packageJson;
 
@@ -1365,10 +1369,10 @@ configurePolterCommand(polterCommand);
 polterCommand.action(async (target: string, args: string[], options) => {
   // Import and run the polter functionality
   const { runWrapper } = await import('./polter.js');
-  
+
   // Use shared option parser
   const parsedOptions = parsePolterOptions(options);
-  
+
   await runWrapper(target, args, parsedOptions);
 });
 

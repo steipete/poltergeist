@@ -13,14 +13,14 @@ describe('polter command', () => {
     // Create a temporary test directory
     testDir = join(tmpdir(), `polter-test-${Date.now()}`);
     mkdirSync(testDir, { recursive: true });
-    
+
     // Save original cwd and change to test directory
     originalCwd = process.cwd();
     process.chdir(testDir);
-    
+
     // Reset all mocks
     vi.clearAllMocks();
-    
+
     // Mock console methods to avoid test output noise
     vi.spyOn(console, 'log').mockImplementation(() => {});
     vi.spyOn(console, 'warn').mockImplementation(() => {});
@@ -30,12 +30,12 @@ describe('polter command', () => {
   afterEach(() => {
     // Restore original cwd
     process.chdir(originalCwd);
-    
+
     // Clean up test directory
     if (existsSync(testDir)) {
       rmSync(testDir, { recursive: true, force: true });
     }
-    
+
     // Restore console methods
     vi.restoreAllMocks();
   });
@@ -58,14 +58,14 @@ describe('polter command', () => {
         ],
       };
       writeFileSync('poltergeist.config.json', JSON.stringify(config, null, 2));
-      
+
       // Create the executable
       writeFileSync('test-app.js', '#!/usr/bin/env node\nconsole.log("Hello from test-app");');
-      
+
       // Create state directory and file
       const stateDir = join(tmpdir(), 'poltergeist');
       mkdirSync(stateDir, { recursive: true });
-      
+
       // Create a successful state file
       const state: PoltergeistState = {
         version: '1.0',
@@ -84,15 +84,18 @@ describe('polter command', () => {
           buildTime: 1.5,
         },
       };
-      
-      const stateFile = join(stateDir, `test-project-${require('crypto').createHash('sha256').update(testDir).digest('hex').substring(0, 8)}-test-app.state`);
+
+      const stateFile = join(
+        stateDir,
+        `test-project-${require('crypto').createHash('sha256').update(testDir).digest('hex').substring(0, 8)}-test-app.state`
+      );
       writeFileSync(stateFile, JSON.stringify(state, null, 2));
-      
+
       // Mock process.exit to capture exit code
       const mockExit = vi.spyOn(process, 'exit').mockImplementation((code) => {
         throw new Error(`Process exited with code ${code}`);
       });
-      
+
       // Run polter
       try {
         await runWrapper('test-app', [], {
@@ -107,7 +110,7 @@ describe('polter command', () => {
         // Check that it tried to execute
         expect(error.message).toContain('Process exited with code');
       }
-      
+
       mockExit.mockRestore();
     });
 
@@ -128,14 +131,14 @@ describe('polter command', () => {
         ],
       };
       writeFileSync('poltergeist.config.json', JSON.stringify(config, null, 2));
-      
+
       // Create the executable
       writeFileSync('test-app.js', '#!/usr/bin/env node\nconsole.log("Hello from test-app");');
-      
+
       // Create state directory and file
       const stateDir = join(tmpdir(), 'poltergeist');
       mkdirSync(stateDir, { recursive: true });
-      
+
       // Create a building state file
       const state: PoltergeistState = {
         version: '1.0',
@@ -153,22 +156,25 @@ describe('polter command', () => {
           timestamp: new Date().toISOString(),
         },
       };
-      
-      const stateFile = join(stateDir, `test-project-${require('crypto').createHash('sha256').update(testDir).digest('hex').substring(0, 8)}-test-app.state`);
+
+      const stateFile = join(
+        stateDir,
+        `test-project-${require('crypto').createHash('sha256').update(testDir).digest('hex').substring(0, 8)}-test-app.state`
+      );
       writeFileSync(stateFile, JSON.stringify(state, null, 2));
-      
+
       // Mock process.exit
       const mockExit = vi.spyOn(process, 'exit').mockImplementation((code) => {
         throw new Error(`Process exited with code ${code}`);
       });
-      
+
       // Set up a timer to update the state file to success after 500ms
       setTimeout(() => {
         state.lastBuild!.status = 'success';
         state.lastBuild!.buildTime = 0.5;
         writeFileSync(stateFile, JSON.stringify(state, null, 2));
       }, 500);
-      
+
       // Run polter with a short timeout
       try {
         await runWrapper('test-app', [], {
@@ -183,7 +189,7 @@ describe('polter command', () => {
         // Should eventually succeed
         expect(error.message).toContain('Process exited with code');
       }
-      
+
       mockExit.mockRestore();
     });
 
@@ -204,11 +210,11 @@ describe('polter command', () => {
         ],
       };
       writeFileSync('poltergeist.config.json', JSON.stringify(config, null, 2));
-      
+
       // Create state directory and file
       const stateDir = join(tmpdir(), 'poltergeist');
       mkdirSync(stateDir, { recursive: true });
-      
+
       // Create a failed state file
       const state: PoltergeistState = {
         version: '1.0',
@@ -227,15 +233,18 @@ describe('polter command', () => {
           errorSummary: 'Build failed with errors',
         },
       };
-      
-      const stateFile = join(stateDir, `test-project-${require('crypto').createHash('sha256').update(testDir).digest('hex').substring(0, 8)}-test-app.state`);
+
+      const stateFile = join(
+        stateDir,
+        `test-project-${require('crypto').createHash('sha256').update(testDir).digest('hex').substring(0, 8)}-test-app.state`
+      );
       writeFileSync(stateFile, JSON.stringify(state, null, 2));
-      
+
       // Mock process.exit
       const mockExit = vi.spyOn(process, 'exit').mockImplementation((code) => {
         throw new Error(`Process exited with code ${code}`);
       });
-      
+
       // Run polter
       try {
         await runWrapper('test-app', [], {
@@ -250,7 +259,7 @@ describe('polter command', () => {
         // Should exit with error code 1
         expect(error.message).toContain('Process exited with code 1');
       }
-      
+
       mockExit.mockRestore();
     });
 
@@ -271,14 +280,14 @@ describe('polter command', () => {
         ],
       };
       writeFileSync('poltergeist.config.json', JSON.stringify(config, null, 2));
-      
+
       // Create the executable
       writeFileSync('test-app.js', '#!/usr/bin/env node\nconsole.log("Hello from test-app");');
-      
+
       // Create state directory and file
       const stateDir = join(tmpdir(), 'poltergeist');
       mkdirSync(stateDir, { recursive: true });
-      
+
       // Create a failed state file
       const state: PoltergeistState = {
         version: '1.0',
@@ -297,15 +306,18 @@ describe('polter command', () => {
           errorSummary: 'Build failed with errors',
         },
       };
-      
-      const stateFile = join(stateDir, `test-project-${require('crypto').createHash('sha256').update(testDir).digest('hex').substring(0, 8)}-test-app.state`);
+
+      const stateFile = join(
+        stateDir,
+        `test-project-${require('crypto').createHash('sha256').update(testDir).digest('hex').substring(0, 8)}-test-app.state`
+      );
       writeFileSync(stateFile, JSON.stringify(state, null, 2));
-      
+
       // Mock process.exit
       const mockExit = vi.spyOn(process, 'exit').mockImplementation((code) => {
         throw new Error(`Process exited with code ${code}`);
       });
-      
+
       // Run polter with --force
       try {
         await runWrapper('test-app', [], {
@@ -320,7 +332,7 @@ describe('polter command', () => {
         // Should try to execute
         expect(error.message).toContain('Process exited with code');
       }
-      
+
       mockExit.mockRestore();
     });
   });
@@ -329,12 +341,12 @@ describe('polter command', () => {
     it('should attempt stale execution when no config found', async () => {
       // Create an executable without config
       writeFileSync('test-app', '#!/usr/bin/env node\nconsole.log("Hello");');
-      
+
       // Mock process.exit
       const mockExit = vi.spyOn(process, 'exit').mockImplementation((code) => {
         throw new Error(`Process exited with code ${code}`);
       });
-      
+
       // Run polter
       try {
         await runWrapper('test-app', [], {
@@ -349,12 +361,12 @@ describe('polter command', () => {
         // Should attempt stale execution
         expect(error.message).toContain('Process exited with code');
       }
-      
+
       // Check that warning was shown
       expect(console.warn).toHaveBeenCalledWith(
         expect.stringContaining('No poltergeist.config.json found')
       );
-      
+
       mockExit.mockRestore();
     });
 
@@ -375,15 +387,15 @@ describe('polter command', () => {
         ],
       };
       writeFileSync('poltergeist.config.json', JSON.stringify(config, null, 2));
-      
+
       // Create an executable
       writeFileSync('test-app', '#!/usr/bin/env node\nconsole.log("Hello");');
-      
+
       // Mock process.exit
       const mockExit = vi.spyOn(process, 'exit').mockImplementation((code) => {
         throw new Error(`Process exited with code ${code}`);
       });
-      
+
       // Run polter
       try {
         await runWrapper('test-app', [], {
@@ -398,12 +410,12 @@ describe('polter command', () => {
         // Should attempt stale execution
         expect(error.message).toContain('Process exited with code');
       }
-      
+
       // Check that warning was shown
       expect(console.warn).toHaveBeenCalledWith(
-        expect.stringContaining('Target \'test-app\' not found in config')
+        expect.stringContaining("Target 'test-app' not found in config")
       );
-      
+
       mockExit.mockRestore();
     });
 
@@ -424,14 +436,14 @@ describe('polter command', () => {
         ],
       };
       writeFileSync('poltergeist.config.json', JSON.stringify(config, null, 2));
-      
+
       // Create the executable
       writeFileSync('test-app.js', '#!/usr/bin/env node\nconsole.log("Hello from test-app");');
-      
+
       // Create state directory and file with old heartbeat (Poltergeist not running)
       const stateDir = join(tmpdir(), 'poltergeist');
       mkdirSync(stateDir, { recursive: true });
-      
+
       const state: PoltergeistState = {
         version: '1.0',
         projectPath: testDir,
@@ -449,15 +461,18 @@ describe('polter command', () => {
           buildTime: 1.5,
         },
       };
-      
-      const stateFile = join(stateDir, `test-project-${require('crypto').createHash('sha256').update(testDir).digest('hex').substring(0, 8)}-test-app.state`);
+
+      const stateFile = join(
+        stateDir,
+        `test-project-${require('crypto').createHash('sha256').update(testDir).digest('hex').substring(0, 8)}-test-app.state`
+      );
       writeFileSync(stateFile, JSON.stringify(state, null, 2));
-      
+
       // Mock process.exit
       const mockExit = vi.spyOn(process, 'exit').mockImplementation((code) => {
         throw new Error(`Process exited with code ${code}`);
       });
-      
+
       // Run polter
       try {
         await runWrapper('test-app', [], {
@@ -472,12 +487,12 @@ describe('polter command', () => {
         // Should execute with warning
         expect(error.message).toContain('Process exited with code');
       }
-      
+
       // Check that warning was shown
       expect(console.warn).toHaveBeenCalledWith(
         expect.stringContaining('Executing potentially stale binary')
       );
-      
+
       mockExit.mockRestore();
     });
   });
@@ -500,11 +515,11 @@ describe('polter command', () => {
         ],
       };
       writeFileSync('poltergeist.config.json', JSON.stringify(config, null, 2));
-      
+
       // Create state directory and file
       const stateDir = join(tmpdir(), 'poltergeist');
       mkdirSync(stateDir, { recursive: true });
-      
+
       // Create a building state file that won't complete
       const state: PoltergeistState = {
         version: '1.0',
@@ -522,17 +537,20 @@ describe('polter command', () => {
           timestamp: new Date().toISOString(),
         },
       };
-      
-      const stateFile = join(stateDir, `test-project-${require('crypto').createHash('sha256').update(testDir).digest('hex').substring(0, 8)}-test-app.state`);
+
+      const stateFile = join(
+        stateDir,
+        `test-project-${require('crypto').createHash('sha256').update(testDir).digest('hex').substring(0, 8)}-test-app.state`
+      );
       writeFileSync(stateFile, JSON.stringify(state, null, 2));
-      
+
       // Mock process.exit
       const mockExit = vi.spyOn(process, 'exit').mockImplementation((code) => {
         throw new Error(`Process exited with code ${code}`);
       });
-      
+
       const startTime = Date.now();
-      
+
       // Run polter with short timeout
       try {
         await runWrapper('test-app', [], {
@@ -550,12 +568,12 @@ describe('polter command', () => {
         expect(elapsed).toBeLessThan(2000);
         expect(error.message).toContain('Process exited with code 1');
       }
-      
+
       // Check that timeout error was shown
       expect(console.error).toHaveBeenCalledWith(
         expect.stringContaining('Build timeout after 1000ms')
       );
-      
+
       mockExit.mockRestore();
     });
 
@@ -576,11 +594,11 @@ describe('polter command', () => {
         ],
       };
       writeFileSync('poltergeist.config.json', JSON.stringify(config, null, 2));
-      
+
       // Create state directory and file
       const stateDir = join(tmpdir(), 'poltergeist');
       mkdirSync(stateDir, { recursive: true });
-      
+
       // Create a building state file
       const state: PoltergeistState = {
         version: '1.0',
@@ -598,17 +616,20 @@ describe('polter command', () => {
           timestamp: new Date().toISOString(),
         },
       };
-      
-      const stateFile = join(stateDir, `test-project-${require('crypto').createHash('sha256').update(testDir).digest('hex').substring(0, 8)}-test-app.state`);
+
+      const stateFile = join(
+        stateDir,
+        `test-project-${require('crypto').createHash('sha256').update(testDir).digest('hex').substring(0, 8)}-test-app.state`
+      );
       writeFileSync(stateFile, JSON.stringify(state, null, 2));
-      
+
       // Mock process.exit
       const mockExit = vi.spyOn(process, 'exit').mockImplementation((code) => {
         throw new Error(`Process exited with code ${code}`);
       });
-      
+
       const startTime = Date.now();
-      
+
       // Run polter with --no-wait
       try {
         await runWrapper('test-app', [], {
@@ -625,12 +646,12 @@ describe('polter command', () => {
         expect(elapsed).toBeLessThan(500); // Should be immediate
         expect(error.message).toContain('Process exited with code 1');
       }
-      
+
       // Check that appropriate error was shown
       expect(console.error).toHaveBeenCalledWith(
         expect.stringContaining('Build in progress and --no-wait specified')
       );
-      
+
       mockExit.mockRestore();
     });
   });
