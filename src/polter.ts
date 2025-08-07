@@ -16,6 +16,7 @@ import { Command } from 'commander';
 import { existsSync, readFileSync } from 'fs';
 import ora from 'ora';
 import { resolve as resolvePath } from 'path';
+import packageJson from '../package.json' with { type: 'json' };
 import type { PoltergeistState } from './state.js';
 import type { Target } from './types.js';
 import { BuildStatusManager } from './utils/build-status-manager.js';
@@ -23,6 +24,7 @@ import { CLIFormatter, type OptionInfo } from './utils/cli-formatter.js';
 import { ConfigurationManager } from './utils/config-manager.js';
 import { FileSystemUtils } from './utils/filesystem.js';
 import { poltergeistMessage } from './utils/ghost.js';
+import { configurePolterCommand, getPolterDescription, parsePolterOptions, setupPolterErrorHandling, type ParsedPolterOptions } from './cli-shared/polter-command.js';
 
 interface LogOptions {
   showLogs: boolean;
@@ -540,15 +542,7 @@ async function showPolterHelp() {
 async function runWrapperWithDefaults(
   targetName: string | undefined,
   args: string[],
-  options: {
-    timeout: number;
-    force: boolean;
-    noWait: boolean;
-    verbose: boolean;
-    showLogs: boolean;
-    logLines: number;
-    help?: boolean;
-  }
+  options: ParsedPolterOptions
 ) {
   // If help flag is set or no target specified, show help
   if (options.help || !targetName) {
@@ -562,17 +556,10 @@ async function runWrapperWithDefaults(
 /**
  * Main pgrun execution logic
  */
-async function runWrapper(
+export async function runWrapper(
   targetName: string,
   args: string[],
-  options: {
-    timeout: number;
-    force: boolean;
-    noWait: boolean;
-    verbose: boolean;
-    showLogs: boolean;
-    logLines: number;
-  }
+  options: ParsedPolterOptions
 ) {
   // Special handling for peekaboo - suppress all non-error output for complete transparency
   const isSilentTarget = targetName === 'peekaboo';
@@ -761,45 +748,25 @@ async function runWrapper(
 // CLI setup
 const program = new Command();
 
-program
+const polterCommand = program
   .name('polter')
-  .description('Smart wrapper for running executables managed by Poltergeist')
-  .version('1.6.0', '-v, --version', 'output the version number')
+  .description(getPolterDescription())
+  .version(packageJson.version, '-v, --version', 'output the version number')
   .argument('[target]', 'Name of the target to run')
   .argument('[args...]', 'Arguments to pass to the target executable')
-  .option('-t, --timeout <ms>', 'Build wait timeout in milliseconds', '300000')
-  .option('-f, --force', 'Run even if build failed', false)
-  .option('-n, --no-wait', "Don't wait for builds, fail if building")
-  .option('--verbose', 'Show detailed status information', false)
-  .option('--no-logs', 'Disable build log streaming during progress')
-  .option('--log-lines <number>', 'Number of log lines to show', '5')
   .helpOption(false) // Disable default help to handle it ourselves
-  .option('-h, --help', 'Show help for polter')
-  .allowUnknownOption()
-  .action(async (target: string | undefined, args: string[], options) => {
-    const parsedOptions = {
-      timeout: Number.parseInt(options.timeout, 10),
-      force: options.force,
-      noWait: !options.wait, // --no-wait sets wait=false
-      verbose: options.verbose,
-      showLogs: options.logs !== false, // --no-logs sets logs=false
-      logLines: Number.parseInt(options.logLines, 10),
-      help: options.help,
-    };
+  .option('-h, --help', 'Show help for polter');
 
-    await runWrapperWithDefaults(target, args, parsedOptions);
-  });
+// Configure with shared options
+configurePolterCommand(polterCommand);
 
-// Handle unhandled promise rejections
-process.on('unhandledRejection', (reason) => {
-  console.error(chalk.red('👻 [Poltergeist] Unhandled promise rejection:'));
-  console.error(chalk.red(`   ${reason}`));
-  console.error(chalk.yellow('\n   This is likely a bug. Please report it with:'));
-  console.error('   • Your poltergeist.config.json');
-  console.error('   • The command you ran');
-  console.error('   • Your environment (OS, Node version)');
-  process.exit(1);
+polterCommand.action(async (target: string | undefined, args: string[], options) => {
+  const parsedOptions = parsePolterOptions(options);
+  await runWrapperWithDefaults(target, args, parsedOptions);
 });
+
+// Setup shared error handling
+setupPolterErrorHandling();
 
 // Parse CLI arguments
 program.parse();

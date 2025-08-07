@@ -19,6 +19,7 @@ import { ConfigurationManager } from './utils/config-manager.js';
 import { ghost, poltergeistMessage } from './utils/ghost.js';
 import { validateTarget } from './utils/target-validator.js';
 import { WatchmanConfigManager } from './watchman-config.js';
+import { configurePolterCommand, getPolterDescription, parsePolterOptions } from './cli-shared/polter-command.js';
 
 const { version } = packageJson;
 
@@ -53,6 +54,7 @@ program
           commands: [
             { name: 'logs', args: '[target]', description: 'Show build logs' },
             { name: 'wait', args: '[target]', description: 'Wait for build to complete' },
+            { name: 'polter', args: '<target> [args...]', description: 'Execute fresh binaries' },
             { name: 'version', description: 'Show Poltergeist version' },
           ],
         },
@@ -148,8 +150,8 @@ program
 
         console.log(chalk.gray(poltergeistMessage('info', 'Starting daemon...')));
 
-        // Start daemon
-        const pid = await daemon.startDaemon(config, {
+        // Start daemon with retry logic
+        const pid = await daemon.startDaemonWithRetry(config, {
           projectRoot,
           configPath,
           target: options.target,
@@ -255,9 +257,9 @@ program
         const poltergeist = createPoltergeist(config, projectRoot, logger, configPath);
         await poltergeist.start(options.target);
       } else {
-        // Restart as daemon
+        // Restart as daemon with retry logic
         console.log(chalk.gray(poltergeistMessage('info', 'Starting new daemon...')));
-        const pid = await daemon.startDaemon(config, {
+        const pid = await daemon.startDaemonWithRetry(config, {
           projectRoot,
           configPath,
           target: options.target,
@@ -1351,6 +1353,24 @@ program
       );
     }
   });
+
+// Add polter command - delegate to polter CLI using shared configuration
+const polterCommand = program
+  .command('polter <target> [args...]')
+  .description(getPolterDescription());
+
+// Configure with shared options
+configurePolterCommand(polterCommand);
+
+polterCommand.action(async (target: string, args: string[], options) => {
+  // Import and run the polter functionality
+  const { runWrapper } = await import('./polter.js');
+  
+  // Use shared option parser
+  const parsedOptions = parsePolterOptions(options);
+  
+  await runWrapper(target, args, parsedOptions);
+});
 
 // Backwards compatibility warning for old flags
 const warnOldFlag = (flag: string, newFlag: string) => {
