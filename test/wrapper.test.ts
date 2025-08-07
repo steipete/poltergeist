@@ -76,12 +76,13 @@ describe('Poltergeist Wrapper Script', () => {
 
       // Should show help and exit with non-zero code
       expect(result.exitCode).toBe(1);
-      expect(result.stderr).toContain('Usage: poltergeist');
+      expect(result.stderr).toContain('USAGE');
+      expect(result.stderr).toContain('poltergeist <command> [options]');
       expect(result.stderr).toContain('The ghost that keeps your projects fresh');
-      expect(result.stderr).toContain('Commands:');
-      expect(result.stderr).toContain('haunt|start');
+      expect(result.stderr).toContain('COMMANDS');
+      expect(result.stderr).toContain('start, haunt');
       expect(result.stderr).toContain('status');
-      expect(result.stderr).toContain('stop|rest');
+      expect(result.stderr).toContain('stop, rest');
       expect(result.stderr).toContain('list');
       expect(result.stderr).toContain('clean');
     });
@@ -90,7 +91,8 @@ describe('Poltergeist Wrapper Script', () => {
       const result = await runWrapper(['--help']);
 
       expect(result.exitCode).toBe(0);
-      expect(result.stdout).toContain('Usage: poltergeist');
+      expect(result.stdout).toContain('USAGE');
+      expect(result.stdout).toContain('poltergeist <command> [options]');
       expect(result.stdout).toContain('The ghost that keeps your projects fresh');
     });
 
