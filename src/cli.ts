@@ -15,6 +15,7 @@ import { createLogger } from './logger.js';
 import type { AppBundleTarget, PoltergeistConfig, ProjectType, Target } from './types.js';
 import { CMakeProjectAnalyzer } from './utils/cmake-analyzer.js';
 import { ConfigurationManager } from './utils/config-manager.js';
+import { ghost, poltergeistMessage } from './utils/ghost.js';
 import { validateTarget } from './utils/target-validator.js';
 import { WatchmanConfigManager } from './watchman-config.js';
 
@@ -24,7 +25,7 @@ const program = new Command();
 
 program
   .name('poltergeist')
-  .description('👻 Poltergeist - The ghost that keeps your projects fresh')
+  .description(`${ghost.brand()} Poltergeist - The ghost that keeps your projects fresh`)
   .version(version, '-v, --version', 'output the version number');
 
 // Helper function to load config and handle errors
@@ -83,13 +84,17 @@ program
 
         // Check if already running
         if (await daemon.isDaemonRunning(projectRoot)) {
-          console.log(chalk.yellow('👻 Poltergeist daemon is already running for this project'));
+          console.log(
+            chalk.yellow(
+              `${ghost.warning()} Poltergeist daemon is already running for this project`
+            )
+          );
           console.log(chalk.gray('Use "poltergeist status" to see details'));
           console.log(chalk.gray('Use "poltergeist stop" to stop the daemon'));
           process.exit(1);
         }
 
-        console.log(chalk.gray('👻 [Poltergeist] Starting daemon...'));
+        console.log(chalk.gray(poltergeistMessage('info', 'Starting daemon...')));
 
         // Start daemon
         const pid = await daemon.startDaemon(config, {
@@ -99,24 +104,26 @@ program
           verbose: options.verbose,
         });
 
-        console.log(chalk.green(`👻 Poltergeist daemon started (PID: ${pid})`));
+        console.log(chalk.green(`${ghost.success()} Poltergeist daemon started (PID: ${pid})`));
         console.log(chalk.gray('Use "poltergeist logs" to see output'));
         console.log(chalk.gray('Use "poltergeist status" to check build status'));
         console.log(chalk.gray('Use "poltergeist stop" to stop watching'));
       } catch (error) {
-        console.error(chalk.red(`👻 [Poltergeist] Failed to start daemon: ${error}`));
+        console.error(chalk.red(poltergeistMessage('error', `Failed to start daemon: ${error}`)));
         process.exit(1);
       }
     } else {
       // Foreground mode (traditional blocking behavior)
-      console.log(chalk.gray('👻 [Poltergeist] Running in foreground mode...'));
+      console.log(chalk.gray(poltergeistMessage('info', 'Running in foreground mode...')));
 
       if (options.target) {
-        console.log(chalk.gray(`👻 [Poltergeist] Building target: ${options.target}`));
+        console.log(chalk.gray(poltergeistMessage('info', `Building target: ${options.target}`)));
       } else {
         const enabledTargets = config.targets.filter((t) => t.enabled);
         console.log(
-          chalk.gray(`👻 [Poltergeist] Building ${enabledTargets.length} enabled target(s)`)
+          chalk.gray(
+            poltergeistMessage('info', `Building ${enabledTargets.length} enabled target(s)`)
+          )
         );
       }
 
@@ -124,7 +131,9 @@ program
         const poltergeist = createPoltergeist(config, projectRoot, logger, configPath);
         await poltergeist.start(options.target);
       } catch (error) {
-        console.error(chalk.red(`👻 [Poltergeist] Failed to start Poltergeist: ${error}`));
+        console.error(
+          chalk.red(poltergeistMessage('error', `Failed to start Poltergeist: ${error}`))
+        );
         process.exit(1);
       }
     }
@@ -145,15 +154,17 @@ program
 
       // Check if daemon is running
       if (!(await daemon.isDaemonRunning(projectRoot))) {
-        console.log(chalk.yellow('👻 No Poltergeist daemon running for this project'));
+        console.log(
+          chalk.yellow(`${ghost.warning()} No Poltergeist daemon running for this project`)
+        );
         process.exit(1);
       }
 
-      console.log(chalk.gray('👻 [Poltergeist] Stopping daemon...'));
+      console.log(chalk.gray(poltergeistMessage('info', 'Stopping daemon...')));
       await daemon.stopDaemon(projectRoot);
-      console.log(chalk.green('👻 [Poltergeist] Daemon stopped successfully'));
+      console.log(chalk.green(poltergeistMessage('success', 'Daemon stopped successfully')));
     } catch (error) {
-      console.error(chalk.red(`👻 [Poltergeist] Failed to stop daemon: ${error}`));
+      console.error(chalk.red(poltergeistMessage('error', `Failed to stop daemon: ${error}`)));
       process.exit(1);
     }
   });
@@ -166,7 +177,7 @@ program
   .option('--verbose', 'Enable verbose logging')
   .option('-t, --target <name>', 'Target to build')
   .action(async (options) => {
-    console.log(chalk.gray('👻 [Poltergeist] Restarting...'));
+    console.log(chalk.gray(poltergeistMessage('info', 'Restarting...')));
 
     const { config, projectRoot, configPath } = await loadConfiguration(options.config);
     const logger = createLogger(config.logging?.level || 'info');
@@ -179,7 +190,7 @@ program
       const isRunning = await daemon.isDaemonRunning(projectRoot);
 
       if (isRunning) {
-        console.log(chalk.gray('👻 [Poltergeist] Stopping current daemon...'));
+        console.log(chalk.gray(poltergeistMessage('info', 'Stopping current daemon...')));
         await daemon.stopDaemon(projectRoot);
 
         // Wait a moment to ensure clean shutdown
@@ -188,22 +199,22 @@ program
 
       if (options.foreground) {
         // Restart in foreground mode
-        console.log(chalk.gray('👻 [Poltergeist] Starting in foreground mode...'));
+        console.log(chalk.gray(poltergeistMessage('info', 'Starting in foreground mode...')));
         const poltergeist = createPoltergeist(config, projectRoot, logger, configPath);
         await poltergeist.start(options.target);
       } else {
         // Restart as daemon
-        console.log(chalk.gray('👻 [Poltergeist] Starting new daemon...'));
+        console.log(chalk.gray(poltergeistMessage('info', 'Starting new daemon...')));
         const pid = await daemon.startDaemon(config, {
           projectRoot,
           configPath,
           target: options.target,
           verbose: options.verbose,
         });
-        console.log(chalk.green(`👻 Poltergeist daemon restarted (PID: ${pid})`));
+        console.log(chalk.green(`${ghost.success()} Poltergeist daemon restarted (PID: ${pid})`));
       }
     } catch (error) {
-      console.error(chalk.red(`👻 [Poltergeist] Restart failed: ${error}`));
+      console.error(chalk.red(poltergeistMessage('error', `Restart failed: ${error}`)));
       process.exit(1);
     }
   });
@@ -233,7 +244,7 @@ program
       if (options.json) {
         console.log(JSON.stringify(status, null, 2));
       } else {
-        console.log(chalk.blue('👻 Poltergeist Status'));
+        console.log(chalk.cyan(`${ghost.brand()} Poltergeist Status`));
         console.log(chalk.gray('═'.repeat(50)));
 
         if (options.target) {
@@ -258,7 +269,7 @@ program
         }
       }
     } catch (error) {
-      console.error(chalk.red(`👻 [Poltergeist] Failed to get status: ${error}`));
+      console.error(chalk.red(poltergeistMessage('error', `Failed to get status: ${error}`)));
       process.exit(1);
     }
   });
@@ -501,7 +512,7 @@ async function displayLogs(
   if (options.json) {
     console.log(JSON.stringify(logEntries, null, 2));
   } else {
-    console.log(chalk.blue('👻 Poltergeist Logs'));
+    console.log(chalk.cyan(`${ghost.brand()} Poltergeist Logs`));
     console.log(chalk.gray('═'.repeat(50)));
     logEntries.forEach(formatLogEntry);
   }
@@ -593,7 +604,7 @@ async function followLogs(
 ): Promise<void> {
   let fileSize = statSync(logFile).size;
 
-  console.log(chalk.blue('👻 Following Poltergeist logs... (Press Ctrl+C to exit)'));
+  console.log(chalk.cyan(`${ghost.brand()} Following Poltergeist logs... (Press Ctrl+C to exit)`));
   if (targetFilter) {
     console.log(chalk.gray(`Filtering for target: ${targetFilter}`));
   }
@@ -670,7 +681,7 @@ program
       process.exit(1);
     }
 
-    console.log(chalk.gray('👻 [Poltergeist] Initializing configuration...'));
+    console.log(chalk.gray(poltergeistMessage('info', 'Initializing configuration...')));
 
     // Detect project type
     let projectType: ProjectType;
@@ -1043,7 +1054,7 @@ program
   .action(async (options) => {
     const { config } = await loadConfiguration(options.config);
 
-    console.log(chalk.blue('👻 Configured Targets'));
+    console.log(chalk.cyan(`${ghost.brand()} Configured Targets`));
     console.log(chalk.gray('═'.repeat(50)));
 
     if (config.targets.length === 0) {
@@ -1220,7 +1231,7 @@ program
   .option('-d, --days <number>', 'Remove state files older than N days', '7')
   .option('--dry-run', 'Show what would be removed without actually removing')
   .action(async (options) => {
-    console.log(chalk.gray('👻 [Poltergeist] Cleaning up state files...'));
+    console.log(chalk.gray(poltergeistMessage('info', 'Cleaning up state files...')));
 
     const { StateManager } = await import('./state.js');
     const stateFiles = await StateManager.listAllStates();
@@ -1283,7 +1294,9 @@ program
     if (options.dryRun) {
       console.log(chalk.blue(`Would remove ${removedCount} state file(s)`));
     } else {
-      console.log(chalk.green(`👻 [Poltergeist] Removed ${removedCount} state file(s)`));
+      console.log(
+        chalk.green(poltergeistMessage('success', `Removed ${removedCount} state file(s)`))
+      );
     }
   });
 

@@ -21,6 +21,7 @@ import type { Target } from './types.js';
 import { BuildStatusManager } from './utils/build-status-manager.js';
 import { ConfigurationManager } from './utils/config-manager.js';
 import { FileSystemUtils } from './utils/filesystem.js';
+import { ghost, poltergeistMessage } from './utils/ghost.js';
 
 interface LogOptions {
   showLogs: boolean;
@@ -115,7 +116,10 @@ async function getBuildStatus(
   } catch (error) {
     console.warn(
       chalk.yellow(
-        `👻 [Poltergeist] ⚠ Could not read build status: ${error instanceof Error ? error.message : error}`
+        poltergeistMessage(
+          'warning',
+          `⚠ Could not read build status: ${error instanceof Error ? error.message : error}`
+        )
       )
     );
     return 'unknown';
@@ -249,7 +253,9 @@ async function executeStaleWithWarning(
   }
 
   if (!binaryPath) {
-    console.error(chalk.red(`👻 [Poltergeist] Binary not found for target '${targetName}'`));
+    console.error(
+      chalk.red(poltergeistMessage('error', `Binary not found for target '${targetName}'`))
+    );
     console.error(chalk.yellow('Tried the following locations:'));
     possiblePaths.forEach((path) => console.error(chalk.gray(`   ${path}`)));
     console.error(chalk.yellow('   Try running: poltergeist start'));
@@ -257,19 +263,23 @@ async function executeStaleWithWarning(
   }
 
   // Show warning banner
-  console.warn(chalk.yellow('👻 [Poltergeist] ⚠ Executing potentially stale binary'));
+  console.warn(chalk.yellow(poltergeistMessage('warning', '⚠ Executing potentially stale binary')));
   console.warn(chalk.yellow('   The binary may be outdated. For fresh builds:'));
   console.warn(chalk.yellow('   npm run poltergeist:haunt'));
   console.warn('');
 
   if (options.verbose) {
-    console.log(chalk.gray(`👻 [Poltergeist] Project root: ${projectRoot}`));
-    console.log(chalk.gray(`👻 [Poltergeist] Binary path: ${binaryPath}`));
-    console.log(chalk.yellow(`👻 [Poltergeist] ⚠ Status: Executing without build verification`));
+    console.log(chalk.gray(poltergeistMessage('info', `Project root: ${projectRoot}`)));
+    console.log(chalk.gray(poltergeistMessage('info', `Binary path: ${binaryPath}`)));
+    console.log(
+      chalk.yellow(poltergeistMessage('warning', '⚠ Status: Executing without build verification'))
+    );
   }
 
   // Always show this message as tests depend on it
-  console.log(chalk.green(`👻 [Poltergeist] Running binary: ${targetName} (potentially stale)`));
+  console.log(
+    chalk.green(poltergeistMessage('success', `Running binary: ${targetName} (potentially stale)`))
+  );
 
   return new Promise((resolve) => {
     // Determine how to execute based on file extension
@@ -298,7 +308,7 @@ async function executeStaleWithWarning(
     });
 
     child.on('error', (error: Error) => {
-      console.error(chalk.red(`👻 [Poltergeist] Failed to execute ${targetName}:`));
+      console.error(chalk.red(poltergeistMessage('error', `Failed to execute ${targetName}:`)));
       console.error(chalk.red(`   ${error.message}`));
 
       // Provide helpful suggestions based on error type
@@ -338,21 +348,25 @@ function executeTarget(
       binaryPath = resolvePath(projectRoot, target.outputPath);
     } else {
       console.error(
-        chalk.red(`👻 [Poltergeist] Target '${target.name}' does not have an output path`)
+        chalk.red(
+          poltergeistMessage('error', `Target '${target.name}' does not have an output path`)
+        )
       );
       resolve(1);
       return;
     }
 
     if (!existsSync(binaryPath)) {
-      console.error(chalk.red(`👻 [Poltergeist] Binary not found: ${binaryPath}`));
+      console.error(chalk.red(poltergeistMessage('error', `Binary not found: ${binaryPath}`)));
       console.error(chalk.yellow(`   Try running: poltergeist start`));
       resolve(1);
       return;
     }
 
     if (options.verbose) {
-      console.log(chalk.green(`👻 [Poltergeist] Running fresh binary: ${target.name}`));
+      console.log(
+        chalk.green(poltergeistMessage('success', `Running fresh binary: ${target.name}`))
+      );
     }
 
     // Determine how to execute based on file extension
@@ -381,7 +395,7 @@ function executeTarget(
     });
 
     child.on('error', (error: Error) => {
-      console.error(chalk.red(`👻 [Poltergeist] Failed to execute ${target.name}:`));
+      console.error(chalk.red(poltergeistMessage('error', `Failed to execute ${target.name}:`)));
       console.error(chalk.red(`   ${error.message}`));
 
       // Provide helpful suggestions based on error type
@@ -439,7 +453,7 @@ async function showPolterHelp() {
     const executableTargets = ConfigurationManager.getExecutableTargets(config);
 
     if (executableTargets.length === 0) {
-      console.log(chalk.yellow('No executable targets configured'));
+      console.log(chalk.yellow(`${ghost.warning()} No executable targets configured`));
       console.log('');
       console.log(chalk.gray('Add an executable target to poltergeist.config.json:'));
       console.log(chalk.gray('  {'));
