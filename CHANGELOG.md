@@ -20,11 +20,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Unified output formatting with consistent `👻 [Poltergeist]` prefix across all commands
 - Removed excessive emoji usage for cleaner, professional output
 - `polter` command now shows its own help when invoked without arguments instead of defaulting to first target
+- **Major CLI redesign**: Implemented modern, consistent CLI output format for both `poltergeist` and `polter` commands
+  - Created CLIFormatter utility for unified help displays
+  - Organized commands into logical groups (Daemon Control, Project Management, Development)
+  - Applied consistent color scheme: cyan headers, yellow sections, gray descriptions
+  - Standardized format structure: Header → Usage → Commands/Targets → Options → Examples
+  - Improved readability with proper spacing and alignment
 
 ### Fixed
 - Poltergeist daemon detection in `polter` command with proper heartbeat checking
 - Binary discovery in subdirectories when target not found in config
 - Standardized CLI output and flag conventions across all commands
+- Color display issue where ghost emoji was incorrectly targeted for coloring instead of descriptive text
 
 ## [1.5.1] - 2025-01-03
 
