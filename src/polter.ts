@@ -470,7 +470,7 @@ async function showPolterHelp() {
         for (const target of executableTargets) {
           const status = await getBuildStatus(projectRoot, target);
           let mappedStatus: 'success' | 'building' | 'failed' | 'not-running' | 'unknown';
-          
+
           switch (status) {
             case 'poltergeist-not-running':
               mappedStatus = 'not-running';
@@ -478,7 +478,7 @@ async function showPolterHelp() {
             default:
               mappedStatus = status;
           }
-          
+
           targetLines.push(CLIFormatter.formatTarget(target.name, mappedStatus, target.outputPath));
         }
         targetsSection = targetLines.join('\n');
@@ -487,7 +487,10 @@ async function showPolterHelp() {
         const firstTarget = executableTargets[0];
         examples = [
           { command: `${firstTarget.name}`, description: `Run ${firstTarget.name}` },
-          { command: `${firstTarget.name} -- --help`, description: `Pass --help to ${firstTarget.name}` },
+          {
+            command: `${firstTarget.name} -- --help`,
+            description: `Pass --help to ${firstTarget.name}`,
+          },
           { command: `${firstTarget.name} --verbose`, description: 'Show detailed execution info' },
           { command: `${firstTarget.name} --force`, description: 'Run even if build failed' },
         ];

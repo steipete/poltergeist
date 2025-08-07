@@ -1,12 +1,12 @@
 /**
  * Ghost emoji helper for consistent branding across Poltergeist
  *
- * Note: Emoji characters cannot be colored in terminals. 
+ * Note: Emoji characters cannot be colored in terminals.
  * Use the plain ghost emoji and color the text instead:
- * 
+ *
  * Example:
  *   console.log(`👻 ${chalk.cyan('Poltergeist is running')}`);
- *   
+ *
  * NOT:
  *   console.log(chalk.cyan('👻 Poltergeist is running'));
  */
