@@ -411,7 +411,7 @@ function executeTarget(
 async function showPolterHelp() {
   console.log(chalk.cyan('👻 Polter - Smart executable wrapper for Poltergeist'));
   console.log('');
-  console.log('Ensures you\'re always running fresh builds by:');
+  console.log("Ensures you're always running fresh builds by:");
   console.log('  • Checking build status before execution');
   console.log('  • Waiting for in-progress builds to complete');
   console.log('  • Warning about stale or failed builds');
@@ -463,7 +463,7 @@ async function showPolterHelp() {
       const status = await getBuildStatus(projectRoot, target);
       let statusIcon = '•';
       let statusText = '';
-      
+
       switch (status) {
         case 'success':
           statusIcon = chalk.green('✓');
@@ -485,13 +485,13 @@ async function showPolterHelp() {
           statusIcon = chalk.gray('?');
           statusText = chalk.gray(' (unknown)');
       }
-      
+
       console.log(`  ${statusIcon} ${chalk.bold(target.name)}${statusText}`);
       if (target.outputPath) {
         console.log(chalk.gray(`    Output: ${target.outputPath}`));
       }
     }
-    
+
     console.log('');
     console.log(chalk.yellow('Examples:'));
     const firstTarget = executableTargets[0];
@@ -499,21 +499,20 @@ async function showPolterHelp() {
     console.log(`  polter ${firstTarget.name} -- --help       Pass --help to ${firstTarget.name}`);
     console.log(`  polter ${firstTarget.name} --verbose       Show detailed execution info`);
     console.log(`  polter ${firstTarget.name} --force         Run even if build failed`);
-    
+
     // Check if Poltergeist is running
-    const anyRunning = executableTargets.some(target => {
+    const anyRunning = executableTargets.some((target) => {
       const stateFilePath = FileSystemUtils.getStateFilePath(projectRoot, target.name);
       if (!existsSync(stateFilePath)) return false;
       const state = FileSystemUtils.readJsonFileStrict<PoltergeistState>(stateFilePath);
       return isPoltergeistRunning(state);
     });
-    
+
     if (!anyRunning) {
       console.log('');
       console.log(chalk.yellow('⚠  Poltergeist is not running'));
-      console.log('   Start watching for fresh builds: ' + chalk.cyan('poltergeist start'));
+      console.log(`   Start watching for fresh builds: ${chalk.cyan('poltergeist start')}`);
     }
-    
   } catch (error) {
     console.error(chalk.red('Error loading configuration:'));
     console.error(chalk.red(`  ${error instanceof Error ? error.message : error}`));
