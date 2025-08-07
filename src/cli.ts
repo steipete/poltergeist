@@ -5,9 +5,14 @@ import chalk from 'chalk';
 import { Command } from 'commander';
 import { createReadStream, existsSync, readFileSync, statSync, watchFile, writeFileSync } from 'fs';
 import { readdir } from 'fs/promises';
-import path, { join } from 'path';
+import path, { dirname, join } from 'path';
 import { createInterface } from 'readline';
-import packageJson from '../package.json' with { type: 'json' };
+import { fileURLToPath } from 'url';
+
+// Read package.json without experimental import syntax
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = dirname(__filename);
+const packageJson = JSON.parse(readFileSync(join(__dirname, '..', 'package.json'), 'utf-8'));
 import {
   configurePolterCommand,
   getPolterDescription,

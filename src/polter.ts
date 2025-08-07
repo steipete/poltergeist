@@ -15,8 +15,13 @@ import { spawn } from 'child_process';
 import { Command } from 'commander';
 import { existsSync, readFileSync } from 'fs';
 import ora from 'ora';
-import { resolve as resolvePath } from 'path';
-import packageJson from '../package.json' with { type: 'json' };
+import { resolve as resolvePath, dirname, join } from 'path';
+import { fileURLToPath } from 'url';
+
+// Read package.json without experimental import syntax
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = dirname(__filename);
+const packageJson = JSON.parse(readFileSync(join(__dirname, '..', 'package.json'), 'utf-8'));
 import {
   configurePolterCommand,
   getPolterDescription,
