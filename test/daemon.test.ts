@@ -255,7 +255,7 @@ describe('DaemonManager', () => {
       vi.mocked(fork).mockReturnValue(mockChild as unknown as ChildProcess);
 
       // Simulate timeout by not calling the message callback
-      mockChild.once.mockImplementation((event, callback) => {
+      mockChild.once.mockImplementation((event, _callback) => {
         if (event === 'message') {
           // Don't call the callback to simulate timeout
         } else if (event === 'error') {
@@ -264,9 +264,13 @@ describe('DaemonManager', () => {
       });
 
       await expect(
-        daemon.startDaemonWithRetry(config, {
-          projectRoot: testProjectPath,
-        }, 1) // Only 1 attempt to speed up test
+        daemon.startDaemonWithRetry(
+          config,
+          {
+            projectRoot: testProjectPath,
+          },
+          1
+        ) // Only 1 attempt to speed up test
       ).rejects.toThrow(/Daemon startup timeout after 100ms/);
 
       expect(mockChild.kill).toHaveBeenCalled();

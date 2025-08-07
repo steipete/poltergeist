@@ -1,4 +1,4 @@
-import { existsSync, mkdirSync, readFileSync, rmSync, writeFileSync } from 'fs';
+import { existsSync, mkdirSync, rmSync, writeFileSync } from 'fs';
 import { tmpdir } from 'os';
 import { join } from 'path';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
@@ -78,7 +78,11 @@ describe('polter command', () => {
       // Get the actual current working directory (which polter will use)
       const actualProjectRoot = process.cwd();
       const projectName = actualProjectRoot.split('/').pop() || 'unknown';
-      const projectHash = require('crypto').createHash('sha256').update(actualProjectRoot).digest('hex').substring(0, 8);
+      const projectHash = require('crypto')
+        .createHash('sha256')
+        .update(actualProjectRoot)
+        .digest('hex')
+        .substring(0, 8);
 
       // Create a successful state file
       const state: PoltergeistState = {
@@ -99,10 +103,7 @@ describe('polter command', () => {
         },
       };
 
-      const stateFile = join(
-        stateDir,
-        `${projectName}-${projectHash}-test-app.state`
-      );
+      const stateFile = join(stateDir, `${projectName}-${projectHash}-test-app.state`);
       writeFileSync(stateFile, JSON.stringify(state, null, 2));
 
       // Mock process.exit to capture exit code
@@ -156,7 +157,11 @@ describe('polter command', () => {
       // Get the actual current working directory (which polter will use)
       const actualProjectRoot = process.cwd();
       const projectName = actualProjectRoot.split('/').pop() || 'unknown';
-      const projectHash = require('crypto').createHash('sha256').update(actualProjectRoot).digest('hex').substring(0, 8);
+      const projectHash = require('crypto')
+        .createHash('sha256')
+        .update(actualProjectRoot)
+        .digest('hex')
+        .substring(0, 8);
 
       // Create a building state file
       const state: PoltergeistState = {
@@ -176,10 +181,7 @@ describe('polter command', () => {
         },
       };
 
-      const stateFile = join(
-        stateDir,
-        `${projectName}-${projectHash}-test-app.state`
-      );
+      const stateFile = join(stateDir, `${projectName}-${projectHash}-test-app.state`);
       writeFileSync(stateFile, JSON.stringify(state, null, 2));
 
       // Mock process.exit
@@ -189,8 +191,10 @@ describe('polter command', () => {
 
       // Set up a timer to update the state file to success after 500ms
       setTimeout(() => {
-        state.lastBuild!.status = 'success';
-        state.lastBuild!.buildTime = 0.5;
+        if (state.lastBuild) {
+          state.lastBuild.status = 'success';
+          state.lastBuild.buildTime = 0.5;
+        }
         writeFileSync(stateFile, JSON.stringify(state, null, 2));
       }, 500);
 
@@ -237,7 +241,11 @@ describe('polter command', () => {
       // Get the actual current working directory (which polter will use)
       const actualProjectRoot = process.cwd();
       const projectName = actualProjectRoot.split('/').pop() || 'unknown';
-      const projectHash = require('crypto').createHash('sha256').update(actualProjectRoot).digest('hex').substring(0, 8);
+      const projectHash = require('crypto')
+        .createHash('sha256')
+        .update(actualProjectRoot)
+        .digest('hex')
+        .substring(0, 8);
 
       // Create a failed state file
       const state: PoltergeistState = {
@@ -258,10 +266,7 @@ describe('polter command', () => {
         },
       };
 
-      const stateFile = join(
-        stateDir,
-        `${projectName}-${projectHash}-test-app.state`
-      );
+      const stateFile = join(stateDir, `${projectName}-${projectHash}-test-app.state`);
       writeFileSync(stateFile, JSON.stringify(state, null, 2));
 
       // Mock process.exit
@@ -315,7 +320,11 @@ describe('polter command', () => {
       // Get the actual current working directory (which polter will use)
       const actualProjectRoot = process.cwd();
       const projectName = actualProjectRoot.split('/').pop() || 'unknown';
-      const projectHash = require('crypto').createHash('sha256').update(actualProjectRoot).digest('hex').substring(0, 8);
+      const projectHash = require('crypto')
+        .createHash('sha256')
+        .update(actualProjectRoot)
+        .digest('hex')
+        .substring(0, 8);
 
       // Create a failed state file
       const state: PoltergeistState = {
@@ -336,10 +345,7 @@ describe('polter command', () => {
         },
       };
 
-      const stateFile = join(
-        stateDir,
-        `${projectName}-${projectHash}-test-app.state`
-      );
+      const stateFile = join(stateDir, `${projectName}-${projectHash}-test-app.state`);
       writeFileSync(stateFile, JSON.stringify(state, null, 2));
 
       // Mock process.exit
@@ -476,7 +482,11 @@ describe('polter command', () => {
       // Get the actual current working directory (which polter will use)
       const actualProjectRoot = process.cwd();
       const projectName = actualProjectRoot.split('/').pop() || 'unknown';
-      const projectHash = require('crypto').createHash('sha256').update(actualProjectRoot).digest('hex').substring(0, 8);
+      const projectHash = require('crypto')
+        .createHash('sha256')
+        .update(actualProjectRoot)
+        .digest('hex')
+        .substring(0, 8);
 
       const state: PoltergeistState = {
         version: '1.0',
@@ -496,10 +506,7 @@ describe('polter command', () => {
         },
       };
 
-      const stateFile = join(
-        stateDir,
-        `${projectName}-${projectHash}-test-app.state`
-      );
+      const stateFile = join(stateDir, `${projectName}-${projectHash}-test-app.state`);
       writeFileSync(stateFile, JSON.stringify(state, null, 2));
 
       // Mock process.exit
@@ -556,10 +563,14 @@ describe('polter command', () => {
 
       // Get the actual current working directory (which polter will use)
       const actualProjectRoot = process.cwd();
-      
+
       // Calculate the correct project name and hash for state file using the actual cwd
       const projectName = actualProjectRoot.split('/').pop() || 'unknown';
-      const projectHash = require('crypto').createHash('sha256').update(actualProjectRoot).digest('hex').substring(0, 8);
+      const projectHash = require('crypto')
+        .createHash('sha256')
+        .update(actualProjectRoot)
+        .digest('hex')
+        .substring(0, 8);
 
       // Create a building state file that won't complete
       const state: PoltergeistState = {
@@ -579,10 +590,7 @@ describe('polter command', () => {
         },
       };
 
-      const stateFile = join(
-        stateDir,
-        `${projectName}-${projectHash}-test-app.state`
-      );
+      const stateFile = join(stateDir, `${projectName}-${projectHash}-test-app.state`);
       writeFileSync(stateFile, JSON.stringify(state, null, 2));
 
       // Mock process.exit
@@ -605,7 +613,7 @@ describe('polter command', () => {
       } catch (error: any) {
         // Should timeout
         const elapsed = Date.now() - startTime;
-        
+
         expect(elapsed).toBeGreaterThanOrEqual(900); // Allow some margin
         expect(elapsed).toBeLessThan(2000);
         expect(error.message).toContain('Process exited with code 1');
@@ -644,7 +652,11 @@ describe('polter command', () => {
       // Get the actual current working directory (which polter will use)
       const actualProjectRoot = process.cwd();
       const projectName = actualProjectRoot.split('/').pop() || 'unknown';
-      const projectHash = require('crypto').createHash('sha256').update(actualProjectRoot).digest('hex').substring(0, 8);
+      const projectHash = require('crypto')
+        .createHash('sha256')
+        .update(actualProjectRoot)
+        .digest('hex')
+        .substring(0, 8);
 
       // Create a building state file
       const state: PoltergeistState = {
@@ -664,10 +676,7 @@ describe('polter command', () => {
         },
       };
 
-      const stateFile = join(
-        stateDir,
-        `${projectName}-${projectHash}-test-app.state`
-      );
+      const stateFile = join(stateDir, `${projectName}-${projectHash}-test-app.state`);
       writeFileSync(stateFile, JSON.stringify(state, null, 2));
 
       // Mock process.exit

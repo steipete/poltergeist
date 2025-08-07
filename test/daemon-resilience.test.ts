@@ -21,6 +21,7 @@ vi.mock('../src/utils/process-manager.js', () => ({
 // Import after mocking
 import { fork } from 'child_process';
 import { ProcessManager } from '../src/utils/process-manager.js';
+
 const mockFork = fork as unknown as ReturnType<typeof vi.fn>;
 const mockIsProcessAlive = ProcessManager.isProcessAlive as unknown as ReturnType<typeof vi.fn>;
 
