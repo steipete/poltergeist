@@ -595,7 +595,7 @@ describe('CLI Commands', () => {
 
       try {
         await runCLI(['-v']);
-      } catch (error) {
+      } catch {
         // Commander exits after showing version
       } finally {
         process.stdout.write = originalWrite;
