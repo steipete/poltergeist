@@ -1,6 +1,6 @@
 import { existsSync, mkdirSync, rmSync, writeFileSync } from 'fs';
 import { tmpdir } from 'os';
-import { join } from 'path';
+import path, { join } from 'path';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { runWrapper } from '../src/polter.js';
 import type { ExecutableTarget, PoltergeistConfig, PoltergeistState } from '../src/types.js';
@@ -77,8 +77,7 @@ describe('polter command', () => {
 
       // Get the actual current working directory (which polter will use)
       const actualProjectRoot = process.cwd();
-      const pathSeparator = process.platform === 'win32' ? '\\' : '/';
-      const projectName = actualProjectRoot.split(pathSeparator).pop() || 'unknown';
+      const projectName = path.basename(actualProjectRoot) || 'unknown';
       const projectHash = require('crypto')
         .createHash('sha256')
         .update(actualProjectRoot)
@@ -157,8 +156,7 @@ describe('polter command', () => {
 
       // Get the actual current working directory (which polter will use)
       const actualProjectRoot = process.cwd();
-      const pathSeparator = process.platform === 'win32' ? '\\' : '/';
-      const projectName = actualProjectRoot.split(pathSeparator).pop() || 'unknown';
+      const projectName = path.basename(actualProjectRoot) || 'unknown';
       const projectHash = require('crypto')
         .createHash('sha256')
         .update(actualProjectRoot)
@@ -242,8 +240,7 @@ describe('polter command', () => {
 
       // Get the actual current working directory (which polter will use)
       const actualProjectRoot = process.cwd();
-      const pathSeparator = process.platform === 'win32' ? '\\' : '/';
-      const projectName = actualProjectRoot.split(pathSeparator).pop() || 'unknown';
+      const projectName = path.basename(actualProjectRoot) || 'unknown';
       const projectHash = require('crypto')
         .createHash('sha256')
         .update(actualProjectRoot)
@@ -322,8 +319,7 @@ describe('polter command', () => {
 
       // Get the actual current working directory (which polter will use)
       const actualProjectRoot = process.cwd();
-      const pathSeparator = process.platform === 'win32' ? '\\' : '/';
-      const projectName = actualProjectRoot.split(pathSeparator).pop() || 'unknown';
+      const projectName = path.basename(actualProjectRoot) || 'unknown';
       const projectHash = require('crypto')
         .createHash('sha256')
         .update(actualProjectRoot)
@@ -485,8 +481,7 @@ describe('polter command', () => {
 
       // Get the actual current working directory (which polter will use)
       const actualProjectRoot = process.cwd();
-      const pathSeparator = process.platform === 'win32' ? '\\' : '/';
-      const projectName = actualProjectRoot.split(pathSeparator).pop() || 'unknown';
+      const projectName = path.basename(actualProjectRoot) || 'unknown';
       const projectHash = require('crypto')
         .createHash('sha256')
         .update(actualProjectRoot)
@@ -570,8 +565,7 @@ describe('polter command', () => {
       const actualProjectRoot = process.cwd();
 
       // Calculate the correct project name and hash for state file using the actual cwd
-      const pathSeparator = process.platform === 'win32' ? '\\' : '/';
-      const projectName = actualProjectRoot.split(pathSeparator).pop() || 'unknown';
+      const projectName = path.basename(actualProjectRoot) || 'unknown';
       const projectHash = require('crypto')
         .createHash('sha256')
         .update(actualProjectRoot)
@@ -657,8 +651,7 @@ describe('polter command', () => {
 
       // Get the actual current working directory (which polter will use)
       const actualProjectRoot = process.cwd();
-      const pathSeparator = process.platform === 'win32' ? '\\' : '/';
-      const projectName = actualProjectRoot.split(pathSeparator).pop() || 'unknown';
+      const projectName = path.basename(actualProjectRoot) || 'unknown';
       const projectHash = require('crypto')
         .createHash('sha256')
         .update(actualProjectRoot)
