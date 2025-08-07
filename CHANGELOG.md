@@ -14,14 +14,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - `-v` as version shorthand for both `poltergeist` and `polter` commands
 - NPM builder support for Node.js projects with automatic package.json detection
 - Self-building capability allowing Poltergeist to watch and rebuild itself
+- Executable targets in configuration for use with `polter` command
 
 ### Changed
 - Unified output formatting with consistent `👻 [Poltergeist]` prefix across all commands
 - Removed excessive emoji usage for cleaner, professional output
+- `polter` command now shows its own help when invoked without arguments instead of defaulting to first target
 
 ### Fixed
 - Poltergeist daemon detection in `polter` command with proper heartbeat checking
 - Binary discovery in subdirectories when target not found in config
+- Standardized CLI output and flag conventions across all commands
 
 ## [1.5.1] - 2025-01-03
 
