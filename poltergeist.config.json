@@ -3,10 +3,26 @@
   "projectType": "node",
   "targets": [
     {
-      "name": "poltergeist-cli",
+      "name": "build",
       "type": "npm",
       "watchPaths": ["src/**/*.ts"],
       "outputPaths": ["dist/cli.js", "dist/polter.js"]
+    },
+    {
+      "name": "cli",
+      "type": "executable",
+      "enabled": true,
+      "buildCommand": "npm run build",
+      "outputPath": "./dist/cli.js",
+      "watchPaths": ["src/**/*.ts"]
+    },
+    {
+      "name": "polter",
+      "type": "executable",
+      "enabled": true,
+      "buildCommand": "npm run build",
+      "outputPath": "./dist/polter.js",
+      "watchPaths": ["src/**/*.ts"]
     },
     {
       "name": "poltergeist-mac",
