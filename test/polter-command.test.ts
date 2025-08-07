@@ -106,8 +106,10 @@ describe('polter command', () => {
       const stateFile = join(stateDir, `${projectName}-${projectHash}-test-app.state`);
       writeFileSync(stateFile, JSON.stringify(state, null, 2));
 
-      // Mock process.exit to capture exit code
+      // Track exit codes  
+      let exitCode: number | undefined;
       const mockExit = vi.spyOn(process, 'exit').mockImplementation((code) => {
+        exitCode = code as number;
         throw new Error(`Process exited with code ${code}`);
       });
 
@@ -122,8 +124,10 @@ describe('polter command', () => {
           logLines: 5,
         });
       } catch (error: any) {
-        // Check that it tried to execute
-        expect(error.message).toContain('Process exited with code');
+        // The mock throws an error but we expect exit code 0 for successful execution
+        // The initial exit(0) happens first, then catch block calls exit(1)
+        // We verify the first exit was 0 (successful execution)
+        expect(mockExit).toHaveBeenCalledWith(0);
       }
 
       mockExit.mockRestore();
@@ -209,8 +213,8 @@ describe('polter command', () => {
           logLines: 5,
         });
       } catch (error: any) {
-        // Should eventually succeed
-        expect(error.message).toContain('Process exited with code');
+        // Should eventually succeed with exit code 0
+        expect(mockExit).toHaveBeenCalledWith(0);
       }
 
       mockExit.mockRestore();
@@ -364,8 +368,8 @@ describe('polter command', () => {
           logLines: 5,
         });
       } catch (error: any) {
-        // Should try to execute
-        expect(error.message).toContain('Process exited with code');
+        // Should try to execute successfully despite failure
+        expect(mockExit).toHaveBeenCalledWith(0);
       }
 
       mockExit.mockRestore();
@@ -376,6 +380,10 @@ describe('polter command', () => {
     it('should attempt stale execution when no config found', async () => {
       // Create an executable without config
       writeFileSync('test-app', '#!/usr/bin/env node\nconsole.log("Hello");');
+      // Make it executable on Unix-like systems
+      if (process.platform !== 'win32') {
+        require('fs').chmodSync('test-app', 0o755);
+      }
 
       // Mock process.exit
       const mockExit = vi.spyOn(process, 'exit').mockImplementation((code) => {
@@ -393,8 +401,8 @@ describe('polter command', () => {
           logLines: 5,
         });
       } catch (error: any) {
-        // Should attempt stale execution
-        expect(error.message).toContain('Process exited with code');
+        // Should attempt stale execution - could be exit 0 or 1 depending on permissions
+        expect(error.message).toMatch(/Process exited with code [01]/);
       }
 
       // Check that warning was shown
@@ -425,6 +433,10 @@ describe('polter command', () => {
 
       // Create an executable
       writeFileSync('test-app', '#!/usr/bin/env node\nconsole.log("Hello");');
+      // Make it executable on Unix-like systems
+      if (process.platform !== 'win32') {
+        require('fs').chmodSync('test-app', 0o755);
+      }
 
       // Mock process.exit
       const mockExit = vi.spyOn(process, 'exit').mockImplementation((code) => {
@@ -442,8 +454,8 @@ describe('polter command', () => {
           logLines: 5,
         });
       } catch (error: any) {
-        // Should attempt stale execution
-        expect(error.message).toContain('Process exited with code');
+        // Should attempt stale execution - could be exit 0 or 1 depending on permissions
+        expect(error.message).toMatch(/Process exited with code [01]/);
       }
 
       // Check that warning was shown
@@ -525,8 +537,8 @@ describe('polter command', () => {
           logLines: 5,
         });
       } catch (error: any) {
-        // Should execute with warning
-        expect(error.message).toContain('Process exited with code');
+        // Should execute successfully with warning
+        expect(mockExit).toHaveBeenCalledWith(0);
       }
 
       // Check that warning was shown
