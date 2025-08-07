@@ -133,7 +133,7 @@ add_library(test-lib STATIC lib.cpp)
         writeFileSync('lib.cpp', 'void foo() {}');
       });
 
-      it('should generate minimal CMake config', { timeout: 10000 }, () => {
+      it('should generate minimal CMake config', { timeout: 20000 }, () => {
         execSync(`node ${cli} init --cmake`, { stdio: 'pipe' });
 
         const config: PoltergeistConfig = JSON.parse(

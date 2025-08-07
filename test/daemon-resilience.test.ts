@@ -45,14 +45,26 @@ describe('daemon resilience', () => {
     vi.clearAllMocks();
   });
 
-  afterEach(() => {
-    // Clean up test directory
-    if (existsSync(testDir)) {
-      rmSync(testDir, { recursive: true, force: true });
-    }
-
-    // Restore all mocks
+  afterEach(async () => {
+    // Restore all mocks first
     vi.restoreAllMocks();
+    
+    // Clean up test directory with retry for Windows
+    if (existsSync(testDir)) {
+      try {
+        rmSync(testDir, { recursive: true, force: true });
+      } catch (error: any) {
+        // On Windows, sometimes files are still locked - wait and retry
+        if (error.code === 'ENOTEMPTY' || error.code === 'EBUSY') {
+          await new Promise(resolve => setTimeout(resolve, 100));
+          try {
+            rmSync(testDir, { recursive: true, force: true, maxRetries: 3, retryDelay: 100 });
+          } catch {
+            // Ignore cleanup errors - test directory will be cleaned on next run
+          }
+        }
+      }
+    }
   });
 
   describe('timeout configuration', () => {
