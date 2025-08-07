@@ -9,9 +9,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [1.6.1] - 2025-01-07
 
+### Added
+- `poltergeist polter` subcommand for better Homebrew compatibility - now both `polter` standalone and `poltergeist polter` work correctly
+- Configurable daemon startup timeout via `POLTERGEIST_DAEMON_TIMEOUT` environment variable
+- Automatic retry logic with exponential backoff for daemon startup (retries at 1s, 2s, 4s intervals)
+
+### Changed
+- Increased default daemon startup timeout from 10s to 30s for better support of large projects
+- Improved error messages with actionable suggestions when daemon startup fails
+
 ### Fixed
+- Eliminated code duplication between standalone `polter` and `poltergeist polter` subcommand
 - Improved cross-platform path handling for better Windows compatibility
-- Enhanced test suite reliability across all platforms
 
 ## [1.6.0] - 2025-01-06
 
