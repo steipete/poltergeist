@@ -106,10 +106,8 @@ describe('polter command', () => {
       const stateFile = join(stateDir, `${projectName}-${projectHash}-test-app.state`);
       writeFileSync(stateFile, JSON.stringify(state, null, 2));
 
-      // Track exit codes  
-      let exitCode: number | undefined;
+      // Mock process.exit to capture exit code
       const mockExit = vi.spyOn(process, 'exit').mockImplementation((code) => {
-        exitCode = code as number;
         throw new Error(`Process exited with code ${code}`);
       });
 
@@ -123,7 +121,7 @@ describe('polter command', () => {
           showLogs: true,
           logLines: 5,
         });
-      } catch (error: any) {
+      } catch (_error: any) {
         // The mock throws an error but we expect exit code 0 for successful execution
         // The initial exit(0) happens first, then catch block calls exit(1)
         // We verify the first exit was 0 (successful execution)
@@ -212,7 +210,7 @@ describe('polter command', () => {
           showLogs: false,
           logLines: 5,
         });
-      } catch (error: any) {
+      } catch (_error: any) {
         // Should eventually succeed with exit code 0
         expect(mockExit).toHaveBeenCalledWith(0);
       }
@@ -367,7 +365,7 @@ describe('polter command', () => {
           showLogs: true,
           logLines: 5,
         });
-      } catch (error: any) {
+      } catch (_error: any) {
         // Should try to execute successfully despite failure
         expect(mockExit).toHaveBeenCalledWith(0);
       }
@@ -536,7 +534,7 @@ describe('polter command', () => {
           showLogs: true,
           logLines: 5,
         });
-      } catch (error: any) {
+      } catch (_error: any) {
         // Should execute successfully with warning
         expect(mockExit).toHaveBeenCalledWith(0);
       }
