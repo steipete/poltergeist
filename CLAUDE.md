@@ -2,6 +2,33 @@
 
 This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
 
+## Homebrew Release Process
+
+**CRITICAL**: Poltergeist is distributed as a pre-compiled Bun executable, NOT as a Node.js package.
+
+### Release Steps:
+1. **Build Bun binary**: Run `npm run build:bun` to create standalone executable
+2. **Create tarball**: Package the binary as `poltergeist-macos-{arch}-v{version}.tar.gz`
+3. **GitHub Release**: Upload the tarball to GitHub releases
+4. **Homebrew Formula**: Download from GitHub releases, NOT from npm registry
+
+### Homebrew Formula Pattern:
+```ruby
+class Poltergeist < Formula
+  desc "Universal file watcher with auto-rebuild"
+  homepage "https://github.com/steipete/poltergeist"
+  url "https://github.com/steipete/poltergeist/releases/download/v{VERSION}/poltergeist-macos-universal.tar.gz"
+  sha256 "..."
+  
+  def install
+    bin.install "poltergeist"
+    bin.install "polter"
+  end
+end
+```
+
+**NO Node.js dependency, NO npm installation, just direct binary installation.**
+
 ## Self-Building with Poltergeist
 
 Poltergeist can build itself! The project includes a `poltergeist.config.json` that watches its own source files.

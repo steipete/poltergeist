@@ -12,7 +12,20 @@ import { fileURLToPath } from 'url';
 // Read package.json without experimental import syntax
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
-const packageJson = JSON.parse(readFileSync(join(__dirname, '..', 'package.json'), 'utf-8'));
+// Try multiple paths to find package.json (works in both src/ and dist/)
+let packageJson: any;
+try {
+  // Try from dist directory first
+  packageJson = JSON.parse(readFileSync(join(__dirname, '..', 'package.json'), 'utf-8'));
+} catch {
+  try {
+    // Try from src directory (during tests)
+    packageJson = JSON.parse(readFileSync(join(__dirname, '..', '..', 'package.json'), 'utf-8'));
+  } catch {
+    // Fallback to a default version
+    packageJson = { version: '1.6.1', name: '@steipete/poltergeist' };
+  }
+}
 import {
   configurePolterCommand,
   getPolterDescription,
