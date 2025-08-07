@@ -48,7 +48,7 @@ describe('daemon resilience', () => {
   afterEach(async () => {
     // Restore all mocks first
     vi.restoreAllMocks();
-    
+
     // Clean up test directory with retry for Windows
     if (existsSync(testDir)) {
       try {
@@ -56,7 +56,7 @@ describe('daemon resilience', () => {
       } catch (error: any) {
         // On Windows, sometimes files are still locked - wait and retry
         if (error.code === 'ENOTEMPTY' || error.code === 'EBUSY') {
-          await new Promise(resolve => setTimeout(resolve, 100));
+          await new Promise((resolve) => setTimeout(resolve, 100));
           try {
             rmSync(testDir, { recursive: true, force: true, maxRetries: 3, retryDelay: 100 });
           } catch {
