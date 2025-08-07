@@ -147,10 +147,12 @@ async function waitForBuildCompletion(
   const startTime = Date.now();
 
   // Use ora for professional spinner with automatic cursor management
+  // In non-TTY environments (like tests), ora falls back to just console.log
   const spinner = ora({
     text: 'Build in progress...',
     color: 'cyan',
     spinner: 'dots',
+    isEnabled: process.stdout.isTTY !== false, // Explicitly check TTY
   });
 
   // Start spinner (automatically handles TTY detection and cursor hiding)
@@ -747,28 +749,31 @@ export async function runWrapper(targetName: string, args: string[], options: Pa
   }
 }
 
-// CLI setup
-const program = new Command();
+// Only run CLI setup if this file is being executed directly (not imported)
+if (import.meta.url === `file://${process.argv[1]}`) {
+  // CLI setup
+  const program = new Command();
 
-const polterCommand = program
-  .name('polter')
-  .description(getPolterDescription())
-  .version(packageJson.version, '-v, --version', 'output the version number')
-  .argument('[target]', 'Name of the target to run')
-  .argument('[args...]', 'Arguments to pass to the target executable')
-  .helpOption(false) // Disable default help to handle it ourselves
-  .option('-h, --help', 'Show help for polter');
+  const polterCommand = program
+    .name('polter')
+    .description(getPolterDescription())
+    .version(packageJson.version, '-v, --version', 'output the version number')
+    .argument('[target]', 'Name of the target to run')
+    .argument('[args...]', 'Arguments to pass to the target executable')
+    .helpOption(false) // Disable default help to handle it ourselves
+    .option('-h, --help', 'Show help for polter');
 
-// Configure with shared options
-configurePolterCommand(polterCommand);
+  // Configure with shared options
+  configurePolterCommand(polterCommand);
 
-polterCommand.action(async (target: string | undefined, args: string[], options) => {
-  const parsedOptions = parsePolterOptions(options);
-  await runWrapperWithDefaults(target, args, parsedOptions);
-});
+  polterCommand.action(async (target: string | undefined, args: string[], options) => {
+    const parsedOptions = parsePolterOptions(options);
+    await runWrapperWithDefaults(target, args, parsedOptions);
+  });
 
-// Setup shared error handling
-setupPolterErrorHandling();
+  // Setup shared error handling
+  setupPolterErrorHandling();
 
-// Parse CLI arguments
-program.parse();
+  // Parse CLI arguments
+  program.parse();
+}

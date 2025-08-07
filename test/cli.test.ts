@@ -34,6 +34,7 @@ const { mockPoltergeist, mockStateManager, mockConfigLoader, mockLogger, mockDae
     const mockDaemonManager = {
       isDaemonRunning: vi.fn().mockResolvedValue(false),
       startDaemon: vi.fn().mockResolvedValue(12345),
+      startDaemonWithRetry: vi.fn().mockResolvedValue(12345),
       stopDaemon: vi.fn().mockResolvedValue(undefined),
       readLogFile: vi.fn().mockResolvedValue(['Log line 1', 'Log line 2']),
       getDaemonInfo: vi.fn().mockResolvedValue(null),
@@ -224,6 +225,7 @@ describe('CLI Commands', () => {
       .mockReset()
       .mockResolvedValue(options?.daemonRunning ?? false);
     mockDaemonManager.startDaemon.mockReset().mockResolvedValue(12345);
+    mockDaemonManager.startDaemonWithRetry.mockReset().mockResolvedValue(12345);
     mockDaemonManager.stopDaemon.mockReset();
     if (options?.daemonStopError) {
       mockDaemonManager.stopDaemon.mockRejectedValue(options.daemonStopError);

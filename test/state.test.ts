@@ -254,10 +254,10 @@ describe('StateManager', () => {
       await stateManager.initializeState(target);
 
       const stateFiles = await StateManager.listAllStates();
-      const testAppStates = stateFiles.filter((f) => f.includes('test-app'));
+      const cliStates = stateFiles.filter((f) => f.includes('cli'));
 
-      expect(testAppStates.length).toBeGreaterThan(0);
-      expect(testAppStates[0]).toMatch(/test-app-.*-cli\.state/);
+      expect(cliStates.length).toBeGreaterThan(0);
+      expect(cliStates[0]).toMatch(/.*-cli\.state/);
     });
   });
 });

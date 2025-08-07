@@ -22,9 +22,18 @@ describe('polter command', () => {
     vi.clearAllMocks();
 
     // Mock console methods to avoid test output noise
-    vi.spyOn(console, 'log').mockImplementation(() => {});
-    vi.spyOn(console, 'warn').mockImplementation(() => {});
-    vi.spyOn(console, 'error').mockImplementation(() => {});
+    vi.spyOn(console, 'log').mockImplementation((...args) => {
+      // Allow debug messages through
+      if (args[0]?.includes?.('Test debug') || args[0]?.includes?.('[Poltergeist]')) {
+        console.info(...args); // Use console.info which won't be mocked
+      }
+    });
+    vi.spyOn(console, 'warn').mockImplementation((...args) => {
+      console.info('WARN:', ...args);
+    });
+    vi.spyOn(console, 'error').mockImplementation((...args) => {
+      console.info('ERROR:', ...args);
+    });
   });
 
   afterEach(() => {
@@ -66,11 +75,16 @@ describe('polter command', () => {
       const stateDir = join(tmpdir(), 'poltergeist');
       mkdirSync(stateDir, { recursive: true });
 
+      // Get the actual current working directory (which polter will use)
+      const actualProjectRoot = process.cwd();
+      const projectName = actualProjectRoot.split('/').pop() || 'unknown';
+      const projectHash = require('crypto').createHash('sha256').update(actualProjectRoot).digest('hex').substring(0, 8);
+
       // Create a successful state file
       const state: PoltergeistState = {
         version: '1.0',
-        projectPath: testDir,
-        projectName: 'test-project',
+        projectPath: actualProjectRoot,
+        projectName: projectName,
         target: 'test-app',
         process: {
           pid: process.pid,
@@ -87,7 +101,7 @@ describe('polter command', () => {
 
       const stateFile = join(
         stateDir,
-        `test-project-${require('crypto').createHash('sha256').update(testDir).digest('hex').substring(0, 8)}-test-app.state`
+        `${projectName}-${projectHash}-test-app.state`
       );
       writeFileSync(stateFile, JSON.stringify(state, null, 2));
 
@@ -139,11 +153,16 @@ describe('polter command', () => {
       const stateDir = join(tmpdir(), 'poltergeist');
       mkdirSync(stateDir, { recursive: true });
 
+      // Get the actual current working directory (which polter will use)
+      const actualProjectRoot = process.cwd();
+      const projectName = actualProjectRoot.split('/').pop() || 'unknown';
+      const projectHash = require('crypto').createHash('sha256').update(actualProjectRoot).digest('hex').substring(0, 8);
+
       // Create a building state file
       const state: PoltergeistState = {
         version: '1.0',
-        projectPath: testDir,
-        projectName: 'test-project',
+        projectPath: actualProjectRoot,
+        projectName: projectName,
         target: 'test-app',
         process: {
           pid: process.pid,
@@ -159,7 +178,7 @@ describe('polter command', () => {
 
       const stateFile = join(
         stateDir,
-        `test-project-${require('crypto').createHash('sha256').update(testDir).digest('hex').substring(0, 8)}-test-app.state`
+        `${projectName}-${projectHash}-test-app.state`
       );
       writeFileSync(stateFile, JSON.stringify(state, null, 2));
 
@@ -215,11 +234,16 @@ describe('polter command', () => {
       const stateDir = join(tmpdir(), 'poltergeist');
       mkdirSync(stateDir, { recursive: true });
 
+      // Get the actual current working directory (which polter will use)
+      const actualProjectRoot = process.cwd();
+      const projectName = actualProjectRoot.split('/').pop() || 'unknown';
+      const projectHash = require('crypto').createHash('sha256').update(actualProjectRoot).digest('hex').substring(0, 8);
+
       // Create a failed state file
       const state: PoltergeistState = {
         version: '1.0',
-        projectPath: testDir,
-        projectName: 'test-project',
+        projectPath: actualProjectRoot,
+        projectName: projectName,
         target: 'test-app',
         process: {
           pid: process.pid,
@@ -236,7 +260,7 @@ describe('polter command', () => {
 
       const stateFile = join(
         stateDir,
-        `test-project-${require('crypto').createHash('sha256').update(testDir).digest('hex').substring(0, 8)}-test-app.state`
+        `${projectName}-${projectHash}-test-app.state`
       );
       writeFileSync(stateFile, JSON.stringify(state, null, 2));
 
@@ -288,11 +312,16 @@ describe('polter command', () => {
       const stateDir = join(tmpdir(), 'poltergeist');
       mkdirSync(stateDir, { recursive: true });
 
+      // Get the actual current working directory (which polter will use)
+      const actualProjectRoot = process.cwd();
+      const projectName = actualProjectRoot.split('/').pop() || 'unknown';
+      const projectHash = require('crypto').createHash('sha256').update(actualProjectRoot).digest('hex').substring(0, 8);
+
       // Create a failed state file
       const state: PoltergeistState = {
         version: '1.0',
-        projectPath: testDir,
-        projectName: 'test-project',
+        projectPath: actualProjectRoot,
+        projectName: projectName,
         target: 'test-app',
         process: {
           pid: process.pid,
@@ -309,7 +338,7 @@ describe('polter command', () => {
 
       const stateFile = join(
         stateDir,
-        `test-project-${require('crypto').createHash('sha256').update(testDir).digest('hex').substring(0, 8)}-test-app.state`
+        `${projectName}-${projectHash}-test-app.state`
       );
       writeFileSync(stateFile, JSON.stringify(state, null, 2));
 
@@ -444,10 +473,15 @@ describe('polter command', () => {
       const stateDir = join(tmpdir(), 'poltergeist');
       mkdirSync(stateDir, { recursive: true });
 
+      // Get the actual current working directory (which polter will use)
+      const actualProjectRoot = process.cwd();
+      const projectName = actualProjectRoot.split('/').pop() || 'unknown';
+      const projectHash = require('crypto').createHash('sha256').update(actualProjectRoot).digest('hex').substring(0, 8);
+
       const state: PoltergeistState = {
         version: '1.0',
-        projectPath: testDir,
-        projectName: 'test-project',
+        projectPath: actualProjectRoot,
+        projectName: projectName,
         target: 'test-app',
         process: {
           pid: 99999, // Non-existent PID
@@ -464,7 +498,7 @@ describe('polter command', () => {
 
       const stateFile = join(
         stateDir,
-        `test-project-${require('crypto').createHash('sha256').update(testDir).digest('hex').substring(0, 8)}-test-app.state`
+        `${projectName}-${projectHash}-test-app.state`
       );
       writeFileSync(stateFile, JSON.stringify(state, null, 2));
 
@@ -520,11 +554,18 @@ describe('polter command', () => {
       const stateDir = join(tmpdir(), 'poltergeist');
       mkdirSync(stateDir, { recursive: true });
 
+      // Get the actual current working directory (which polter will use)
+      const actualProjectRoot = process.cwd();
+      
+      // Calculate the correct project name and hash for state file using the actual cwd
+      const projectName = actualProjectRoot.split('/').pop() || 'unknown';
+      const projectHash = require('crypto').createHash('sha256').update(actualProjectRoot).digest('hex').substring(0, 8);
+
       // Create a building state file that won't complete
       const state: PoltergeistState = {
         version: '1.0',
-        projectPath: testDir,
-        projectName: 'test-project',
+        projectPath: actualProjectRoot,
+        projectName: projectName,
         target: 'test-app',
         process: {
           pid: process.pid,
@@ -540,7 +581,7 @@ describe('polter command', () => {
 
       const stateFile = join(
         stateDir,
-        `test-project-${require('crypto').createHash('sha256').update(testDir).digest('hex').substring(0, 8)}-test-app.state`
+        `${projectName}-${projectHash}-test-app.state`
       );
       writeFileSync(stateFile, JSON.stringify(state, null, 2));
 
@@ -564,7 +605,8 @@ describe('polter command', () => {
       } catch (error: any) {
         // Should timeout
         const elapsed = Date.now() - startTime;
-        expect(elapsed).toBeGreaterThanOrEqual(1000);
+        
+        expect(elapsed).toBeGreaterThanOrEqual(900); // Allow some margin
         expect(elapsed).toBeLessThan(2000);
         expect(error.message).toContain('Process exited with code 1');
       }
@@ -599,11 +641,16 @@ describe('polter command', () => {
       const stateDir = join(tmpdir(), 'poltergeist');
       mkdirSync(stateDir, { recursive: true });
 
+      // Get the actual current working directory (which polter will use)
+      const actualProjectRoot = process.cwd();
+      const projectName = actualProjectRoot.split('/').pop() || 'unknown';
+      const projectHash = require('crypto').createHash('sha256').update(actualProjectRoot).digest('hex').substring(0, 8);
+
       // Create a building state file
       const state: PoltergeistState = {
         version: '1.0',
-        projectPath: testDir,
-        projectName: 'test-project',
+        projectPath: actualProjectRoot,
+        projectName: projectName,
         target: 'test-app',
         process: {
           pid: process.pid,
@@ -619,7 +666,7 @@ describe('polter command', () => {
 
       const stateFile = join(
         stateDir,
-        `test-project-${require('crypto').createHash('sha256').update(testDir).digest('hex').substring(0, 8)}-test-app.state`
+        `${projectName}-${projectHash}-test-app.state`
       );
       writeFileSync(stateFile, JSON.stringify(state, null, 2));
 

@@ -241,41 +241,39 @@ describe('DaemonManager', () => {
         targets: [],
       };
 
-      // Mock fork to simulate timeout
+      // Set a short timeout for testing
+      process.env.POLTERGEIST_DAEMON_TIMEOUT = '100';
+
+      // Mock fork to simulate timeout (don't send message)
       const mockChild = {
-        once: vi.fn((event, _callback) => {
-          if (event === 'error') {
-            // Don't call error callback
-          }
-          // Don't call message callback - this simulates timeout
-        }),
+        once: vi.fn(),
+        unref: vi.fn(),
+        disconnect: vi.fn(),
         kill: vi.fn(),
       };
 
       vi.mocked(fork).mockReturnValue(mockChild as unknown as ChildProcess);
 
-      // Temporarily reduce timeout for testing
-      const originalTimeout = setTimeout;
-      const globalWithTimeout = global as typeof global & { setTimeout: typeof setTimeout };
-      globalWithTimeout.setTimeout = vi.fn((cb: () => void, ms: number) => {
-        if (ms === 10000) {
-          // Call it immediately for testing
-          process.nextTick(cb);
+      // Simulate timeout by not calling the message callback
+      mockChild.once.mockImplementation((event, callback) => {
+        if (event === 'message') {
+          // Don't call the callback to simulate timeout
+        } else if (event === 'error') {
+          // Don't call error callback either
         }
-        return {} as NodeJS.Timeout;
       });
 
       await expect(
-        daemon.startDaemon(config, {
+        daemon.startDaemonWithRetry(config, {
           projectRoot: testProjectPath,
-        })
-      ).rejects.toThrow('Daemon startup timeout');
+        }, 1) // Only 1 attempt to speed up test
+      ).rejects.toThrow(/Daemon startup timeout after 100ms/);
 
       expect(mockChild.kill).toHaveBeenCalled();
 
-      // Restore original setTimeout
-      globalWithTimeout.setTimeout = originalTimeout;
-    });
+      // Clean up environment variable
+      delete process.env.POLTERGEIST_DAEMON_TIMEOUT;
+    }, 10000); // Increase test timeout
   });
 
   describe('stopDaemon', () => {
