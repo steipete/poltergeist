@@ -7,6 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.6.1] - 2025-01-07
+
+### Fixed
+- Improved cross-platform path handling for better Windows compatibility
+- Enhanced test suite reliability across all platforms
+
 ## [1.6.0] - 2025-01-06
 
 ### Added
