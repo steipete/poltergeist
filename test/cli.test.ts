@@ -583,37 +583,11 @@ describe('CLI Commands', () => {
       expect(result.stdout).toContain('Recent Successful Builds:');
     });
 
-    it('should show verbose output with -v shorthand', async () => {
-      createTestConfig();
-
-      // Mock with verbose data
-      mockPoltergeist.getStatus.mockResolvedValue({
-        'test-target': {
-          status: 'idle',
-          process: {
-            pid: 1234,
-            isActive: true,
-            hostname: 'test-host',
-            lastHeartbeat: new Date().toISOString(),
-            startTime: new Date(Date.now() - 300000).toISOString(), // 5 minutes ago
-          },
-          lastBuild: {
-            status: 'failure',
-            timestamp: new Date().toISOString(),
-            duration: 2500,
-            exitCode: 1,
-            errorSummary: 'Build failed',
-          },
-          buildCommand: 'npm run build',
-        },
-      });
-
-      const result = await runCLI(['status', '-v']);
+    it('should show version with -v flag', async () => {
+      const result = await runCLI(['-v']);
 
       expect(result.exitCode).toBe(0);
-      expect(result.stdout).toContain('Uptime:'); // Process uptime
-      expect(result.stdout).toContain('Exit Code: 1'); // Exit code in verbose mode
-      expect(result.stdout).toContain('Build Command:'); // Build command
+      expect(result.stdout).toMatch(/\d+\.\d+\.\d+/); // Version number pattern
     });
 
     it('should not show verbose details without --verbose flag', async () => {

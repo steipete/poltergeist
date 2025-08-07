@@ -115,7 +115,7 @@ async function getBuildStatus(
   } catch (error) {
     console.warn(
       chalk.yellow(
-        `⚠️  Could not read build status: ${error instanceof Error ? error.message : error}`
+        `👻 [Poltergeist] ⚠ Could not read build status: ${error instanceof Error ? error.message : error}`
       )
     );
     return 'unknown';
@@ -249,27 +249,27 @@ async function executeStaleWithWarning(
   }
 
   if (!binaryPath) {
-    console.error(chalk.red(`❌ Binary not found for target '${targetName}'`));
+    console.error(chalk.red(`👻 [Poltergeist] Binary not found for target '${targetName}'`));
     console.error(chalk.yellow('Tried the following locations:'));
     possiblePaths.forEach((path) => console.error(chalk.gray(`   ${path}`)));
-    console.error(chalk.yellow('🔧 Try running a manual build first'));
+    console.error(chalk.yellow('   Try running: poltergeist start'));
     return 1;
   }
 
   // Show warning banner
-  console.warn(chalk.yellow('⚠️  POLTERGEIST NOT RUNNING - EXECUTING POTENTIALLY STALE BINARY'));
-  console.warn(chalk.yellow('   The binary may be outdated. For fresh builds, start Poltergeist:'));
+  console.warn(chalk.yellow('👻 [Poltergeist] ⚠ Executing potentially stale binary'));
+  console.warn(chalk.yellow('   The binary may be outdated. For fresh builds:'));
   console.warn(chalk.yellow('   npm run poltergeist:haunt'));
   console.warn('');
 
   if (options.verbose) {
-    console.log(chalk.blue(`📍 Project root: ${projectRoot}`));
-    console.log(chalk.blue(`🎯 Binary path: ${binaryPath}`));
-    console.log(chalk.yellow(`⚠️  Status: Executing without build verification`));
+    console.log(chalk.gray(`👻 [Poltergeist] Project root: ${projectRoot}`));
+    console.log(chalk.gray(`👻 [Poltergeist] Binary path: ${binaryPath}`));
+    console.log(chalk.yellow(`👻 [Poltergeist] ⚠ Status: Executing without build verification`));
   }
 
   // Always show this message as tests depend on it
-  console.log(chalk.green(`✅ Running binary: ${targetName} (potentially stale)`));
+  console.log(chalk.green(`👻 [Poltergeist] Running binary: ${targetName} (potentially stale)`));
 
   return new Promise((resolve) => {
     // Determine how to execute based on file extension
@@ -298,17 +298,17 @@ async function executeStaleWithWarning(
     });
 
     child.on('error', (error: Error) => {
-      console.error(chalk.red(`❌ Failed to execute ${targetName}:`));
+      console.error(chalk.red(`👻 [Poltergeist] Failed to execute ${targetName}:`));
       console.error(chalk.red(`   ${error.message}`));
 
       // Provide helpful suggestions based on error type
       if (error.message.includes('ENOENT')) {
-        console.error(chalk.yellow('💡 Tips:'));
+        console.error(chalk.yellow('   Tips:'));
         console.error('   • Check if the binary exists and is executable');
         console.error('   • Try running: poltergeist start');
         console.error('   • Verify the output path in your configuration');
       } else if (error.message.includes('EACCES')) {
-        console.error(chalk.yellow('💡 Permission denied:'));
+        console.error(chalk.yellow('   Permission denied:'));
         console.error(`   • Run: chmod +x ${binaryPath}`);
         console.error('   • Check file permissions');
       }
@@ -337,20 +337,20 @@ function executeTarget(
     if ('outputPath' in target && target.outputPath) {
       binaryPath = resolvePath(projectRoot, target.outputPath);
     } else {
-      console.error(chalk.red(`❌ Target '${target.name}' does not have an output path`));
+      console.error(chalk.red(`👻 [Poltergeist] Target '${target.name}' does not have an output path`));
       resolve(1);
       return;
     }
 
     if (!existsSync(binaryPath)) {
-      console.error(chalk.red(`❌ Binary not found: ${binaryPath}`));
-      console.error(chalk.yellow(`🔧 Try running: poltergeist start`));
+      console.error(chalk.red(`👻 [Poltergeist] Binary not found: ${binaryPath}`));
+      console.error(chalk.yellow(`   Try running: poltergeist start`));
       resolve(1);
       return;
     }
 
     if (options.verbose) {
-      console.log(chalk.green(`✅ Running fresh binary: ${target.name}`));
+      console.log(chalk.green(`👻 [Poltergeist] Running fresh binary: ${target.name}`));
     }
 
     // Determine how to execute based on file extension
@@ -379,17 +379,17 @@ function executeTarget(
     });
 
     child.on('error', (error: Error) => {
-      console.error(chalk.red(`❌ Failed to execute ${target.name}:`));
+      console.error(chalk.red(`👻 [Poltergeist] Failed to execute ${target.name}:`));
       console.error(chalk.red(`   ${error.message}`));
 
       // Provide helpful suggestions based on error type
       if (error.message.includes('ENOENT')) {
-        console.error(chalk.yellow('💡 Tips:'));
+        console.error(chalk.yellow('   Tips:'));
         console.error('   • Check if the binary exists and is executable');
         console.error('   • Try running: poltergeist start');
         console.error('   • Verify the output path in your configuration');
       } else if (error.message.includes('EACCES')) {
-        console.error(chalk.yellow('💡 Permission denied:'));
+        console.error(chalk.yellow('   Permission denied:'));
         console.error(`   • Run: chmod +x ${binaryPath}`);
         console.error('   • Check file permissions');
       }
@@ -423,9 +423,9 @@ async function runWrapperWithDefaults(
     try {
       const discovery = await ConfigurationManager.discoverAndLoadConfig();
       if (!discovery) {
-        console.error(chalk.red('❌ No poltergeist.config.json found'));
+        console.error(chalk.red('👻 [Poltergeist] No poltergeist.config.json found'));
         console.error(
-          chalk.yellow('💡 Run this command from within a Poltergeist-managed project')
+          chalk.yellow('   Run this command from within a Poltergeist-managed project')
         );
         console.error(chalk.gray('\nTo get started with Poltergeist:'));
         console.error(chalk.gray('   • Run: poltergeist init'));
@@ -438,8 +438,8 @@ async function runWrapperWithDefaults(
       const executableTargets = ConfigurationManager.getExecutableTargets(config);
 
       if (executableTargets.length === 0) {
-        console.error(chalk.red('❌ No executable targets configured'));
-        console.error(chalk.yellow('💡 Configure an executable target in poltergeist.config.json'));
+        console.error(chalk.red('👻 [Poltergeist] No executable targets configured'));
+        console.error(chalk.yellow('   Configure an executable target in poltergeist.config.json'));
         console.error(chalk.gray('\nExample configuration:'));
         console.error(chalk.gray('   {'));
         console.error(chalk.gray('     "targets": ['));
@@ -459,10 +459,10 @@ async function runWrapperWithDefaults(
 
       targetName = executableTargets[0].name;
       if (options.verbose) {
-        console.log(chalk.blue(`🎯 Using default target: ${targetName}`));
+        console.log(chalk.gray(`👻 [Poltergeist] Using default target: ${targetName}`));
       }
     } catch (error) {
-      console.error(chalk.red('❌ Failed to load configuration'));
+      console.error(chalk.red('👻 [Poltergeist] Failed to load configuration'));
       console.error(chalk.red(`   ${error instanceof Error ? error.message : error}`));
       process.exit(1);
     }
@@ -498,14 +498,14 @@ async function runWrapper(
       // No Poltergeist config found - fall back to stale execution
       if (options.verbose) {
         console.warn(
-          chalk.yellow('⚠️  No poltergeist.config.json found - attempting stale execution')
+          chalk.yellow('👻 [Poltergeist] ⚠ No poltergeist.config.json found - attempting stale execution')
         );
       }
 
       // Try to find project root (current directory)
       const projectRoot = process.cwd();
       if (options.verbose) {
-        console.log(chalk.blue(`📍 No config found, using cwd as project root: ${projectRoot}`));
+        console.log(chalk.gray(`👻 [Poltergeist] No config found, using cwd as project root: ${projectRoot}`));
       }
       const exitCode = await executeStaleWithWarning(targetName, projectRoot, args, options);
       process.exit(exitCode);
@@ -519,13 +519,13 @@ async function runWrapper(
       // Target not found in config - try stale execution fallback
       if (options.verbose) {
         console.warn(
-          chalk.yellow(`⚠️  Target '${targetName}' not found in config - attempting stale execution`)
+          chalk.yellow(`👻 [Poltergeist] ⚠ Target '${targetName}' not found in config - attempting stale execution`)
         );
       }
 
       const availableTargets = ConfigurationManager.getExecutableTargets(config).map((t) => t.name);
       if (availableTargets.length > 0) {
-        console.warn(chalk.yellow('Available configured targets:'));
+        console.warn(chalk.yellow('👻 [Poltergeist] Available configured targets:'));
         availableTargets.forEach((name) => console.warn(chalk.yellow(`   - ${name}`)));
         console.warn('');
       }
@@ -540,24 +540,24 @@ async function runWrapper(
     // Validate target type
     if (target.type !== 'executable') {
       console.error(
-        chalk.red(`❌ Target '${targetName}' is not executable (type: ${target.type})`)
+        chalk.red(`👻 [Poltergeist] Target '${targetName}' is not executable (type: ${target.type})`)
       );
-      console.error(chalk.yellow('💡 polter only works with executable targets'));
+      console.error(chalk.yellow('   polter only works with executable targets'));
       console.error('   • Executable targets have "type": "executable" in the config');
       console.error('   • Other target types are handled by Poltergeist daemon');
       process.exit(1);
     }
 
     if (effectiveVerbose) {
-      console.log(chalk.blue(`📍 Project root: ${projectRoot}`));
-      console.log(chalk.blue(`🎯 Target: ${target.name} (${target.outputPath})`));
+      console.log(chalk.gray(`👻 [Poltergeist] Project root: ${projectRoot}`));
+      console.log(chalk.gray(`👻 [Poltergeist] Target: ${target.name} (${target.outputPath})`));
     }
 
     // Check build status
     const status = await getBuildStatus(projectRoot, target);
 
     if (effectiveVerbose) {
-      console.log(chalk.blue(`📊 Build status: ${status}`));
+      console.log(chalk.gray(`👻 [Poltergeist] Build status: ${status}`));
     }
 
     // Check if Poltergeist is not running
@@ -565,10 +565,10 @@ async function runWrapper(
       poltergeistNotRunning = true;
       if (!isSilentTarget) {
         console.warn(
-          chalk.yellow('⚠️  POLTERGEIST NOT RUNNING - EXECUTING POTENTIALLY STALE BINARY')
+          chalk.yellow('👻 [Poltergeist] ⚠ Executing potentially stale binary')
         );
         console.warn(
-          chalk.yellow('   The binary may be outdated. For fresh builds, start Poltergeist:')
+          chalk.yellow('   The binary may be outdated. For fresh builds:')
         );
         console.warn(chalk.yellow('   npm run poltergeist:haunt'));
         console.warn('');
@@ -583,7 +583,7 @@ async function runWrapper(
       case 'building': {
         // Build is in progress - lastBuild.status === 'building'
         if (options.noWait) {
-          console.error(chalk.red('❌ Build in progress and --no-wait specified'));
+          console.error(chalk.red('👻 [Poltergeist] Build in progress and --no-wait specified'));
           process.exit(1);
         }
 
@@ -593,8 +593,8 @@ async function runWrapper(
         });
 
         if (result === 'timeout') {
-          console.error(chalk.red(`❌ Build timeout after ${options.timeout}ms`));
-          console.error(chalk.yellow('💡 Solutions:'));
+          console.error(chalk.red(`👻 [Poltergeist] Build timeout after ${options.timeout}ms`));
+          console.error(chalk.yellow('   Solutions:'));
           console.error(
             `   • Increase timeout: polter ${targetName} --timeout ${options.timeout * 2}`
           );
@@ -604,8 +604,8 @@ async function runWrapper(
         }
 
         if (result === 'failed' && !options.force) {
-          console.error(chalk.red('❌ Build failed'));
-          console.error(chalk.yellow('💡 Options:'));
+          console.error(chalk.red('👻 [Poltergeist] Build failed'));
+          console.error(chalk.yellow('   Options:'));
           console.error('   • Check build logs: poltergeist logs');
           console.error(`   • Force execution anyway: polter ${targetName} --force`);
           console.error('   • Fix build errors and try again');
@@ -613,16 +613,16 @@ async function runWrapper(
         }
 
         if (result === 'failed' && options.force) {
-          console.warn(chalk.yellow('⚠️  Running despite build failure (--force specified)'));
+          console.warn(chalk.yellow('👻 [Poltergeist] ⚠ Running despite build failure (--force specified)'));
         }
         break;
       }
 
       case 'failed':
         if (!options.force) {
-          console.error(chalk.red('❌ Last build failed'));
+          console.error(chalk.red('👻 [Poltergeist] Last build failed'));
           console.error(
-            chalk.yellow('🔧 Run `poltergeist logs` for details or use --force to run anyway')
+            chalk.yellow('   Run `poltergeist logs` for details or use --force to run anyway')
           );
           process.exit(1);
         }
@@ -631,13 +631,13 @@ async function runWrapper(
 
       case 'success':
         if (effectiveVerbose) {
-          console.log(chalk.green('✅ Build successful'));
+          console.log(chalk.green('👻 [Poltergeist] Build successful'));
         }
         break;
 
       case 'unknown':
         if (!isSilentTarget && !poltergeistNotRunning) {
-          console.warn(chalk.yellow('⚠️  Build status unknown, proceeding...'));
+          console.warn(chalk.yellow('👻 [Poltergeist] ⚠ Build status unknown, proceeding...'));
         }
         break;
     }
@@ -646,7 +646,7 @@ async function runWrapper(
     const exitCode = await executeTarget(target, projectRoot, args, { verbose: effectiveVerbose });
     process.exit(exitCode);
   } catch (error) {
-    console.error(chalk.red('❌ Unexpected error:'));
+    console.error(chalk.red('👻 [Poltergeist] Unexpected error:'));
     console.error(chalk.red(`   ${error instanceof Error ? error.message : error}`));
 
     if (options.verbose && error instanceof Error) {
@@ -654,7 +654,7 @@ async function runWrapper(
       console.error(chalk.gray(error.stack));
     }
 
-    console.error(chalk.yellow('\n💡 Common solutions:'));
+    console.error(chalk.yellow('\n   Common solutions:'));
     console.error('   • Check if poltergeist.config.json exists and is valid');
     console.error('   • Verify target name matches configuration');
     console.error('   • Run with --verbose for more details');
@@ -670,13 +670,13 @@ const program = new Command();
 program
   .name('polter')
   .description('Smart wrapper for running executables managed by Poltergeist')
-  .version('1.6.0')
+  .version('1.6.0', '-v, --version', 'output the version number')
   .argument('[target]', 'Name of the target to run (defaults to first configured target)')
   .argument('[args...]', 'Arguments to pass to the target executable')
   .option('-t, --timeout <ms>', 'Build wait timeout in milliseconds', '300000')
   .option('-f, --force', 'Run even if build failed', false)
   .option('-n, --no-wait', "Don't wait for builds, fail if building")
-  .option('-v, --verbose', 'Show detailed status information', false)
+  .option('--verbose', 'Show detailed status information', false)
   .option('--no-logs', 'Disable build log streaming during progress')
   .option('--log-lines <number>', 'Number of log lines to show', '5')
   .allowUnknownOption()
@@ -695,9 +695,9 @@ program
 
 // Handle unhandled promise rejections
 process.on('unhandledRejection', (reason) => {
-  console.error(chalk.red('❌ Unhandled promise rejection:'));
+  console.error(chalk.red('👻 [Poltergeist] Unhandled promise rejection:'));
   console.error(chalk.red(`   ${reason}`));
-  console.error(chalk.yellow('\n💡 This is likely a bug. Please report it with:'));
+  console.error(chalk.yellow('\n   This is likely a bug. Please report it with:'));
   console.error('   • Your poltergeist.config.json');
   console.error('   • The command you ran');
   console.error('   • Your environment (OS, Node version)');

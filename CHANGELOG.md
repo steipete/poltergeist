@@ -10,12 +10,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [1.6.0] - 2025-01-06
 
 ### Added
-- `--verbose` / `-v` flag for `poltergeist status` command with detailed build statistics
+- `--verbose` flag for `poltergeist status` command with detailed build statistics
+- `-v` as version shorthand for both `poltergeist` and `polter` commands
 - NPM builder support for Node.js projects with automatic package.json detection
 - Self-building capability allowing Poltergeist to watch and rebuild itself
 
+### Changed
+- Unified output formatting with consistent `👻 [Poltergeist]` prefix across all commands
+- Removed excessive emoji usage for cleaner, professional output
+
 ### Fixed
 - Poltergeist daemon detection in `polter` command with proper heartbeat checking
+- Binary discovery in subdirectories when target not found in config
 
 ## [1.5.1] - 2025-01-03
 

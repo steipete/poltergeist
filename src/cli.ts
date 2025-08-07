@@ -25,7 +25,7 @@ const program = new Command();
 program
   .name('poltergeist')
   .description('👻 Poltergeist - The ghost that keeps your projects fresh')
-  .version(version);
+  .version(version, '-v, --version', 'output the version number');
 
 // Helper function to load config and handle errors
 async function loadConfiguration(
@@ -54,7 +54,7 @@ program
   .description('Start watching and auto-building your project (runs as daemon by default)')
   .option('-t, --target <name>', 'Target to build (omit to build all enabled targets)')
   .option('-c, --config <path>', 'Path to config file')
-  .option('-v, --verbose', 'Enable verbose logging')
+  .option('--verbose', 'Enable verbose logging')
   .option('-f, --foreground', 'Run in foreground (blocking mode)')
   .action(async (options) => {
     const { config, projectRoot, configPath } = await loadConfiguration(options.config);
@@ -163,7 +163,7 @@ program
   .description('Restart Poltergeist daemon')
   .option('-c, --config <path>', 'Path to config file')
   .option('-f, --foreground', 'Restart in foreground mode')
-  .option('-v, --verbose', 'Enable verbose logging')
+  .option('--verbose', 'Enable verbose logging')
   .option('-t, --target <name>', 'Target to build')
   .action(async (options) => {
     console.log(chalk.gray('👻 [Poltergeist] Restarting...'));
@@ -220,7 +220,7 @@ program
   .description('Check Poltergeist status')
   .option('-t, --target <name>', 'Check specific target status')
   .option('-c, --config <path>', 'Path to config file')
-  .option('-v, --verbose', 'Show detailed status information')
+  .option('--verbose', 'Show detailed status information')
   .option('--json', 'Output status as JSON')
   .action(async (options) => {
     const { config, projectRoot, configPath } = await loadConfiguration(options.config);

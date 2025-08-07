@@ -32,9 +32,9 @@ describe('polter fallback behavior', () => {
     // Run polter from test directory (no config) - don't pass --help as it exits early
     const result = await runPolter(testDir, 'test-cli.js', [], { expectSuccess: true });
 
-    expect(result.stderr).toContain('POLTERGEIST NOT RUNNING');
-    expect(result.stderr).toContain('npm run poltergeist:haunt');
-    expect(result.stdout).toContain('Running binary: test-cli.js (potentially stale)');
+    expect(result.stderr).toContain('[Poltergeist]');
+    expect(result.stderr).toContain('Executing potentially stale binary');
+    expect(result.stdout).toContain('[Poltergeist] Running binary: test-cli.js (potentially stale)');
     // Note: Script output may not be captured on Windows CI due to stdio inheritance
     if (process.platform !== 'win32') {
       expect(result.stdout).toContain('test-output');
@@ -82,7 +82,7 @@ describe('polter fallback behavior', () => {
 
     const result = await runPolter(testDir, 'test-cli.js', [], { expectSuccess: true });
 
-    expect(result.stderr).toContain('POLTERGEIST NOT RUNNING');
+    expect(result.stderr).toContain('[Poltergeist]');
     expect(result.stderr).toContain('Available configured targets:');
     expect(result.stderr).toContain('other-target');
     // Note: Script output may not be captured on Windows CI due to stdio inheritance
@@ -95,9 +95,9 @@ describe('polter fallback behavior', () => {
     // No config and no binary
     const result = await runPolter(testDir, 'nonexistent-cli', [], { expectSuccess: false });
 
-    expect(result.stderr).toContain("Binary not found for target 'nonexistent-cli'");
+    expect(result.stderr).toContain("[Poltergeist] Binary not found for target 'nonexistent-cli'");
     expect(result.stderr).toContain('Tried the following locations:');
-    expect(result.stderr).toContain('Try running a manual build first');
+    expect(result.stderr).toContain('Try running: poltergeist start');
     expect(result.exitCode).toBe(1);
   });
 
@@ -111,11 +111,11 @@ describe('polter fallback behavior', () => {
     });
 
     expect(result.stderr).toContain(
-      'No poltergeist.config.json found - attempting stale execution'
+      '[Poltergeist] ⚠ No poltergeist.config.json found - attempting stale execution'
     );
     expect(result.stdout).toContain('Project root:');
     expect(result.stdout).toContain('Binary path:');
-    expect(result.stdout).toContain('Status: Executing without build verification');
+    expect(result.stdout).toContain('[Poltergeist] ⚠ Status: Executing without build verification');
   });
 
   it('should handle different binary extensions correctly', async () => {
@@ -124,7 +124,7 @@ describe('polter fallback behavior', () => {
 
     const result = await runPolter(testDir, 'test-cli.js', [], { expectSuccess: true });
 
-    expect(result.stdout).toContain('Running binary: test-cli.js (potentially stale)');
+    expect(result.stdout).toContain('[Poltergeist] Running binary: test-cli.js (potentially stale)');
     expect(result.stdout).toContain('js-output');
   });
 
@@ -139,7 +139,7 @@ describe('polter fallback behavior', () => {
 
     const result = await runPolter(testDir, 'test-cli', [], { expectSuccess: true });
 
-    expect(result.stdout).toContain('Running binary: test-cli (potentially stale)');
+    expect(result.stdout).toContain('[Poltergeist] Running binary: test-cli (potentially stale)');
     // Note: Script output may not be captured on Windows CI due to stdio inheritance
     if (process.platform !== 'win32') {
       expect(result.stdout).toContain('build-output');
@@ -155,7 +155,7 @@ describe('polter fallback behavior', () => {
 
     const result = await runPolter(testDir, 'myapp-cli', [], { expectSuccess: true });
 
-    expect(result.stdout).toContain('Running binary: myapp-cli (potentially stale)');
+    expect(result.stdout).toContain('[Poltergeist] Running binary: myapp-cli (potentially stale)');
     // Note: Script output may not be captured on Windows CI due to stdio inheritance
     if (process.platform !== 'win32') {
       expect(result.stdout).toContain('base-app-output');

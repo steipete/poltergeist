@@ -94,9 +94,9 @@ This automatically detects your project type (Swift, Node.js, Rust, Python, CMak
 2. **Start Watching** - Begin auto-building on file changes:
 
 ```bash
-poltergeist haunt        # Runs as background daemon (default)
-poltergeist status       # Check what's running
-poltergeist status -v    # Show detailed status with build stats
+poltergeist haunt             # Runs as background daemon (default)
+poltergeist status            # Check what's running
+poltergeist status --verbose  # Show detailed status with build stats
 ```
 
 
