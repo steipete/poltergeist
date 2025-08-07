@@ -1,47 +1,48 @@
 /**
  * Ghost emoji helper for consistent branding across Poltergeist
  *
- * The ghost color indicates the message type:
- * - Cyan: Brand identity (headers, main UI)
- * - Green: Success messages
- * - Yellow: Warning messages
- * - Red: Error messages
- * - Gray: Info/debug messages
+ * Note: Emoji characters cannot be colored in terminals. 
+ * Use the plain ghost emoji and color the text instead:
+ * 
+ * Example:
+ *   console.log(`👻 ${chalk.cyan('Poltergeist is running')}`);
+ *   
+ * NOT:
+ *   console.log(chalk.cyan('👻 Poltergeist is running'));
  */
 
-import chalk from 'chalk';
-
 /**
- * Semantic ghost emoji colors for different message types
+ * Ghost emoji helper - returns plain emoji since terminals can't color emoji
+ * @deprecated Use ghost.plain() and color your text instead
  */
 export const ghost = {
   /**
-   * Brand ghost (cyan) - Use for headers and main branding
+   * @deprecated Use ghost.plain() with chalk.cyan() on your text
    */
-  brand: () => chalk.cyan('👻'),
+  brand: () => '👻',
 
   /**
-   * Success ghost (green) - Use for successful operations
+   * @deprecated Use ghost.plain() with chalk.green() on your text
    */
-  success: () => chalk.green('👻'),
+  success: () => '👻',
 
   /**
-   * Warning ghost (yellow) - Use for warnings and cautions
+   * @deprecated Use ghost.plain() with chalk.yellow() on your text
    */
-  warning: () => chalk.yellow('👻'),
+  warning: () => '👻',
 
   /**
-   * Error ghost (red) - Use for errors and failures
+   * @deprecated Use ghost.plain() with chalk.red() on your text
    */
-  error: () => chalk.red('👻'),
+  error: () => '👻',
 
   /**
-   * Info ghost (gray) - Use for informational and debug messages
+   * @deprecated Use ghost.plain() with chalk.gray() on your text
    */
-  info: () => chalk.gray('👻'),
+  info: () => '👻',
 
   /**
-   * Plain ghost (no color) - Use when color would be redundant
+   * Plain ghost emoji - use this and color your text instead
    */
   plain: () => '👻',
 } as const;

@@ -423,7 +423,7 @@ function executeTarget(
  * Shows polter's help message with available targets
  */
 async function showPolterHelp() {
-  console.log(chalk.cyan('👻 Polter - Smart executable wrapper for Poltergeist'));
+  console.log(`👻 ${chalk.cyan('Polter - Smart executable wrapper for Poltergeist')}`);
   console.log('');
   console.log("Ensures you're always running fresh builds by:");
   console.log('  • Checking build status before execution');

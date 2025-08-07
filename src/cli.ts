@@ -25,7 +25,7 @@ const program = new Command();
 
 program
   .name('poltergeist')
-  .description(`${ghost.brand()} Poltergeist - The ghost that keeps your projects fresh`)
+  .description(`👻 ${chalk.cyan('Poltergeist - The ghost that keeps your projects fresh')}`)
   .version(version, '-v, --version', 'output the version number');
 
 // Helper function to load config and handle errors
