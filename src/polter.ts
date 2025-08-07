@@ -337,7 +337,9 @@ function executeTarget(
     if ('outputPath' in target && target.outputPath) {
       binaryPath = resolvePath(projectRoot, target.outputPath);
     } else {
-      console.error(chalk.red(`👻 [Poltergeist] Target '${target.name}' does not have an output path`));
+      console.error(
+        chalk.red(`👻 [Poltergeist] Target '${target.name}' does not have an output path`)
+      );
       resolve(1);
       return;
     }
@@ -498,14 +500,18 @@ async function runWrapper(
       // No Poltergeist config found - fall back to stale execution
       if (options.verbose) {
         console.warn(
-          chalk.yellow('👻 [Poltergeist] ⚠ No poltergeist.config.json found - attempting stale execution')
+          chalk.yellow(
+            '👻 [Poltergeist] ⚠ No poltergeist.config.json found - attempting stale execution'
+          )
         );
       }
 
       // Try to find project root (current directory)
       const projectRoot = process.cwd();
       if (options.verbose) {
-        console.log(chalk.gray(`👻 [Poltergeist] No config found, using cwd as project root: ${projectRoot}`));
+        console.log(
+          chalk.gray(`👻 [Poltergeist] No config found, using cwd as project root: ${projectRoot}`)
+        );
       }
       const exitCode = await executeStaleWithWarning(targetName, projectRoot, args, options);
       process.exit(exitCode);
@@ -519,7 +525,9 @@ async function runWrapper(
       // Target not found in config - try stale execution fallback
       if (options.verbose) {
         console.warn(
-          chalk.yellow(`👻 [Poltergeist] ⚠ Target '${targetName}' not found in config - attempting stale execution`)
+          chalk.yellow(
+            `👻 [Poltergeist] ⚠ Target '${targetName}' not found in config - attempting stale execution`
+          )
         );
       }
 
@@ -540,7 +548,9 @@ async function runWrapper(
     // Validate target type
     if (target.type !== 'executable') {
       console.error(
-        chalk.red(`👻 [Poltergeist] Target '${targetName}' is not executable (type: ${target.type})`)
+        chalk.red(
+          `👻 [Poltergeist] Target '${targetName}' is not executable (type: ${target.type})`
+        )
       );
       console.error(chalk.yellow('   polter only works with executable targets'));
       console.error('   • Executable targets have "type": "executable" in the config');
@@ -564,12 +574,8 @@ async function runWrapper(
     if (status === 'poltergeist-not-running') {
       poltergeistNotRunning = true;
       if (!isSilentTarget) {
-        console.warn(
-          chalk.yellow('👻 [Poltergeist] ⚠ Executing potentially stale binary')
-        );
-        console.warn(
-          chalk.yellow('   The binary may be outdated. For fresh builds:')
-        );
+        console.warn(chalk.yellow('👻 [Poltergeist] ⚠ Executing potentially stale binary'));
+        console.warn(chalk.yellow('   The binary may be outdated. For fresh builds:'));
         console.warn(chalk.yellow('   npm run poltergeist:haunt'));
         console.warn('');
       }
@@ -613,7 +619,9 @@ async function runWrapper(
         }
 
         if (result === 'failed' && options.force) {
-          console.warn(chalk.yellow('👻 [Poltergeist] ⚠ Running despite build failure (--force specified)'));
+          console.warn(
+            chalk.yellow('👻 [Poltergeist] ⚠ Running despite build failure (--force specified)')
+          );
         }
         break;
       }

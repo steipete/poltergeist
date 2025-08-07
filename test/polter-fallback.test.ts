@@ -34,7 +34,9 @@ describe('polter fallback behavior', () => {
 
     expect(result.stderr).toContain('[Poltergeist]');
     expect(result.stderr).toContain('Executing potentially stale binary');
-    expect(result.stdout).toContain('[Poltergeist] Running binary: test-cli.js (potentially stale)');
+    expect(result.stdout).toContain(
+      '[Poltergeist] Running binary: test-cli.js (potentially stale)'
+    );
     // Note: Script output may not be captured on Windows CI due to stdio inheritance
     if (process.platform !== 'win32') {
       expect(result.stdout).toContain('test-output');
@@ -124,7 +126,9 @@ describe('polter fallback behavior', () => {
 
     const result = await runPolter(testDir, 'test-cli.js', [], { expectSuccess: true });
 
-    expect(result.stdout).toContain('[Poltergeist] Running binary: test-cli.js (potentially stale)');
+    expect(result.stdout).toContain(
+      '[Poltergeist] Running binary: test-cli.js (potentially stale)'
+    );
     expect(result.stdout).toContain('js-output');
   });
 
