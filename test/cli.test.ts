@@ -584,10 +584,24 @@ describe('CLI Commands', () => {
     });
 
     it('should show version with -v flag', async () => {
-      const result = await runCLI(['-v']);
+      // Commander outputs version directly to process.stdout
+      // We need to capture it differently
+      const originalWrite = process.stdout.write;
+      let output = '';
+      process.stdout.write = (chunk: any) => {
+        output += chunk;
+        return true;
+      };
 
-      expect(result.exitCode).toBe(0);
-      expect(result.stdout).toMatch(/\d+\.\d+\.\d+/); // Version number pattern
+      try {
+        await runCLI(['-v']);
+      } catch (error) {
+        // Commander exits after showing version
+      } finally {
+        process.stdout.write = originalWrite;
+      }
+
+      expect(output).toMatch(/\d+\.\d+\.\d+/); // Version number pattern
     });
 
     it('should not show verbose details without --verbose flag', async () => {
