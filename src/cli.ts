@@ -13,6 +13,7 @@ import { ConfigurationError } from './config.js';
 import { createPoltergeist } from './factories.js';
 import { createLogger } from './logger.js';
 import type { AppBundleTarget, PoltergeistConfig, ProjectType, Target } from './types.js';
+import { CLIFormatter, type CommandGroup, type OptionInfo } from './utils/cli-formatter.js';
 import { CMakeProjectAnalyzer } from './utils/cmake-analyzer.js';
 import { ConfigurationManager } from './utils/config-manager.js';
 import { ghost, poltergeistMessage } from './utils/ghost.js';
@@ -26,7 +27,58 @@ const program = new Command();
 program
   .name('poltergeist')
   .description(`👻 ${chalk.cyan('Poltergeist - The ghost that keeps your projects fresh')}`)
-  .version(version, '-v, --version', 'output the version number');
+  .version(version, '-v, --version', 'output the version number')
+  .configureHelp({
+    formatHelp: () => {
+      const commandGroups: CommandGroup[] = [
+        {
+          title: 'Daemon Control',
+          commands: [
+            { name: 'start', aliases: ['haunt'], description: 'Start watching and auto-building' },
+            { name: 'stop', aliases: ['rest'], description: 'Stop Poltergeist daemon' },
+            { name: 'restart', description: 'Restart Poltergeist daemon' },
+            { name: 'status', description: 'Check build and daemon status' },
+          ],
+        },
+        {
+          title: 'Project Management',
+          commands: [
+            { name: 'init', description: 'Initialize configuration' },
+            { name: 'list', description: 'List all configured targets' },
+            { name: 'clean', description: 'Clean up stale state files' },
+          ],
+        },
+        {
+          title: 'Development',
+          commands: [
+            { name: 'logs', args: '[target]', description: 'Show build logs' },
+            { name: 'wait', args: '[target]', description: 'Wait for build to complete' },
+            { name: 'version', description: 'Show Poltergeist version' },
+          ],
+        },
+      ];
+
+      const options: OptionInfo[] = [
+        { flags: '-v, --version', description: 'Show version' },
+        { flags: '-h, --help', description: 'Show help' },
+      ];
+
+      return CLIFormatter.formatHelp({
+        title: 'Poltergeist',
+        tagline: 'The ghost that keeps your projects fresh',
+        programName: 'poltergeist',
+        usage: '<command> [options]',
+        commandGroups,
+        options,
+        examples: [
+          { command: 'start', description: 'Start watching all enabled targets' },
+          { command: 'start --target my-app', description: 'Watch specific target only' },
+          { command: 'status --verbose', description: 'Show detailed status' },
+          { command: 'logs my-app', description: 'Show logs for specific target' },
+        ],
+      });
+    },
+  });
 
 // Helper function to load config and handle errors
 async function loadConfiguration(

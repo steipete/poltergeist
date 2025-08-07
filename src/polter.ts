@@ -19,9 +19,10 @@ import { resolve as resolvePath } from 'path';
 import type { PoltergeistState } from './state.js';
 import type { Target } from './types.js';
 import { BuildStatusManager } from './utils/build-status-manager.js';
+import { CLIFormatter, type OptionInfo } from './utils/cli-formatter.js';
 import { ConfigurationManager } from './utils/config-manager.js';
 import { FileSystemUtils } from './utils/filesystem.js';
-import { ghost, poltergeistMessage } from './utils/ghost.js';
+import { poltergeistMessage } from './utils/ghost.js';
 
 interface LogOptions {
   showLogs: boolean;
@@ -423,113 +424,110 @@ function executeTarget(
  * Shows polter's help message with available targets
  */
 async function showPolterHelp() {
-  console.log(`👻 ${chalk.cyan('Polter - Smart executable wrapper for Poltergeist')}`);
-  console.log('');
-  console.log("Ensures you're always running fresh builds by:");
-  console.log('  • Checking build status before execution');
-  console.log('  • Waiting for in-progress builds to complete');
-  console.log('  • Warning about stale or failed builds');
-  console.log('');
-  console.log(chalk.yellow('Usage:'));
-  console.log('  polter <target> [args...]     Run the specified executable target');
-  console.log('  polter --help                 Show this help message');
-  console.log('');
+  const options: OptionInfo[] = [
+    { flags: '-t, --timeout <ms>', description: 'Build wait timeout (default: 300s)' },
+    { flags: '-f, --force', description: 'Run even if build failed' },
+    { flags: '-n, --no-wait', description: "Don't wait for builds" },
+    { flags: '--verbose', description: 'Show detailed status info' },
+    { flags: '--no-logs', description: 'Disable build log streaming' },
+    { flags: '-v, --version', description: 'Show version' },
+    { flags: '-h, --help', description: 'Show help' },
+  ];
 
   // Try to load configuration and show available targets
+  let targetsSection = '';
+  let examples: { command: string; description?: string }[] = [];
+  let footerMessage = '';
+
   try {
     const discovery = await ConfigurationManager.discoverAndLoadConfig();
     if (!discovery) {
-      console.log(chalk.red('No poltergeist.config.json found in this directory'));
-      console.log('');
-      console.log(chalk.gray('To get started:'));
-      console.log(chalk.gray('  1. Run: poltergeist init'));
-      console.log(chalk.gray('  2. Configure executable targets'));
-      console.log(chalk.gray('  3. Run: poltergeist start'));
-      console.log(chalk.gray('  4. Use: polter <target>'));
-      return;
-    }
+      targetsSection = `  ${chalk.red('No poltergeist.config.json found in this directory')}\n\n`;
+      targetsSection += '  To get started:\n';
+      targetsSection += '    1. Run: poltergeist init\n';
+      targetsSection += '    2. Configure executable targets\n';
+      targetsSection += '    3. Run: poltergeist start\n';
+      targetsSection += '    4. Use: polter <target>';
+    } else {
+      const { config, projectRoot } = discovery;
+      const executableTargets = ConfigurationManager.getExecutableTargets(config);
 
-    const { config, projectRoot } = discovery;
-    const executableTargets = ConfigurationManager.getExecutableTargets(config);
+      if (executableTargets.length === 0) {
+        targetsSection = `  ${chalk.yellow('No executable targets configured')}\n\n`;
+        targetsSection += '  Add an executable target to poltergeist.config.json:\n';
+        targetsSection += chalk.gray('    {\n');
+        targetsSection += chalk.gray('      "targets": [{\n');
+        targetsSection += chalk.gray('        "name": "my-app",\n');
+        targetsSection += chalk.gray('        "type": "executable",\n');
+        targetsSection += chalk.gray('        "enabled": true,\n');
+        targetsSection += chalk.gray('        "buildCommand": "npm run build",\n');
+        targetsSection += chalk.gray('        "outputPath": "./dist/app.js",\n');
+        targetsSection += chalk.gray('        "watchPaths": ["src/**/*.ts"]\n');
+        targetsSection += chalk.gray('      }]\n');
+        targetsSection += chalk.gray('    }');
+      } else {
+        const targetLines = [];
+        for (const target of executableTargets) {
+          const status = await getBuildStatus(projectRoot, target);
+          let mappedStatus: 'success' | 'building' | 'failed' | 'not-running' | 'unknown';
+          
+          switch (status) {
+            case 'poltergeist-not-running':
+              mappedStatus = 'not-running';
+              break;
+            default:
+              mappedStatus = status;
+          }
+          
+          targetLines.push(CLIFormatter.formatTarget(target.name, mappedStatus, target.outputPath));
+        }
+        targetsSection = targetLines.join('\n');
 
-    if (executableTargets.length === 0) {
-      console.log(chalk.yellow(`${ghost.warning()} No executable targets configured`));
-      console.log('');
-      console.log(chalk.gray('Add an executable target to poltergeist.config.json:'));
-      console.log(chalk.gray('  {'));
-      console.log(chalk.gray('    "targets": ['));
-      console.log(chalk.gray('      {'));
-      console.log(chalk.gray('        "name": "my-app",'));
-      console.log(chalk.gray('        "type": "executable",'));
-      console.log(chalk.gray('        "enabled": true,'));
-      console.log(chalk.gray('        "buildCommand": "npm run build",'));
-      console.log(chalk.gray('        "outputPath": "./dist/app.js",'));
-      console.log(chalk.gray('        "watchPaths": ["src/**/*.ts"]'));
-      console.log(chalk.gray('      }'));
-      console.log(chalk.gray('    ]'));
-      console.log(chalk.gray('  }'));
-      return;
-    }
+        // Generate examples based on first target
+        const firstTarget = executableTargets[0];
+        examples = [
+          { command: `${firstTarget.name}`, description: `Run ${firstTarget.name}` },
+          { command: `${firstTarget.name} -- --help`, description: `Pass --help to ${firstTarget.name}` },
+          { command: `${firstTarget.name} --verbose`, description: 'Show detailed execution info' },
+          { command: `${firstTarget.name} --force`, description: 'Run even if build failed' },
+        ];
 
-    console.log(chalk.yellow('Available targets:'));
-    for (const target of executableTargets) {
-      // Check build status for each target
-      const status = await getBuildStatus(projectRoot, target);
-      let statusIcon = '•';
-      let statusText = '';
+        // Check if Poltergeist is running
+        const anyRunning = executableTargets.some((target) => {
+          const stateFilePath = FileSystemUtils.getStateFilePath(projectRoot, target.name);
+          if (!existsSync(stateFilePath)) return false;
+          const state = FileSystemUtils.readJsonFileStrict<PoltergeistState>(stateFilePath);
+          return isPoltergeistRunning(state);
+        });
 
-      switch (status) {
-        case 'success':
-          statusIcon = chalk.green('✓');
-          statusText = chalk.gray(' (ready)');
-          break;
-        case 'building':
-          statusIcon = chalk.yellow('⟳');
-          statusText = chalk.yellow(' (building...)');
-          break;
-        case 'failed':
-          statusIcon = chalk.red('✗');
-          statusText = chalk.red(' (failed)');
-          break;
-        case 'poltergeist-not-running':
-          statusIcon = chalk.gray('○');
-          statusText = chalk.gray(' (poltergeist not running)');
-          break;
-        default:
-          statusIcon = chalk.gray('?');
-          statusText = chalk.gray(' (unknown)');
+        if (!anyRunning) {
+          footerMessage = `\n${chalk.yellow('⚠  Poltergeist is not running')}\n   Start watching for fresh builds: ${chalk.cyan('poltergeist start')}`;
+        }
       }
-
-      console.log(`  ${statusIcon} ${chalk.bold(target.name)}${statusText}`);
-      if (target.outputPath) {
-        console.log(chalk.gray(`    Output: ${target.outputPath}`));
-      }
-    }
-
-    console.log('');
-    console.log(chalk.yellow('Examples:'));
-    const firstTarget = executableTargets[0];
-    console.log(`  polter ${firstTarget.name}                 Run ${firstTarget.name}`);
-    console.log(`  polter ${firstTarget.name} -- --help       Pass --help to ${firstTarget.name}`);
-    console.log(`  polter ${firstTarget.name} --verbose       Show detailed execution info`);
-    console.log(`  polter ${firstTarget.name} --force         Run even if build failed`);
-
-    // Check if Poltergeist is running
-    const anyRunning = executableTargets.some((target) => {
-      const stateFilePath = FileSystemUtils.getStateFilePath(projectRoot, target.name);
-      if (!existsSync(stateFilePath)) return false;
-      const state = FileSystemUtils.readJsonFileStrict<PoltergeistState>(stateFilePath);
-      return isPoltergeistRunning(state);
-    });
-
-    if (!anyRunning) {
-      console.log('');
-      console.log(chalk.yellow('⚠  Poltergeist is not running'));
-      console.log(`   Start watching for fresh builds: ${chalk.cyan('poltergeist start')}`);
     }
   } catch (error) {
-    console.error(chalk.red('Error loading configuration:'));
-    console.error(chalk.red(`  ${error instanceof Error ? error.message : error}`));
+    targetsSection = `  ${chalk.red('Error loading configuration:')}\n`;
+    targetsSection += `  ${error instanceof Error ? error.message : error}`;
+  }
+
+  const helpText = CLIFormatter.formatHelp({
+    title: 'Polter',
+    tagline: 'Smart executable wrapper for Poltergeist',
+    programName: 'polter',
+    usage: '<target> [args...]',
+    options,
+    examples,
+    additionalSections: [
+      {
+        title: 'Targets',
+        content: targetsSection,
+      },
+    ],
+  });
+
+  console.log(helpText);
+  if (footerMessage) {
+    console.log(footerMessage);
   }
 }
 
