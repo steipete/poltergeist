@@ -3,7 +3,6 @@ import { createHash } from 'crypto';
 import { existsSync, openSync } from 'fs';
 import { mkdir, readFile, unlink, writeFile } from 'fs/promises';
 import { dirname, join, sep } from 'path';
-import { getDirname } from '../utils/paths.js';
 import type { Logger } from '../logger.js';
 import type { PoltergeistConfig } from '../types.js';
 import { FileSystemUtils } from '../utils/filesystem.js';
@@ -160,10 +159,17 @@ export class DaemonManager {
     await mkdir(stateDir, { recursive: true });
 
     const logFile = this.getLogFilePath(projectRoot);
-    const daemonWorkerPath = join(
-      getDirname(),
-      'daemon-worker.js'
-    );
+    // daemon-worker.js is in the same directory as daemon-manager.js
+    // Use __dirname if available (Bun compiled), otherwise compute from import.meta
+    let daemonDir: string;
+    if (typeof __dirname !== 'undefined') {
+      daemonDir = __dirname;
+    } else {
+      // In ES modules, compute the directory from import.meta.url
+      const currentFileUrl = new URL(import.meta.url);
+      daemonDir = dirname(currentFileUrl.pathname);
+    }
+    const daemonWorkerPath = join(daemonDir, 'daemon-worker.js');
 
     // Prepare arguments for daemon
     const daemonArgs = JSON.stringify({
@@ -244,11 +250,25 @@ export class DaemonManager {
       }
     } else {
       // For Node.js runtime, use fork as before
+      // Log the daemon arguments for debugging
+      this.logger.debug('Forking daemon with args:', { daemonWorkerPath, configPath, projectRoot });
       child = fork(daemonWorkerPath, [daemonArgs], {
         detached: true,
-        stdio: ['ignore', 'ignore', 'ignore', 'ipc'],
+        stdio: ['ignore', 'pipe', 'pipe', 'ipc'],  // Capture stdout/stderr for debugging
         env: { ...process.env },
       });
+      
+      // Log output for debugging
+      if (child.stdout) {
+        child.stdout.on('data', (data: Buffer) => {
+          this.logger.debug('Daemon stdout:', data.toString());
+        });
+      }
+      if (child.stderr) {
+        child.stderr.on('data', (data: Buffer) => {
+          this.logger.error('Daemon stderr:', data.toString());
+        });
+      }
     }
 
     // For Node.js with fork, wait for daemon to confirm startup via IPC
@@ -270,8 +290,25 @@ export class DaemonManager {
           );
         }, timeoutMs);
 
+        // Add error handler first
+        child.once('error', (error) => {
+          clearTimeout(timeout);
+          this.logger.error('Child process error:', error);
+          reject(new Error(`Failed to spawn daemon: ${error.message}`));
+        });
+
+        // Add exit handler
+        child.once('exit', (code, signal) => {
+          clearTimeout(timeout);
+          if (code !== 0) {
+            this.logger.error(`Child process exited with code ${code}, signal ${signal}`);
+            reject(new Error(`Daemon exited with code ${code}`));
+          }
+        });
+
         child.once('message', async (message: DaemonMessage) => {
           clearTimeout(timeout);
+          this.logger.debug('Received IPC message:', message);
 
           if (message.type === 'started' && message.pid) {
             // Save daemon info
@@ -285,19 +322,14 @@ export class DaemonManager {
 
             await this.saveDaemonInfo(projectRoot, daemonInfo);
 
-            // Detach from parent
-            child.unref();
+            // Detach from parent - disconnect IPC first, then unref
             child.disconnect();
+            child.unref();
 
             resolve(message.pid);
           } else if (message.type === 'error') {
             reject(new Error(message.error || 'Daemon startup failed'));
           }
-        });
-
-        child.once('error', (error) => {
-          clearTimeout(timeout);
-          reject(error);
         });
       });
     }

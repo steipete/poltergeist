@@ -104,6 +104,7 @@ export async function runDaemon(args: DaemonArgs): Promise<void> {
     process.on('SIGINT', () => shutdown('SIGINT'));
 
     // Start Poltergeist
+    await logger.info('Starting Poltergeist...');
     await poltergeist.start(target);
     await logger.info('Daemon started successfully');
 
@@ -111,8 +112,14 @@ export async function runDaemon(args: DaemonArgs): Promise<void> {
     await logger.debug(`process.send available: ${typeof process.send}`);
     if (process.send) {
       await logger.debug('Sending started message to parent process');
-      process.send({ type: 'started', pid: process.pid });
-      await logger.debug('Started message sent');
+      // Send message synchronously and handle callback
+      process.send({ type: 'started', pid: process.pid }, (error: Error | null) => {
+        if (error) {
+          logger.error('Failed to send IPC message:', error);
+        } else {
+          logger.debug('Started message sent successfully');
+        }
+      });
     } else {
       await logger.warn('No IPC channel available (process.send is undefined)');
     }
