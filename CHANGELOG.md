@@ -7,6 +7,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.6.2] - 2025-01-08
+
+### Fixed
+- Fixed `polter` command not executing when installed globally via npm
+  - The CLI initialization check was failing for symlinked/global installations
+  - Now properly detects execution context for global npm packages, symlinks, and direct invocation
+- This fixes the issue where `polter` would exit silently with no output
+
 ## [1.6.1] - 2025-01-07
 
 ### Added

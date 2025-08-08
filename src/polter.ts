@@ -768,7 +768,16 @@ export async function runWrapper(targetName: string, args: string[], options: Pa
 }
 
 // Only run CLI setup if this file is being executed directly (not imported)
-if (import.meta.url === `file://${process.argv[1]}`) {
+// Check if the file is being executed as a script (not imported as a module)
+// This works whether run directly, via symlink, or as a global npm package
+if (process.argv[1] && (
+  import.meta.url === `file://${process.argv[1]}` ||
+  process.argv[1].endsWith('/polter') ||
+  process.argv[1].endsWith('/polter.js') ||
+  process.argv[1].endsWith('/polter.ts') ||
+  process.argv[1].endsWith('\\polter.js') ||
+  process.argv[1].endsWith('\\polter.ts')
+)) {
   // CLI setup
   const program = new Command();
 
