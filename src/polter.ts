@@ -15,7 +15,7 @@ import { spawn } from 'child_process';
 import { Command } from 'commander';
 import { existsSync, readFileSync } from 'fs';
 import ora from 'ora';
-import { resolve as resolvePath, dirname, join } from 'path';
+import { dirname, join, resolve as resolvePath } from 'path';
 import { fileURLToPath } from 'url';
 
 // Read package.json without experimental import syntax
@@ -35,6 +35,7 @@ try {
     packageJson = { version: '1.6.1', name: '@steipete/poltergeist' };
   }
 }
+
 import {
   configurePolterCommand,
   getPolterDescription,
@@ -770,14 +771,15 @@ export async function runWrapper(targetName: string, args: string[], options: Pa
 // Only run CLI setup if this file is being executed directly (not imported)
 // Check if the file is being executed as a script (not imported as a module)
 // This works whether run directly, via symlink, or as a global npm package
-if (process.argv[1] && (
-  import.meta.url === `file://${process.argv[1]}` ||
-  process.argv[1].endsWith('/polter') ||
-  process.argv[1].endsWith('/polter.js') ||
-  process.argv[1].endsWith('/polter.ts') ||
-  process.argv[1].endsWith('\\polter.js') ||
-  process.argv[1].endsWith('\\polter.ts')
-)) {
+if (
+  process.argv[1] &&
+  (import.meta.url === `file://${process.argv[1]}` ||
+    process.argv[1].endsWith('/polter') ||
+    process.argv[1].endsWith('/polter.js') ||
+    process.argv[1].endsWith('/polter.ts') ||
+    process.argv[1].endsWith('\\polter.js') ||
+    process.argv[1].endsWith('\\polter.ts'))
+) {
   // CLI setup
   const program = new Command();
 

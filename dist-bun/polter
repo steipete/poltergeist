@@ -1,3 +1,0 @@
-#!/bin/bash
-# Polter - shorthand for poltergeist polter
-exec "$(dirname "$0")/poltergeist" polter "$@"
