@@ -46,6 +46,10 @@ Poltergeist offers both a **CLI tool** for universal development and a **native 
 
 - **Universal Target System**: Support for anything you can build - executables, app bundles, libraries, frameworks, tests, Docker containers, ...
 - **Smart Execution Wrapper**: `polter` command that waits for a build to complete, then starts it
+- **Real-time Build Output**: See build progress as it happens, no more waiting in the dark
+- **Inline Error Diagnostics**: Build errors shown immediately with context and actionable suggestions
+- **Manual Build Command**: Trigger builds explicitly with `poltergeist build [target]`
+- **Automatic Recovery**: Recent build failures trigger automatic rebuild attempts
 - **Efficient File Watching**: Powered by Facebook's Watchman with smart exclusions and performance optimization
 - **Intelligent Build Prioritization**: Having multiple projects that share code? Polgergeist will compile the right one first, based on which files you edited in the past
 - **Automatic Project Configuration**: Just type `poltergeist init` and it'll parse your folder and set up the config.
@@ -60,6 +64,9 @@ Polgergeist has been designed with an agentic workflow in mind. As soon as your 
 
 - Agents don't have to call build manually anymore
 - They call your executable directly with `polter` as prefix, which waits until the build is complete.
+- Build errors are shown inline with actionable suggestions
+- Automatic rebuild attempts for recent failures
+- Real-time build output available with `--verbose` flag
 - Faster loops, fewer wasted tokens
 
 Commands have been designed with the least surprises, the cli works just like what agents expect, and there's plenty aliases so things will just work, even if your agent gets confused.
@@ -150,6 +157,11 @@ poltergeist start         # Alias for haunt
 # Check what's running
 poltergeist status        # Shows all active projects and their build status
 
+# Manually trigger a build
+poltergeist build         # Build default target
+poltergeist build my-app  # Build specific target
+poltergeist build --verbose  # Show real-time build output
+
 # View build logs
 poltergeist logs          # Recent logs
 poltergeist logs -f       # Follow logs in real-time
@@ -217,7 +229,7 @@ poltergeist haunt --foreground   # Blocks terminal, shows output directly
 
 | Command | Description | Example |
 |---------|-------------|---------|
-| `haunt` / `start` | Start watching and building | `poltergeist haunt --target frontend` |
+| `haunt` / `start` | Start watching and building | `poltergeist haunt --target frontend --log-level debug` |
 | `stop` / `rest` | Stop the daemon | `poltergeist stop` |
 | `restart` | Restart the daemon | `poltergeist restart` |
 | `status` | Show build status | `poltergeist status --verbose` |
@@ -266,8 +278,46 @@ Essential configuration structure:
     }
   ],
   "buildScheduling": { "parallelization": 2 },
-  "notifications": { "enabled": true }
+  "notifications": { "enabled": true },
+  "logging": { "level": "info", "file": ".poltergeist.log" }
 }
+```
+
+### Logging Configuration
+
+Control the verbosity and output of Poltergeist logging:
+
+```json
+{
+  "logging": {
+    "level": "debug",           // Options: debug, info, warn, error
+    "file": ".poltergeist.log"  // Log file path (relative or absolute)
+  }
+}
+```
+
+#### Setting Log Level
+
+You can control logging verbosity through multiple methods (in order of priority):
+
+1. **CLI Flag**: `poltergeist haunt --log-level debug`
+2. **Verbose Flag**: `poltergeist haunt --verbose` (sets level to debug)
+3. **Configuration File**: Set in `poltergeist.config.json`
+4. **Default**: Falls back to `info` level
+
+#### Log Levels
+
+- **`debug`**: Detailed information for debugging (Watchman events, state changes, etc.)
+- **`info`**: Standard operational messages (default)
+- **`warn`**: Warning messages that don't prevent operation
+- **`error`**: Error messages only
+
+#### Viewing Logs
+
+```bash
+poltergeist logs              # View recent logs
+poltergeist logs -f           # Follow logs in real-time
+poltergeist logs -n 100       # Show last 100 lines
 ```
 
 ### Target Types

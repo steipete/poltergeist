@@ -3,15 +3,14 @@
 import chalk from 'chalk';
 // Updated CLI for generic target system
 import { Command } from 'commander';
-import { createReadStream, existsSync, readFileSync, statSync, watchFile, writeFileSync } from 'fs';
+import { createReadStream, existsSync, readFileSync, statSync, unlinkSync, watchFile, writeFileSync } from 'fs';
 import { readdir } from 'fs/promises';
-import path, { dirname, join } from 'path';
+import path, { join } from 'path';
 import { createInterface } from 'readline';
-import { fileURLToPath } from 'url';
+import { getDirname, isMainModule } from './utils/paths.js';
 
-// Read package.json without experimental import syntax
-const __filename = fileURLToPath(import.meta.url);
-const __dirname = dirname(__filename);
+// Get directory without import.meta.url for bytecode compatibility
+const __dirname = getDirname();
 // Try multiple paths to find package.json (works in both src/ and dist/)
 let packageJson: any;
 try {
@@ -23,7 +22,7 @@ try {
     packageJson = JSON.parse(readFileSync(join(__dirname, '..', '..', 'package.json'), 'utf-8'));
   } catch {
     // Fallback to a default version
-    packageJson = { version: '1.6.1', name: '@steipete/poltergeist' };
+    packageJson = { version: '1.6.3', name: '@steipete/poltergeist' };
   }
 }
 
@@ -132,7 +131,8 @@ program
   .description('Start watching and auto-building your project (runs as daemon by default)')
   .option('-t, --target <name>', 'Target to build (omit to build all enabled targets)')
   .option('-c, --config <path>', 'Path to config file')
-  .option('--verbose', 'Enable verbose logging')
+  .option('--verbose', 'Enable verbose logging (same as --log-level debug)')
+  .option('--log-level <level>', 'Set log level (debug, info, warn, error)')
   .option('-f, --foreground', 'Run in foreground (blocking mode)')
   .action(async (options) => {
     const { config, projectRoot, configPath } = await loadConfiguration(options.config);
@@ -148,9 +148,12 @@ program
       }
     }
 
+    // Determine log level: CLI flag > verbose flag > config > default
+    const logLevel = options.logLevel || (options.verbose ? 'debug' : config.logging?.level || 'info');
+    
     const logger = createLogger(
       config.logging?.file || '.poltergeist.log',
-      config.logging?.level || 'info'
+      logLevel
     );
 
     if (!options.foreground) {
@@ -179,6 +182,7 @@ program
           configPath,
           target: options.target,
           verbose: options.verbose,
+          logLevel: options.logLevel,
         });
 
         console.log(chalk.green(`${ghost.success()} Poltergeist daemon started (PID: ${pid})`));
@@ -292,6 +296,97 @@ program
       }
     } catch (error) {
       console.error(chalk.red(poltergeistMessage('error', `Restart failed: ${error}`)));
+      process.exit(1);
+    }
+  });
+
+program
+  .command('build [target]')
+  .description('Manually trigger a build for a target')
+  .option('-c, --config <path>', 'Path to config file')
+  .option('--verbose', 'Show build output in real-time')
+  .option('--json', 'Output result as JSON')
+  .action(async (targetName, options) => {
+    const { config, projectRoot } = await loadConfiguration(options.config);
+    const logger = createLogger(options.verbose ? 'debug' : config.logging?.level || 'info');
+
+    try {
+      // Get target to build
+      let targetToBuild: Target | undefined;
+      
+      if (targetName) {
+        targetToBuild = config.targets.find(t => t.name === targetName);
+        if (!targetToBuild) {
+          console.error(chalk.red(`❌ Target '${targetName}' not found`));
+          console.error(chalk.yellow('Available targets:'));
+          config.targets.forEach(t => {
+            console.error(`  - ${t.name} (${t.enabled ? 'enabled' : 'disabled'})`);
+          });
+          process.exit(1);
+        }
+      } else {
+        // No target specified - build first enabled target
+        const enabledTargets = config.targets.filter(t => t.enabled !== false);
+        if (enabledTargets.length === 0) {
+          console.error(chalk.red('❌ No enabled targets found'));
+          process.exit(1);
+        } else if (enabledTargets.length === 1) {
+          targetToBuild = enabledTargets[0];
+        } else {
+          console.error(chalk.red('❌ Multiple targets available. Please specify:'));
+          enabledTargets.forEach(t => {
+            console.error(`  - ${t.name}`);
+          });
+          console.error(chalk.yellow('Usage: poltergeist build <target>'));
+          process.exit(1);
+        }
+      }
+
+      console.log(chalk.cyan(`🔨 Building ${targetToBuild.name}...`));
+      
+      // Get the builder directly
+      const { createBuilder } = await import('./builders/index.js');
+      const { StateManager } = await import('./state.js');
+      const stateManager = new StateManager(projectRoot, logger);
+      const builder = createBuilder(targetToBuild, projectRoot, logger, stateManager);
+      
+      // Execute build with real-time output
+      const startTime = Date.now();
+      const buildStatus = await builder.build([], { 
+        captureLogs: true,
+        logFile: `.poltergeist-build-${targetToBuild.name}.log`
+      });
+      
+      const duration = Date.now() - startTime;
+      
+      if (options.json) {
+        console.log(JSON.stringify({
+          target: targetToBuild.name,
+          status: buildStatus.status,
+          duration,
+          timestamp: new Date().toISOString(),
+          error: buildStatus.status === 'failure' ? buildStatus.errorSummary : undefined
+        }, null, 2));
+      } else {
+        if (buildStatus.status === 'success') {
+          console.log(chalk.green(`✅ Build completed successfully in ${Math.round(duration / 1000)}s`));
+        } else {
+          console.error(chalk.red(`❌ Build failed after ${Math.round(duration / 1000)}s`));
+          if (buildStatus.errorSummary) {
+            console.error(chalk.red(`Error: ${buildStatus.errorSummary}`));
+          }
+          process.exit(1);
+        }
+      }
+    } catch (error) {
+      if (options.json) {
+        console.log(JSON.stringify({
+          error: error instanceof Error ? error.message : String(error),
+          status: 'error'
+        }, null, 2));
+      } else {
+        console.error(chalk.red(`❌ Build failed: ${error instanceof Error ? error.message : error}`));
+      }
       process.exit(1);
     }
   });
@@ -1408,18 +1503,82 @@ const warnOldFlag = (flag: string, newFlag: string) => {
 program.on('option:cli', () => warnOldFlag('--cli', '--target <name>'));
 program.on('option:mac', () => warnOldFlag('--mac', '--target <name>'));
 
-// Parse arguments only when run directly (not when imported for testing)
-// Allow execution when imported by wrapper scripts (like poltergeist.ts)
-const isDirectRun = import.meta.url === `file://${process.argv[1]}`;
-const isWrapperRun =
-  process.argv[1]?.endsWith('poltergeist.ts') || process.argv[1]?.endsWith('poltergeist');
+// Check if running as daemon mode (for Bun standalone compatibility)
+if (process.argv.includes('--daemon-mode')) {
+  // Run as daemon worker - import and execute daemon logic
+  const daemonArgsIndex = process.argv.indexOf('--daemon-mode') + 1;
+  const daemonArgsPath = process.argv[daemonArgsIndex];
+  
+  if (daemonArgsPath) {
+    // Set up process for daemon mode
+    process.title = 'poltergeist-daemon';
+    
+    let daemonArgs = daemonArgsPath;
+    
+    // Check if this is a file path (for Bun.spawn) or base64 args (for backward compatibility)
+    if (daemonArgsPath.endsWith('.json')) {
+      // It's a file path from Bun.spawn - read the JSON file
+      try {
+        daemonArgs = readFileSync(daemonArgsPath, 'utf-8');
+        // Clean up the temp file after reading
+        setTimeout(() => {
+          try {
+            unlinkSync(daemonArgsPath);
+          } catch {
+            // Ignore cleanup errors
+          }
+        }, 1000);
+      } catch (error) {
+        console.error('Failed to read daemon args file:', error);
+        process.exit(1);
+      }
+    } else {
+      // Try to decode as base64 for backward compatibility
+      try {
+        daemonArgs = Buffer.from(daemonArgsPath, 'base64').toString('utf-8');
+      } catch {
+        // If not base64, use as-is
+      }
+    }
+    
+    // Parse the daemon args
+    let parsedArgs;
+    try {
+      parsedArgs = JSON.parse(daemonArgs);
+    } catch (error) {
+      console.error('Failed to parse daemon arguments:', error);
+      process.exit(1);
+    }
+    
+    // Import and run daemon worker directly
+    import('./daemon/daemon-worker.js').then(async (module) => {
+      // Get the runDaemon function if exported, otherwise the module should self-execute
+      if (module.runDaemon) {
+        await module.runDaemon(parsedArgs);
+      }
+      // If no explicit export, the module self-executes via its main code
+    }).catch(error => {
+      console.error('Failed to start daemon worker:', error);
+      process.exit(1);
+    });
+  } else {
+    console.error('Missing daemon arguments');
+    process.exit(1);
+  }
+} else {
+  // Parse arguments only when run directly (not when imported for testing)
+  // Allow execution when imported by wrapper scripts (like poltergeist.ts)
+  const isDirectRun = isMainModule();
+  const isWrapperRun =
+    process.argv[1]?.endsWith('poltergeist.ts') || process.argv[1]?.endsWith('poltergeist');
 
-if (isDirectRun || isWrapperRun) {
-  program.parse(process.argv);
+  if (isDirectRun || isWrapperRun) {
+    program.parse(process.argv);
 
-  // Show help if no command specified
-  if (!process.argv.slice(2).length) {
-    program.outputHelp();
+    // Show help if no command specified
+    if (!process.argv.slice(2).length) {
+      program.outputHelp();
+    }
   }
 }
 

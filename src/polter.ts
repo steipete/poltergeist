@@ -15,12 +15,11 @@ import { spawn } from 'child_process';
 import { Command } from 'commander';
 import { existsSync, readFileSync } from 'fs';
 import ora from 'ora';
-import { dirname, join, resolve as resolvePath } from 'path';
-import { fileURLToPath } from 'url';
+import { join, resolve as resolvePath } from 'path';
+import { getDirname, isMainModule } from './utils/paths.js';
 
-// Read package.json without experimental import syntax
-const __filename = fileURLToPath(import.meta.url);
-const __dirname = dirname(__filename);
+// Get directory without import.meta.url for bytecode compatibility
+const __dirname = getDirname();
 // Try multiple paths to find package.json (works in both src/ and dist/)
 let packageJson: any;
 try {
@@ -32,7 +31,7 @@ try {
     packageJson = JSON.parse(readFileSync(join(__dirname, '..', '..', 'package.json'), 'utf-8'));
   } catch {
     // Fallback to a default version
-    packageJson = { version: '1.6.1', name: '@steipete/poltergeist' };
+    packageJson = { version: '1.6.3', name: '@steipete/poltergeist' };
   }
 }
 
@@ -50,6 +49,32 @@ import { CLIFormatter, type OptionInfo } from './utils/cli-formatter.js';
 import { ConfigurationManager } from './utils/config-manager.js';
 import { FileSystemUtils } from './utils/filesystem.js';
 import { poltergeistMessage } from './utils/ghost.js';
+
+/**
+ * Get relative time string (e.g., "2 minutes ago")
+ */
+function getTimeAgo(date: Date): string {
+  const seconds = Math.floor((Date.now() - date.getTime()) / 1000);
+  
+  if (seconds < 60) return `${seconds} second${seconds !== 1 ? 's' : ''} ago`;
+  const minutes = Math.floor(seconds / 60);
+  if (minutes < 60) return `${minutes} minute${minutes !== 1 ? 's' : ''} ago`;
+  const hours = Math.floor(minutes / 60);
+  if (hours < 24) return `${hours} hour${hours !== 1 ? 's' : ''} ago`;
+  const days = Math.floor(hours / 24);
+  return `${days} day${days !== 1 ? 's' : ''} ago`;
+}
+
+/**
+ * Get the state file path for a target
+ */
+function getStateFile(projectRoot: string, targetName: string): string | null {
+  try {
+    return FileSystemUtils.getStateFilePath(projectRoot, targetName);
+  } catch {
+    return null;
+  }
+}
 
 interface LogOptions {
   showLogs: boolean;
@@ -722,16 +747,92 @@ export async function runWrapper(targetName: string, args: string[], options: Pa
         break;
       }
 
-      case 'failed':
+      case 'failed': {
         if (!options.force) {
           console.error(chalk.red('👻 [Poltergeist] Last build failed'));
-          console.error(
-            chalk.yellow('   Run `poltergeist logs` for details or use --force to run anyway')
-          );
-          process.exit(1);
+          
+          // Try to get error details from state
+          const stateFile = getStateFile(projectRoot, targetName);
+          let shouldAutoRebuild = false;
+          
+          if (stateFile && existsSync(stateFile)) {
+            try {
+              const state = JSON.parse(readFileSync(stateFile, 'utf-8'));
+              
+              // Show inline error if available
+              if (state.lastBuildError) {
+                const { exitCode, errorOutput, timestamp } = state.lastBuildError;
+                const timeAgo = getTimeAgo(new Date(timestamp));
+                console.error(chalk.gray(`   Failed ${timeAgo} with exit code ${exitCode}`));
+                
+                // Check if error is recent (within 5 minutes) for auto-rebuild
+                const errorAge = Date.now() - new Date(timestamp).getTime();
+                shouldAutoRebuild = errorAge < 5 * 60 * 1000; // 5 minutes
+                
+                if (errorOutput && errorOutput.length > 0) {
+                  console.error(chalk.red('   Error output:'));
+                  errorOutput.slice(-3).forEach((line: string) => {
+                    console.error(chalk.gray(`     ${line}`));
+                  });
+                }
+              } else if (state.lastBuild?.errorSummary) {
+                console.error(chalk.red(`   Error: ${state.lastBuild.errorSummary}`));
+              }
+            } catch (e) {
+              // Silently continue if we can't read state
+            }
+          }
+          
+          // Automatic rebuild attempt for recent failures
+          if (shouldAutoRebuild && !process.env.POLTERGEIST_NO_AUTO_REBUILD) {
+            console.log(chalk.yellow('\n🔄 Attempting automatic rebuild...'));
+            
+            try {
+              const { createBuilder } = await import('./builders/index.js');
+              const { createLogger } = await import('./logger.js');
+              const { StateManager } = await import('./state.js');
+              
+              const logger = createLogger('info');
+              const stateManager = new StateManager(projectRoot, logger);
+              const builder = createBuilder(target, projectRoot, logger, stateManager);
+              
+              const buildStatus = await builder.build([], { 
+                captureLogs: true,
+                logFile: `.poltergeist-auto-rebuild-${targetName}.log`
+              });
+              
+              if (buildStatus.status === 'success') {
+                console.log(chalk.green('✅ Rebuild successful! Continuing...'));
+                // Continue with execution - don't exit, proceed to execution
+                break;
+              } else {
+                console.error(chalk.red('❌ Rebuild failed'));
+                console.error(chalk.yellow('\n   Options:'));
+                console.error(`   • Fix: Edit the code and try again`);
+                console.error(`   • Details: Run \`poltergeist logs ${targetName}\` for full output`);
+                console.error(`   • Force: Use --force to run anyway`);
+                process.exit(1);
+              }
+            } catch (rebuildError) {
+              console.error(chalk.red(`❌ Rebuild error: ${rebuildError}`));
+              console.error(chalk.yellow('\n   Next steps:'));
+              console.error(`   • Fix: Run \`poltergeist build ${targetName}\` manually`);
+              console.error(`   • Force: Use --force to run anyway`);
+              process.exit(1);
+            }
+          } else {
+            console.error(chalk.yellow('\n   Next steps:'));
+            console.error(`   • Fix: Run \`poltergeist build ${targetName}\` to rebuild`);
+            console.error(`   • Details: Run \`poltergeist logs ${targetName}\` for full output`);
+            console.error(`   • Force: Use --force to run anyway`);
+            process.exit(1);
+          }
         }
-        console.warn(chalk.yellow('⚠️  Running despite build failure (--force specified)'));
+        if (options.force) {
+          console.warn(chalk.yellow('⚠️  Running despite build failure (--force specified)'));
+        }
         break;
+      }
 
       case 'success':
         if (effectiveVerbose) {
@@ -773,7 +874,7 @@ export async function runWrapper(targetName: string, args: string[], options: Pa
 // This works whether run directly, via symlink, or as a global npm package
 if (
   process.argv[1] &&
-  (import.meta.url === `file://${process.argv[1]}` ||
+  (isMainModule() ||
     process.argv[1].endsWith('/polter') ||
     process.argv[1].endsWith('/polter.js') ||
     process.argv[1].endsWith('/polter.ts') ||

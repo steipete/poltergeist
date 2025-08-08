@@ -7,6 +7,26 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.6.3] - 2025-01-15
+
+### Added
+- **Real-time build output streaming** - Build output now streams to console in real-time during execution
+- **Manual build command** - New `poltergeist build [target]` command for explicit builds with `--verbose` and `--json` options
+- **Inline error diagnostics** - Build failures now show actual error messages directly in the output with context
+- **Automatic rebuild on failure** - Recent build failures (< 5 minutes) trigger automatic rebuild attempts when running `polter`
+- **Enhanced error persistence** - Build errors and output are captured and stored in state files for quick diagnosis
+
+### Changed
+- **Improved error messages** - Build failures now show:
+  - When the error occurred (e.g., "Failed 2 minutes ago with exit code 1")
+  - Last 3 lines of error output directly in the message
+  - Actionable next steps (rebuild command, logs command, force option)
+- **Better build output capture** - All builds now capture stdout/stderr for error diagnosis, even without explicit log capture
+- **Smarter state management** - Added `lastBuildError` field to state files with detailed error context
+
+### Fixed
+- AI agents no longer bypass poltergeist when builds fail - they now get immediate, actionable feedback
+
 ## [1.6.2] - 2025-01-08
 
 ### Fixed

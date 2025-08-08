@@ -29,6 +29,37 @@ end
 
 **NO Node.js dependency, NO npm installation, just direct binary installation.**
 
+## Bun Compilation Limitations & Workarounds
+
+### Known Issues with `bun build --compile`
+
+1. **Dynamic imports break compilation**
+   - `await import('@module')` fails in compiled binaries
+   - **Solution**: Use static `require()` with try/catch for optional dependencies
+
+2. **`import.meta` breaks bytecode compilation**
+   - `import.meta.url`, `import.meta.dir`, `import.meta.main` cause "Failed to generate bytecode"
+   - **Solution**: Created `utils/paths.ts` with runtime detection using `eval('import.meta.url')`
+
+3. **Bun shell breaks bytecode**
+   - `import { $ } from "bun"` prevents bytecode compilation
+   - **Solution**: Use `spawnSync` from child_process instead
+
+4. **Daemon spawning issues**
+   - `Bun.spawn()` doesn't work reliably for daemon processes in standalone binaries
+   - `process.argv[0]` is always "bun" in compiled executables
+   - **Solution**: Use regular `spawn()` with detached flag and `process.execPath`
+
+5. **Module resolution in compiled binaries**
+   - Dynamically imported modules aren't included in the virtual filesystem
+   - **Solution**: Ensure all critical modules use static imports
+
+### Best Practices for Bun Compilation
+- Always test with `--bytecode` flag for better startup performance
+- Use `process.execPath` instead of `process.argv[0]` for binary path
+- Avoid top-level await in modules that will be compiled
+- Use runtime feature detection instead of compile-time checks
+
 ## Self-Building with Poltergeist
 
 Poltergeist can build itself! The project includes a `poltergeist.config.json` that watches its own source files.

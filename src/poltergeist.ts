@@ -104,6 +104,13 @@ export class Poltergeist {
     }
   }
 
+  /**
+   * Get the state manager instance
+   */
+  public getStateManager(): IStateManager {
+    return this.stateManager;
+  }
+
   public async start(targetName?: string): Promise<void> {
     if (this.isRunning) {
       throw new Error('Poltergeist is already running');

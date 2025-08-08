@@ -11,6 +11,7 @@ interface DaemonArgs {
   configPath?: string;
   target?: string;
   verbose?: boolean;
+  logLevel?: string;
   logFile: string;
 }
 
@@ -63,11 +64,13 @@ class DaemonLogger {
 /**
  * Main daemon worker function
  */
-async function runDaemon(args: DaemonArgs): Promise<void> {
-  const { config, projectRoot, configPath, target, verbose, logFile } = args;
+export async function runDaemon(args: DaemonArgs): Promise<void> {
+  const { config, projectRoot, configPath, target, verbose, logLevel, logFile } = args;
 
   // Create file-based logger
-  const logger = new DaemonLogger(logFile, verbose ? 'debug' : config.logging?.level || 'info');
+  // Priority: logLevel flag > verbose flag > config > default
+  const effectiveLogLevel = logLevel || (verbose ? 'debug' : config.logging?.level || 'info');
+  const logger = new DaemonLogger(logFile, effectiveLogLevel);
 
   try {
     await logger.info('Daemon starting', { projectRoot, target });
@@ -105,38 +108,54 @@ async function runDaemon(args: DaemonArgs): Promise<void> {
     await logger.info('Daemon started successfully');
 
     // Send confirmation to parent process
+    await logger.debug(`process.send available: ${typeof process.send}`);
     if (process.send) {
+      await logger.debug('Sending started message to parent process');
       process.send({ type: 'started', pid: process.pid });
+      await logger.debug('Started message sent');
+    } else {
+      await logger.warn('No IPC channel available (process.send is undefined)');
     }
 
     // Keep the process alive
     // The event loop will keep running due to Watchman subscriptions
     // and the heartbeat interval
   } catch (error) {
-    await logger.error('Daemon startup failed:', error);
+    const errorMessage = error instanceof Error ? error.message : String(error);
+    const errorStack = error instanceof Error ? error.stack : undefined;
+    await logger.error('Daemon startup failed:', errorMessage);
+    if (errorStack) {
+      await logger.error('Stack trace:', errorStack);
+    }
 
     // Notify parent process of failure
     if (process.send) {
-      process.send({ type: 'error', error: (error as Error).message });
+      process.send({ type: 'error', error: errorMessage });
     }
 
     process.exit(1);
   }
 }
 
-// Parse arguments and run daemon
-if (process.argv.length < 3) {
-  console.error('Daemon worker requires arguments');
-  process.exit(1);
-}
-
-try {
-  const args: DaemonArgs = JSON.parse(process.argv[2]);
-  runDaemon(args).catch((error) => {
-    console.error('Daemon worker error:', error);
+// Only run directly if this is the main module (not imported)
+// This prevents the code from running when imported by CLI
+// In ES modules, we check if the script is being run directly
+const isMainModule = import.meta.url === `file://${process.argv[1]}`;
+if (isMainModule || process.argv[1]?.endsWith('daemon-worker.js')) {
+  // Parse arguments and run daemon
+  if (process.argv.length < 3) {
+    console.error('Daemon worker requires arguments');
     process.exit(1);
-  });
-} catch (error) {
-  console.error('Failed to parse daemon arguments:', error);
-  process.exit(1);
+  }
+
+  try {
+    const args: DaemonArgs = JSON.parse(process.argv[2]);
+    runDaemon(args).catch((error) => {
+      console.error('Daemon worker error:', error);
+      process.exit(1);
+    });
+  } catch (error) {
+    console.error('Failed to parse daemon arguments:', error);
+    process.exit(1);
+  }
 }

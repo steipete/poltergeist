@@ -4,9 +4,10 @@
 //  Poltergeist
 //
 
-import { $ } from "bun";
+// Don't use Bun shell ($) as it breaks bytecode compilation
+import { spawnSync } from "child_process";
 import { join } from "path";
-import { existsSync, mkdirSync } from "fs";
+import { existsSync, mkdirSync, statSync } from "fs";
 
 const projectRoot = join(import.meta.dir, "..");
 const distDir = join(projectRoot, "dist-bun");
@@ -43,20 +44,27 @@ async function buildBinary(target = null, bytecode = true) {
   }
   
   try {
-    await $`bun ${buildArgs}`;
+    const result = spawnSync("bun", buildArgs, { stdio: "inherit" });
+    if (result.status !== 0) {
+      throw new Error(`Build failed with exit code ${result.status}`);
+    }
     
     // Get file size for reporting
-    const stats = await $`stat -f "%z" ${outputPath} 2>/dev/null || stat -c "%s" ${outputPath} 2>/dev/null`.text();
-    const bytes = parseInt(stats.trim());
-    const size = bytes < 1024 ? `${bytes}B` :
-                 bytes < 1048576 ? `${(bytes / 1024).toFixed(1)}KB` :
-                 `${(bytes / 1048576).toFixed(1)}MB`;
-    
-    console.log(`✅ Built ${outputName} (${size})`);
+    try {
+      const stats = statSync(outputPath);
+      const bytes = stats.size;
+      const size = bytes < 1024 ? `${bytes}B` :
+                   bytes < 1048576 ? `${(bytes / 1024).toFixed(1)}KB` :
+                   `${(bytes / 1048576).toFixed(1)}MB`;
+      
+      console.log(`✅ Built ${outputName} (${size})`);
+    } catch {
+      console.log(`✅ Built ${outputName}`);
+    }
     
     // Make binary executable on Unix systems
     if (!target?.includes("windows")) {
-      await $`chmod +x ${outputPath}`;
+      spawnSync("chmod", ["+x", outputPath], { stdio: "inherit" });
     }
     
     return outputPath;
@@ -107,8 +115,10 @@ async function buildAll() {
   // Test the native binary
   if (process.argv.includes("--test")) {
     console.log("\n🧪 Testing native binary...");
-    const result = await $`${nativeBinary} --version`.text();
-    console.log(`Version output: ${result}`);
+    const result = spawnSync(nativeBinary, ["--version"], { encoding: "utf8" });
+    if (result.stdout) {
+      console.log(`Version output: ${result.stdout}`);
+    }
   }
 }
 

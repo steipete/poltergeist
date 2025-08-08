@@ -5,12 +5,14 @@ import chalk from 'chalk';
 import { createWriteStream, existsSync, mkdirSync } from 'fs';
 import { dirname } from 'path';
 
-// Try to import LogTape, but don't fail if it's not available
-let logtape: any;
+// Try to import LogTape statically with optional dependency pattern
+let logtape: any = null;
 try {
-  logtape = await import('@logtape/logtape');
+  // Static import that bundler can analyze
+  logtape = require('@logtape/logtape');
 } catch {
-  // LogTape not available, will use SimpleLogger
+  // LogTape not available - will use SimpleLogger
+  // This is expected in Bun compiled binaries where optional deps might not be bundled
 }
 
 export interface Logger {

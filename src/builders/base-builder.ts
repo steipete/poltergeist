@@ -133,9 +133,13 @@ export abstract class BaseBuilder<T extends Target = Target> {
         ...this.target.environment,
       };
 
-      // Determine stdio configuration based on log capture option
-      let stdio: 'inherit' | ('inherit' | 'pipe')[] = 'inherit';
+      // Always capture output for error diagnosis
+      const stdio: ('inherit' | 'pipe')[] = ['inherit', 'pipe', 'pipe'];
       let logStream: NodeJS.WritableStream | null = null;
+      let errorBuffer: string[] = [];
+      let lastOutputLines: string[] = [];
+      const maxErrorLines = 50;
+      const maxOutputLines = 100;
 
       if (options.captureLogs && options.logFile) {
         // Create log directory if it doesn't exist
@@ -144,9 +148,6 @@ export abstract class BaseBuilder<T extends Target = Target> {
 
         // Create write stream for log file
         logStream = createWriteStream(options.logFile, { flags: 'w' });
-
-        // Capture stdout and stderr but keep stdin inherited
-        stdio = ['inherit', 'pipe', 'pipe'];
       }
 
       this.currentProcess = spawn(command, {
@@ -156,41 +157,101 @@ export abstract class BaseBuilder<T extends Target = Target> {
         stdio,
       });
 
-      // If capturing logs, pipe stdout and stderr to both log file and console
-      if (
-        options.captureLogs &&
-        logStream &&
-        this.currentProcess.stdout &&
-        this.currentProcess.stderr
-      ) {
+      // Capture and stream output in real-time
+      if (this.currentProcess.stdout && this.currentProcess.stderr) {
         this.currentProcess.stdout.on('data', (data) => {
-          logStream.write(data);
-          process.stdout.write(data); // Also write to console
+          const output = data.toString();
+          
+          // Keep recent output for error context
+          const lines = output.split('\n').filter((l: string) => l.trim());
+          lastOutputLines.push(...lines);
+          if (lastOutputLines.length > maxOutputLines) {
+            lastOutputLines = lastOutputLines.slice(-maxOutputLines);
+          }
+          
+          // Write to log file if capturing
+          if (logStream) {
+            logStream.write(data);
+          }
+          
+          // Stream to console in real-time
+          process.stdout.write(data);
         });
 
         this.currentProcess.stderr.on('data', (data) => {
-          logStream.write(data);
-          process.stderr.write(data); // Also write to console
+          const error = data.toString();
+          
+          // Capture error lines for diagnosis
+          const lines = error.split('\n').filter((l: string) => l.trim());
+          errorBuffer.push(...lines);
+          if (errorBuffer.length > maxErrorLines) {
+            errorBuffer = errorBuffer.slice(-maxErrorLines);
+          }
+          
+          // Write to log file if capturing
+          if (logStream) {
+            logStream.write(data);
+          }
+          
+          // Stream to console in real-time
+          process.stderr.write(data);
         });
       }
 
-      this.currentProcess.on('close', (code) => {
+      this.currentProcess.on('close', async (code) => {
         if (logStream) {
           logStream.end();
         }
         this.currentProcess = undefined;
+        
         if (code === 0) {
           resolve();
         } else {
-          reject(new Error(`Build process exited with code ${code}`));
+          // Create detailed error message with context
+          let errorMessage = `Build process exited with code ${code}`;
+          
+          if (errorBuffer.length > 0) {
+            errorMessage += `\n\nLast error output:\n${errorBuffer.slice(-10).join('\n')}`;
+          } else if (lastOutputLines.length > 0) {
+            errorMessage += `\n\nLast output:\n${lastOutputLines.slice(-10).join('\n')}`;
+          }
+          
+          // Store error context in state for quick diagnosis
+          try {
+            await this.stateManager.updateBuildError(this.target.name, {
+              exitCode: code || 1,
+              errorOutput: errorBuffer.slice(-20),
+              lastOutput: lastOutputLines.slice(-20),
+              command,
+              timestamp: new Date().toISOString(),
+            });
+          } catch (stateError) {
+            this.logger.error(`Failed to store build error context: ${stateError}`);
+          }
+          
+          reject(new Error(errorMessage));
         }
       });
 
-      this.currentProcess.on('error', (error) => {
+      this.currentProcess.on('error', async (error) => {
         if (logStream) {
           logStream.end();
         }
         this.currentProcess = undefined;
+        
+        // Store error context
+        try {
+          await this.stateManager.updateBuildError(this.target.name, {
+            exitCode: -1,
+            errorOutput: [error.message],
+            lastOutput: lastOutputLines.slice(-20),
+            command,
+            timestamp: new Date().toISOString(),
+          });
+        } catch (stateError) {
+          this.logger.error(`Failed to store build error context: ${stateError}`);
+        }
+        
         reject(error);
       });
     });

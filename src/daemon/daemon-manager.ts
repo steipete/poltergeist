@@ -1,8 +1,9 @@
-import { fork } from 'child_process';
+import { fork, spawn } from 'child_process';
 import { createHash } from 'crypto';
-import { existsSync } from 'fs';
+import { existsSync, openSync } from 'fs';
 import { mkdir, readFile, unlink, writeFile } from 'fs/promises';
 import { dirname, join, sep } from 'path';
+import { getDirname } from '../utils/paths.js';
 import type { Logger } from '../logger.js';
 import type { PoltergeistConfig } from '../types.js';
 import { FileSystemUtils } from '../utils/filesystem.js';
@@ -21,6 +22,7 @@ export interface DaemonOptions {
   configPath?: string;
   target?: string;
   verbose?: boolean;
+  logLevel?: string;
 }
 
 interface DaemonMessage {
@@ -146,7 +148,7 @@ export class DaemonManager {
    * Start a daemon process (internal implementation)
    */
   private async startDaemon(config: PoltergeistConfig, options: DaemonOptions): Promise<number> {
-    const { projectRoot, configPath, target, verbose } = options;
+    const { projectRoot, configPath, target, verbose, logLevel } = options;
 
     // Check if already running
     if (await this.isDaemonRunning(projectRoot)) {
@@ -159,7 +161,7 @@ export class DaemonManager {
 
     const logFile = this.getLogFilePath(projectRoot);
     const daemonWorkerPath = join(
-      dirname(import.meta.url.replace('file://', '')),
+      getDirname(),
       'daemon-worker.js'
     );
 
@@ -170,63 +172,137 @@ export class DaemonManager {
       configPath,
       target,
       verbose,
+      logLevel,
       logFile,
     });
 
-    // Fork the daemon process
-    const child = fork(daemonWorkerPath, [daemonArgs], {
-      detached: true,
-      stdio: ['ignore', 'ignore', 'ignore', 'ipc'],
-      env: { ...process.env },
-    });
-
-    // Wait for daemon to confirm startup
-    return new Promise((resolve, reject) => {
-      // Get timeout from environment variable or use default (30 seconds)
-      const timeoutMs = process.env.POLTERGEIST_DAEMON_TIMEOUT
-        ? Number.parseInt(process.env.POLTERGEIST_DAEMON_TIMEOUT, 10)
-        : 30000; // Default: 30 seconds
-
-      const timeout = setTimeout(() => {
-        child.kill();
-        reject(
-          new Error(
-            `Daemon startup timeout after ${timeoutMs}ms. ` +
-              'Try setting POLTERGEIST_DAEMON_TIMEOUT environment variable to a higher value.'
-          )
-        );
-      }, timeoutMs);
-
-      child.once('message', async (message: DaemonMessage) => {
-        clearTimeout(timeout);
-
-        if (message.type === 'started' && message.pid) {
-          // Save daemon info
-          const daemonInfo: DaemonInfo = {
-            pid: message.pid,
-            startTime: new Date().toISOString(),
-            logFile,
-            projectPath: projectRoot,
-            configPath,
-          };
-
-          await this.saveDaemonInfo(projectRoot, daemonInfo);
-
-          // Detach from parent
-          child.unref();
-          child.disconnect();
-
-          resolve(message.pid);
-        } else if (message.type === 'error') {
-          reject(new Error(message.error || 'Daemon startup failed'));
-        }
+    // Determine how to spawn the daemon
+    let child;
+    
+    // Check if we're running as Bun standalone binary
+    const isBunStandalone = !!process.versions.bun && process.execPath !== 'bun';
+    
+    if (isBunStandalone) {
+      // For Bun standalone binaries, use regular spawn with detached flag
+      const execPath = process.execPath;
+      this.logger.info(`Using spawn for Bun standalone daemon: ${execPath}`);
+      
+      // Write daemon args to file for cleaner passing
+      const argsFile = join(stateDir, `daemon-args-${Date.now()}.json`);
+      await writeFile(argsFile, daemonArgs);
+      
+      // Use regular spawn with detached flag for proper daemon behavior
+      // For debugging, write output to files
+      const debugOut = join(stateDir, `daemon-debug-${Date.now()}.out`);
+      const debugErr = join(stateDir, `daemon-debug-${Date.now()}.err`);
+      
+      const child = spawn(execPath, ['--daemon-mode', argsFile], {
+        detached: true,
+        stdio: ['ignore', 
+                logFile ? openSync(logFile, 'a') : openSync(debugOut, 'w'),
+                logFile ? openSync(logFile, 'a') : openSync(debugErr, 'w')],
+        cwd: projectRoot,
+        env: process.env,
       });
-
-      child.once('error', (error) => {
-        clearTimeout(timeout);
-        reject(error);
+      
+      const pid = child.pid;
+      
+      if (!pid) {
+        throw new Error('Failed to start daemon process - no PID returned');
+      }
+      
+      // Detach from parent
+      child.unref();
+      
+      // Wait a moment and verify process is running
+      await new Promise(resolve => setTimeout(resolve, 1500));
+      
+      if (ProcessManager.isProcessAlive(pid)) {
+        // Process is running, save daemon info
+        const daemonInfo: DaemonInfo = {
+          pid,
+          startTime: new Date().toISOString(),
+          logFile,
+          projectPath: projectRoot,
+          configPath,
+        };
+        await this.saveDaemonInfo(projectRoot, daemonInfo);
+        this.logger.info(`Daemon started successfully with PID ${pid}`);
+        
+        // Clean up the args file after a delay
+        setTimeout(async () => {
+          try {
+            await unlink(argsFile);
+          } catch {
+            // Ignore cleanup errors
+          }
+        }, 5000);
+        
+        return pid;
+      } else {
+        throw new Error('Daemon process exited immediately after starting');
+      }
+    } else {
+      // For Node.js runtime, use fork as before
+      child = fork(daemonWorkerPath, [daemonArgs], {
+        detached: true,
+        stdio: ['ignore', 'ignore', 'ignore', 'ipc'],
+        env: { ...process.env },
       });
-    });
+    }
+
+    // For Node.js with fork, wait for daemon to confirm startup via IPC
+    if (!isBunStandalone && child) {
+      return new Promise((resolve, reject) => {
+        // Get timeout from environment variable or use default (30 seconds)
+        const timeoutMs = process.env.POLTERGEIST_DAEMON_TIMEOUT
+          ? Number.parseInt(process.env.POLTERGEIST_DAEMON_TIMEOUT, 10)
+          : 30000; // Default: 30 seconds
+
+        const timeout = setTimeout(() => {
+          child.kill();
+          reject(
+            new Error(
+              `Daemon startup timeout after ${timeoutMs}ms. ` +
+                'Try setting POLTERGEIST_DAEMON_TIMEOUT environment variable to a higher value.'
+            )
+          );
+        }, timeoutMs);
+
+        child.once('message', async (message: DaemonMessage) => {
+          clearTimeout(timeout);
+
+          if (message.type === 'started' && message.pid) {
+            // Save daemon info
+            const daemonInfo: DaemonInfo = {
+              pid: message.pid,
+              startTime: new Date().toISOString(),
+              logFile,
+              projectPath: projectRoot,
+              configPath,
+            };
+
+            await this.saveDaemonInfo(projectRoot, daemonInfo);
+
+            // Detach from parent
+            child.unref();
+            child.disconnect();
+
+            resolve(message.pid);
+          } else if (message.type === 'error') {
+            reject(new Error(message.error || 'Daemon startup failed'));
+          }
+        });
+
+        child.once('error', (error) => {
+          clearTimeout(timeout);
+          reject(error);
+        });
+      });
+    }
+    
+    // Should never reach here - standalone returns early
+    throw new Error('Unexpected code path');
   }
 
   /**

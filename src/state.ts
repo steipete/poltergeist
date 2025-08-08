@@ -37,6 +37,13 @@ export interface PoltergeistState {
   lastBuild?: BuildStatus;
   appInfo?: AppInfo;
   buildStats?: BuildStatistics;
+  lastBuildError?: {
+    exitCode: number;
+    errorOutput: string[];
+    lastOutput: string[];
+    command: string;
+    timestamp: string;
+  };
 }
 
 export class StateManager implements IStateManager {
@@ -168,6 +175,27 @@ export class StateManager implements IStateManager {
     }
 
     state.appInfo = { ...state.appInfo, ...appInfo };
+    await this.writeState(targetName);
+  }
+
+  /**
+   * Update build error context for better diagnostics
+   */
+  public async updateBuildError(targetName: string, errorContext: {
+    exitCode: number;
+    errorOutput: string[];
+    lastOutput: string[];
+    command: string;
+    timestamp: string;
+  }): Promise<void> {
+    const state = this.states.get(targetName);
+    if (!state) {
+      this.logger.error(`No state found for target: ${targetName}`);
+      return;
+    }
+
+    // Store error context in state
+    state.lastBuildError = errorContext;
     await this.writeState(targetName);
   }
 
