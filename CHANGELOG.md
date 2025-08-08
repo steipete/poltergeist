@@ -7,6 +7,33 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.7.0] - 2025-01-08
+
+### Added
+- **Clock tracking for Watchman incremental updates** - Poltergeist now properly tracks Watchman clock values to receive only incremental file changes instead of full file lists
+- **`--log-level` CLI flag** - New flag for haunt command to easily control logging verbosity without config changes
+- **Enhanced daemon debugging** - Added comprehensive error and exit handlers for better daemon troubleshooting
+- **FSEvents configuration for macOS** - Added `fsevents_latency` and `fsevents_try_resync` settings to fix Watchman on macOS
+
+### Changed
+- **Increased daemon startup timeout** - Default timeout increased from 30s to 60s for complex projects with many files
+- **Improved IPC communication** - Better error handling and debugging for Node.js fork IPC channel
+- **Enhanced Watchman logging** - Added detailed debug logging throughout Watchman subscription handling
+
+### Fixed
+- **Watchman incremental updates not working** - Fixed issue where Watchman would only send initial "unilateral" sync events but not incremental changes
+  - Root cause was FSEvents on macOS getting into bad state
+  - Now properly tracks clock values for incremental updates
+  - Significantly improves performance for large projects (e.g., VibeTunnel with 489+ Swift files)
+- **ES module compatibility issues** - Fixed all `require('fs')` usage that was breaking ES module execution
+- **Daemon-worker.js path resolution** - Fixed incorrect path resolution that prevented daemon from starting
+- **IPC channel disconnect order** - Fixed order of `disconnect()` and `unref()` calls for proper daemon detachment
+
+### Technical
+- Created `utils/paths.ts` for safe import.meta.url handling without breaking Bun bytecode compilation
+- Added proper TypeScript types for process.send error callbacks
+- Improved daemon stdio configuration for better debugging
+
 ## [1.6.3] - 2025-01-15
 
 ### Added
