@@ -254,10 +254,11 @@ export class DaemonManager {
     // For Node.js with fork, wait for daemon to confirm startup via IPC
     if (!isBunStandalone && child) {
       return new Promise((resolve, reject) => {
-        // Get timeout from environment variable or use default (30 seconds)
+        // Get timeout from environment variable or use default (60 seconds)
+        // Increased default for complex projects with many files
         const timeoutMs = process.env.POLTERGEIST_DAEMON_TIMEOUT
           ? Number.parseInt(process.env.POLTERGEIST_DAEMON_TIMEOUT, 10)
-          : 30000; // Default: 30 seconds
+          : 60000; // Default: 60 seconds
 
         const timeout = setTimeout(() => {
           child.kill();
