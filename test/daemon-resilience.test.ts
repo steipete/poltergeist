@@ -69,6 +69,8 @@ describe('daemon resilience', () => {
 
   describe('timeout configuration', () => {
     it('should use default timeout of 30 seconds', async () => {
+      vi.useFakeTimers();
+
       // Mock fork to simulate slow daemon startup
       const mockChild = {
         once: vi.fn(),
@@ -83,9 +85,6 @@ describe('daemon resilience', () => {
       mockChild.once.mockImplementation((event, _callback) => {
         if (event === 'message') {
           // Don't call the callback to simulate timeout
-          setTimeout(() => {
-            // This should happen after the timeout
-          }, 35000);
         }
       });
 
@@ -95,25 +94,23 @@ describe('daemon resilience', () => {
         targets: [],
       };
 
-      const startTime = Date.now();
+      // Start the daemon (non-blocking promise)
+      const daemonPromise = daemonManager.startDaemonWithRetry(
+        config,
+        {
+          projectRoot: testDir,
+        },
+        1
+      ); // Only 1 retry to speed up test
+
+      // Advance timers by 30 seconds
+      await vi.advanceTimersByTimeAsync(30000);
 
       // Should timeout after 30 seconds
-      await expect(
-        daemonManager.startDaemonWithRetry(
-          config,
-          {
-            projectRoot: testDir,
-          },
-          1
-        ) // Only 1 retry to speed up test
-      ).rejects.toThrow(/Daemon startup timeout after 30000ms/);
+      await expect(daemonPromise).rejects.toThrow(/Daemon startup timeout after 30000ms/);
 
-      const elapsed = Date.now() - startTime;
-
-      // Should have taken at least 30 seconds but less than 35
-      expect(elapsed).toBeGreaterThanOrEqual(29000);
-      expect(elapsed).toBeLessThan(35000);
-    }, 40000); // Increase test timeout
+      vi.useRealTimers();
+    });
 
     it('should respect POLTERGEIST_DAEMON_TIMEOUT environment variable', async () => {
       // Set custom timeout

@@ -16,24 +16,11 @@ import {
 import { readdir } from 'fs/promises';
 import path, { join } from 'path';
 import { createInterface } from 'readline';
-import { getDirname, isMainModule } from './utils/paths.js';
+import { isMainModule } from './utils/paths.js';
 
-// Get directory without import.meta.url for bytecode compatibility
-const __dirname = getDirname();
-// Try multiple paths to find package.json (works in both src/ and dist/)
-let packageJson: any;
-try {
-  // Try from dist directory first
-  packageJson = JSON.parse(readFileSync(join(__dirname, '..', 'package.json'), 'utf-8'));
-} catch {
-  try {
-    // Try from src directory (during tests)
-    packageJson = JSON.parse(readFileSync(join(__dirname, '..', '..', 'package.json'), 'utf-8'));
-  } catch {
-    // Fallback to a default version
-    packageJson = { version: '1.6.3', name: '@steipete/poltergeist' };
-  }
-}
+// Version is hardcoded at compile time - NEVER read from filesystem
+// This ensures the binary always reports its compiled version
+const packageJson = { version: '1.7.1', name: '@steipete/poltergeist' };
 
 import {
   configurePolterCommand,
@@ -42,6 +29,8 @@ import {
 } from './cli-shared/polter-command.js';
 // import { Poltergeist } from './poltergeist.js';
 import { ConfigurationError } from './config.js';
+// Static import for daemon-worker to ensure it's included in Bun binary
+import { runDaemon } from './daemon/daemon-worker.js';
 import { createPoltergeist } from './factories.js';
 import { createLogger } from './logger.js';
 import type { AppBundleTarget, PoltergeistConfig, ProjectType, Target } from './types.js';
@@ -51,8 +40,6 @@ import { ConfigurationManager } from './utils/config-manager.js';
 import { ghost, poltergeistMessage } from './utils/ghost.js';
 import { validateTarget } from './utils/target-validator.js';
 import { WatchmanConfigManager } from './watchman-config.js';
-// Static import for daemon-worker to ensure it's included in Bun binary
-import { runDaemon } from './daemon/daemon-worker.js';
 
 const { version } = packageJson;
 
@@ -1528,6 +1515,10 @@ const warnOldFlag = (flag: string, newFlag: string) => {
   process.exit(1);
 };
 
+// Add hidden options for deprecated flags
+program.option('--cli', '(deprecated) Use --target <name> instead');
+program.option('--mac', '(deprecated) Use --target <name> instead');
+
 // Add handlers for old flags
 program.on('option:cli', () => warnOldFlag('--cli', '--target <name>'));
 program.on('option:mac', () => warnOldFlag('--mac', '--target <name>'));
@@ -1571,7 +1562,7 @@ if (process.argv.includes('--daemon-mode')) {
     }
 
     // Parse the daemon args
-    let parsedArgs;
+    let parsedArgs: any;
     try {
       parsedArgs = JSON.parse(daemonArgs);
     } catch (error) {
@@ -1594,31 +1585,35 @@ if (process.argv.includes('--daemon-mode')) {
   // For Node.js, check process.argv[1]
   const invocationPath = process.argv[1] || '';
   const invocationName = process.argv0 || '';
-  const isPolterInvocation = invocationPath.endsWith('/polter') || 
-                             invocationPath.endsWith('\\polter') ||
-                             invocationPath === 'polter' ||
-                             invocationName.endsWith('/polter') ||
-                             invocationName.endsWith('\\polter') ||
-                             invocationName === 'polter';
-  
+  const isPolterInvocation =
+    invocationPath.endsWith('/polter') ||
+    invocationPath.endsWith('\\polter') ||
+    invocationPath === 'polter' ||
+    invocationName.endsWith('/polter') ||
+    invocationName.endsWith('\\polter') ||
+    invocationName === 'polter';
+
   if (isPolterInvocation) {
     // Route to polter command behavior
-    import('./polter.js').then(() => {
-      // The polter module handles its own CLI parsing
-    }).catch(err => {
-      console.error('Failed to load polter:', err);
-      process.exit(1);
-    });
+    import('./polter.js')
+      .then(() => {
+        // The polter module handles its own CLI parsing
+      })
+      .catch((err) => {
+        console.error('Failed to load polter:', err);
+        process.exit(1);
+      });
   } else {
     // Parse arguments only when run directly (not when imported for testing)
     // Allow execution when imported by wrapper scripts (like poltergeist.ts)
     const isDirectRun = isMainModule();
     const isWrapperRun =
       process.argv[1]?.endsWith('poltergeist.ts') || process.argv[1]?.endsWith('poltergeist');
-    
+
     // Also check if we're running as a Bun compiled binary
-    const isBunBinary = process.argv[0]?.includes('/$bunfs/') || 
-                        (process.execPath && !process.execPath.endsWith('bun') && !process.execPath.endsWith('node'));
+    const isBunBinary =
+      process.argv[0]?.includes('/$bunfs/') ||
+      (process.execPath && !process.execPath.endsWith('bun') && !process.execPath.endsWith('node'));
 
     if (isDirectRun || isWrapperRun || isBunBinary) {
       program.parse(process.argv);

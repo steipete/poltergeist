@@ -3,7 +3,6 @@ import { existsSync, mkdirSync, readFileSync, rmSync, writeFileSync } from 'fs';
 import { tmpdir } from 'os';
 import { join } from 'path';
 import { afterAll, afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import { BaseBuilder } from '../src/builders/base-builder.js';
 import { ExecutableBuilder } from '../src/builders/executable-builder.js';
 import { createLogger } from '../src/logger.js';
 import { StateManager } from '../src/state.js';
@@ -58,6 +57,11 @@ describe('Build Improvements - Real-time Output & Error Capture', () => {
   });
 
   it('should stream build output in real-time', async () => {
+    // Create the expected output file
+    const distDir = join(projectRoot, 'dist');
+    mkdirSync(distDir, { recursive: true });
+    writeFileSync(join(distDir, 'test-app'), '#!/usr/bin/env node\nconsole.log("test");');
+
     const mockProcess = {
       stdout: {
         on: vi.fn((event, handler) => {
@@ -186,7 +190,7 @@ describe('Build Improvements - Real-time Output & Error Capture', () => {
     try {
       await builder.build([]);
       expect.fail('Build should have failed');
-    } catch (error) {
+    } catch (_error) {
       // Read state to verify error context was stored
       const state = await stateManager.readState('test-app');
       expect(state?.lastBuildError).toBeDefined();
@@ -198,6 +202,11 @@ describe('Build Improvements - Real-time Output & Error Capture', () => {
   });
 
   it('should capture logs when captureLogs option is enabled', async () => {
+    // Create the expected output file
+    const distDir = join(projectRoot, 'dist');
+    mkdirSync(distDir, { recursive: true });
+    writeFileSync(join(distDir, 'test-app'), '#!/usr/bin/env node\nconsole.log("test");');
+
     const logFile = join(tempDir, 'build.log');
 
     const mockProcess = {

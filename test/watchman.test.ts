@@ -50,11 +50,11 @@ describe('WatchmanClient', () => {
     mockWatchmanInstance = createWatchmanClient() as any;
 
     // Setup default mock behaviors
-    mockWatchmanInstance.capabilityCheck = vi.fn(async (_caps, callback) => {
+    mockWatchmanInstance.capabilityCheck = vi.fn((_caps, callback) => {
       callback(null);
     });
 
-    mockWatchmanInstance.command = vi.fn(async (_cmd, callback) => {
+    mockWatchmanInstance.command = vi.fn((_cmd, callback) => {
       callback(null, {});
     });
 
@@ -73,7 +73,7 @@ describe('WatchmanClient', () => {
     });
 
     it('should handle connection errors', async () => {
-      mockWatchmanInstance.capabilityCheck.mockImplementation(async (_caps, callback) => {
+      mockWatchmanInstance.capabilityCheck.mockImplementation((_caps, callback) => {
         callback(new Error('Connection failed'));
       });
 
@@ -97,7 +97,7 @@ describe('WatchmanClient', () => {
     it('should watch a project successfully', async () => {
       const projectPath = '/test/project';
 
-      mockWatchmanInstance.command.mockImplementation(async (args, callback) => {
+      mockWatchmanInstance.command.mockImplementation((args, callback) => {
         if (args[0] === 'watch-project') {
           callback(null, {
             watch: projectPath,
@@ -118,7 +118,7 @@ describe('WatchmanClient', () => {
     it('should handle watch errors', async () => {
       const projectPath = '/non/existent/path';
 
-      mockWatchmanInstance.command.mockImplementation(async (args, callback) => {
+      mockWatchmanInstance.command.mockImplementation((args, callback) => {
         if (args[0] === 'watch-project') {
           callback(new Error('unable to resolve root'), null);
         }
@@ -132,7 +132,7 @@ describe('WatchmanClient', () => {
 
   describe('Subscriptions', () => {
     beforeEach(async () => {
-      mockWatchmanInstance.command.mockImplementation(async (args, callback) => {
+      mockWatchmanInstance.command.mockImplementation((args, callback) => {
         if (args[0] === 'watch-project') {
           callback(null, { watch: '/test/project' });
         } else if (args[0] === 'subscribe') {
@@ -186,7 +186,7 @@ describe('WatchmanClient', () => {
     });
 
     it('should handle subscription errors', async () => {
-      mockWatchmanInstance.command.mockImplementation(async (args, callback) => {
+      mockWatchmanInstance.command.mockImplementation((args, callback) => {
         if (args[0] === 'subscribe') {
           callback(new Error('Subscription failed'), null);
         }
@@ -249,7 +249,7 @@ describe('WatchmanClient', () => {
 
   describe('Unsubscribe', () => {
     beforeEach(async () => {
-      mockWatchmanInstance.command.mockImplementation(async (args, callback) => {
+      mockWatchmanInstance.command.mockImplementation((args, callback) => {
         if (args[0] === 'watch-project') {
           callback(null, { watch: '/test/project' });
         } else if (args[0] === 'subscribe') {
@@ -298,7 +298,7 @@ describe('WatchmanClient', () => {
         vi.fn()
       );
 
-      mockWatchmanInstance.command.mockImplementation(async (args, callback) => {
+      mockWatchmanInstance.command.mockImplementation((args, callback) => {
         if (args[0] === 'unsubscribe') {
           callback(new Error('Unsubscribe failed'), null);
         }
@@ -315,7 +315,7 @@ describe('WatchmanClient', () => {
 
   describe('Disconnect', () => {
     beforeEach(async () => {
-      mockWatchmanInstance.command.mockImplementation(async (args, callback) => {
+      mockWatchmanInstance.command.mockImplementation((args, callback) => {
         if (args[0] === 'watch-project') {
           callback(null, { watch: '/test/project' });
         } else if (args[0] === 'subscribe') {
@@ -368,7 +368,7 @@ describe('WatchmanClient', () => {
     });
 
     it('should report connected after watching a project', async () => {
-      mockWatchmanInstance.command.mockImplementation(async (args, callback) => {
+      mockWatchmanInstance.command.mockImplementation((args, callback) => {
         if (args[0] === 'watch-project') {
           callback(null, { watch: '/test/project' });
         }

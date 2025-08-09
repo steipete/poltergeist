@@ -19,6 +19,7 @@ export function getDirname(): string {
   // Try to use import.meta.url if available (non-compiled mode)
   // We wrap this in eval to prevent static analysis issues
   try {
+    // biome-ignore lint/security/noGlobalEval: Required for Bun bytecode compilation compatibility
     const metaUrl = eval('import.meta.url');
     if (metaUrl) {
       return dirname(metaUrl.replace('file://', ''));
@@ -43,6 +44,7 @@ export function getFilename(): string {
 
   // Try to use import.meta.url if available (non-compiled mode)
   try {
+    // biome-ignore lint/security/noGlobalEval: Required for Bun bytecode compilation compatibility
     const metaUrl = eval('import.meta.url');
     if (metaUrl) {
       return metaUrl.replace('file://', '');
@@ -69,6 +71,7 @@ export function isMainModule(): boolean {
 
   // Try import.meta.main if available
   try {
+    // biome-ignore lint/security/noGlobalEval: Required for Bun bytecode compilation compatibility
     const metaMain = eval('import.meta.main');
     if (typeof metaMain === 'boolean') {
       return metaMain;
@@ -110,6 +113,7 @@ export function isCompiledBinary(): boolean {
 
   // Check for the absence of import.meta (indicates compilation)
   try {
+    // biome-ignore lint/security/noGlobalEval: Required for Bun bytecode compilation compatibility
     eval('import.meta.url');
     return false;
   } catch {

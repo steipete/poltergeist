@@ -184,7 +184,7 @@ export class DaemonManager {
     });
 
     // Determine how to spawn the daemon
-    let child;
+    let child: any;
 
     // Check if we're running as Bun standalone binary
     const isBunStandalone = !!process.versions.bun && process.execPath !== 'bun';
@@ -337,14 +337,14 @@ export class DaemonManager {
         }, timeoutMs);
 
         // Add error handler first
-        child.once('error', (error) => {
+        child.once('error', (error: any) => {
           clearTimeout(timeout);
           this.logger.error('Child process error:', error);
           reject(new Error(`Failed to spawn daemon: ${error.message}`));
         });
 
         // Add exit handler
-        child.once('exit', (code, signal) => {
+        child.once('exit', (code: any, signal: any) => {
           clearTimeout(timeout);
           if (code !== 0) {
             this.logger.error(`Child process exited with code ${code}, signal ${signal}`);

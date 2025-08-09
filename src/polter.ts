@@ -15,25 +15,12 @@ import { spawn } from 'child_process';
 import { Command } from 'commander';
 import { existsSync, readFileSync } from 'fs';
 import ora from 'ora';
-import { join, resolve as resolvePath } from 'path';
-import { getDirname, isMainModule } from './utils/paths.js';
+import { resolve as resolvePath } from 'path';
+import { isMainModule } from './utils/paths.js';
 
-// Get directory without import.meta.url for bytecode compatibility
-const __dirname = getDirname();
-// Try multiple paths to find package.json (works in both src/ and dist/)
-let packageJson: any;
-try {
-  // Try from dist directory first
-  packageJson = JSON.parse(readFileSync(join(__dirname, '..', 'package.json'), 'utf-8'));
-} catch {
-  try {
-    // Try from src directory (during tests)
-    packageJson = JSON.parse(readFileSync(join(__dirname, '..', '..', 'package.json'), 'utf-8'));
-  } catch {
-    // Fallback to a default version
-    packageJson = { version: '1.6.3', name: '@steipete/poltergeist' };
-  }
-}
+// Version is hardcoded at compile time - NEVER read from filesystem
+// This ensures the binary always reports its compiled version
+const packageJson = { version: '1.7.1', name: '@steipete/poltergeist' };
 
 import {
   configurePolterCommand,
@@ -478,17 +465,17 @@ function executeTarget(
  */
 async function showPolterHelp() {
   // Start with clear explanation of what polter is
-  console.log(chalk.cyan('👻 Polter') + ' - Smart execution wrapper for Poltergeist\n');
+  console.log(`${chalk.cyan('👻 Polter')} - Smart execution wrapper for Poltergeist\n`);
   console.log('Ensures you never run stale or failed builds by checking build status first.\n');
-  
+
   console.log(chalk.bold('USAGE'));
   console.log('  $ polter <target> [args...]\n');
-  
+
   console.log(chalk.bold('WHAT IT DOES'));
   console.log('  • Checks if target build is fresh and successful');
   console.log('  • Waits for in-progress builds to complete');
   console.log('  • Fails fast on build errors with clear messages');
-  console.log('  • Runs the binary only when it\'s ready\n');
+  console.log("  • Runs the binary only when it's ready\n");
 
   // Try to load configuration and show available targets
   let hasTargets = false;
@@ -502,12 +489,12 @@ async function showPolterHelp() {
       if (executableTargets.length > 0) {
         hasTargets = true;
         console.log(chalk.bold('AVAILABLE TARGETS'));
-        
+
         for (const target of executableTargets) {
           const status = await getBuildStatus(projectRoot, target);
           let statusIcon = '';
           let statusText = '';
-          
+
           switch (status) {
             case 'success':
               statusIcon = chalk.green('✓');
@@ -529,11 +516,11 @@ async function showPolterHelp() {
               statusIcon = chalk.gray('?');
               statusText = '';
           }
-          
+
           console.log(`  ${statusIcon} ${chalk.cyan(target.name)}${statusText}`);
         }
         console.log('');
-        
+
         // Check if Poltergeist is running
         const anyRunning = executableTargets.some((target) => {
           const stateFilePath = FileSystemUtils.getStateFilePath(projectRoot, target.name);
@@ -548,7 +535,7 @@ async function showPolterHelp() {
         }
       }
     }
-  } catch (error) {
+  } catch (_error) {
     // Silently handle config errors
   }
 
@@ -567,13 +554,13 @@ async function showPolterHelp() {
   console.log(chalk.bold('OPTIONS'));
   console.log('  -t, --timeout <ms>    Build wait timeout (default: 300s)');
   console.log('  -f, --force           Run even if build failed');
-  console.log('  -n, --no-wait         Don\'t wait for builds');
+  console.log("  -n, --no-wait         Don't wait for builds");
   console.log('  --verbose             Show detailed status info');
   console.log('  --no-logs             Disable build log streaming');
   console.log('  -v, --version         Show version');
   console.log('  -h, --help            Show this help\n');
-  
-  console.log(chalk.gray('For daemon control (start/stop/status), use \'poltergeist\' instead.'));
+
+  console.log(chalk.gray("For daemon control (start/stop/status), use 'poltergeist' instead."));
 }
 
 /**
@@ -766,7 +753,7 @@ export async function runWrapper(targetName: string, args: string[], options: Pa
               } else if (state.lastBuild?.errorSummary) {
                 console.error(chalk.red(`   Error: ${state.lastBuild.errorSummary}`));
               }
-            } catch (e) {
+            } catch (_e) {
               // Silently continue if we can't read state
             }
           }

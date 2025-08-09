@@ -36,6 +36,7 @@ describe('Daemon with no enabled targets', () => {
           type: 'executable',
           enabled: false,
           buildCommand: 'echo "test"',
+          outputPath: './test-output',
           watchPaths: ['*.js'],
         },
       ],

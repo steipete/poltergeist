@@ -160,9 +160,9 @@ if (
   }
 
   // Find the args - either after --daemon-worker or as argv[2]
-  let argsIndex = process.argv.indexOf('--daemon-worker');
+  const argsIndex = process.argv.indexOf('--daemon-worker');
   let argsString: string | undefined;
-  
+
   if (argsIndex !== -1 && process.argv[argsIndex + 1]) {
     argsString = process.argv[argsIndex + 1];
   } else if (process.argv[2]) {
