@@ -2,6 +2,12 @@
 
 All notable changes to Poltergeist will be documented in this file.
 
+## [1.7.2] - 2025-08-09
+
+- Fixed polter binary not being built during release process - Homebrew users now get working polter command
+- Updated build script to build both poltergeist and polter binaries
+- Added comprehensive release checklist to prevent future release mistakes
+
 ## [1.7.1] - 2025-08-09
 
 - Fixed version string to be compile-time constant - binary no longer reads version from filesystem

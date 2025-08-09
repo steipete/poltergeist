@@ -20,7 +20,7 @@ import { isMainModule } from './utils/paths.js';
 
 // Version is hardcoded at compile time - NEVER read from filesystem
 // This ensures the binary always reports its compiled version
-const packageJson = { version: '1.7.1', name: '@steipete/poltergeist' };
+const packageJson = { version: '1.7.2', name: '@steipete/poltergeist' };
 
 import {
   configurePolterCommand,

@@ -74,15 +74,65 @@ async function buildBinary(target = null, bytecode = true) {
   }
 }
 
+async function buildPolterBinary(bytecode = false) {
+  const outputPath = join(distDir, "polter");
+  
+  console.log(`🔨 Building polter${bytecode ? " with bytecode" : ""}...`);
+  
+  const buildArgs = [
+    "build",
+    join(projectRoot, "src/polter.ts"),
+    "--compile",
+    "--outfile", outputPath,
+    "--minify"
+  ];
+  
+  if (bytecode) {
+    buildArgs.push("--bytecode");
+  }
+  
+  try {
+    const result = spawnSync("bun", buildArgs, { stdio: "inherit" });
+    if (result.status !== 0) {
+      throw new Error(`Build failed with exit code ${result.status}`);
+    }
+    
+    // Get file size for reporting
+    try {
+      const stats = statSync(outputPath);
+      const bytes = stats.size;
+      const size = bytes < 1024 ? `${bytes}B` :
+                   bytes < 1048576 ? `${(bytes / 1024).toFixed(1)}KB` :
+                   `${(bytes / 1048576).toFixed(1)}MB`;
+      
+      console.log(`✅ Built polter (${size})`);
+    } catch {
+      console.log(`✅ Built polter`);
+    }
+    
+    // Make binary executable
+    spawnSync("chmod", ["+x", outputPath], { stdio: "inherit" });
+    
+    return outputPath;
+  } catch (error) {
+    console.error(`❌ Failed to build polter:`, error.message);
+    throw error;
+  }
+}
+
 async function buildAll() {
   console.log("🚀 Poltergeist Bun Binary Builder");
   console.log("==================================\n");
   
   // Build native optimized binary first
   // Skip bytecode compilation for now due to compatibility issues
-  console.log("📦 Building native optimized binary...");
+  console.log("📦 Building native optimized binaries...");
   console.log("⚠️  Skipping bytecode compilation due to compatibility issues");
   const nativeBinary = await buildBinary(null, false);
+  
+  // Build polter binary as well
+  console.log("\n📦 Building polter wrapper binary...");
+  const polterBinary = await buildPolterBinary(false);
   
   // Build cross-platform binaries if requested
   if (process.argv.includes("--all-platforms")) {

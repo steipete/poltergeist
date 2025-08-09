@@ -1,123 +1,199 @@
 # Poltergeist Release Checklist
 
-This checklist ensures consistent and reliable releases of Poltergeist.
+This checklist ensures reliable, complete releases without the mistakes we've made in the past.
 
-## Pre-Release Checklist
+## Pre-Release Verification
 
-### 1. Version Management
+### 1. Version Management ✅
+**Mistake we made**: Version string was read from filesystem instead of being compiled in, causing binaries to report different versions depending on where they were run.
+
 - [ ] Update version in `package.json`
 - [ ] Update hardcoded version in `src/cli.ts` (line ~23)
 - [ ] Update hardcoded version in `src/polter.ts` (line ~23)
-- [ ] Verify all three versions match exactly
+- [ ] Verify versions match exactly: `grep -n "version.*1\." src/cli.ts src/polter.ts package.json`
 
-### 2. Changelog
-- [ ] Add new version section to `CHANGELOG.md`
-- [ ] Document all changes, fixes, and improvements
-- [ ] Follow single-line format for each entry
-- [ ] Review changelog for clarity and completeness
+### 2. Build Process Verification ✅
+**Mistake we made**: Build script only built `poltergeist`, not `polter`, resulting in shipping old/broken binaries.
 
-### 3. Code Quality
-- [ ] Run linter: `npm run lint`
-- [ ] Run type checking: `npm run typecheck`
-- [ ] Fix any linting or type errors
+- [ ] Verify `scripts/build-bun.js` builds BOTH binaries:
+  - [ ] `poltergeist` binary
+  - [ ] `polter` binary
+- [ ] Run build: `npm run build:bun`
+- [ ] Verify both binaries exist in `dist-bun/`:
+  ```bash
+  ls -la dist-bun/poltergeist dist-bun/polter
+  ```
+- [ ] Test BOTH binaries work:
+  ```bash
+  ./dist-bun/poltergeist --version  # Should show correct version
+  ./dist-bun/polter --version       # Should show correct version
+  ./dist-bun/polter --help          # Should show help text
+  ```
 
-### 4. Testing
-- [ ] Run full test suite: `npm test`
-- [ ] Ensure all tests pass
-- [ ] Test key functionality manually if needed
+### 3. Binary Independence Test ✅
+**Mistake we made**: Binary read version from local package.json, not its compiled-in version.
 
-### 5. Build Process
-- [ ] Clean previous builds: `rm -rf dist dist-bun`
-- [ ] Build TypeScript: `npm run build`
-- [ ] Build Bun binary: `npm run build:bun`
-
-### 6. Binary Verification
-- [ ] Test binary version without package.json:
+- [ ] Test binaries work WITHOUT package.json:
   ```bash
   mv package.json package.json.bak
-  ./dist-bun/poltergeist --version  # Should show correct version
+  ./dist-bun/poltergeist --version  # Must show correct version
+  ./dist-bun/polter --version       # Must show correct version
   mv package.json.bak package.json
   ```
-- [ ] Test binary in isolated directory:
+- [ ] Test in isolated directory:
   ```bash
   mkdir -p /tmp/test-poltergeist
   cp dist-bun/poltergeist /tmp/test-poltergeist/
+  cp dist-bun/polter /tmp/test-poltergeist/
   cd /tmp/test-poltergeist
-  ./poltergeist --version  # Should show correct version
+  ./poltergeist --version  # Must work
+  ./polter --version       # Must work
+  cd -
   rm -rf /tmp/test-poltergeist
   ```
-- [ ] Verify binary size is reasonable (~50-60MB)
+
+### 4. String Verification ✅
+**Mistake we made**: Old versions were still embedded in compiled binaries.
+
+- [ ] Check for old version strings in binaries:
+  ```bash
+  # Should find NO old versions (1.6.x or older)
+  strings dist-bun/poltergeist | grep -E "1\.[0-6]\.[0-9]"
+  strings dist-bun/polter | grep -E "1\.[0-6]\.[0-9]"
+  
+  # Should find current version
+  strings dist-bun/poltergeist | grep "$(cat package.json | jq -r .version)"
+  strings dist-bun/polter | grep "$(cat package.json | jq -r .version)"
+  ```
 
 ## Release Process
 
-### 1. Create Release Tarball
-```bash
-cd dist-bun
-tar -czf poltergeist-macos-universal-v{VERSION}.tar.gz poltergeist polter
-shasum -a 256 poltergeist-macos-universal-v{VERSION}.tar.gz
-```
+### 1. Testing
+- [ ] Run full test suite: `npm test`
+- [ ] Note any flaky tests but don't block on daemon timing issues
+- [ ] Run linting: `npm run lint`
+- [ ] Run type checking: `npm run typecheck`
 
-### 2. Git Operations
-- [ ] Commit all changes: `git add -A && git commit -m "Release v{VERSION}"`
-- [ ] Create git tag: `git tag v{VERSION}`
-- [ ] Push changes: `git push origin main`
-- [ ] Push tag: `git push origin v{VERSION}`
+### 2. Changelog
+- [ ] Update `CHANGELOG.md` with all changes
+- [ ] Use single-line format for consistency
+- [ ] Include all bug fixes, even embarrassing ones
+- [ ] Format: `- Fixed/Added/Changed description of change`
 
-### 3. GitHub Release
-- [ ] Go to GitHub releases page
-- [ ] Click "Draft a new release"
-- [ ] Select the tag `v{VERSION}`
-- [ ] Title: `Release v{VERSION}`
-- [ ] Copy changelog entries for this version
-- [ ] Upload the tarball: `poltergeist-macos-universal-v{VERSION}.tar.gz`
-- [ ] Publish release
+### 3. Git Operations
+- [ ] Commit all changes: `git add -A && git commit -m "Release v{version}"`
+- [ ] Create git tag: `git tag v{version}`
+- [ ] Push to main: `git push origin main`
+- [ ] Push tag: `git push origin v{version}`
+  - If tag push times out, try: `git push origin v{version} --no-verify`
 
-### 4. Homebrew Formula Update
-- [ ] Calculate SHA256 of the tarball
-- [ ] Update formula in `steipete/homebrew-poltergeist`:
-  ```ruby
-  url "https://github.com/steipete/poltergeist/releases/download/v{VERSION}/poltergeist-macos-universal-v{VERSION}.tar.gz"
-  sha256 "{SHA256_HASH}"
-  ```
-- [ ] Test installation: `brew upgrade poltergeist`
-- [ ] Verify version: `poltergeist --version`
+### 4. npm Release
+- [ ] Ensure logged in: `npm whoami`
+- [ ] Publish: `npm publish`
+- [ ] Verify on npm: `npm view @steipete/poltergeist@{version}`
 
-## Post-Release Verification
+### 5. Homebrew Release
 
-### 1. Clean Installation Test
-- [ ] On a clean system or VM:
+#### Create Release Tarball
+- [ ] Create tarball with BOTH binaries:
   ```bash
-  brew install steipete/poltergeist/poltergeist
-  poltergeist --version  # Should show correct version
+  cd dist-bun
+  tar -czf poltergeist-macos-universal-v{version}.tar.gz poltergeist polter
+  shasum -a 256 poltergeist-macos-universal-v{version}.tar.gz
+  cd ..
+  ```
+- [ ] Note the SHA256 hash for Homebrew formula
+
+#### GitHub Release
+- [ ] Create GitHub release:
+  ```bash
+  gh release create v{version} \
+    --title "Release v{version}" \
+    --notes "$(tail -n 20 CHANGELOG.md)" \
+    dist-bun/poltergeist-macos-universal-v{version}.tar.gz
   ```
 
-### 2. Binary Distribution Test
-- [ ] Download release from GitHub
-- [ ] Extract and run without any package.json present
-- [ ] Verify version is correct
+#### Test Release Download
+**Critical**: Test that the released tarball actually works!
 
-### 3. Documentation
-- [ ] Update README.md if needed
-- [ ] Update any version references in documentation
+- [ ] Download and test the release:
+  ```bash
+  cd /tmp
+  curl -L https://github.com/steipete/poltergeist/releases/download/v{version}/poltergeist-macos-universal-v{version}.tar.gz | tar -xz
+  ./poltergeist --version  # Must show correct version
+  ./polter --version       # Must show correct version
+  ./polter --help          # Must show help, not silent fail
+  cd -
+  ```
 
-## Rollback Plan
+#### Update Homebrew Formula
+- [ ] Clone homebrew repo: `git clone https://github.com/steipete/homebrew-poltergeist.git /tmp/homebrew-poltergeist`
+- [ ] Update formula with new version and SHA256
+- [ ] Update version test in formula
+- [ ] Commit and push:
+  ```bash
+  cd /tmp/homebrew-poltergeist
+  git add -A
+  git commit -m "Update to v{version}"
+  git push
+  ```
 
-If issues are discovered post-release:
+### 6. Post-Release Verification
 
-1. **Delete the GitHub release** (keep the tag for history)
-2. **Fix the issue** in code
-3. **Increment patch version** (e.g., 1.7.1 -> 1.7.2)
-4. **Follow full release process** again
+- [ ] Test Homebrew installation:
+  ```bash
+  brew update
+  brew upgrade steipete/poltergeist/poltergeist
+  poltergeist --version  # Must show new version
+  polter --version       # Must show new version
+  polter --help          # Must work, not silent fail
+  ```
 
-## Important Notes
+- [ ] Test npm installation:
+  ```bash
+  npm install -g @steipete/poltergeist@{version}
+  poltergeist --version
+  ```
 
-⚠️ **CRITICAL**: The version must be hardcoded in `cli.ts` and `polter.ts`. The binary should NEVER read version from the filesystem at runtime.
+## Emergency Rollback
 
-⚠️ **CRITICAL**: Always test the binary in an environment without package.json to ensure it reports the correct compiled-in version.
+If something goes wrong:
 
-⚠️ **Binary Format**: Poltergeist is distributed as a pre-compiled Bun executable, NOT as a Node.js package. The Homebrew formula downloads from GitHub releases, not npm.
+1. **npm**: `npm unpublish @steipete/poltergeist@{version}` (within 72 hours)
+2. **GitHub**: Delete the release and tag
+3. **Homebrew**: Revert the formula commit
 
-## Version History
+## Lessons Learned
 
-- **1.7.1**: Fixed version string to be compile-time constant (no filesystem reads)
-- **1.7.0**: Initial release with dynamic version reading bug
+### Version String Management
+- **Never** read version from filesystem in compiled binaries
+- **Always** hardcode version as compile-time constant
+- **Test** binaries in isolation without package.json
+
+### Build Process
+- **Always** build ALL binaries (poltergeist AND polter)
+- **Test** each binary individually after building
+- **Verify** build script includes all targets
+
+### Binary Testing
+- **Test** with `--version` flag
+- **Test** with `--help` flag  
+- **Test** with no arguments (should show help, not silent fail)
+- **Test** in isolated environment without source code
+
+### Release Artifacts
+- **Include** all required binaries in tarball
+- **Test** downloaded tarball before updating Homebrew
+- **Verify** SHA256 matches after upload
+
+## Automation Opportunities
+
+Consider automating these checks:
+- Version consistency check script
+- Binary validation test suite
+- GitHub Actions workflow for releases
+- Automated Homebrew formula PR creation
+
+## Final Note
+
+Take your time with releases. It's better to catch issues before release than to ship broken binaries to users. When in doubt, test in a fresh VM or container to simulate a real user environment.
