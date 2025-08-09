@@ -1589,18 +1589,44 @@ if (process.argv.includes('--daemon-mode')) {
     process.exit(1);
   }
 } else {
-  // Parse arguments only when run directly (not when imported for testing)
-  // Allow execution when imported by wrapper scripts (like poltergeist.ts)
-  const isDirectRun = isMainModule();
-  const isWrapperRun =
-    process.argv[1]?.endsWith('poltergeist.ts') || process.argv[1]?.endsWith('poltergeist');
+  // Check if we're being invoked as 'polter' instead of 'poltergeist'
+  // For Bun compiled binaries, process.argv0 contains the invocation name
+  // For Node.js, check process.argv[1]
+  const invocationPath = process.argv[1] || '';
+  const invocationName = process.argv0 || '';
+  const isPolterInvocation = invocationPath.endsWith('/polter') || 
+                             invocationPath.endsWith('\\polter') ||
+                             invocationPath === 'polter' ||
+                             invocationName.endsWith('/polter') ||
+                             invocationName.endsWith('\\polter') ||
+                             invocationName === 'polter';
+  
+  if (isPolterInvocation) {
+    // Route to polter command behavior
+    import('./polter.js').then(() => {
+      // The polter module handles its own CLI parsing
+    }).catch(err => {
+      console.error('Failed to load polter:', err);
+      process.exit(1);
+    });
+  } else {
+    // Parse arguments only when run directly (not when imported for testing)
+    // Allow execution when imported by wrapper scripts (like poltergeist.ts)
+    const isDirectRun = isMainModule();
+    const isWrapperRun =
+      process.argv[1]?.endsWith('poltergeist.ts') || process.argv[1]?.endsWith('poltergeist');
+    
+    // Also check if we're running as a Bun compiled binary
+    const isBunBinary = process.argv[0]?.includes('/$bunfs/') || 
+                        (process.execPath && !process.execPath.endsWith('bun') && !process.execPath.endsWith('node'));
 
-  if (isDirectRun || isWrapperRun) {
-    program.parse(process.argv);
+    if (isDirectRun || isWrapperRun || isBunBinary) {
+      program.parse(process.argv);
 
-    // Show help if no command specified
-    if (!process.argv.slice(2).length) {
-      program.outputHelp();
+      // Show help if no command specified
+      if (!process.argv.slice(2).length) {
+        program.outputHelp();
+      }
     }
   }
 }

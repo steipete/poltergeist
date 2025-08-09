@@ -7,32 +7,22 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
-## [1.7.0] - 2025-01-08
+## [1.7.0] - 2025-08-09
 
 ### Added
-- **Clock tracking for Watchman incremental updates** - Poltergeist now properly tracks Watchman clock values to receive only incremental file changes instead of full file lists
-- **`--log-level` CLI flag** - New flag for haunt command to easily control logging verbosity without config changes
-- **Enhanced daemon debugging** - Added comprehensive error and exit handlers for better daemon troubleshooting
-- **FSEvents configuration for macOS** - Added `fsevents_latency` and `fsevents_try_resync` settings to fix Watchman on macOS
-
-### Changed
-- **Increased daemon startup timeout** - Default timeout increased from 30s to 60s for complex projects with many files
-- **Improved IPC communication** - Better error handling and debugging for Node.js fork IPC channel
-- **Enhanced Watchman logging** - Added detailed debug logging throughout Watchman subscription handling
+- **Configuration hot reload** - Daemon continues running with no enabled targets, allowing dynamic enable/disable via config changes
+- **Bun standalone binary** - Fully functional compiled binary with 70% size reduction (36MB with bytecode)
+- **Python example** - New `python-simple` example without external dependencies
 
 ### Fixed
-- **Watchman incremental updates not working** - Fixed issue where Watchman would only send initial "unilateral" sync events but not incremental changes
-  - Root cause was FSEvents on macOS getting into bad state
-  - Now properly tracks clock values for incremental updates
-  - Significantly improves performance for large projects (e.g., VibeTunnel with 489+ Swift files)
-- **ES module compatibility issues** - Fixed all `require('fs')` usage that was breaking ES module execution
-- **Daemon-worker.js path resolution** - Fixed incorrect path resolution that prevented daemon from starting
-- **IPC channel disconnect order** - Fixed order of `disconnect()` and `unref()` calls for proper daemon detachment
+- **Watchman incremental updates** - Only changed files are now detected instead of full file lists on every change
+- **Bun binary compilation** - Resolved all `import.meta.url` issues preventing bytecode generation
+- **Daemon stability** - Fixed daemon exiting when no targets enabled, now supports hot configuration reload
 
-### Technical
-- Created `utils/paths.ts` for safe import.meta.url handling without breaking Bun bytecode compilation
-- Added proper TypeScript types for process.send error callbacks
-- Improved daemon stdio configuration for better debugging
+### Improved
+- **Performance** - Significantly faster file change detection for large projects (e.g., VibeTunnel with 489+ Swift files)
+- **IPC communication** - Better error handling for both Node.js and Bun runtime environments
+- **Startup timeout** - Increased to 60s for complex projects
 
 ## [1.6.3] - 2025-01-15
 

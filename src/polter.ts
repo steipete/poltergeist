@@ -45,7 +45,6 @@ import {
 import type { PoltergeistState } from './state.js';
 import type { Target } from './types.js';
 import { BuildStatusManager } from './utils/build-status-manager.js';
-import { CLIFormatter, type OptionInfo } from './utils/cli-formatter.js';
 import { ConfigurationManager } from './utils/config-manager.js';
 import { FileSystemUtils } from './utils/filesystem.js';
 import { poltergeistMessage } from './utils/ghost.js';
@@ -475,80 +474,66 @@ function executeTarget(
 }
 
 /**
- * Shows polter's help message with available targets
+ * Shows polter's help message explaining what it does
  */
 async function showPolterHelp() {
-  const options: OptionInfo[] = [
-    { flags: '-t, --timeout <ms>', description: 'Build wait timeout (default: 300s)' },
-    { flags: '-f, --force', description: 'Run even if build failed' },
-    { flags: '-n, --no-wait', description: "Don't wait for builds" },
-    { flags: '--verbose', description: 'Show detailed status info' },
-    { flags: '--no-logs', description: 'Disable build log streaming' },
-    { flags: '-v, --version', description: 'Show version' },
-    { flags: '-h, --help', description: 'Show help' },
-  ];
+  // Start with clear explanation of what polter is
+  console.log(chalk.cyan('👻 Polter') + ' - Smart execution wrapper for Poltergeist\n');
+  console.log('Ensures you never run stale or failed builds by checking build status first.\n');
+  
+  console.log(chalk.bold('USAGE'));
+  console.log('  $ polter <target> [args...]\n');
+  
+  console.log(chalk.bold('WHAT IT DOES'));
+  console.log('  • Checks if target build is fresh and successful');
+  console.log('  • Waits for in-progress builds to complete');
+  console.log('  • Fails fast on build errors with clear messages');
+  console.log('  • Runs the binary only when it\'s ready\n');
 
   // Try to load configuration and show available targets
-  let targetsSection = '';
-  let examples: { command: string; description?: string }[] = [];
-  let footerMessage = '';
+  let hasTargets = false;
 
   try {
     const discovery = await ConfigurationManager.discoverAndLoadConfig();
-    if (!discovery) {
-      targetsSection = `  ${chalk.red('No poltergeist.config.json found in this directory')}\n\n`;
-      targetsSection += '  To get started:\n';
-      targetsSection += '    1. Run: poltergeist init\n';
-      targetsSection += '    2. Configure executable targets\n';
-      targetsSection += '    3. Run: poltergeist start\n';
-      targetsSection += '    4. Use: polter <target>';
-    } else {
+    if (discovery) {
       const { config, projectRoot } = discovery;
       const executableTargets = ConfigurationManager.getExecutableTargets(config);
 
-      if (executableTargets.length === 0) {
-        targetsSection = `  ${chalk.yellow('No executable targets configured')}\n\n`;
-        targetsSection += '  Add an executable target to poltergeist.config.json:\n';
-        targetsSection += chalk.gray('    {\n');
-        targetsSection += chalk.gray('      "targets": [{\n');
-        targetsSection += chalk.gray('        "name": "my-app",\n');
-        targetsSection += chalk.gray('        "type": "executable",\n');
-        targetsSection += chalk.gray('        "enabled": true,\n');
-        targetsSection += chalk.gray('        "buildCommand": "npm run build",\n');
-        targetsSection += chalk.gray('        "outputPath": "./dist/app.js",\n');
-        targetsSection += chalk.gray('        "watchPaths": ["src/**/*.ts"]\n');
-        targetsSection += chalk.gray('      }]\n');
-        targetsSection += chalk.gray('    }');
-      } else {
-        const targetLines = [];
+      if (executableTargets.length > 0) {
+        hasTargets = true;
+        console.log(chalk.bold('AVAILABLE TARGETS'));
+        
         for (const target of executableTargets) {
           const status = await getBuildStatus(projectRoot, target);
-          let mappedStatus: 'success' | 'building' | 'failed' | 'not-running' | 'unknown';
-
+          let statusIcon = '';
+          let statusText = '';
+          
           switch (status) {
+            case 'success':
+              statusIcon = chalk.green('✓');
+              statusText = chalk.gray(' (ready)');
+              break;
+            case 'building':
+              statusIcon = chalk.yellow('⟳');
+              statusText = chalk.yellow(' (building)');
+              break;
+            case 'failed':
+              statusIcon = chalk.red('✗');
+              statusText = chalk.red(' (failed)');
+              break;
             case 'poltergeist-not-running':
-              mappedStatus = 'not-running';
+              statusIcon = chalk.gray('○');
+              statusText = chalk.gray(' (daemon not running)');
               break;
             default:
-              mappedStatus = status;
+              statusIcon = chalk.gray('?');
+              statusText = '';
           }
-
-          targetLines.push(CLIFormatter.formatTarget(target.name, mappedStatus, target.outputPath));
+          
+          console.log(`  ${statusIcon} ${chalk.cyan(target.name)}${statusText}`);
         }
-        targetsSection = targetLines.join('\n');
-
-        // Generate examples based on first target
-        const firstTarget = executableTargets[0];
-        examples = [
-          { command: `${firstTarget.name}`, description: `Run ${firstTarget.name}` },
-          {
-            command: `${firstTarget.name} -- --help`,
-            description: `Pass --help to ${firstTarget.name}`,
-          },
-          { command: `${firstTarget.name} --verbose`, description: 'Show detailed execution info' },
-          { command: `${firstTarget.name} --force`, description: 'Run even if build failed' },
-        ];
-
+        console.log('');
+        
         // Check if Poltergeist is running
         const anyRunning = executableTargets.some((target) => {
           const stateFilePath = FileSystemUtils.getStateFilePath(projectRoot, target.name);
@@ -558,34 +543,37 @@ async function showPolterHelp() {
         });
 
         if (!anyRunning) {
-          footerMessage = `\n${chalk.yellow('⚠  Poltergeist is not running')}\n   Start watching for fresh builds: ${chalk.cyan('poltergeist start')}`;
+          console.log(chalk.yellow('⚠  Poltergeist daemon is not running'));
+          console.log(`   Start watching: ${chalk.cyan('poltergeist start')}\n`);
         }
       }
     }
   } catch (error) {
-    targetsSection = `  ${chalk.red('Error loading configuration:')}\n`;
-    targetsSection += `  ${error instanceof Error ? error.message : error}`;
+    // Silently handle config errors
   }
 
-  const helpText = CLIFormatter.formatHelp({
-    title: 'Polter',
-    tagline: 'Smart executable wrapper for Poltergeist',
-    programName: 'polter',
-    usage: '<target> [args...]',
-    options,
-    examples,
-    additionalSections: [
-      {
-        title: 'Targets',
-        content: targetsSection,
-      },
-    ],
-  });
-
-  console.log(helpText);
-  if (footerMessage) {
-    console.log(footerMessage);
+  if (hasTargets) {
+    console.log(chalk.bold('EXAMPLES'));
+    console.log('  $ polter my-app              # Run my-app after ensuring fresh build');
+    console.log('  $ polter my-cli --help       # Pass arguments to the target');
+    console.log('  $ polter my-app --verbose    # Show build progress while waiting\n');
+  } else {
+    console.log(chalk.bold('GETTING STARTED'));
+    console.log('  1. Create a poltergeist.config.json with executable targets');
+    console.log('  2. Run: poltergeist start    # Start the build daemon');
+    console.log('  3. Use: polter <target>      # Run your executables safely\n');
   }
+
+  console.log(chalk.bold('OPTIONS'));
+  console.log('  -t, --timeout <ms>    Build wait timeout (default: 300s)');
+  console.log('  -f, --force           Run even if build failed');
+  console.log('  -n, --no-wait         Don\'t wait for builds');
+  console.log('  --verbose             Show detailed status info');
+  console.log('  --no-logs             Disable build log streaming');
+  console.log('  -v, --version         Show version');
+  console.log('  -h, --help            Show this help\n');
+  
+  console.log(chalk.gray('For daemon control (start/stop/status), use \'poltergeist\' instead.'));
 }
 
 /**

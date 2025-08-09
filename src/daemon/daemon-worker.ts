@@ -146,17 +146,36 @@ export async function runDaemon(args: DaemonArgs): Promise<void> {
 
 // Only run directly if this is the main module (not imported)
 // This prevents the code from running when imported by CLI
-// In ES modules, we check if the script is being run directly
-const isMainModule = import.meta.url === `file://${process.argv[1]}`;
-if (isMainModule || process.argv[1]?.endsWith('daemon-worker.js')) {
+// For Bun compiled binaries, we need to explicitly check for daemon mode flags
+if (
+  // Check if we're running as daemon-worker.js directly
+  process.argv[1]?.endsWith('daemon-worker.js') ||
+  // Or if we have the --daemon-worker flag (for compiled binaries)
+  process.argv.includes('--daemon-worker')
+) {
   // Parse arguments and run daemon
-  if (process.argv.length < 3) {
+  if (process.argv.length < 3 && !process.argv.includes('--daemon-worker')) {
+    console.error('Daemon worker requires arguments');
+    process.exit(1);
+  }
+
+  // Find the args - either after --daemon-worker or as argv[2]
+  let argsIndex = process.argv.indexOf('--daemon-worker');
+  let argsString: string | undefined;
+  
+  if (argsIndex !== -1 && process.argv[argsIndex + 1]) {
+    argsString = process.argv[argsIndex + 1];
+  } else if (process.argv[2]) {
+    argsString = process.argv[2];
+  }
+
+  if (!argsString) {
     console.error('Daemon worker requires arguments');
     process.exit(1);
   }
 
   try {
-    const args: DaemonArgs = JSON.parse(process.argv[2]);
+    const args: DaemonArgs = JSON.parse(argsString);
     runDaemon(args).catch((error) => {
       console.error('Daemon worker error:', error);
       process.exit(1);
