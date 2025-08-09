@@ -2,6 +2,12 @@
 
 All notable changes to Poltergeist will be documented in this file.
 
+## [1.7.3] - 2025-08-09
+
+- Fixed Bun.spawn stdio configuration error - daemon now starts correctly with log file redirection
+- Proper file handle wrapping with `Bun.file()` for Bun runtime compatibility
+- Improved daemon spawning reliability for Bun standalone binaries
+
 ## [1.7.2] - 2025-08-09
 
 - Fixed polter binary not being built during release process - Homebrew users now get working polter command
