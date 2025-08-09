@@ -1,4 +1,5 @@
 #!/usr/bin/env node
+// Test change for v1.7.0 testing
 // import { resolve } from 'path';
 import chalk from 'chalk';
 // Updated CLI for generic target system
@@ -42,6 +43,8 @@ import { ConfigurationManager } from './utils/config-manager.js';
 import { ghost, poltergeistMessage } from './utils/ghost.js';
 import { validateTarget } from './utils/target-validator.js';
 import { WatchmanConfigManager } from './watchman-config.js';
+// Static import for daemon-worker to ensure it's included in Bun binary
+import { runDaemon } from './daemon/daemon-worker.js';
 
 const { version } = packageJson;
 
@@ -143,8 +146,8 @@ program
     } else {
       const enabledTargets = config.targets.filter((t) => t.enabled);
       if (enabledTargets.length === 0) {
-        console.error(chalk.red('No enabled targets found in configuration'));
-        process.exit(1);
+        console.log(chalk.yellow('⚠️ No enabled targets found in configuration'));
+        console.log(chalk.dim('💡 Daemon will continue running. You can enable targets by editing poltergeist.config.json'));
       }
     }
 
@@ -1550,14 +1553,8 @@ if (process.argv.includes('--daemon-mode')) {
       process.exit(1);
     }
     
-    // Import and run daemon worker directly
-    import('./daemon/daemon-worker.js').then(async (module) => {
-      // Get the runDaemon function if exported, otherwise the module should self-execute
-      if (module.runDaemon) {
-        await module.runDaemon(parsedArgs);
-      }
-      // If no explicit export, the module self-executes via its main code
-    }).catch(error => {
+    // Run daemon worker using static import (for Bun binary compatibility)
+    runDaemon(parsedArgs).catch(error => {
       console.error('Failed to start daemon worker:', error);
       process.exit(1);
     });

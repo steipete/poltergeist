@@ -1,0 +1,35 @@
+test_add (test_calculator.TestCalculator.test_add)
+Test addition. ... ok
+test_divide (test_calculator.TestCalculator.test_divide)
+Test division. ... ok
+test_divide_by_zero (test_calculator.TestCalculator.test_divide_by_zero)
+Test division by zero raises error. ... ok
+test_factorial (test_calculator.TestCalculator.test_factorial)
+Test factorial. ... ok
+test_factorial_negative (test_calculator.TestCalculator.test_factorial_negative)
+Test factorial with negative number raises error. ... ok
+test_multiply (test_calculator.TestCalculator.test_multiply)
+Test multiplication. ... ok
+test_power (test_calculator.TestCalculator.test_power)
+Test power operation. ... ok
+test_subtract (test_calculator.TestCalculator.test_subtract)
+Test subtraction. ... ok
+test_mean (test_statistics.TestStatistics.test_mean)
+Test mean calculation. ... ok
+test_mean_empty (test_statistics.TestStatistics.test_mean_empty)
+Test mean with empty list raises error. ... ok
+test_median (test_statistics.TestStatistics.test_median)
+Test median calculation. ... ok
+test_median_empty (test_statistics.TestStatistics.test_median_empty)
+Test median with empty list raises error. ... ok
+test_min_max_normalize (test_statistics.TestStatistics.test_min_max_normalize)
+Test min-max normalization. ... ok
+test_std_dev (test_statistics.TestStatistics.test_std_dev)
+Test standard deviation calculation. ... ok
+test_variance (test_statistics.TestStatistics.test_variance)
+Test variance calculation. ... ok
+
+----------------------------------------------------------------------
+Ran 15 tests in 0.000s
+
+OK

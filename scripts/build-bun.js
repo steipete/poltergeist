@@ -79,16 +79,10 @@ async function buildAll() {
   console.log("==================================\n");
   
   // Build native optimized binary first
-  // Try bytecode compilation - will fall back to regular if it fails
+  // Skip bytecode compilation for now due to compatibility issues
   console.log("📦 Building native optimized binary...");
-  let nativeBinary;
-  try {
-    console.log("🚀 Attempting bytecode compilation for faster startup...");
-    nativeBinary = await buildBinary(null, true);
-  } catch (error) {
-    console.log("⚠️  Bytecode compilation failed, building without bytecode...");
-    nativeBinary = await buildBinary(null, false);
-  }
+  console.log("⚠️  Skipping bytecode compilation due to compatibility issues");
+  const nativeBinary = await buildBinary(null, false);
   
   // Build cross-platform binaries if requested
   if (process.argv.includes("--all-platforms")) {

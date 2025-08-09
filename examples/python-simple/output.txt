@@ -1,0 +1,2 @@
+Calculator: 5 + 3 = 8
+Statistics: Mean of [2, 4, 6, 8, 10, 12, 14] = 8.0

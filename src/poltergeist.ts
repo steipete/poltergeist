@@ -151,10 +151,12 @@ export class Poltergeist {
     // Determine which targets to build
     const targetsToWatch = this.getTargetsToWatch(targetName);
     if (targetsToWatch.length === 0) {
-      throw new Error('No targets to watch');
+      this.logger.warn('⚠️ No enabled targets found. Daemon will continue running.');
+      this.logger.info('💡 You can enable targets by editing poltergeist.config.json');
+      // Continue running to allow hot reload when targets are added
+    } else {
+      this.logger.info(`👻 [Poltergeist] Building ${targetsToWatch.length} enabled target(s)`);
     }
-
-    this.logger.info(`👻 [Poltergeist] Building ${targetsToWatch.length} enabled target(s)`);
 
     // Initialize target states
     for (const target of targetsToWatch) {

@@ -7,6 +7,7 @@ import type { Logger } from '../logger.js';
 import type { PoltergeistConfig } from '../types.js';
 import { FileSystemUtils } from '../utils/filesystem.js';
 import { ProcessManager } from '../utils/process-manager.js';
+import { spawnBunDaemon } from './daemon-manager-bun.js';
 
 export interface DaemonInfo {
   pid: number;
@@ -189,13 +190,56 @@ export class DaemonManager {
     const isBunStandalone = !!process.versions.bun && process.execPath !== 'bun';
     
     if (isBunStandalone) {
-      // For Bun standalone binaries, use regular spawn with detached flag
+      // For Bun standalone binaries, check if we can use Bun.spawn with IPC
+      const hasBunSpawn = typeof (globalThis as any).Bun?.spawn === 'function';
       const execPath = process.execPath;
-      this.logger.info(`Using spawn for Bun standalone daemon: ${execPath}`);
       
       // Write daemon args to file for cleaner passing
       const argsFile = join(stateDir, `daemon-args-${Date.now()}.json`);
       await writeFile(argsFile, daemonArgs);
+      
+      if (hasBunSpawn) {
+        // Use Bun.spawn with IPC for better communication
+        this.logger.info(`Using Bun.spawn with IPC for daemon`);
+        
+        try {
+          const pid = await spawnBunDaemon(execPath, argsFile, projectRoot, logFile, this.logger);
+          
+          // Process is running, save daemon info
+          const daemonInfo: DaemonInfo = {
+            pid,
+            startTime: new Date().toISOString(),
+            logFile,
+            projectPath: projectRoot,
+            configPath,
+          };
+          
+          await this.saveDaemonInfo(projectRoot, daemonInfo);
+          this.logger.info(`Daemon started successfully with PID ${pid}`);
+          
+          // Clean up the args file after a delay
+          setTimeout(async () => {
+            try {
+              await unlink(argsFile);
+            } catch {
+              // Ignore cleanup errors
+            }
+          }, 5000);
+          
+          return pid;
+        } catch (error) {
+          // Clean up args file on error
+          try {
+            await unlink(argsFile);
+          } catch {
+            // Ignore cleanup errors
+          }
+          throw error;
+        }
+      }
+      
+      // Fallback to regular spawn for older Bun versions
+      this.logger.info(`Using spawn for Bun standalone daemon (fallback): ${execPath}`);
       
       // Use regular spawn with detached flag for proper daemon behavior
       // For debugging, write output to files
