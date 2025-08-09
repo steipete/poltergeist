@@ -4,7 +4,15 @@
 import chalk from 'chalk';
 // Updated CLI for generic target system
 import { Command } from 'commander';
-import { createReadStream, existsSync, readFileSync, statSync, unlinkSync, watchFile, writeFileSync } from 'fs';
+import {
+  createReadStream,
+  existsSync,
+  readFileSync,
+  statSync,
+  unlinkSync,
+  watchFile,
+  writeFileSync,
+} from 'fs';
 import { readdir } from 'fs/promises';
 import path, { join } from 'path';
 import { createInterface } from 'readline';
@@ -147,17 +155,19 @@ program
       const enabledTargets = config.targets.filter((t) => t.enabled);
       if (enabledTargets.length === 0) {
         console.log(chalk.yellow('⚠️ No enabled targets found in configuration'));
-        console.log(chalk.dim('💡 Daemon will continue running. You can enable targets by editing poltergeist.config.json'));
+        console.log(
+          chalk.dim(
+            '💡 Daemon will continue running. You can enable targets by editing poltergeist.config.json'
+          )
+        );
       }
     }
 
     // Determine log level: CLI flag > verbose flag > config > default
-    const logLevel = options.logLevel || (options.verbose ? 'debug' : config.logging?.level || 'info');
-    
-    const logger = createLogger(
-      config.logging?.file || '.poltergeist.log',
-      logLevel
-    );
+    const logLevel =
+      options.logLevel || (options.verbose ? 'debug' : config.logging?.level || 'info');
+
+    const logger = createLogger(config.logging?.file || '.poltergeist.log', logLevel);
 
     if (!options.foreground) {
       // Daemon mode (default)
@@ -316,20 +326,20 @@ program
     try {
       // Get target to build
       let targetToBuild: Target | undefined;
-      
+
       if (targetName) {
-        targetToBuild = config.targets.find(t => t.name === targetName);
+        targetToBuild = config.targets.find((t) => t.name === targetName);
         if (!targetToBuild) {
           console.error(chalk.red(`❌ Target '${targetName}' not found`));
           console.error(chalk.yellow('Available targets:'));
-          config.targets.forEach(t => {
+          config.targets.forEach((t) => {
             console.error(`  - ${t.name} (${t.enabled ? 'enabled' : 'disabled'})`);
           });
           process.exit(1);
         }
       } else {
         // No target specified - build first enabled target
-        const enabledTargets = config.targets.filter(t => t.enabled !== false);
+        const enabledTargets = config.targets.filter((t) => t.enabled !== false);
         if (enabledTargets.length === 0) {
           console.error(chalk.red('❌ No enabled targets found'));
           process.exit(1);
@@ -337,7 +347,7 @@ program
           targetToBuild = enabledTargets[0];
         } else {
           console.error(chalk.red('❌ Multiple targets available. Please specify:'));
-          enabledTargets.forEach(t => {
+          enabledTargets.forEach((t) => {
             console.error(`  - ${t.name}`);
           });
           console.error(chalk.yellow('Usage: poltergeist build <target>'));
@@ -346,33 +356,41 @@ program
       }
 
       console.log(chalk.cyan(`🔨 Building ${targetToBuild.name}...`));
-      
+
       // Get the builder directly
       const { createBuilder } = await import('./builders/index.js');
       const { StateManager } = await import('./state.js');
       const stateManager = new StateManager(projectRoot, logger);
       const builder = createBuilder(targetToBuild, projectRoot, logger, stateManager);
-      
+
       // Execute build with real-time output
       const startTime = Date.now();
-      const buildStatus = await builder.build([], { 
+      const buildStatus = await builder.build([], {
         captureLogs: true,
-        logFile: `.poltergeist-build-${targetToBuild.name}.log`
+        logFile: `.poltergeist-build-${targetToBuild.name}.log`,
       });
-      
+
       const duration = Date.now() - startTime;
-      
+
       if (options.json) {
-        console.log(JSON.stringify({
-          target: targetToBuild.name,
-          status: buildStatus.status,
-          duration,
-          timestamp: new Date().toISOString(),
-          error: buildStatus.status === 'failure' ? buildStatus.errorSummary : undefined
-        }, null, 2));
+        console.log(
+          JSON.stringify(
+            {
+              target: targetToBuild.name,
+              status: buildStatus.status,
+              duration,
+              timestamp: new Date().toISOString(),
+              error: buildStatus.status === 'failure' ? buildStatus.errorSummary : undefined,
+            },
+            null,
+            2
+          )
+        );
       } else {
         if (buildStatus.status === 'success') {
-          console.log(chalk.green(`✅ Build completed successfully in ${Math.round(duration / 1000)}s`));
+          console.log(
+            chalk.green(`✅ Build completed successfully in ${Math.round(duration / 1000)}s`)
+          );
         } else {
           console.error(chalk.red(`❌ Build failed after ${Math.round(duration / 1000)}s`));
           if (buildStatus.errorSummary) {
@@ -383,12 +401,20 @@ program
       }
     } catch (error) {
       if (options.json) {
-        console.log(JSON.stringify({
-          error: error instanceof Error ? error.message : String(error),
-          status: 'error'
-        }, null, 2));
+        console.log(
+          JSON.stringify(
+            {
+              error: error instanceof Error ? error.message : String(error),
+              status: 'error',
+            },
+            null,
+            2
+          )
+        );
       } else {
-        console.error(chalk.red(`❌ Build failed: ${error instanceof Error ? error.message : error}`));
+        console.error(
+          chalk.red(`❌ Build failed: ${error instanceof Error ? error.message : error}`)
+        );
       }
       process.exit(1);
     }
@@ -1511,13 +1537,13 @@ if (process.argv.includes('--daemon-mode')) {
   // Run as daemon worker - import and execute daemon logic
   const daemonArgsIndex = process.argv.indexOf('--daemon-mode') + 1;
   const daemonArgsPath = process.argv[daemonArgsIndex];
-  
+
   if (daemonArgsPath) {
     // Set up process for daemon mode
     process.title = 'poltergeist-daemon';
-    
+
     let daemonArgs = daemonArgsPath;
-    
+
     // Check if this is a file path (for Bun.spawn) or base64 args (for backward compatibility)
     if (daemonArgsPath.endsWith('.json')) {
       // It's a file path from Bun.spawn - read the JSON file
@@ -1543,7 +1569,7 @@ if (process.argv.includes('--daemon-mode')) {
         // If not base64, use as-is
       }
     }
-    
+
     // Parse the daemon args
     let parsedArgs;
     try {
@@ -1552,9 +1578,9 @@ if (process.argv.includes('--daemon-mode')) {
       console.error('Failed to parse daemon arguments:', error);
       process.exit(1);
     }
-    
+
     // Run daemon worker using static import (for Bun binary compatibility)
-    runDaemon(parsedArgs).catch(error => {
+    runDaemon(parsedArgs).catch((error) => {
       console.error('Failed to start daemon worker:', error);
       process.exit(1);
     });

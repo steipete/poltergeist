@@ -1,0 +1,10 @@
+{"timestamp":"2025-08-09T01:16:22.646Z","level":"info","message":"[test-app] Building with 0 changed file(s)"}
+{"timestamp":"2025-08-09T01:16:22.656Z","level":"info","message":"[test-app] Build failed: Expected output file not found: /var/folders/qp/t4t5pw1n1279_1qckf4gqhyc0000gn/T/poltergeist-test-1754702182636/project/dist/test-app"}
+{"timestamp":"2025-08-09T01:16:22.659Z","level":"info","message":"[test-app] Building with 0 changed file(s)"}
+{"timestamp":"2025-08-09T01:16:22.661Z","level":"info","message":"[test-app] Build failed: Cannot read properties of undefined (reading 'on')"}
+{"timestamp":"2025-08-09T01:16:22.667Z","level":"info","message":"[test-app] Building with 0 changed file(s)"}
+{"timestamp":"2025-08-09T01:16:22.671Z","level":"info","message":"[test-app] Build failed: Cannot read properties of undefined (reading 'on')"}
+{"timestamp":"2025-08-09T01:16:22.674Z","level":"info","message":"[test-app] Building with 0 changed file(s)"}
+{"timestamp":"2025-08-09T01:16:22.694Z","level":"info","message":"[test-app] Build failed: Expected output file not found: /var/folders/qp/t4t5pw1n1279_1qckf4gqhyc0000gn/T/poltergeist-test-1754702182673/project/dist/test-app"}
+{"timestamp":"2025-08-09T01:16:22.753Z","level":"info","message":"[test-app] Building with 0 changed file(s)"}
+{"timestamp":"2025-08-09T01:16:22.763Z","level":"info","message":"[test-app] Build failed: Cannot read properties of undefined (reading 'on')"}

@@ -24,16 +24,16 @@ describe('Build Improvements - Real-time Output & Error Capture', () => {
 
   beforeEach(() => {
     vi.clearAllMocks();
-    
+
     // Create temp directory
     tempDir = join(tmpdir(), `poltergeist-test-${Date.now()}`);
     projectRoot = join(tempDir, 'project');
     mkdirSync(projectRoot, { recursive: true });
-    
+
     // Setup mocks
     logger = createLogger('error');
     stateManager = new StateManager(projectRoot, logger);
-    
+
     target = {
       name: 'test-app',
       type: 'executable',
@@ -42,7 +42,7 @@ describe('Build Improvements - Real-time Output & Error Capture', () => {
       outputPath: './dist/test-app',
       enabled: true,
     };
-    
+
     builder = new ExecutableBuilder(target, projectRoot, logger, stateManager);
   });
 
@@ -89,11 +89,11 @@ describe('Build Improvements - Real-time Output & Error Capture', () => {
 
     try {
       await builder.build([]);
-      
+
       // Verify output was streamed
       expect(consoleOutput.join('')).toContain('Building application...');
       expect(consoleOutput.join('')).toContain('Compiling source files...');
-      
+
       // Verify spawn was called with pipe for stdout/stderr
       expect(spawnMock).toHaveBeenCalledWith(
         target.buildCommand,
@@ -139,7 +139,7 @@ describe('Build Improvements - Real-time Output & Error Capture', () => {
       expect(error.message).toContain('Build process exited with code 1');
       expect(error.message).toContain('error TS2345');
       expect(error.message).toContain('error TS2339');
-      
+
       // Verify error was stored in state
       expect(updateBuildErrorSpy).toHaveBeenCalledWith(
         'test-app',
@@ -199,7 +199,7 @@ describe('Build Improvements - Real-time Output & Error Capture', () => {
 
   it('should capture logs when captureLogs option is enabled', async () => {
     const logFile = join(tempDir, 'build.log');
-    
+
     const mockProcess = {
       stdout: {
         on: vi.fn((event, handler) => {
@@ -227,13 +227,13 @@ describe('Build Improvements - Real-time Output & Error Capture', () => {
     const spawnMock = vi.mocked(spawn);
     spawnMock.mockReturnValue(mockProcess as any);
 
-    await builder.build([], { 
-      captureLogs: true, 
-      logFile 
+    await builder.build([], {
+      captureLogs: true,
+      logFile,
     });
 
     // Wait a bit for file write to complete
-    await new Promise(resolve => setTimeout(resolve, 50));
+    await new Promise((resolve) => setTimeout(resolve, 50));
 
     // Verify log file was created and contains output
     expect(existsSync(logFile)).toBe(true);
@@ -279,7 +279,7 @@ describe('Build Improvements - Real-time Output & Error Capture', () => {
       // Error message should include recent output for context
       expect(error.message).toContain('Build process exited with code 1');
       expect(error.message).toContain('ERROR: Compilation failed');
-      
+
       // Should include last few lines of output
       expect(error.message).toMatch(/Build step \d+/);
     }
@@ -299,22 +299,22 @@ describe('Automatic Rebuild on Failure', () => {
     const now = Date.now();
     const fourMinutesAgo = new Date(now - 4 * 60 * 1000).toISOString();
     const tenMinutesAgo = new Date(now - 10 * 60 * 1000).toISOString();
-    
+
     // Recent failure (< 5 minutes)
     const recentError = {
       timestamp: fourMinutesAgo,
       exitCode: 1,
     };
-    
+
     const errorAge = Date.now() - new Date(recentError.timestamp).getTime();
     expect(errorAge).toBeLessThan(5 * 60 * 1000);
-    
+
     // Old failure (> 5 minutes)
     const oldError = {
       timestamp: tenMinutesAgo,
       exitCode: 1,
     };
-    
+
     const oldErrorAge = Date.now() - new Date(oldError.timestamp).getTime();
     expect(oldErrorAge).toBeGreaterThan(5 * 60 * 1000);
   });

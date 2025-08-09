@@ -7,17 +7,17 @@ export async function spawnBunDaemon(
   logger: any
 ): Promise<number> {
   const BunRuntime = (globalThis as any).Bun;
-  
+
   // Create a promise to wait for daemon startup
   let daemonStarted = false;
-  
+
   return new Promise((resolve, reject) => {
     const timeoutId = setTimeout(() => {
       if (!daemonStarted) {
         reject(new Error('Daemon startup timeout after 10 seconds'));
       }
     }, 10000);
-    
+
     try {
       // Use Bun.spawn with IPC
       const proc = BunRuntime.spawn([execPath, '--daemon-mode', argsFile], {
@@ -37,17 +37,17 @@ export async function spawnBunDaemon(
           }
         },
       });
-      
+
       const pid = proc.pid;
       if (!pid) {
         clearTimeout(timeoutId);
         reject(new Error('Failed to start daemon process - no PID returned'));
         return;
       }
-      
+
       // Detach from parent
       proc.unref();
-      
+
       // Fallback: resolve if process is confirmed running after a short delay
       setTimeout(() => {
         if (!daemonStarted && pid) {

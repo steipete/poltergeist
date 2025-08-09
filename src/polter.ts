@@ -55,7 +55,7 @@ import { poltergeistMessage } from './utils/ghost.js';
  */
 function getTimeAgo(date: Date): string {
   const seconds = Math.floor((Date.now() - date.getTime()) / 1000);
-  
+
   if (seconds < 60) return `${seconds} second${seconds !== 1 ? 's' : ''} ago`;
   const minutes = Math.floor(seconds / 60);
   if (minutes < 60) return `${minutes} minute${minutes !== 1 ? 's' : ''} ago`;
@@ -750,25 +750,25 @@ export async function runWrapper(targetName: string, args: string[], options: Pa
       case 'failed': {
         if (!options.force) {
           console.error(chalk.red('👻 [Poltergeist] Last build failed'));
-          
+
           // Try to get error details from state
           const stateFile = getStateFile(projectRoot, targetName);
           let shouldAutoRebuild = false;
-          
+
           if (stateFile && existsSync(stateFile)) {
             try {
               const state = JSON.parse(readFileSync(stateFile, 'utf-8'));
-              
+
               // Show inline error if available
               if (state.lastBuildError) {
                 const { exitCode, errorOutput, timestamp } = state.lastBuildError;
                 const timeAgo = getTimeAgo(new Date(timestamp));
                 console.error(chalk.gray(`   Failed ${timeAgo} with exit code ${exitCode}`));
-                
+
                 // Check if error is recent (within 5 minutes) for auto-rebuild
                 const errorAge = Date.now() - new Date(timestamp).getTime();
                 shouldAutoRebuild = errorAge < 5 * 60 * 1000; // 5 minutes
-                
+
                 if (errorOutput && errorOutput.length > 0) {
                   console.error(chalk.red('   Error output:'));
                   errorOutput.slice(-3).forEach((line: string) => {
@@ -782,25 +782,25 @@ export async function runWrapper(targetName: string, args: string[], options: Pa
               // Silently continue if we can't read state
             }
           }
-          
+
           // Automatic rebuild attempt for recent failures
           if (shouldAutoRebuild && !process.env.POLTERGEIST_NO_AUTO_REBUILD) {
             console.log(chalk.yellow('\n🔄 Attempting automatic rebuild...'));
-            
+
             try {
               const { createBuilder } = await import('./builders/index.js');
               const { createLogger } = await import('./logger.js');
               const { StateManager } = await import('./state.js');
-              
+
               const logger = createLogger('info');
               const stateManager = new StateManager(projectRoot, logger);
               const builder = createBuilder(target, projectRoot, logger, stateManager);
-              
-              const buildStatus = await builder.build([], { 
+
+              const buildStatus = await builder.build([], {
                 captureLogs: true,
-                logFile: `.poltergeist-auto-rebuild-${targetName}.log`
+                logFile: `.poltergeist-auto-rebuild-${targetName}.log`,
               });
-              
+
               if (buildStatus.status === 'success') {
                 console.log(chalk.green('✅ Rebuild successful! Continuing...'));
                 // Continue with execution - don't exit, proceed to execution
@@ -809,7 +809,9 @@ export async function runWrapper(targetName: string, args: string[], options: Pa
                 console.error(chalk.red('❌ Rebuild failed'));
                 console.error(chalk.yellow('\n   Options:'));
                 console.error(`   • Fix: Edit the code and try again`);
-                console.error(`   • Details: Run \`poltergeist logs ${targetName}\` for full output`);
+                console.error(
+                  `   • Details: Run \`poltergeist logs ${targetName}\` for full output`
+                );
                 console.error(`   • Force: Use --force to run anyway`);
                 process.exit(1);
               }

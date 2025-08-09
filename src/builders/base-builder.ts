@@ -161,38 +161,38 @@ export abstract class BaseBuilder<T extends Target = Target> {
       if (this.currentProcess.stdout && this.currentProcess.stderr) {
         this.currentProcess.stdout.on('data', (data) => {
           const output = data.toString();
-          
+
           // Keep recent output for error context
           const lines = output.split('\n').filter((l: string) => l.trim());
           lastOutputLines.push(...lines);
           if (lastOutputLines.length > maxOutputLines) {
             lastOutputLines = lastOutputLines.slice(-maxOutputLines);
           }
-          
+
           // Write to log file if capturing
           if (logStream) {
             logStream.write(data);
           }
-          
+
           // Stream to console in real-time
           process.stdout.write(data);
         });
 
         this.currentProcess.stderr.on('data', (data) => {
           const error = data.toString();
-          
+
           // Capture error lines for diagnosis
           const lines = error.split('\n').filter((l: string) => l.trim());
           errorBuffer.push(...lines);
           if (errorBuffer.length > maxErrorLines) {
             errorBuffer = errorBuffer.slice(-maxErrorLines);
           }
-          
+
           // Write to log file if capturing
           if (logStream) {
             logStream.write(data);
           }
-          
+
           // Stream to console in real-time
           process.stderr.write(data);
         });
@@ -203,19 +203,19 @@ export abstract class BaseBuilder<T extends Target = Target> {
           logStream.end();
         }
         this.currentProcess = undefined;
-        
+
         if (code === 0) {
           resolve();
         } else {
           // Create detailed error message with context
           let errorMessage = `Build process exited with code ${code}`;
-          
+
           if (errorBuffer.length > 0) {
             errorMessage += `\n\nLast error output:\n${errorBuffer.slice(-10).join('\n')}`;
           } else if (lastOutputLines.length > 0) {
             errorMessage += `\n\nLast output:\n${lastOutputLines.slice(-10).join('\n')}`;
           }
-          
+
           // Store error context in state for quick diagnosis
           try {
             await this.stateManager.updateBuildError(this.target.name, {
@@ -228,7 +228,7 @@ export abstract class BaseBuilder<T extends Target = Target> {
           } catch (stateError) {
             this.logger.error(`Failed to store build error context: ${stateError}`);
           }
-          
+
           reject(new Error(errorMessage));
         }
       });
@@ -238,7 +238,7 @@ export abstract class BaseBuilder<T extends Target = Target> {
           logStream.end();
         }
         this.currentProcess = undefined;
-        
+
         // Store error context
         try {
           await this.stateManager.updateBuildError(this.target.name, {
@@ -251,7 +251,7 @@ export abstract class BaseBuilder<T extends Target = Target> {
         } catch (stateError) {
           this.logger.error(`Failed to store build error context: ${stateError}`);
         }
-        
+
         reject(error);
       });
     });

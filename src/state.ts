@@ -181,13 +181,16 @@ export class StateManager implements IStateManager {
   /**
    * Update build error context for better diagnostics
    */
-  public async updateBuildError(targetName: string, errorContext: {
-    exitCode: number;
-    errorOutput: string[];
-    lastOutput: string[];
-    command: string;
-    timestamp: string;
-  }): Promise<void> {
+  public async updateBuildError(
+    targetName: string,
+    errorContext: {
+      exitCode: number;
+      errorOutput: string[];
+      lastOutput: string[];
+      command: string;
+      timestamp: string;
+    }
+  ): Promise<void> {
     const state = this.states.get(targetName);
     if (!state) {
       this.logger.error(`No state found for target: ${targetName}`);

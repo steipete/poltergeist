@@ -28,13 +28,13 @@ export class WatchmanClient extends EventEmitter {
   private watchRoot?: string;
   private logger: Logger;
   private subscriptions: Map<string, string> = new Map();
-  private clock?: string;  // Track the clock for incremental updates
+  private clock?: string; // Track the clock for incremental updates
 
   constructor(logger: Logger) {
     super();
     this.logger = logger;
     this.client = createWatchmanClient();
-    
+
     // Add global subscription logging for debugging
     this.client.on('subscription', (data: unknown) => {
       this.logger.debug(`[GLOBAL] Received subscription event: ${JSON.stringify(data)}`);
@@ -53,7 +53,9 @@ export class WatchmanClient extends EventEmitter {
 
     this.client.on('subscription', (data: unknown) => {
       // Use INFO level to ensure we see this
-      this.logger.info(`[GLOBAL] Raw subscription event received: ${JSON.stringify(data).substring(0, 200)}`);
+      this.logger.info(
+        `[GLOBAL] Raw subscription event received: ${JSON.stringify(data).substring(0, 200)}`
+      );
     });
   }
 
@@ -84,21 +86,24 @@ export class WatchmanClient extends EventEmitter {
         const watchResp = resp as { watch: string };
         this.watchRoot = watchResp.watch;
         this.logger.info(`Watching project at: ${this.watchRoot}`);
-        
+
         // Get the initial clock for this watch
-        this.client.command(['clock', this.watchRoot], (clockError: Error | null, clockResp?: unknown) => {
-          if (clockError) {
-            this.logger.warn(`Failed to get initial clock: ${clockError.message}`);
-            // Continue without clock - will get full sync on first subscription
+        this.client.command(
+          ['clock', this.watchRoot],
+          (clockError: Error | null, clockResp?: unknown) => {
+            if (clockError) {
+              this.logger.warn(`Failed to get initial clock: ${clockError.message}`);
+              // Continue without clock - will get full sync on first subscription
+              resolve();
+              return;
+            }
+
+            const clockData = clockResp as { clock: string };
+            this.clock = clockData.clock;
+            this.logger.debug(`Initial clock obtained: ${this.clock}`);
             resolve();
-            return;
           }
-          
-          const clockData = clockResp as { clock: string };
-          this.clock = clockData.clock;
-          this.logger.debug(`Initial clock obtained: ${this.clock}`);
-          resolve();
-        });
+        );
       });
     });
   }
@@ -154,7 +159,7 @@ export class WatchmanClient extends EventEmitter {
         // Log complete event at INFO level for debugging
         const eventStr = JSON.stringify(data);
         this.logger.debug(`[HANDLER-${subscriptionName}] Watchman event: ${eventStr}`);
-        
+
         const resp = data as {
           subscription: string;
           files?: Array<{
@@ -172,29 +177,27 @@ export class WatchmanClient extends EventEmitter {
 
         if (resp.subscription === subscriptionName) {
           this.logger.info(`[MATCH] Subscription ${subscriptionName} matched!`);
-          
+
           // Log all fields for debugging
-          this.logger.info(`  unilateral: ${resp.unilateral}, is_fresh: ${resp.is_fresh_instance}, state: ${resp.state}, files: ${resp.files?.length || 0}`);
-          
+          this.logger.info(
+            `  unilateral: ${resp.unilateral}, is_fresh: ${resp.is_fresh_instance}, state: ${resp.state}, files: ${resp.files?.length || 0}`
+          );
+
           // Update the clock for next incremental update
           if (resp.clock) {
             this.clock = resp.clock;
             this.logger.debug(`Updated clock to: ${this.clock}`);
           }
-          
+
           // Handle state-enter/state-leave events from Watchman
           if (resp.state) {
-            this.logger.info(
-              `  State change: ${resp.state}`
-            );
+            this.logger.info(`  State change: ${resp.state}`);
             return;
           }
 
           // Only process if files array exists
           if (!resp.files || resp.files.length === 0) {
-            this.logger.info(
-              `  No files in event`
-            );
+            this.logger.info(`  No files in event`);
             return;
           }
 
@@ -204,12 +207,12 @@ export class WatchmanClient extends EventEmitter {
             type: file.new ? 'new' : undefined,
           }));
 
-          this.logger.info(
-            `  Processing ${changes.length} file changes`
-          );
+          this.logger.info(`  Processing ${changes.length} file changes`);
           callback(changes);
         } else {
-          this.logger.info(`[SKIP] Event for different subscription: ${resp.subscription} (wanted: ${subscriptionName})`);
+          this.logger.info(
+            `[SKIP] Event for different subscription: ${resp.subscription} (wanted: ${subscriptionName})`
+          );
         }
       };
 
@@ -235,7 +238,9 @@ export class WatchmanClient extends EventEmitter {
           this.logger.debug(`Subscription response: ${JSON.stringify(resp)}`);
           this.subscriptions.set(subscriptionName, projectRoot);
           this.logger.info(`Subscription created: ${subscriptionName}`);
-          this.logger.debug(`Active subscriptions: ${Array.from(this.subscriptions.keys()).join(', ')}`);
+          this.logger.debug(
+            `Active subscriptions: ${Array.from(this.subscriptions.keys()).join(', ')}`
+          );
           resolve();
         }
       );

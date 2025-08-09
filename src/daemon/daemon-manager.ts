@@ -185,26 +185,26 @@ export class DaemonManager {
 
     // Determine how to spawn the daemon
     let child;
-    
+
     // Check if we're running as Bun standalone binary
     const isBunStandalone = !!process.versions.bun && process.execPath !== 'bun';
-    
+
     if (isBunStandalone) {
       // For Bun standalone binaries, check if we can use Bun.spawn with IPC
       const hasBunSpawn = typeof (globalThis as any).Bun?.spawn === 'function';
       const execPath = process.execPath;
-      
+
       // Write daemon args to file for cleaner passing
       const argsFile = join(stateDir, `daemon-args-${Date.now()}.json`);
       await writeFile(argsFile, daemonArgs);
-      
+
       if (hasBunSpawn) {
         // Use Bun.spawn with IPC for better communication
         this.logger.info(`Using Bun.spawn with IPC for daemon`);
-        
+
         try {
           const pid = await spawnBunDaemon(execPath, argsFile, projectRoot, logFile, this.logger);
-          
+
           // Process is running, save daemon info
           const daemonInfo: DaemonInfo = {
             pid,
@@ -213,10 +213,10 @@ export class DaemonManager {
             projectPath: projectRoot,
             configPath,
           };
-          
+
           await this.saveDaemonInfo(projectRoot, daemonInfo);
           this.logger.info(`Daemon started successfully with PID ${pid}`);
-          
+
           // Clean up the args file after a delay
           setTimeout(async () => {
             try {
@@ -225,7 +225,7 @@ export class DaemonManager {
               // Ignore cleanup errors
             }
           }, 5000);
-          
+
           return pid;
         } catch (error) {
           // Clean up args file on error
@@ -237,36 +237,38 @@ export class DaemonManager {
           throw error;
         }
       }
-      
+
       // Fallback to regular spawn for older Bun versions
       this.logger.info(`Using spawn for Bun standalone daemon (fallback): ${execPath}`);
-      
+
       // Use regular spawn with detached flag for proper daemon behavior
       // For debugging, write output to files
       const debugOut = join(stateDir, `daemon-debug-${Date.now()}.out`);
       const debugErr = join(stateDir, `daemon-debug-${Date.now()}.err`);
-      
+
       const child = spawn(execPath, ['--daemon-mode', argsFile], {
         detached: true,
-        stdio: ['ignore', 
-                logFile ? openSync(logFile, 'a') : openSync(debugOut, 'w'),
-                logFile ? openSync(logFile, 'a') : openSync(debugErr, 'w')],
+        stdio: [
+          'ignore',
+          logFile ? openSync(logFile, 'a') : openSync(debugOut, 'w'),
+          logFile ? openSync(logFile, 'a') : openSync(debugErr, 'w'),
+        ],
         cwd: projectRoot,
         env: process.env,
       });
-      
+
       const pid = child.pid;
-      
+
       if (!pid) {
         throw new Error('Failed to start daemon process - no PID returned');
       }
-      
+
       // Detach from parent
       child.unref();
-      
+
       // Wait a moment and verify process is running
-      await new Promise(resolve => setTimeout(resolve, 1500));
-      
+      await new Promise((resolve) => setTimeout(resolve, 1500));
+
       if (ProcessManager.isProcessAlive(pid)) {
         // Process is running, save daemon info
         const daemonInfo: DaemonInfo = {
@@ -278,7 +280,7 @@ export class DaemonManager {
         };
         await this.saveDaemonInfo(projectRoot, daemonInfo);
         this.logger.info(`Daemon started successfully with PID ${pid}`);
-        
+
         // Clean up the args file after a delay
         setTimeout(async () => {
           try {
@@ -287,7 +289,7 @@ export class DaemonManager {
             // Ignore cleanup errors
           }
         }, 5000);
-        
+
         return pid;
       } else {
         throw new Error('Daemon process exited immediately after starting');
@@ -298,10 +300,10 @@ export class DaemonManager {
       this.logger.debug('Forking daemon with args:', { daemonWorkerPath, configPath, projectRoot });
       child = fork(daemonWorkerPath, [daemonArgs], {
         detached: true,
-        stdio: ['ignore', 'pipe', 'pipe', 'ipc'],  // Capture stdout/stderr for debugging
+        stdio: ['ignore', 'pipe', 'pipe', 'ipc'], // Capture stdout/stderr for debugging
         env: { ...process.env },
       });
-      
+
       // Log output for debugging
       if (child.stdout) {
         child.stdout.on('data', (data: Buffer) => {
@@ -377,7 +379,7 @@ export class DaemonManager {
         });
       });
     }
-    
+
     // Should never reach here - standalone returns early
     throw new Error('Unexpected code path');
   }
