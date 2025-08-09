@@ -10,19 +10,20 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [1.7.0] - 2025-08-09
 
 ### Added
-- **Configuration hot reload** - Daemon continues running with no enabled targets, allowing dynamic enable/disable via config changes
-- **Bun standalone binary** - Fully functional compiled binary with 70% size reduction (36MB with bytecode)
-- **Python example** - New `python-simple` example without external dependencies
+- Configuration hot reload - daemon continues running with no enabled targets
+- Bun standalone binary with 70% size reduction (36MB with bytecode)
+- Python example without external dependencies
+- Clear differentiation between `polter` and `poltergeist` help messages
 
 ### Fixed
-- **Watchman incremental updates** - Only changed files are now detected instead of full file lists on every change
-- **Bun binary compilation** - Resolved all `import.meta.url` issues preventing bytecode generation
-- **Daemon stability** - Fixed daemon exiting when no targets enabled, now supports hot configuration reload
+- Watchman incremental updates - only changed files detected, not full file lists
+- Bun binary compilation - resolved `import.meta.url` issues
+- Daemon no longer exits when all targets disabled
 
 ### Improved
-- **Performance** - Significantly faster file change detection for large projects (e.g., VibeTunnel with 489+ Swift files)
-- **IPC communication** - Better error handling for both Node.js and Bun runtime environments
-- **Startup timeout** - Increased to 60s for complex projects
+- Performance for large projects (e.g., VibeTunnel with 489+ Swift files)
+- IPC communication for both Node.js and Bun runtimes
+- Startup timeout increased to 60s for complex projects
 
 ## [1.6.3] - 2025-01-15
 
