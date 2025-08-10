@@ -23,9 +23,11 @@ export async function spawnBunDaemon(
       const proc = BunRuntime.spawn([execPath, '--daemon-mode', argsFile], {
         cwd: projectRoot,
         env: process.env,
-        stdio: ['ignore', 
-                logFile ? BunRuntime.file(logFile) : 'pipe', 
-                logFile ? BunRuntime.file(logFile) : 'pipe'],
+        stdio: [
+          'ignore',
+          logFile ? BunRuntime.file(logFile) : 'pipe',
+          logFile ? BunRuntime.file(logFile) : 'pipe',
+        ],
         ipc: (message: any) => {
           // Handle IPC messages from daemon
           logger.debug('Received IPC message from daemon:', message);

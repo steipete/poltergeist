@@ -1,6 +1,5 @@
 // Tests for polter's wait-for-build functionality
 
-import { spawn } from 'child_process';
 import { mkdirSync, rmSync, writeFileSync } from 'fs';
 import { tmpdir } from 'os';
 import { join } from 'path';
@@ -33,7 +32,7 @@ describe('Polter Wait for Build', () => {
       const targetName = 'test-app';
       const stateDir = join(testDir, 'state', 'poltergeist');
       mkdirSync(stateDir, { recursive: true });
-      
+
       // Create initial state showing building
       const stateFile = FileSystemUtils.getStateFilePath(projectRoot, targetName);
       const state: Partial<PoltergeistState> = {
@@ -56,9 +55,9 @@ describe('Polter Wait for Build', () => {
           lastHeartbeat: new Date().toISOString(),
         },
       };
-      
+
       writeFileSync(stateFile, JSON.stringify(state, null, 2));
-      
+
       // Create a simple config
       const config: PoltergeistConfig = {
         version: '1.0',
@@ -77,12 +76,9 @@ describe('Polter Wait for Build', () => {
           },
         ],
       };
-      
-      writeFileSync(
-        join(projectRoot, 'poltergeist.config.json'),
-        JSON.stringify(config, null, 2)
-      );
-      
+
+      writeFileSync(join(projectRoot, 'poltergeist.config.json'), JSON.stringify(config, null, 2));
+
       // Simulate build completion after a delay
       setTimeout(() => {
         try {
@@ -98,14 +94,14 @@ describe('Polter Wait for Build', () => {
             require('fs').mkdirSync(dir, { recursive: true });
           }
           writeFileSync(stateFile, JSON.stringify(state, null, 2));
-        } catch (e) {
+        } catch (_e) {
           // Ignore errors in async timeout
         }
       }, 500);
-      
+
       // Wait and check that status transitions
-      await new Promise(resolve => setTimeout(resolve, 1000));
-      
+      await new Promise((resolve) => setTimeout(resolve, 1000));
+
       const { readFileSync } = await import('fs');
       const finalState = JSON.parse(readFileSync(stateFile, 'utf-8'));
       expect(finalState.lastBuild.status).toBe('success');
@@ -115,7 +111,7 @@ describe('Polter Wait for Build', () => {
       const targetName = 'slow-build';
       const stateDir = join(testDir, 'state', 'poltergeist');
       mkdirSync(stateDir, { recursive: true });
-      
+
       const stateFile = FileSystemUtils.getStateFilePath(projectRoot, targetName);
       const state: Partial<PoltergeistState> = {
         version: '1.0',
@@ -137,20 +133,20 @@ describe('Polter Wait for Build', () => {
           lastHeartbeat: new Date().toISOString(),
         },
       };
-      
+
       writeFileSync(stateFile, JSON.stringify(state, null, 2));
-      
+
       // Don't update the status - simulate stuck build
       const startTime = Date.now();
       const timeout = 100; // Very short timeout for testing
-      
+
       // Simulate wait loop
-      let status = 'building';
+      const status = 'building';
       while (Date.now() - startTime < timeout && status === 'building') {
-        await new Promise(resolve => setTimeout(resolve, 10));
+        await new Promise((resolve) => setTimeout(resolve, 10));
         // Status remains 'building'
       }
-      
+
       const elapsed = Date.now() - startTime;
       expect(elapsed).toBeGreaterThanOrEqual(timeout);
       expect(status).toBe('building'); // Still building after timeout
@@ -162,20 +158,23 @@ describe('Polter Wait for Build', () => {
       const targetName = 'locked-app';
       const stateDir = join(testDir, 'state', 'poltergeist');
       mkdirSync(stateDir, { recursive: true });
-      
+
       const stateFile = FileSystemUtils.getStateFilePath(projectRoot, targetName);
       const lockFile = stateFile.replace('.state', '.lock');
-      
+
       // Create lock file
-      writeFileSync(lockFile, JSON.stringify({
-        pid: 99999,
-        timestamp: Date.now(),
-        target: targetName,
-      }));
-      
+      writeFileSync(
+        lockFile,
+        JSON.stringify({
+          pid: 99999,
+          timestamp: Date.now(),
+          target: targetName,
+        })
+      );
+
       const { existsSync } = require('fs');
       expect(existsSync(lockFile)).toBe(true);
-      
+
       // Lock file should have same base name as state file
       const stateName = stateFile.split('/').pop()?.replace('.state', '');
       const lockName = lockFile.split('/').pop()?.replace('.lock', '');
@@ -186,10 +185,10 @@ describe('Polter Wait for Build', () => {
       const targetName = 'failed-but-locked';
       const stateDir = join(testDir, 'state', 'poltergeist');
       mkdirSync(stateDir, { recursive: true });
-      
+
       const stateFile = FileSystemUtils.getStateFilePath(projectRoot, targetName);
       const lockFile = stateFile.replace('.state', '.lock');
-      
+
       // Create state showing failed
       const state: Partial<PoltergeistState> = {
         version: '1.0',
@@ -212,26 +211,29 @@ describe('Polter Wait for Build', () => {
           lastHeartbeat: new Date().toISOString(),
         },
       };
-      
+
       writeFileSync(stateFile, JSON.stringify(state, null, 2));
-      
+
       // But also create lock file indicating build in progress
-      writeFileSync(lockFile, JSON.stringify({
-        pid: process.pid,
-        timestamp: Date.now(),
-        target: targetName,
-      }));
-      
+      writeFileSync(
+        lockFile,
+        JSON.stringify({
+          pid: process.pid,
+          timestamp: Date.now(),
+          target: targetName,
+        })
+      );
+
       // Both should exist
       const { existsSync } = require('fs');
       expect(existsSync(stateFile)).toBe(true);
       expect(existsSync(lockFile)).toBe(true);
-      
+
       // State shows failed but lock indicates building
       const { readFileSync } = require('fs');
       const stateContent = JSON.parse(readFileSync(stateFile, 'utf-8'));
       expect(stateContent.lastBuild.status).toBe('failure');
-      
+
       const lockContent = JSON.parse(readFileSync(lockFile, 'utf-8'));
       expect(lockContent.pid).toBe(process.pid);
     });
@@ -242,7 +244,7 @@ describe('Polter Wait for Build', () => {
       const formatTime = (ms: number): string => {
         return `${Math.round(ms / 100) / 10}s`;
       };
-      
+
       expect(formatTime(0)).toBe('0s');
       expect(formatTime(500)).toBe('0.5s');
       expect(formatTime(1000)).toBe('1s');
@@ -254,19 +256,19 @@ describe('Polter Wait for Build', () => {
     it('should calculate polling intervals correctly', () => {
       const pollInterval = 250; // ms
       const timeout = 5000; // ms
-      
+
       const maxPolls = Math.ceil(timeout / pollInterval);
       expect(maxPolls).toBe(20);
-      
+
       // Simulate polling
       let polls = 0;
       const startTime = Date.now();
-      
+
       while (polls < maxPolls && Date.now() - startTime < timeout) {
         polls++;
         // In real code, would check status here
       }
-      
+
       expect(polls).toBeLessThanOrEqual(maxPolls);
     });
   });

@@ -140,12 +140,12 @@ describe('Build Improvements - Real-time Output & Error Capture', () => {
     const updateBuildErrorSpy = vi.spyOn(stateManager, 'updateBuildError');
 
     const result = await builder.build([]);
-    
+
     // Wait for async operations to complete
-    await new Promise(resolve => setTimeout(resolve, 50));
-    
+    await new Promise((resolve) => setTimeout(resolve, 50));
+
     // console.log('Build result:', result);
-    
+
     expect(result.status).toBe('failure');
     expect(result.errorSummary).toBeDefined();
     // The error should contain TS error messages that were streamed
@@ -194,13 +194,13 @@ describe('Build Improvements - Real-time Output & Error Capture', () => {
     await stateManager.initializeState(target);
 
     const result = await builder.build([]);
-    
+
     // Wait for async operations to complete
-    await new Promise(resolve => setTimeout(resolve, 50));
-    
+    await new Promise((resolve) => setTimeout(resolve, 50));
+
     expect(result.status).toBe('failure');
     expect(result.errorSummary).toBeDefined();
-    
+
     // Read state to verify error context was stored
     const state = await stateManager.readState('test-app');
     expect(state?.lastBuildError).toBeDefined();
@@ -291,10 +291,10 @@ describe('Build Improvements - Real-time Output & Error Capture', () => {
     spawnMock.mockReturnValue(mockProcess as any);
 
     const result = await builder.build([]);
-    
+
     // Wait for async operations to complete
-    await new Promise(resolve => setTimeout(resolve, 50));
-    
+    await new Promise((resolve) => setTimeout(resolve, 50));
+
     expect(result.status).toBe('failure');
     expect(result.errorSummary).toBeDefined();
     // Error summary should contain the error message

@@ -1,6 +1,6 @@
 // Builder factory and exports
 
-import { type Logger, createTargetLogger } from '../logger.js';
+import { createTargetLogger, type Logger } from '../logger.js';
 import type { StateManager } from '../state.js';
 import type { Target } from '../types.js';
 import { AppBundleBuilder } from './app-bundle-builder.js';
@@ -28,7 +28,7 @@ export function createBuilder(
 ): BaseBuilder {
   // Create a target-aware logger for this builder
   const targetLogger = createTargetLogger(logger, target.name);
-  
+
   switch (target.type) {
     case 'executable':
       return new ExecutableBuilder(target, projectRoot, targetLogger, stateManager);

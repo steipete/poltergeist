@@ -188,7 +188,7 @@ describe('Poltergeist', () => {
       });
 
       await poltergeist.start();
-      
+
       expect(harness.logger.warn).toHaveBeenCalledWith(
         expect.stringContaining('No enabled targets found')
       );

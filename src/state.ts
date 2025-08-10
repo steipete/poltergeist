@@ -322,7 +322,7 @@ export class StateManager implements IStateManager {
     // First check for a lock file - this takes priority over state
     const stateFile = FileSystemUtils.getStateFilePath(this.projectRoot, targetName);
     const lockFile = stateFile.replace('.state', '.lock');
-    
+
     // Check if lock file exists
     if (existsSync(lockFile)) {
       try {
@@ -339,7 +339,7 @@ export class StateManager implements IStateManager {
         }
         // Valid lock from another process
         return true;
-      } catch (error) {
+      } catch (_error) {
         // Invalid lock file - remove it
         try {
           unlinkSync(lockFile);
@@ -347,7 +347,7 @@ export class StateManager implements IStateManager {
         return false;
       }
     }
-    
+
     // Fall back to state-based check
     const state = await this.readState(targetName);
     if (!state) return false;

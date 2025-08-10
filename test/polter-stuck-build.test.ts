@@ -36,7 +36,7 @@ describe('Polter Stuck Build Detection', () => {
     projectRoot = join(testDir, 'test-project');
     mkdirSync(testDir, { recursive: true });
     mkdirSync(projectRoot, { recursive: true });
-    
+
     // Set up environment
     process.env.POLTERGEIST_STATE_DIR = testDir;
   });
@@ -55,7 +55,7 @@ describe('Polter Stuck Build Detection', () => {
     it('should detect stuck SwiftPM build from error output', () => {
       const targetName = 'test-target';
       stateFile = FileSystemUtils.getStateFilePath(projectRoot, targetName);
-      
+
       // Create state with SwiftPM error
       const state: Partial<PoltergeistState> = {
         version: '1.0',
@@ -75,7 +75,7 @@ describe('Polter Stuck Build Detection', () => {
           exitCode: 1,
           errorOutput: [
             'Error: Build failed',
-            'Another instance of SwiftPM is already running using \'/path/to/.build\', waiting until that process has finished execution...',
+            "Another instance of SwiftPM is already running using '/path/to/.build', waiting until that process has finished execution...",
           ],
           lastOutput: [],
           command: 'swift build',
@@ -88,33 +88,33 @@ describe('Polter Stuck Build Detection', () => {
           lastHeartbeat: new Date().toISOString(),
         },
       };
-      
+
       // Write state file
       const dir = join(testDir, 'poltergeist');
       mkdirSync(dir, { recursive: true });
       writeFileSync(stateFile, JSON.stringify(state, null, 2));
-      
+
       // Read and check if SwiftPM stuck build is detected
       const stateContent = JSON.parse(readFileSync(stateFile, 'utf-8'));
       const hasStuckSwiftPM = stateContent.lastBuildError?.errorOutput?.some((line: string) =>
         line.includes('Another instance of SwiftPM is already running')
       );
-      
+
       expect(hasStuckSwiftPM).toBe(true);
     });
 
     it('should detect generic stuck build patterns', () => {
       const targetName = 'test-target';
       stateFile = FileSystemUtils.getStateFilePath(projectRoot, targetName);
-      
+
       const stuckPatterns = [
         'another process is already running',
         'resource temporarily unavailable',
         'file is locked',
         'cannot obtain lock',
       ];
-      
-      stuckPatterns.forEach(pattern => {
+
+      stuckPatterns.forEach((pattern) => {
         const state: Partial<PoltergeistState> = {
           version: '1.0',
           projectPath: projectRoot,
@@ -131,10 +131,7 @@ describe('Polter Stuck Build Detection', () => {
           },
           lastBuildError: {
             exitCode: 1,
-            errorOutput: [
-              'Error: Build failed',
-              pattern,
-            ],
+            errorOutput: ['Error: Build failed', pattern],
             lastOutput: [],
             command: 'make build',
             timestamp: new Date().toISOString(),
@@ -146,21 +143,22 @@ describe('Polter Stuck Build Detection', () => {
             lastHeartbeat: new Date().toISOString(),
           },
         };
-        
+
         // Write state file
         const dir = join(testDir, 'poltergeist');
         mkdirSync(dir, { recursive: true });
         writeFileSync(stateFile, JSON.stringify(state, null, 2));
-        
+
         // Read and check if stuck build is detected
         const stateContent = JSON.parse(readFileSync(stateFile, 'utf-8'));
-        const hasStuckBuild = stateContent.lastBuildError?.errorOutput?.some((line: string) =>
-          line.includes('another process is already running') ||
-          line.includes('resource temporarily unavailable') ||
-          line.includes('file is locked') ||
-          line.includes('cannot obtain lock')
+        const hasStuckBuild = stateContent.lastBuildError?.errorOutput?.some(
+          (line: string) =>
+            line.includes('another process is already running') ||
+            line.includes('resource temporarily unavailable') ||
+            line.includes('file is locked') ||
+            line.includes('cannot obtain lock')
         );
-        
+
         expect(hasStuckBuild).toBe(true);
       });
     });
@@ -168,7 +166,7 @@ describe('Polter Stuck Build Detection', () => {
     it('should not detect stuck build for regular compilation errors', () => {
       const targetName = 'test-target';
       stateFile = FileSystemUtils.getStateFilePath(projectRoot, targetName);
-      
+
       // Create state with regular build error
       const state: Partial<PoltergeistState> = {
         version: '1.0',
@@ -186,10 +184,7 @@ describe('Polter Stuck Build Detection', () => {
         },
         lastBuildError: {
           exitCode: 1,
-          errorOutput: [
-            'error: cannot find \'foo\' in scope',
-            'note: did you mean \'bar\'?',
-          ],
+          errorOutput: ["error: cannot find 'foo' in scope", "note: did you mean 'bar'?"],
           lastOutput: [],
           command: 'swift build',
           timestamp: new Date().toISOString(),
@@ -201,18 +196,18 @@ describe('Polter Stuck Build Detection', () => {
           lastHeartbeat: new Date().toISOString(),
         },
       };
-      
+
       // Write state file
       const dir = join(testDir, 'poltergeist');
       mkdirSync(dir, { recursive: true });
       writeFileSync(stateFile, JSON.stringify(state, null, 2));
-      
+
       // Read and check if SwiftPM stuck build is detected
       const stateContent = JSON.parse(readFileSync(stateFile, 'utf-8'));
       const hasStuckSwiftPM = stateContent.lastBuildError?.errorOutput?.some((line: string) =>
         line.includes('Another instance of SwiftPM is already running')
       );
-      
+
       expect(hasStuckSwiftPM).toBe(false);
     });
   });
@@ -221,7 +216,7 @@ describe('Polter Stuck Build Detection', () => {
     it('should create correct state file path for lock checking', () => {
       const targetName = 'my-app';
       const expectedPath = FileSystemUtils.getStateFilePath(projectRoot, targetName);
-      
+
       // Path should be in state directory with project hash
       expect(expectedPath).toContain(testDir);
       expect(expectedPath).toContain('test-project');
@@ -232,7 +227,7 @@ describe('Polter Stuck Build Detection', () => {
     it('should handle state with failed build but active lock', () => {
       const targetName = 'locked-target';
       stateFile = FileSystemUtils.getStateFilePath(projectRoot, targetName);
-      
+
       // Create state showing failed build
       const state: Partial<PoltergeistState> = {
         version: '1.0',
@@ -255,12 +250,12 @@ describe('Polter Stuck Build Detection', () => {
           lastHeartbeat: new Date().toISOString(),
         },
       };
-      
+
       // Write state file
       const dir = join(testDir, 'poltergeist');
       mkdirSync(dir, { recursive: true });
       writeFileSync(stateFile, JSON.stringify(state, null, 2));
-      
+
       // Create a lock file to simulate active build
       const lockFile = stateFile.replace('.state', '.lock');
       try {
@@ -269,11 +264,11 @@ describe('Polter Stuck Build Detection', () => {
         console.error('Failed to write lock file:', e);
         throw e;
       }
-      
+
       // Verify state shows failed but lock exists
       const stateContent = JSON.parse(readFileSync(stateFile, 'utf-8'));
       expect(stateContent.lastBuild.status).toBe('failure');
-      
+
       // In real implementation, StateManager.isLocked would check this
       const { existsSync } = require('fs');
       expect(existsSync(lockFile)).toBe(true);
@@ -284,17 +279,17 @@ describe('Polter Stuck Build Detection', () => {
     it('should correctly identify build status from state', () => {
       const targetName = 'status-test';
       stateFile = FileSystemUtils.getStateFilePath(projectRoot, targetName);
-      
+
       const testCases = [
         { status: 'success', expected: 'success' },
         { status: 'failure', expected: 'failed' },
         { status: 'building', expected: 'building' },
         { status: 'idle', expected: 'unknown' },
       ];
-      
+
       const dir = join(testDir, 'poltergeist');
       mkdirSync(dir, { recursive: true });
-      
+
       testCases.forEach(({ status, expected }) => {
         const state: Partial<PoltergeistState> = {
           version: '1.0',
@@ -316,19 +311,19 @@ describe('Polter Stuck Build Detection', () => {
             lastHeartbeat: new Date().toISOString(),
           },
         };
-        
+
         writeFileSync(stateFile, JSON.stringify(state, null, 2));
-        
+
         // Read and verify status mapping
         const stateContent = JSON.parse(readFileSync(stateFile, 'utf-8'));
         const buildStatus = stateContent.lastBuild?.status;
-        
+
         // Map internal status to polter's expected values
         let mappedStatus = 'unknown';
         if (buildStatus === 'success') mappedStatus = 'success';
         else if (buildStatus === 'failure') mappedStatus = 'failed';
         else if (buildStatus === 'building') mappedStatus = 'building';
-        
+
         expect(mappedStatus).toBe(expected);
       });
     });
@@ -343,7 +338,7 @@ describe('Polter Stuck Build Detection', () => {
         { ms: 86400000, expected: /1 day/ },
         { ms: 120000, expected: /2 minutes/ },
       ];
-      
+
       testCases.forEach(({ ms, expected }) => {
         const timestamp = new Date(Date.now() - ms);
         const timeAgo = getRelativeTime(timestamp);
@@ -356,21 +351,21 @@ describe('Polter Stuck Build Detection', () => {
 // Helper function to match polter's time formatting
 function getRelativeTime(date: Date): string {
   const seconds = Math.floor((Date.now() - date.getTime()) / 1000);
-  
+
   if (seconds < 60) {
     return seconds === 1 ? '1 second ago' : `${seconds} seconds ago`;
   }
-  
+
   const minutes = Math.floor(seconds / 60);
   if (minutes < 60) {
     return minutes === 1 ? '1 minute ago' : `${minutes} minutes ago`;
   }
-  
+
   const hours = Math.floor(minutes / 60);
   if (hours < 24) {
     return hours === 1 ? '1 hour ago' : `${hours} hours ago`;
   }
-  
+
   const days = Math.floor(hours / 24);
   return days === 1 ? '1 day ago' : `${days} days ago`;
 }

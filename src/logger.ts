@@ -84,7 +84,6 @@ export class SimpleLogger implements Logger {
     }
   }
 
-
   private shouldLog(level: string): boolean {
     const levels = ['debug', 'info', 'warn', 'error'];
     const currentIndex = levels.indexOf(this.logLevel);

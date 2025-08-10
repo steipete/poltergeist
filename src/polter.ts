@@ -731,19 +731,23 @@ export async function runWrapper(targetName: string, args: string[], options: Pa
           const { createLogger } = await import('./logger.js');
           const logger = createLogger('error');
           const stateManager = new StateManager(projectRoot, logger);
-          
+
           if (await stateManager.isLocked(targetName)) {
-            console.log(chalk.yellow('👻 [Poltergeist] Detected active build lock, waiting for completion...'));
+            console.log(
+              chalk.yellow('👻 [Poltergeist] Detected active build lock, waiting for completion...')
+            );
             const result = await waitForBuildCompletion(projectRoot, target, options.timeout, {
               showLogs: options.showLogs,
               logLines: options.logLines,
             });
-            
+
             if (result === 'success') {
               // Build completed successfully, continue execution
               break;
             } else if (result === 'timeout') {
-              console.error(chalk.yellow('👻 [Poltergeist] Build appears stuck (lock present but no progress)'));
+              console.error(
+                chalk.yellow('👻 [Poltergeist] Build appears stuck (lock present but no progress)')
+              );
               console.error(chalk.yellow('   Solutions:'));
               console.error('   • Check for stuck build processes: ps aux | grep build');
               console.error('   • Clear the lock: poltergeist stop && poltergeist start');
@@ -755,7 +759,7 @@ export async function runWrapper(targetName: string, args: string[], options: Pa
         } catch (_e) {
           // If we can't check the lock, continue with normal failed handling
         }
-        
+
         if (!options.force) {
           console.error(chalk.red('👻 [Poltergeist] Last build failed'));
 
@@ -798,20 +802,24 @@ export async function runWrapper(targetName: string, args: string[], options: Pa
             try {
               const state = JSON.parse(readFileSync(stateFile, 'utf-8'));
               // Check for various stuck build patterns
-              if (state.lastBuildError?.errorOutput?.some((line: string) => {
-                if (line.includes('Another instance of SwiftPM is already running')) {
-                  stuckBuildType = 'SwiftPM';
-                  return true;
-                }
-                if (line.includes('another process is already running') || 
+              if (
+                state.lastBuildError?.errorOutput?.some((line: string) => {
+                  if (line.includes('Another instance of SwiftPM is already running')) {
+                    stuckBuildType = 'SwiftPM';
+                    return true;
+                  }
+                  if (
+                    line.includes('another process is already running') ||
                     line.includes('resource temporarily unavailable') ||
                     line.includes('file is locked') ||
-                    line.includes('cannot obtain lock')) {
-                  stuckBuildType = 'build process';
-                  return true;
-                }
-                return false;
-              })) {
+                    line.includes('cannot obtain lock')
+                  ) {
+                    stuckBuildType = 'build process';
+                    return true;
+                  }
+                  return false;
+                })
+              ) {
                 mightBeStuckBuild = true;
               }
             } catch (_e) {
@@ -860,7 +868,9 @@ export async function runWrapper(targetName: string, args: string[], options: Pa
             }
           } else {
             if (mightBeStuckBuild) {
-              console.error(chalk.yellow(`\n   ⚠️  Detected stuck ${stuckBuildType || 'build process'}`));
+              console.error(
+                chalk.yellow(`\n   ⚠️  Detected stuck ${stuckBuildType || 'build process'}`)
+              );
               console.error(chalk.yellow('   Solutions:'));
               if (stuckBuildType === 'SwiftPM') {
                 console.error('   • Kill stuck process: killall swift-build');
