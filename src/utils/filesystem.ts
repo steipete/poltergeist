@@ -29,7 +29,8 @@ export class FileSystemUtils {
    * Path hash prevents collisions between projects with same name
    */
   public static generateStateFileName(projectRoot: string, targetName: string): string {
-    const projectName = projectRoot.split(sep).pop() || 'unknown';
+    // Use both Unix and Windows separators to handle cross-platform paths in tests
+    const projectName = projectRoot.split(/[/\\]/).pop() || 'unknown';
     const projectHash = createHash('sha256').update(projectRoot).digest('hex').substring(0, 8);
     return `${projectName}-${projectHash}-${targetName}.state`;
   }
@@ -47,7 +48,8 @@ export class FileSystemUtils {
    * Uses same naming convention as state files for consistency
    */
   public static generateLogFileName(projectRoot: string, targetName: string): string {
-    const projectName = projectRoot.split(sep).pop() || 'unknown';
+    // Use both Unix and Windows separators to handle cross-platform paths in tests
+    const projectName = projectRoot.split(/[/\\]/).pop() || 'unknown';
     const projectHash = createHash('sha256').update(projectRoot).digest('hex').substring(0, 8);
     return `${projectName}-${projectHash}-${targetName}.log`;
   }
