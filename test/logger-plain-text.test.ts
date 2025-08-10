@@ -3,7 +3,7 @@
 import { mkdirSync, rmSync } from 'fs';
 import { tmpdir } from 'os';
 import { join } from 'path';
-import { afterEach, beforeEach, describe, expect, it } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { createLogger, SimpleLogger } from '../src/logger.js';
 import { FileSystemUtils } from '../src/utils/filesystem.js';
 
