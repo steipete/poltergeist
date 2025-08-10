@@ -15,3 +15,4 @@ function getBuildInfo(): BuildInfo {
 const info = getBuildInfo();
 console.log(`${info.message} Built at: ${info.timestamp.toISOString()}`);
 console.log(`Node version: ${info.nodeVersion}`);
+console.log('Testing the new logging system!');

@@ -99,7 +99,7 @@ describe('Performance Tests', () => {
         ['src/file1.ts', 'src/file2.ts', 'src/file3.ts', 'src/file4.ts', 'src/file5.ts'],
         expect.objectContaining({
           captureLogs: true,
-          logFile: expect.stringContaining('test-build.log'),
+          logFile: expect.stringContaining('test.log'),
         })
       );
     });
@@ -145,7 +145,7 @@ describe('Performance Tests', () => {
         ['src/file1.ts', 'src/file2.ts'],
         expect.objectContaining({
           captureLogs: true,
-          logFile: expect.stringContaining('test-build.log'),
+          logFile: expect.stringContaining('test.log'),
         })
       );
     });
@@ -225,7 +225,7 @@ describe('Performance Tests', () => {
         ['fast/file.ts'],
         expect.objectContaining({
           captureLogs: true,
-          logFile: expect.stringContaining('fast-build.log'),
+          logFile: expect.stringContaining('fast.log'),
         })
       );
 
@@ -246,7 +246,7 @@ describe('Performance Tests', () => {
         ['slow/file.ts'],
         expect.objectContaining({
           captureLogs: true,
-          logFile: expect.stringContaining('slow-build.log'),
+          logFile: expect.stringContaining('slow.log'),
         })
       );
     });
@@ -291,7 +291,7 @@ describe('Performance Tests', () => {
         ['src/index.ts', 'src/utils.ts', 'src/types.ts'],
         expect.objectContaining({
           captureLogs: true,
-          logFile: expect.stringContaining('test-build.log'),
+          logFile: expect.stringContaining('test.log'),
         })
       );
     });

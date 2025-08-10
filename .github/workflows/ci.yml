@@ -44,7 +44,7 @@ jobs:
         if [ "${{ matrix.os }}" = "windows-latest" ]; then
           npx vitest --config vitest.config.windows-ci.ts
         else
-          npm test
+          npx vitest --config vitest.config.ci.ts
         fi
       shell: bash
       

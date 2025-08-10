@@ -40,23 +40,23 @@ class LogTapeLogger implements Logger {
   }
 
   info(message: string, metadata?: unknown): void {
-    this.logger.info(this.formatMessage(message), metadata);
+    this.logger.info(this.formatMessage(message), { target: this.targetName, metadata });
   }
 
   error(message: string, metadata?: unknown): void {
-    this.logger.error(this.formatMessage(message), metadata);
+    this.logger.error(this.formatMessage(message), { target: this.targetName, metadata });
   }
 
   warn(message: string, metadata?: unknown): void {
-    this.logger.warn(this.formatMessage(message), metadata);
+    this.logger.warn(this.formatMessage(message), { target: this.targetName, metadata });
   }
 
   debug(message: string, metadata?: unknown): void {
-    this.logger.debug(this.formatMessage(message), metadata);
+    this.logger.debug(this.formatMessage(message), { target: this.targetName, metadata });
   }
 
   success(message: string, metadata?: unknown): void {
-    this.logger.info(this.formatMessage(`✅ ${message}`), metadata);
+    this.logger.info(this.formatMessage(`✅ ${message}`), { target: this.targetName, metadata });
   }
 }
 
@@ -76,12 +76,14 @@ export class SimpleLogger implements Logger {
         if (!existsSync(dir)) {
           mkdirSync(dir, { recursive: true });
         }
-        this.logStream = createWriteStream(logFile, { flags: 'a' });
+        // Clear the log file for this target (one build = one log)
+        this.logStream = createWriteStream(logFile, { flags: 'w' });
       } catch {
         // Ignore file logging errors
       }
     }
   }
+
 
   private shouldLog(level: string): boolean {
     const levels = ['debug', 'info', 'warn', 'error'];
@@ -97,16 +99,20 @@ export class SimpleLogger implements Logger {
     return `${ghost} [${time}] ${level.toUpperCase()}:${target} ${message}`;
   }
 
-  private writeToFile(message: string, metadata?: unknown): void {
+  private writeToFile(level: string, message: string): void {
     if (this.logStream) {
-      const logEntry = {
-        timestamp: new Date().toISOString(),
-        level: 'info',
-        message,
-        target: this.targetName,
-        ...(metadata && typeof metadata === 'object' ? metadata : { metadata }),
-      };
-      this.logStream.write(`${JSON.stringify(logEntry)}\n`);
+      const timestamp = new Date().toISOString();
+      const levelStr = level.toUpperCase().padEnd(5);
+      const target = this.targetName ? `[${this.targetName}] ` : '';
+      // Simple plain text format: timestamp level: [target] message
+      this.logStream.write(`${timestamp} ${levelStr}: ${target}${message}\n`);
+    }
+  }
+
+  // Method to flush the stream (useful for tests)
+  public flush(): void {
+    if (this.logStream && typeof this.logStream.end === 'function') {
+      this.logStream.end();
     }
   }
 
@@ -115,7 +121,7 @@ export class SimpleLogger implements Logger {
       const formatted = this.formatMessage('info', message);
       console.log(formatted);
       if (metadata) console.log(metadata);
-      this.writeToFile(message, metadata);
+      this.writeToFile('info', message);
     }
   }
 
@@ -124,7 +130,7 @@ export class SimpleLogger implements Logger {
       const formatted = this.formatMessage('error', message);
       console.error(chalk.red(formatted));
       if (metadata) console.error(metadata);
-      this.writeToFile(message, metadata);
+      this.writeToFile('error', message);
     }
   }
 
@@ -133,7 +139,7 @@ export class SimpleLogger implements Logger {
       const formatted = this.formatMessage('warn', message);
       console.warn(chalk.yellow(formatted));
       if (metadata) console.warn(metadata);
-      this.writeToFile(message, metadata);
+      this.writeToFile('warn', message);
     }
   }
 
@@ -142,7 +148,7 @@ export class SimpleLogger implements Logger {
       const formatted = this.formatMessage('debug', message);
       console.log(chalk.gray(formatted));
       if (metadata) console.log(metadata);
-      this.writeToFile(message, metadata);
+      this.writeToFile('debug', message);
     }
   }
 
@@ -151,13 +157,13 @@ export class SimpleLogger implements Logger {
       const formatted = this.formatMessage('info', `✅ ${message}`);
       console.log(chalk.green(formatted));
       if (metadata) console.log(metadata);
-      this.writeToFile(`✅ ${message}`, metadata);
+      this.writeToFile('info', `✅ ${message}`);
     }
   }
 }
 
 // Main logger factory
-export function createLogger(logFile?: string, logLevel?: string): Logger {
+export function createLogger(logFile?: string, logLevel?: string, targetName?: string): Logger {
   const level = logLevel || 'info';
 
   // Try to use LogTape if available
@@ -183,7 +189,15 @@ export function createLogger(logFile?: string, logLevel?: string): Logger {
         if (!existsSync(dir)) {
           mkdirSync(dir, { recursive: true });
         }
-        sinks.file = getFileSink(logFile);
+        sinks.file = getFileSink(logFile, {
+          // Use plain text format instead of JSON
+          formatter: (record: any) => {
+            const timestamp = new Date().toISOString();
+            const levelStr = record.level.toUpperCase().padEnd(5);
+            const message = record.message.join('');
+            return `${timestamp} ${levelStr}: ${message}`;
+          },
+        });
       }
 
       configure({
@@ -200,14 +214,14 @@ export function createLogger(logFile?: string, logLevel?: string): Logger {
       });
 
       const logger = getLogger(['poltergeist']);
-      return new LogTapeLogger(logger);
+      return new LogTapeLogger(logger, targetName);
     } catch {
       // Fall back to SimpleLogger if LogTape configuration fails
     }
   }
 
   // Fall back to SimpleLogger
-  return new SimpleLogger(undefined, level, logFile);
+  return new SimpleLogger(targetName, level, logFile);
 }
 
 // Target-aware logger wrapper

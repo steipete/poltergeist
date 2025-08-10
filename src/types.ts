@@ -268,7 +268,7 @@ export interface PoltergeistConfig {
   };
   /** Logging configuration */
   logging?: {
-    file: string;
+    file?: string;
     level: 'debug' | 'info' | 'warn' | 'error';
   };
 }
@@ -454,7 +454,7 @@ export const PoltergeistConfigSchema = z.object({
     .optional(),
   logging: z
     .object({
-      file: z.string(),
+      file: z.string().optional(),
       level: z.enum(['debug', 'info', 'warn', 'error']),
     })
     .optional(),

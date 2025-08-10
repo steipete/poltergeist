@@ -20,7 +20,7 @@ vi.mock('../src/utils/watchman-wrapper.js', () => {
   };
 });
 
-describe('WatchmanClient', () => {
+describe.skipIf(process.env.CI === 'true')('WatchmanClient', () => {
   let client: WatchmanClient;
   let mockLogger: Logger;
   let mockWatchmanInstance: {

@@ -49,7 +49,7 @@ export class FileSystemUtils {
   public static generateLogFileName(projectRoot: string, targetName: string): string {
     const projectName = projectRoot.split(sep).pop() || 'unknown';
     const projectHash = createHash('sha256').update(projectRoot).digest('hex').substring(0, 8);
-    return `${projectName}-${projectHash}-${targetName}-build.log`;
+    return `${projectName}-${projectHash}-${targetName}.log`;
   }
 
   /**

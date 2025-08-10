@@ -1,6 +1,6 @@
 // Builder factory and exports
 
-import type { Logger } from '../logger.js';
+import { type Logger, createTargetLogger } from '../logger.js';
 import type { StateManager } from '../state.js';
 import type { Target } from '../types.js';
 import { AppBundleBuilder } from './app-bundle-builder.js';
@@ -26,24 +26,27 @@ export function createBuilder(
   logger: Logger,
   stateManager: StateManager
 ): BaseBuilder {
+  // Create a target-aware logger for this builder
+  const targetLogger = createTargetLogger(logger, target.name);
+  
   switch (target.type) {
     case 'executable':
-      return new ExecutableBuilder(target, projectRoot, logger, stateManager);
+      return new ExecutableBuilder(target, projectRoot, targetLogger, stateManager);
 
     case 'app-bundle':
-      return new AppBundleBuilder(target, projectRoot, logger, stateManager);
+      return new AppBundleBuilder(target, projectRoot, targetLogger, stateManager);
 
     case 'npm':
-      return new NPMBuilder(target, projectRoot, logger, stateManager);
+      return new NPMBuilder(target, projectRoot, targetLogger, stateManager);
 
     case 'cmake-executable':
-      return new CMakeExecutableBuilder(target, projectRoot, logger, stateManager);
+      return new CMakeExecutableBuilder(target, projectRoot, targetLogger, stateManager);
 
     case 'cmake-library':
-      return new CMakeLibraryBuilder(target, projectRoot, logger, stateManager);
+      return new CMakeLibraryBuilder(target, projectRoot, targetLogger, stateManager);
 
     case 'cmake-custom':
-      return new CMakeCustomBuilder(target, projectRoot, logger, stateManager);
+      return new CMakeCustomBuilder(target, projectRoot, targetLogger, stateManager);
 
     case 'library':
     case 'framework':

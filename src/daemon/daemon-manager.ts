@@ -48,9 +48,14 @@ export class DaemonManager {
   }
 
   /**
-   * Get the log file path for a project
+   * Get the log file path for a project and target
    */
-  private getLogFilePath(projectPath: string): string {
+  private getLogFilePath(projectPath: string, targetName?: string): string {
+    // If target is specified, use target-specific log file
+    if (targetName) {
+      return FileSystemUtils.getLogFilePath(projectPath, targetName);
+    }
+    // Otherwise use general daemon log
     const projectName = projectPath.split(sep).pop() || 'unknown';
     const hash = createHash('sha256').update(projectPath).digest('hex').substring(0, 8);
     return join(FileSystemUtils.getStateDirectory(), `${projectName}-${hash}-daemon.log`);
@@ -159,7 +164,7 @@ export class DaemonManager {
     const stateDir = FileSystemUtils.getStateDirectory();
     await mkdir(stateDir, { recursive: true });
 
-    const logFile = this.getLogFilePath(projectRoot);
+    const logFile = this.getLogFilePath(projectRoot, target);
     // daemon-worker.js is in the same directory as daemon-manager.js
     // Use __dirname if available (Bun compiled), otherwise compute from import.meta
     let daemonDir: string;

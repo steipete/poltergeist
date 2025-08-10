@@ -159,7 +159,7 @@ describe('DaemonManager', () => {
         expect.any(Array),
         expect.objectContaining({
           detached: true,
-          stdio: ['ignore', 'ignore', 'ignore', 'ipc'],
+          stdio: ['ignore', 'pipe', 'pipe', 'ipc'],
         })
       );
 

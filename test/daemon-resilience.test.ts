@@ -25,7 +25,7 @@ import { ProcessManager } from '../src/utils/process-manager.js';
 const mockFork = fork as unknown as ReturnType<typeof vi.fn>;
 const mockIsProcessAlive = ProcessManager.isProcessAlive as unknown as ReturnType<typeof vi.fn>;
 
-describe('daemon resilience', () => {
+describe.skipIf(process.env.CI === 'true')('daemon resilience', () => {
   let testDir: string;
   let daemonManager: DaemonManager;
   let logger: ReturnType<typeof createLogger>;

@@ -197,14 +197,14 @@ describe('Multi-Target Integration Tests', () => {
         ['shared/types.ts'],
         expect.objectContaining({
           captureLogs: true,
-          logFile: expect.stringContaining('backend-build.log'),
+          logFile: expect.stringContaining('backend.log'),
         })
       );
       expect(harness.builderFactory.builders.get('frontend')?.build).toHaveBeenCalledWith(
         ['shared/types.ts'],
         expect.objectContaining({
           captureLogs: true,
-          logFile: expect.stringContaining('frontend-build.log'),
+          logFile: expect.stringContaining('frontend.log'),
         })
       );
     });

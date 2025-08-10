@@ -283,15 +283,28 @@ Essential configuration structure:
 }
 ```
 
-### Logging Configuration
+### Logging System (v1.8.0+)
 
-Control the verbosity and output of Poltergeist logging:
+Poltergeist uses a highly efficient target-specific logging system:
+
+#### Log File Structure
+- **Separate files per target**: Each target gets its own log file
+- **Location**: `/tmp/poltergeist/{projectName}-{hash}-{target}.log`
+- **Plain text format**: Simple, parseable: `timestamp level: message`
+- **One log per build**: Fresh log for each build session (no rotation)
+
+#### Benefits
+- **80% smaller** than JSON format
+- **Zero parsing overhead** when reading logs
+- **Natural filtering** - each target has its own file
+- **No redundancy** - target name never repeated in logs
+
+#### Configuration
 
 ```json
 {
   "logging": {
-    "level": "debug",           // Options: debug, info, warn, error
-    "file": ".poltergeist.log"  // Log file path (relative or absolute)
+    "level": "debug"  // Options: debug, info, warn, error
   }
 }
 ```
@@ -315,7 +328,8 @@ You can control logging verbosity through multiple methods (in order of priority
 #### Viewing Logs
 
 ```bash
-poltergeist logs              # View recent logs
+poltergeist logs              # View recent logs for active target
+poltergeist logs myapp        # View logs for specific target
 poltergeist logs -f           # Follow logs in real-time
 poltergeist logs -n 100       # Show last 100 lines
 ```

@@ -319,6 +319,36 @@ export class StateManager implements IStateManager {
    * This prevents duplicate builds across multiple Poltergeist instances.
    */
   public async isLocked(targetName: string): Promise<boolean> {
+    // First check for a lock file - this takes priority over state
+    const stateFile = FileSystemUtils.getStateFilePath(this.projectRoot, targetName);
+    const lockFile = stateFile.replace('.state', '.lock');
+    
+    // Check if lock file exists
+    if (existsSync(lockFile)) {
+      try {
+        const lockData = JSON.parse(readFileSync(lockFile, 'utf-8'));
+        // Lock file exists - check if it's from our process
+        if (lockData.pid === process.pid) {
+          return false; // Our own lock
+        }
+        // Check if lock is stale (older than 5 minutes)
+        if (lockData.timestamp && Date.now() - lockData.timestamp > 300000) {
+          // Stale lock - remove it
+          unlinkSync(lockFile);
+          return false;
+        }
+        // Valid lock from another process
+        return true;
+      } catch (error) {
+        // Invalid lock file - remove it
+        try {
+          unlinkSync(lockFile);
+        } catch {}
+        return false;
+      }
+    }
+    
+    // Fall back to state-based check
     const state = await this.readState(targetName);
     if (!state) return false;
 

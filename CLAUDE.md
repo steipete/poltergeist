@@ -2,6 +2,56 @@
 
 This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
 
+## Changelog Style Guide
+
+**CRITICAL**: Always maintain consistent, professional one-line style in CHANGELOG.md
+
+### Format Rules
+1. **READ EXISTING ENTRIES FIRST** - Match the existing style exactly
+2. **One-line entries** - Each change is a single, concise bullet point
+3. **No subsections** - Don't use "### Features", "### Breaking Changes", etc.
+4. **Professional tone** - Direct, technical language without marketing speak
+5. **Specific details** - Include technical specifics, not vague descriptions
+
+### Example Format
+```markdown
+## [1.8.0] - 2025-08-09
+
+- Target-specific log files in `/tmp/poltergeist/` with plain text format (80% size reduction)
+- Separate log file per target matching state file naming: `{projectName}-{hash}-{target}.log`
+- Fixed Bun.spawn stdio configuration error - daemon now starts correctly
+```
+
+**NOT THIS** (verbose, subsectioned style):
+```markdown
+### Breaking Changes
+- **New logging system**: Separate log files per target...
+
+### Features
+- Target-specific log files...
+```
+
+## Logging System (v1.8.0+)
+
+**BREAKING CHANGE**: Poltergeist v1.8.0+ uses separate log files per target with plain text format.
+
+### Log File Structure
+- **Location**: `/tmp/poltergeist/` directory (same as state files)
+- **Naming**: `{projectName}-{hash}-{target}.log` (matches state file pattern)
+- **Format**: Plain text with simple structure: `timestamp level: message`
+- **One log per build**: Each build creates a fresh log file (no rotation)
+
+### Benefits
+- **80% size reduction** compared to JSON format
+- **Zero parsing overhead** for reading logs
+- **Natural filtering** - each target has its own file
+- **No redundancy** - target name never written in logs
+
+### Backward Compatibility
+- **NOT MAINTAINED**: Old JSON log format is not supported
+- Migration is automatic - new builds use new format
+- The `logs` command can still read old JSON logs if they exist
+
 ## Homebrew Release Process
 
 **CRITICAL**: Poltergeist is distributed as a pre-compiled Bun executable, NOT as a Node.js package.

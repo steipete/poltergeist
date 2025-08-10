@@ -20,7 +20,7 @@ import { isMainModule } from './utils/paths.js';
 
 // Version is hardcoded at compile time - NEVER read from filesystem
 // This ensures the binary always reports its compiled version
-const packageJson = { version: '1.7.2', name: '@steipete/poltergeist' };
+const packageJson = { version: '1.8.0', name: '@steipete/poltergeist' };
 
 import {
   configurePolterCommand,
@@ -683,12 +683,13 @@ export async function runWrapper(targetName: string, args: string[], options: Pa
         // Already handled warning above, proceed with execution
         break;
       case 'building': {
-        // Build is in progress - lastBuild.status === 'building'
+        // Build is marked as in progress - but verify with lock
         if (options.noWait) {
           console.error(chalk.red('👻 [Poltergeist] Build in progress and --no-wait specified'));
           process.exit(1);
         }
 
+        console.log(chalk.cyan('👻 [Poltergeist] Build in progress, waiting...'));
         const result = await waitForBuildCompletion(projectRoot, target, options.timeout, {
           showLogs: options.showLogs,
           logLines: options.logLines,
@@ -723,6 +724,38 @@ export async function runWrapper(targetName: string, args: string[], options: Pa
       }
 
       case 'failed': {
+        // Always check if there's a lock file regardless of the error type
+        // This handles any stuck build scenario, not just SwiftPM
+        try {
+          const { StateManager } = await import('./state.js');
+          const { createLogger } = await import('./logger.js');
+          const logger = createLogger('error');
+          const stateManager = new StateManager(projectRoot, logger);
+          
+          if (await stateManager.isLocked(targetName)) {
+            console.log(chalk.yellow('👻 [Poltergeist] Detected active build lock, waiting for completion...'));
+            const result = await waitForBuildCompletion(projectRoot, target, options.timeout, {
+              showLogs: options.showLogs,
+              logLines: options.logLines,
+            });
+            
+            if (result === 'success') {
+              // Build completed successfully, continue execution
+              break;
+            } else if (result === 'timeout') {
+              console.error(chalk.yellow('👻 [Poltergeist] Build appears stuck (lock present but no progress)'));
+              console.error(chalk.yellow('   Solutions:'));
+              console.error('   • Check for stuck build processes: ps aux | grep build');
+              console.error('   • Clear the lock: poltergeist stop && poltergeist start');
+              console.error('   • Force run anyway: Use --force flag');
+              // Don't exit yet, let it fall through to show error details
+            }
+            // Fall through to show build failure details
+          }
+        } catch (_e) {
+          // If we can't check the lock, continue with normal failed handling
+        }
+        
         if (!options.force) {
           console.error(chalk.red('👻 [Poltergeist] Last build failed'));
 
@@ -755,6 +788,34 @@ export async function runWrapper(targetName: string, args: string[], options: Pa
               }
             } catch (_e) {
               // Silently continue if we can't read state
+            }
+          }
+
+          // Check if there might be a stuck build process based on common patterns
+          let mightBeStuckBuild = false;
+          let stuckBuildType: string | null = null;
+          if (stateFile && existsSync(stateFile)) {
+            try {
+              const state = JSON.parse(readFileSync(stateFile, 'utf-8'));
+              // Check for various stuck build patterns
+              if (state.lastBuildError?.errorOutput?.some((line: string) => {
+                if (line.includes('Another instance of SwiftPM is already running')) {
+                  stuckBuildType = 'SwiftPM';
+                  return true;
+                }
+                if (line.includes('another process is already running') || 
+                    line.includes('resource temporarily unavailable') ||
+                    line.includes('file is locked') ||
+                    line.includes('cannot obtain lock')) {
+                  stuckBuildType = 'build process';
+                  return true;
+                }
+                return false;
+              })) {
+                mightBeStuckBuild = true;
+              }
+            } catch (_e) {
+              // Ignore
             }
           }
 
@@ -798,10 +859,24 @@ export async function runWrapper(targetName: string, args: string[], options: Pa
               process.exit(1);
             }
           } else {
-            console.error(chalk.yellow('\n   Next steps:'));
-            console.error(`   • Fix: Run \`poltergeist build ${targetName}\` to rebuild`);
-            console.error(`   • Details: Run \`poltergeist logs ${targetName}\` for full output`);
-            console.error(`   • Force: Use --force to run anyway`);
+            if (mightBeStuckBuild) {
+              console.error(chalk.yellow(`\n   ⚠️  Detected stuck ${stuckBuildType || 'build process'}`));
+              console.error(chalk.yellow('   Solutions:'));
+              if (stuckBuildType === 'SwiftPM') {
+                console.error('   • Kill stuck process: killall swift-build');
+                console.error('   • Clean build: rm -rf .build && poltergeist build');
+              } else {
+                console.error('   • Check for stuck processes: ps aux | grep build');
+                console.error('   • Kill stuck processes: killall <build-command>');
+                console.error('   • Restart Poltergeist: poltergeist stop && poltergeist start');
+              }
+              console.error('   • Force run anyway: Use --force flag');
+            } else {
+              console.error(chalk.yellow('\n   Next steps:'));
+              console.error(`   • Fix: Run \`poltergeist build ${targetName}\` to rebuild`);
+              console.error(`   • Details: Run \`poltergeist logs ${targetName}\` for full output`);
+              console.error(`   • Force: Use --force to run anyway`);
+            }
             process.exit(1);
           }
         }

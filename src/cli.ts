@@ -20,7 +20,7 @@ import { isMainModule } from './utils/paths.js';
 
 // Version is hardcoded at compile time - NEVER read from filesystem
 // This ensures the binary always reports its compiled version
-const packageJson = { version: '1.7.2', name: '@steipete/poltergeist' };
+const packageJson = { version: '1.8.0', name: '@steipete/poltergeist' };
 
 import {
   configurePolterCommand,
@@ -794,7 +794,7 @@ async function followLogs(
 
   console.log(chalk.cyan(`${ghost.brand()} Following Poltergeist logs... (Press Ctrl+C to exit)`));
   if (targetFilter) {
-    console.log(chalk.gray(`Filtering for target: ${targetFilter}`));
+    console.log(chalk.gray(`Target: ${targetFilter}`));
   }
   console.log(chalk.gray('═'.repeat(50)));
 
@@ -820,21 +820,42 @@ async function followLogs(
       });
 
       rl.on('line', (line) => {
-        try {
-          const entry = JSON.parse(line) as LogEntry;
+        if (!line.trim()) return;
 
-          // Filter by target if specified
-          if (targetFilter && entry.target !== targetFilter) {
-            return;
+        // Check if this is JSON or plain text format
+        if (line.startsWith('{')) {
+          // Legacy JSON format
+          try {
+            const entry = JSON.parse(line) as LogEntry;
+            // Filter by target if specified
+            if (targetFilter && entry.target !== targetFilter) {
+              return;
+            }
+            if (jsonOutput) {
+              console.log(JSON.stringify(entry));
+            } else {
+              formatLogEntry(entry);
+            }
+          } catch (_error) {
+            // Skip malformed lines
           }
-
-          if (jsonOutput) {
-            console.log(JSON.stringify(entry));
-          } else {
-            formatLogEntry(entry);
+        } else {
+          // New plain text format: timestamp level: message
+          const match = line.match(/^(\S+\s+\S+)\s+(\w+):\s+(.*)$/);
+          if (match) {
+            const [, timestamp, level, message] = match;
+            const entry: LogEntry = {
+              timestamp,
+              level: level.toLowerCase().trim(),
+              message,
+              target: targetFilter,
+            };
+            if (jsonOutput) {
+              console.log(JSON.stringify(entry));
+            } else {
+              formatLogEntry(entry);
+            }
           }
-        } catch (_error) {
-          // Skip malformed lines
         }
       });
 

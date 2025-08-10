@@ -372,7 +372,7 @@ describe('CLI Commands', () => {
       );
     });
 
-    it('should fail with no enabled targets', async () => {
+    it('should warn with no enabled targets but continue', async () => {
       createTestConfig({
         targets: [
           {
@@ -388,8 +388,8 @@ describe('CLI Commands', () => {
 
       const result = await runCLI(['haunt']);
 
-      expect(result.exitCode).toBe(1);
-      expect(mockConsoleError).toHaveBeenCalledWith(
+      expect(result.exitCode).toBe(0);
+      expect(mockConsoleLog).toHaveBeenCalledWith(
         expect.stringContaining('No enabled targets found')
       );
     });

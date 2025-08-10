@@ -182,12 +182,16 @@ describe('Poltergeist', () => {
       await expect(poltergeist.start('cli')).rejects.toThrow("Target 'cli' is disabled");
     });
 
-    it('should throw error if no targets to watch', async () => {
+    it('should continue running with warning if no targets to watch', async () => {
       harness.config.targets.forEach((t) => {
         t.enabled = false;
       });
 
-      await expect(poltergeist.start()).rejects.toThrow('No targets to watch');
+      await poltergeist.start();
+      
+      expect(harness.logger.warn).toHaveBeenCalledWith(
+        expect.stringContaining('No enabled targets found')
+      );
     });
 
     it('should throw error if already running', async () => {
@@ -247,7 +251,7 @@ describe('Poltergeist', () => {
         ['src/main.ts', 'src/utils.ts'],
         expect.objectContaining({
           captureLogs: true,
-          logFile: expect.stringContaining('cli-build.log'),
+          logFile: expect.stringContaining('cli.log'),
         })
       );
     });
@@ -284,7 +288,7 @@ describe('Poltergeist', () => {
         ['src/main.ts', 'src/utils.ts'],
         expect.objectContaining({
           captureLogs: true,
-          logFile: expect.stringContaining('cli-build.log'),
+          logFile: expect.stringContaining('cli.log'),
         })
       );
     });
@@ -310,7 +314,7 @@ describe('Poltergeist', () => {
         ['src/exists.ts'],
         expect.objectContaining({
           captureLogs: true,
-          logFile: expect.stringContaining('cli-build.log'),
+          logFile: expect.stringContaining('cli.log'),
         })
       );
     });

@@ -2,11 +2,17 @@
 
 All notable changes to Poltergeist will be documented in this file.
 
-## [1.7.3] - 2025-08-09
+## [1.8.0] - 2025-08-09
 
+- Target-specific log files in `/tmp/poltergeist/` with plain text format (80% size reduction)
+- Separate log file per target matching state file naming: `{projectName}-{hash}-{target}.log`
+- Plain text log format for zero parsing overhead: `timestamp level: message`
 - Fixed Bun.spawn stdio configuration error - daemon now starts correctly with log file redirection
 - Proper file handle wrapping with `Bun.file()` for Bun runtime compatibility
 - Improved daemon spawning reliability for Bun standalone binaries
+- Polter waits for builds when lock file exists regardless of state (handles any stuck build scenario)
+- Detects stuck build processes from error patterns and provides tool-specific recovery commands
+- Generic lock detection works with any build system (SwiftPM, Make, Cargo, npm, etc.)
 
 ## [1.7.2] - 2025-08-09
 
