@@ -10,6 +10,14 @@ Write idiomatic Swift and SwiftUI code following Apple's latest architectural re
 - **Type Safety**: Leverage Swift's powerful type system and compiler guarantees
 - **Concurrency by Design**: Build thread-safe, data-race-free applications
 
+## Swift 6 Adoption Checklist
+
+- **Start in Swift 5 mode with strict concurrency warnings**: Build with `swift build -Xswiftc -strict-concurrency=complete` (or enable *Strict Concurrency Checking → Complete* in Xcode) to surface issues while still shipping in Swift 5 mode.
+- **Adopt upcoming feature flags incrementally**: Enable `StrictConcurrency`, `DisableOutwardActorInference`, and `GlobalConcurrency` in `swiftSettings` so you can fix isolated warnings module-by-module before flipping the language version.
+- **Flip language mode per target once clean**: After warnings are addressed, set `.swiftLanguageMode(.v6)` (or "Swift Language Version" → `Swift 6`) for the targets that are ready, keeping others on `.v5` if they still rely on legacy patterns.
+- **Validate Sendable boundaries**: Audit cross-actor APIs, finalize `Sendable` conformances, and use `@MainActor` annotations to make intent explicit before enabling the Swift 6 toolchain in production.
+- **Automate coverage in CI**: Add an extra job that runs `swift test -Xswiftc -strict-concurrency=complete` so new violations cannot slip in after migration.
+
 ## Architecture Guidelines
 
 ### 1. Embrace Native State Management

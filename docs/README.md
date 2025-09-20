@@ -38,6 +38,13 @@ Key diagrams include:
 - macOS app component relationships
 - State management and build priority flows
 
+## 📘 Key Guides
+
+- `modern-swift.md` — Modern Swift and SwiftUI practices, now including a Swift 6 adoption checklist that replaces the standalone migration guide.
+- `swift-testing-playbook.md` — End-to-end plan for migrating XCTest suites to Swift Testing with WWDC 2024+ patterns.
+- `bun.md` — Details on bundling Poltergeist as a single Bun-powered binary and the related release checklist.
+- `lockfiles.md` — Deep dive into the lock-free state coordination model used by both the CLI and macOS app.
+
 ## 🔧 API Documentation
 
 ### TypeScript API (CLI Tool)
