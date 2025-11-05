@@ -5,6 +5,7 @@ import { tmpdir } from 'os';
 import { join } from 'path';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import type { PoltergeistConfig } from '../src/types.js';
+import { cloneDeep, mergeWith } from 'es-toolkit/object';
 
 // We'll test the CLI by importing the commands directly rather than spawning processes
 // This gives us better control and avoids needing to build the CLI first
@@ -149,9 +150,14 @@ vi.mock('../src/config.js', () => ({
   ConfigurationError: class ConfigurationError extends Error {},
 }));
 
-vi.mock('../src/daemon/daemon-manager.js', () => ({
-  DaemonManager: vi.fn().mockImplementation(() => mockDaemonManager),
-}));
+vi.mock('../src/daemon/daemon-manager.js', () => {
+  const DaemonManager = vi.fn(function () {
+    return mockDaemonManager;
+  });
+  return {
+    DaemonManager,
+  };
+});
 
 vi.mock('../src/logger.js', () => ({
   createLogger: vi.fn().mockReturnValue(mockLogger),
@@ -258,7 +264,7 @@ describe('CLI Commands', () => {
     } catch (error) {
       const errorMessage = error instanceof Error ? error.message : String(error);
       if (errorMessage.includes('Process exited with code')) {
-        const code = Number.parseInt(errorMessage.match(/code (\d+)/)?.[1] || '1');
+        const code = Number.parseInt(errorMessage.match(/code (\d+)/)?.[1] || '1', 10);
         return {
           exitCode: code,
           error,
@@ -310,26 +316,16 @@ describe('CLI Commands', () => {
       },
     };
 
-    const mergedConfig = config ? deepMerge(defaultConfig, config) : defaultConfig;
+    const mergedConfig = config
+      ? mergeWith(cloneDeep(defaultConfig), config, (_targetValue, sourceValue) => {
+          if (Array.isArray(sourceValue)) {
+            // Match legacy behavior where arrays are replaced rather than merged.
+            return sourceValue;
+          }
+          return undefined;
+        })
+      : defaultConfig;
     writeFileSync(configPath, JSON.stringify(mergedConfig, null, 2));
-  }
-
-  // Helper function for deep merging config objects
-  function deepMerge<T extends Record<string, unknown>>(target: T, source: Partial<T>): T {
-    const result = { ...target };
-
-    for (const key in source) {
-      if (source[key] !== null && typeof source[key] === 'object' && !Array.isArray(source[key])) {
-        result[key] = deepMerge(
-          (target[key] as Record<string, unknown>) || {},
-          source[key] as Record<string, unknown>
-        ) as T[Extract<keyof T, string>];
-      } else {
-        result[key] = source[key] as T[Extract<keyof T, string>];
-      }
-    }
-
-    return result;
   }
 
   describe('haunt/start command', () => {
@@ -337,7 +333,6 @@ describe('CLI Commands', () => {
       createTestConfig();
 
       const result = await runCLI(['haunt']);
-
       expect(result.exitCode).toBe(0);
       expect(mockConsoleLog).toHaveBeenCalledWith(expect.stringContaining('Starting daemon...'));
       expect(mockConsoleLog).toHaveBeenCalledWith(
@@ -794,6 +789,7 @@ describe('CLI Commands', () => {
       const result = await runCLI(['clean']);
 
       expect(result.exitCode).toBe(0);
+      expect(oldStateManager.removeState).toHaveBeenCalled();
       expect(mockConsoleLog).toHaveBeenCalledWith(
         expect.stringContaining('Cleaning up state files')
       );

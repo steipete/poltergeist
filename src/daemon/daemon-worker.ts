@@ -57,14 +57,12 @@ export async function runDaemon(args: DaemonArgs): Promise<void> {
     logger.debug(`process.send available: ${typeof process.send}`);
     if (process.send) {
       logger.debug('Sending started message to parent process');
-      // Send message synchronously and handle callback
-      process.send({ type: 'started', pid: process.pid }, (error: Error | null) => {
-        if (error) {
-          logger.error('Failed to send IPC message:', error);
-        } else {
-          logger.debug('Started message sent successfully');
-        }
-      });
+      try {
+        process.send({ type: 'started', pid: process.pid });
+        logger.debug('Started message sent successfully');
+      } catch (ipcError) {
+        logger.error('Failed to send IPC message:', ipcError);
+      }
     } else {
       logger.warn('No IPC channel available (process.send is undefined)');
     }

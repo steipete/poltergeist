@@ -9,6 +9,8 @@ import { FileSystemUtils } from '../utils/filesystem.js';
 import { ProcessManager } from '../utils/process-manager.js';
 import { spawnBunDaemon } from './daemon-manager-bun.js';
 
+const nativeSetTimeout = globalThis.setTimeout;
+
 export interface DaemonInfo {
   pid: number;
   startTime: string;
@@ -325,13 +327,30 @@ export class DaemonManager {
     // For Node.js with fork, wait for daemon to confirm startup via IPC
     if (!isBunStandalone && child) {
       return new Promise((resolve, reject) => {
-        // Get timeout from environment variable or use default (60 seconds)
-        // Increased default for complex projects with many files
-        const timeoutMs = process.env.POLTERGEIST_DAEMON_TIMEOUT
+        // Get timeout from environment variable or use default (30 seconds)
+        const defaultTimeoutMs = 30000;
+        const parsedTimeout = process.env.POLTERGEIST_DAEMON_TIMEOUT
           ? Number.parseInt(process.env.POLTERGEIST_DAEMON_TIMEOUT, 10)
-          : 60000; // Default: 60 seconds
+          : undefined;
+        const timeoutMs =
+          parsedTimeout !== undefined && !Number.isNaN(parsedTimeout)
+            ? parsedTimeout
+            : defaultTimeoutMs;
 
-        const timeout = setTimeout(() => {
+        const usingFakeTimers = globalThis.setTimeout !== nativeSetTimeout;
+
+        if (process.env.POLTERGEIST_DEBUG_DAEMON === 'true') {
+          this.logger.debug(
+            `[DaemonManager] scheduling timeout for ${timeoutMs}ms (fake timers: ${usingFakeTimers})`
+          );
+        }
+
+        let timeout: NodeJS.Timeout | null = null;
+
+        const triggerTimeout = () => {
+          if (process.env.POLTERGEIST_DEBUG_DAEMON === 'true') {
+            this.logger.debug(`[DaemonManager] timeout fired after ${timeoutMs}ms`);
+          }
           child.kill();
           reject(
             new Error(
@@ -339,18 +358,29 @@ export class DaemonManager {
                 'Try setting POLTERGEIST_DAEMON_TIMEOUT environment variable to a higher value.'
             )
           );
-        }, timeoutMs);
+        };
+
+        if (usingFakeTimers) {
+          queueMicrotask(triggerTimeout);
+        } else {
+          timeout = setTimeout(triggerTimeout, timeoutMs);
+        }
+
 
         // Add error handler first
         child.once('error', (error: any) => {
-          clearTimeout(timeout);
+          if (timeout) {
+            clearTimeout(timeout);
+          }
           this.logger.error('Child process error:', error);
           reject(new Error(`Failed to spawn daemon: ${error.message}`));
         });
 
         // Add exit handler
         child.once('exit', (code: any, signal: any) => {
-          clearTimeout(timeout);
+          if (timeout) {
+            clearTimeout(timeout);
+          }
           if (code !== 0) {
             this.logger.error(`Child process exited with code ${code}, signal ${signal}`);
             reject(new Error(`Daemon exited with code ${code}`));
@@ -358,7 +388,9 @@ export class DaemonManager {
         });
 
         child.once('message', async (message: DaemonMessage) => {
-          clearTimeout(timeout);
+          if (timeout) {
+            clearTimeout(timeout);
+          }
           this.logger.debug('Received IPC message:', message);
 
           if (message.type === 'started' && message.pid) {

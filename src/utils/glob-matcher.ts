@@ -3,6 +3,9 @@
 //  Poltergeist
 //
 
+import { regex as compileRegex } from 'arkregex';
+import { escapeRegExp } from 'es-toolkit/string';
+
 /**
  * Cross-runtime glob pattern matcher.
  * Uses Bun.Glob when available (3x faster), otherwise falls back to a minimal implementation.
@@ -57,7 +60,7 @@ function createMinimalMatcher(pattern: string): (path: string) => boolean {
  * Handles common glob patterns used in file watching.
  */
 function globToRegex(glob: string): RegExp {
-  let regex = '';
+  let pattern = '';
   let inClass = false;
   let inBrace = false;
   let braceLevel = 0;
@@ -70,12 +73,12 @@ function globToRegex(glob: string): RegExp {
       // Inside character class [...]
       if (char === ']' && i > 0 && glob[i - 1] !== '\\') {
         inClass = false;
-        regex += char;
+        pattern += char;
       } else if (char === '-' && i > 0 && nextChar && nextChar !== ']') {
         // Range in character class
-        regex += char;
+        pattern += char;
       } else {
-        regex += escapeRegexChar(char);
+        pattern += escapeRegExp(char);
       }
       continue;
     }
@@ -86,17 +89,17 @@ function globToRegex(glob: string): RegExp {
         braceLevel--;
         if (braceLevel === 0) {
           inBrace = false;
-          regex += ')';
+          pattern += ')';
         } else {
-          regex += '}';
+          pattern += '}';
         }
       } else if (char === '{') {
         braceLevel++;
-        regex += '{';
+        pattern += '{';
       } else if (char === ',' && braceLevel === 1) {
-        regex += '|';
+        pattern += '|';
       } else {
-        regex += escapeRegexChar(char);
+        pattern += escapeRegExp(char);
       }
       continue;
     }
@@ -115,35 +118,35 @@ function globToRegex(glob: string): RegExp {
             // Handle **/ pattern - match zero or more path segments
             if (nextNextChar === '/') {
               // Skip the / after ** and make it optional
-              regex += '(?:.*/)?';
+              pattern += '(?:.*/)?';
               i += 2; // Skip ** and /
             } else {
               // Standalone ** at the end
-              regex += '.*';
+              pattern += '.*';
               i++; // Skip the second *
             }
           } else {
             // Regular * in other contexts
-            regex += '[^/]*';
+            pattern += '[^/]*';
           }
         } else {
           // * matches anything except path separator
-          regex += '[^/]*';
+          pattern += '[^/]*';
         }
         break;
 
       case '?':
         // ? matches any single character except path separator
-        regex += '[^/]';
+        pattern += '[^/]';
         break;
 
       case '[':
         // Start of character class
         inClass = true;
-        regex += '[';
+        pattern += '[';
         // Handle negation
         if (nextChar === '!' || nextChar === '^') {
-          regex += '^';
+          pattern += '^';
           i++;
         }
         break;
@@ -152,12 +155,12 @@ function globToRegex(glob: string): RegExp {
         // Start of brace expansion
         inBrace = true;
         braceLevel = 1;
-        regex += '(';
+        pattern += '(';
         break;
 
       case '/':
         // Path separator
-        regex += '\\/';
+        pattern += '\\/';
         break;
 
       case '.':
@@ -169,27 +172,16 @@ function globToRegex(glob: string): RegExp {
       case '$':
       case '\\':
         // Escape regex special characters
-        regex += `\\${char}`;
+        pattern += `\\${char}`;
         break;
 
       default:
-        regex += char;
+        pattern += char;
     }
   }
 
   // Anchor the pattern
-  return new RegExp(`^${regex}$`);
-}
-
-/**
- * Escapes special regex characters in a string.
- */
-function escapeRegexChar(char: string): string {
-  const specialChars = '.+*?^$()[]{}|\\';
-  if (specialChars.includes(char)) {
-    return `\\${char}`;
-  }
-  return char;
+  return compileRegex.as(`^${pattern}$`);
 }
 
 /**

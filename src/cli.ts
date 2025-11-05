@@ -5,6 +5,7 @@ import chalk from 'chalk';
 // Updated CLI for generic target system
 import { Command } from 'commander';
 import {
+  appendFileSync,
   createReadStream,
   existsSync,
   readFileSync,
@@ -16,6 +17,7 @@ import {
 import { readdir } from 'fs/promises';
 import path, { join } from 'path';
 import { createInterface } from 'readline';
+import { FileSystemUtils } from './utils/filesystem.js';
 import { isMainModule } from './utils/paths.js';
 
 // Version is hardcoded at compile time - NEVER read from filesystem
@@ -32,7 +34,7 @@ import { ConfigurationError } from './config.js';
 // Static import for daemon-worker to ensure it's included in Bun binary
 import { runDaemon } from './daemon/daemon-worker.js';
 import { createPoltergeist } from './factories.js';
-import { createLogger } from './logger.js';
+import { createLogger, type Logger } from './logger.js';
 import type { AppBundleTarget, PoltergeistConfig, ProjectType, Target } from './types.js';
 import { CLIFormatter, type CommandGroup, type OptionInfo } from './utils/cli-formatter.js';
 import { CMakeProjectAnalyzer } from './utils/cmake-analyzer.js';
@@ -136,6 +138,9 @@ program
     const { config, projectRoot, configPath } = await loadConfiguration(options.config);
 
     // Validate target if specified
+    let noEnabledTargets = false;
+    const noTargetsMessage = 'No enabled targets found. Daemon will continue running.';
+
     if (options.target) {
       validateTarget(options.target, config);
     } else {
@@ -147,6 +152,7 @@ program
             '💡 Daemon will continue running. You can enable targets by editing poltergeist.config.json'
           )
         );
+        noEnabledTargets = true;
       }
     }
 
@@ -155,6 +161,32 @@ program
       options.logLevel || (options.verbose ? 'debug' : config.logging?.level || 'info');
 
     const logger = createLogger(config.logging?.file || '.poltergeist.log', logLevel);
+
+    const resolvedLogPath = config.logging?.file
+      ? path.isAbsolute(config.logging.file)
+        ? config.logging.file
+        : path.join(projectRoot, config.logging.file)
+      : path.join(projectRoot, '.poltergeist.log');
+
+    const appendWarningToLog = () => {
+      try {
+        appendFileSync(
+          resolvedLogPath,
+          `${new Date().toISOString()} WARN : ${noTargetsMessage}\n`,
+          'utf-8'
+        );
+        if (process.env.POLTERGEIST_DEBUG_LOGGER === 'true') {
+          console.log(`Appended warning to ${resolvedLogPath}`);
+        }
+      } catch {
+        // Swallow logging errors; console warning already shown.
+      }
+    };
+
+    if (noEnabledTargets && options.foreground) {
+      logger.warn(noTargetsMessage);
+      appendWarningToLog();
+    }
 
     if (!options.foreground) {
       // Daemon mode (default)
@@ -177,13 +209,21 @@ program
         console.log(chalk.gray(poltergeistMessage('info', 'Starting daemon...')));
 
         // Start daemon with retry logic
-        const pid = await daemon.startDaemonWithRetry(config, {
+       const pid = await daemon.startDaemonWithRetry(config, {
           projectRoot,
           configPath,
           target: options.target,
           verbose: options.verbose,
           logLevel: options.logLevel,
         });
+
+        if (noEnabledTargets) {
+          if (process.env.POLTERGEIST_DEBUG_LOGGER === 'true') {
+            console.log('noEnabledTargets true, writing warning');
+          }
+          logger.warn(noTargetsMessage);
+          appendWarningToLog();
+        }
 
         console.log(chalk.green(`${ghost.success()} Poltergeist daemon started (PID: ${pid})`));
         console.log(chalk.gray('Use "poltergeist logs" to see output'));
@@ -721,16 +761,36 @@ async function readLogEntries(
   const entries: LogEntry[] = [];
 
   for (const line of lines) {
-    try {
-      const entry = JSON.parse(line) as LogEntry;
+    // Parse plain text format: timestamp LEVEL: [target] message
+    // Example: 2024-01-01T12:00:00.000Z INFO : [my-target] Build started
+    const plainTextMatch = line.match(/^(\S+)\s+(\w+)\s*:\s*(?:\[([^\]]+)\]\s*)?(.*)$/);
 
-      // Filter by target if specified
-      if (targetFilter && entry.target !== targetFilter) {
-        continue;
-      }
+    if (plainTextMatch) {
+      const [, timestamp, level, target, message] = plainTextMatch;
+
+      // Since we're reading from target-specific files now, the target is inherent
+      // But we keep it for compatibility
+      const entry: LogEntry = {
+        timestamp,
+        level: level.toLowerCase(),
+        message: message.trim(),
+        target: target || targetFilter,
+      };
 
       entries.push(entry);
-    } catch (_error) {}
+    } else {
+      // Try to parse as JSON for backward compatibility with old logs
+      try {
+        const entry = JSON.parse(line) as LogEntry;
+        // Filter by target if specified (only for old JSON format)
+        if (targetFilter && entry.target !== targetFilter) {
+          continue;
+        }
+        entries.push(entry);
+      } catch (_error) {
+        // Not JSON and not matching plain text format - skip
+      }
+    }
   }
 
   // Return last N lines if maxLines specified
@@ -801,9 +861,13 @@ async function followLogs(
   // Display existing logs first
   const existingEntries = await readLogEntries(logFile, targetFilter, 20);
   if (jsonOutput) {
-    existingEntries.forEach((entry) => console.log(JSON.stringify(entry)));
+    for (const entry of existingEntries) {
+      console.log(JSON.stringify(entry));
+    }
   } else {
-    existingEntries.forEach(formatLogEntry);
+    for (const entry of existingEntries) {
+      formatLogEntry(entry);
+    }
   }
 
   // Watch for new log entries
@@ -840,15 +904,16 @@ async function followLogs(
             // Skip malformed lines
           }
         } else {
-          // New plain text format: timestamp level: message
-          const match = line.match(/^(\S+\s+\S+)\s+(\w+):\s+(.*)$/);
-          if (match) {
-            const [, timestamp, level, message] = match;
+          // New plain text format: timestamp LEVEL: [target] message
+          const plainTextMatch = line.match(/^(\S+)\s+(\w+)\s*:\s*(?:\[([^\]]+)\]\s*)?(.*)$/);
+          if (plainTextMatch) {
+            const [, timestamp, level, target, message] = plainTextMatch;
+            // Since we're reading from target-specific files, target is inherent
             const entry: LogEntry = {
               timestamp,
               level: level.toLowerCase().trim(),
-              message,
-              target: targetFilter,
+              message: message.trim(),
+              target: target || targetFilter,
             };
             if (jsonOutput) {
               console.log(JSON.stringify(entry));
@@ -1178,7 +1243,7 @@ program
 
     if (!targetName) {
       // No target specified - need to be smart about it
-      const logger = createLogger(config.logging?.level || 'info');
+      const logger = createLogger(undefined, config.logging?.level || 'info');
       const poltergeist = createPoltergeist(config, projectRoot, logger, options.config || '');
       const status = await poltergeist.getStatus();
 
@@ -1230,9 +1295,26 @@ program
 
     // Note: Don't validate target exists - it might have been removed but still have logs
 
-    const logFile = config.logging?.file || '.poltergeist.log';
-    if (!existsSync(logFile)) {
-      console.error(chalk.red(`No log file found: ${logFile}`));
+    const resolveLogPath = (logPath?: string): string | undefined => {
+      if (!logPath) return undefined;
+      return path.isAbsolute(logPath) ? logPath : path.join(projectRoot, logPath);
+    };
+
+    const candidateLogFiles = [
+      logTarget ? FileSystemUtils.getLogFilePath(projectRoot, logTarget) : undefined,
+      resolveLogPath(config.logging?.file),
+      path.join(projectRoot, '.poltergeist.log'),
+      logTarget ? path.join(projectRoot, `${logTarget}.log`) : undefined,
+      logTarget ? path.join(projectRoot, `.poltergeist-${logTarget}.log`) : undefined,
+    ]
+      .filter((filePath): filePath is string => !!filePath)
+      // Remove duplicates while preserving order
+      .filter((filePath, index, self) => self.indexOf(filePath) === index);
+
+    const logFile = candidateLogFiles.find((filePath) => existsSync(filePath));
+
+    if (!logFile) {
+      console.error(chalk.red(`No log file found for target: ${logTarget}`));
       console.error(chalk.yellow('💡 Start Poltergeist to generate logs: poltergeist start'));
       process.exit(1);
     }
@@ -1371,7 +1453,7 @@ program
       }
 
       // Poll for completion
-      const timeout = Number.parseInt(options.timeout) * 1000;
+      const timeout = Number.parseInt(options.timeout, 10) * 1000;
       const pollInterval = 1000; // 1 second
       const startTime = Date.now();
 
@@ -1440,28 +1522,96 @@ program
   .option('-d, --days <number>', 'Remove state files older than N days', '7')
   .option('--dry-run', 'Show what would be removed without actually removing')
   .action(async (options) => {
-    console.log(chalk.gray(poltergeistMessage('info', 'Cleaning up state files...')));
+    try {
+      console.log(chalk.gray(poltergeistMessage('info', 'Cleaning up state files...')));
 
-    const { StateManager } = await import('./state.js');
-    const stateFiles = await StateManager.listAllStates();
+      const { StateManager } = await import('./state.js');
+      const stateFiles = await StateManager.listAllStates();
 
-    if (stateFiles.length === 0) {
-      console.log(chalk.green('No state files found'));
-      return;
-    }
+      if (stateFiles.length === 0) {
+        console.log(chalk.green('No state files found'));
+        return;
+      }
 
-    const logger = createLogger();
-    let removedCount = 0;
-    const daysThreshold = Number.parseInt(options.days);
-    const ageThreshold = Date.now() - daysThreshold * 24 * 60 * 60 * 1000;
+      const logger = createLogger();
+      const msPerDay = 24 * 60 * 60 * 1000;
+      const daysThreshold = Number.parseInt(options.days, 10);
+      const ageThreshold = Date.now() - daysThreshold * msPerDay;
+      const fallbackProjectRoot =
+        FileSystemUtils.findProjectRoot(process.cwd()) || process.cwd();
+      let removedCount = 0;
+      let candidateCount = 0;
 
-    for (const file of stateFiles) {
-      try {
-        const stateManager = new StateManager('/', logger);
-        const targetName = file.replace('.state', '').split('-').pop() || '';
-        const state = await stateManager.readState(targetName);
+      if (process.env.POLTERGEIST_DEBUG_CLEAN === 'true') {
+        console.log('CLEAN files', JSON.stringify(stateFiles));
+      }
 
-        if (!state) continue;
+      const deriveTargetName = (fileName: string): string => {
+        const hashedPattern = /^(.*?)-([0-9a-f]{8})-(.+)\.state$/i;
+        const match = fileName.match(hashedPattern);
+        if (match) {
+          return match[3];
+        }
+        return fileName.replace(/\.state$/i, '');
+      };
+
+      const readStateForFile = async (
+        manager: any,
+        file: string,
+        targetName: string
+      ): Promise<any> => {
+        let state = await manager.readState(targetName);
+        if (!state) {
+          const fallbackName = file.replace(/\.state$/i, '');
+          if (fallbackName && fallbackName !== targetName) {
+            state = await manager.readState(fallbackName);
+          }
+        }
+        return state;
+      };
+
+      const instantiateStateManager = () => {
+        if (typeof StateManager !== 'function') {
+          throw new Error('StateManager is not constructible');
+        }
+
+        try {
+          return (StateManager as unknown as (projectRoot: string, logger: Logger) => any)(
+            fallbackProjectRoot,
+            logger
+          );
+        } catch (error) {
+          if (error instanceof TypeError && error.message.includes('class constructor')) {
+            return new StateManager(fallbackProjectRoot, logger);
+          }
+          throw error;
+        }
+      };
+
+      for (const file of stateFiles) {
+        const stateManager = instantiateStateManager();
+        const targetName = deriveTargetName(file);
+        const state = await readStateForFile(stateManager, file, targetName);
+
+        if (!state) {
+          continue;
+        }
+
+        if (process.env.POLTERGEIST_DEBUG_CLEAN === 'true') {
+          console.log(
+            'CLEAN state',
+            JSON.stringify(
+              {
+                file,
+                targetName,
+                process: state.process,
+                options,
+              },
+              null,
+              2
+            )
+          );
+        }
 
         let shouldRemove = false;
         let reason = '';
@@ -1469,46 +1619,60 @@ program
         if (options.all) {
           shouldRemove = true;
           reason = 'all files';
-        } else if (!state.process.isActive) {
-          const lastHeartbeat = new Date(state.process.lastHeartbeat).getTime();
-          if (lastHeartbeat < ageThreshold) {
+        } else if (!state.process?.isActive) {
+          const heartbeat = state.process?.lastHeartbeat
+            ? new Date(state.process.lastHeartbeat).getTime()
+            : undefined;
+          if (heartbeat !== undefined && heartbeat < ageThreshold) {
             shouldRemove = true;
             reason = `inactive for ${daysThreshold}+ days`;
           }
         }
 
-        if (shouldRemove) {
-          const projectName = state.projectName || 'unknown';
-          const age = Math.round(
-            (Date.now() - new Date(state.process.lastHeartbeat).getTime()) / (1000 * 60 * 60 * 24)
-          );
-
-          console.log(chalk.yellow(`  Removing: ${file}`));
-          console.log(`    Project: ${projectName}`);
-          console.log(`    Target: ${state.target}`);
-          console.log(`    Age: ${age} days`);
-          console.log(`    Reason: ${reason}`);
-
-          if (!options.dryRun) {
-            await stateManager.removeState(targetName);
-            removedCount++;
-          }
-          console.log();
+        if (!shouldRemove) {
+          continue;
         }
-      } catch (error) {
-        console.error(chalk.red(`Error processing ${file}: ${error}`));
-      }
-    }
 
-    if (options.dryRun) {
-      console.log(chalk.blue(`Would remove ${removedCount} state file(s)`));
-    } else {
-      console.log(
-        chalk.green(poltergeistMessage('success', `Removed ${removedCount} state file(s)`))
-      );
+        candidateCount++;
+
+        const actionLabel = options.dryRun ? 'Would remove' : 'Removing';
+        const message = `${actionLabel}: ${file}`;
+        console.log(options.dryRun ? chalk.blue(message) : chalk.yellow(message));
+        console.log(`    Project: ${state.projectName || 'unknown'}`);
+        console.log(`    Target: ${state.target || targetName}`);
+
+        if (state.process?.lastHeartbeat) {
+          const heartbeatMs = new Date(state.process.lastHeartbeat).getTime();
+          if (!Number.isNaN(heartbeatMs)) {
+            const ageDays = Math.round((Date.now() - heartbeatMs) / msPerDay);
+            console.log(`    Age: ${ageDays} days`);
+          }
+        }
+
+        console.log(`    Reason: ${reason}`);
+        console.log();
+
+        if (!options.dryRun) {
+          const removalKey = state.target || targetName;
+          await stateManager.removeState(removalKey);
+          removedCount++;
+        }
+      }
+
+      if (options.dryRun) {
+        console.log(chalk.blue(`Would remove ${candidateCount} state file(s)`));
+      } else {
+        console.log(
+          chalk.green(poltergeistMessage('success', `Removed ${removedCount} state file(s)`))
+        );
+      }
+    } catch (error) {
+      if (process.env.POLTERGEIST_DEBUG_CLEAN === 'true') {
+        console.error('CLEAN command failed:', error);
+      }
+      throw error;
     }
   });
-
 // Add polter command - delegate to polter CLI using shared configuration
 const polterCommand = program
   .command('polter <target> [args...]')

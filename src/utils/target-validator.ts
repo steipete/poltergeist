@@ -1,4 +1,5 @@
 import chalk from 'chalk';
+import { sortBy } from 'es-toolkit/array';
 import type { PoltergeistConfig, Target } from '../types.js';
 
 /**
@@ -38,7 +39,7 @@ function levenshteinDistance(a: string, b: string): number {
  */
 function findSimilarTargets(targetName: string, availableTargets: string[]): string[] {
   // Calculate distances and sort by similarity
-  const suggestions = availableTargets
+  const scoredTargets: Array<{ target: string; distance: number }> = availableTargets
     .map((target) => ({
       target,
       distance: levenshteinDistance(targetName.toLowerCase(), target.toLowerCase()),
@@ -47,11 +48,11 @@ function findSimilarTargets(targetName: string, availableTargets: string[]): str
       // More strict threshold: max 3 edits or 30% of length, whichever is smaller
       const maxDistance = Math.min(3, Math.ceil(targetName.length * 0.3));
       return distance <= maxDistance;
-    })
-    .sort((a, b) => a.distance - b.distance)
-    .map(({ target }) => target);
+    });
 
-  return suggestions;
+  return sortBy(scoredTargets, [
+    (entry: { target: string; distance: number }) => entry.distance,
+  ]).map(({ target }) => target);
 }
 
 /**
@@ -91,7 +92,9 @@ export function validateTarget(targetName: string, config: PoltergeistConfig): v
         console.error(chalk.cyan(`Did you mean '${suggestions[0]}'?`));
       } else {
         console.error(chalk.cyan('Did you mean one of these?'));
-        suggestions.forEach((s) => console.error(`  • ${s}`));
+        for (const suggestion of suggestions) {
+          console.error(`  • ${suggestion}`);
+        }
       }
     }
 

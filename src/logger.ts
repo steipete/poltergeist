@@ -78,6 +78,12 @@ export class SimpleLogger implements Logger {
         }
         // Clear the log file for this target (one build = one log)
         this.logStream = createWriteStream(logFile, { flags: 'w' });
+        this.logStream.on('error', (error: unknown) => {
+          // Swallow stream errors (e.g., when temp directories are cleaned up in tests)
+          if (process.env.POLTERGEIST_DEBUG_LOGGER === 'true') {
+            console.error('Logger stream error:', error);
+          }
+        });
       } catch {
         // Ignore file logging errors
       }
@@ -166,7 +172,16 @@ export function createLogger(logFile?: string, logLevel?: string, targetName?: s
   const level = logLevel || 'info';
 
   // Try to use LogTape if available
-  if (logtape) {
+  const isTestEnv =
+    process.env.NODE_ENV === 'test' ||
+    Boolean(process.env.VITEST) ||
+    Boolean(process.env.VITEST_POOL_ID) ||
+    Boolean(process.env.VITEST_WORKER_ID) ||
+    (typeof process !== 'undefined' &&
+      Array.isArray(process.argv) &&
+      process.argv.some((arg) => arg.includes('vitest')));
+  const shouldUseLogTape = logtape && !isTestEnv;
+  if (shouldUseLogTape) {
     try {
       const { configure, getLogger, getConsoleSink, getFileSink } = logtape;
 
