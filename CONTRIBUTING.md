@@ -6,7 +6,7 @@ Thank you for your interest in contributing to Poltergeist! This guide covers bo
 
 ### Prerequisites
 
-- **Node.js 20+** for CLI development
+- **Node.js 22+** for CLI development
 - **Xcode 15+** with Command Line Tools for macOS app development
 - **Watchman** installed (`brew install watchman`)
 - **SwiftLint** and **swift-format** for Swift code quality (`brew install swiftlint swift-format`)
@@ -293,7 +293,7 @@ log stream --predicate 'subsystem BEGINSWITH "com.poltergeist"'
 Our CI/CD pipeline automatically validates all contributions:
 
 ### Automated Checks
-- **Multi-platform testing**: Node.js 20/22 on Ubuntu and macOS
+- **Multi-platform testing**: Node.js 22/24 on Ubuntu and macOS
 - **Swift 6 compilation**: Strict concurrency and type checking
 - **Code quality**: SwiftLint, swift-format, Biome, TypeScript validation
 - **Test coverage**: Comprehensive coverage reporting

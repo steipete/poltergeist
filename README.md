@@ -3,7 +3,7 @@
   
   # Poltergeist
 
-  <a href="https://nodejs.org"><img src="https://img.shields.io/badge/Node.js-20%2B-339933?style=for-the-badge&logo=node.js&logoColor=white" alt="Node.js 20+"></a>
+  <a href="https://nodejs.org"><img src="https://img.shields.io/badge/Node.js-22%2B-339933?style=for-the-badge&logo=node.js&logoColor=white" alt="Node.js 22+"></a>
   <a href="https://github.com/steipete/poltergeist"><img src="https://img.shields.io/badge/platforms-macOS%20%7C%20Linux%20%7C%20Windows-blue?style=for-the-badge" alt="Platforms"></a>
   <a href="LICENSE"><img src="https://img.shields.io/badge/license-MIT-green?style=for-the-badge" alt="MIT License"></a>
   <a href="https://github.com/steipete/poltergeist/actions/workflows/ci.yml"><img src="https://img.shields.io/github/actions/workflow/status/steipete/poltergeist/ci.yml?style=for-the-badge&logo=github&label=CI" alt="CI Status"></a>
@@ -1046,7 +1046,7 @@ This architecture enables rich integrations while maintaining simplicity and rel
 ## Development
 
 ### Prerequisites
-- **Node.js 20+** for CLI development
+- **Node.js 22+** for CLI development
 - **Xcode 15+** for macOS app development
 - **Watchman** for file watching
 
@@ -1081,7 +1081,7 @@ open Poltergeist.xcodeproj
 
 Our comprehensive CI/CD pipeline ensures code quality across both platforms:
 
-- **Multi-platform testing**: Node.js 20/22 on Ubuntu, macOS, and Windows
+- **Multi-platform testing**: Node.js 22/24 on Ubuntu, macOS, and Windows
 - **Swift 6 validation**: Strict concurrency checking and modern Swift practices
 - **Code quality**: SwiftLint, swift-format, Biome, and TypeScript checks
 - **Automated releases**: Dual-platform releases with both CLI (.tgz) and macOS app (.dmg/.zip)

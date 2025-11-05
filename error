@@ -1,5 +1,0 @@
-2025-08-10T00:02:46.955Z INFO : [test-app] Building with 0 changed file(s)
-2025-08-10T00:02:46.982Z ERROR: [test-app] Build failed: Build process exited with code 1
-
-Last error output:
-ERROR: Compilation failed

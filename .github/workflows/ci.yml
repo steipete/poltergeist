@@ -15,7 +15,7 @@ jobs:
       fail-fast: false
       matrix:
         os: [ubuntu-latest, macos-15, windows-latest]
-        node-version: ['20', '22', '24']
+        node-version: ['22', '24']
         
     steps:
     - name: Checkout code
@@ -25,26 +25,29 @@ jobs:
       uses: actions/setup-node@v4
       with:
         node-version: ${{ matrix.node-version }}
-        cache: 'npm'
+        cache: 'pnpm'
         
+    - name: Enable pnpm
+      run: corepack enable pnpm
+      
     - name: Install dependencies
-      run: npm ci
+      run: pnpm install --frozen-lockfile
       
     - name: Build CLI project
-      run: npm run build
+      run: pnpm run build
       
     - name: Run linter
-      run: npm run lint
+      run: pnpm run lint
       
     - name: Run TypeScript type check
-      run: npm run typecheck
+      run: pnpm run typecheck
       
     - name: Run CLI tests
       run: |
         if [ "${{ matrix.os }}" = "windows-latest" ]; then
-          npx vitest --config vitest.config.windows-ci.ts
+          pnpm vitest --config vitest.config.windows-ci.ts
         else
-          npx vitest --config vitest.config.ci.ts
+          pnpm vitest --config vitest.config.ci.ts
         fi
       shell: bash
       
@@ -66,13 +69,16 @@ jobs:
       uses: actions/setup-node@v4
       with:
         node-version: '22'
-        cache: 'npm'
+        cache: 'pnpm'
         
+    - name: Enable pnpm
+      run: corepack enable pnpm
+      
     - name: Install dependencies
-      run: npm ci
+      run: pnpm install --frozen-lockfile
       
     - name: Check code formatting
-      run: npm run format:check
+      run: pnpm run format:check
       
   windows-specific:
     name: Windows-specific Tests
@@ -86,13 +92,16 @@ jobs:
       uses: actions/setup-node@v4
       with:
         node-version: '22'
-        cache: 'npm'
+        cache: 'pnpm'
         
+    - name: Enable pnpm
+      run: corepack enable pnpm
+      
     - name: Install dependencies
-      run: npm ci
+      run: pnpm install --frozen-lockfile
       
     - name: Build CLI project
-      run: npm run build
+      run: pnpm run build
       
     - name: Test Windows temp directory handling
       run: |
