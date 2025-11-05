@@ -69,10 +69,10 @@ This checklist ensures reliable, complete releases without the mistakes we've ma
 ## Release Process
 
 ### 1. Testing
-- [ ] Run full test suite: `npm test`
+- [ ] Run full test suite: `pnpm test`
 - [ ] Note any flaky tests but don't block on daemon timing issues
-- [ ] Run linting: `npm run lint`
-- [ ] Run type checking: `npm run typecheck`
+- [ ] Run linting: `pnpm run lint`
+- [ ] Run type checking: `pnpm run typecheck`
 
 ### 2. Changelog
 - [ ] Update `CHANGELOG.md` with all changes

@@ -80,7 +80,7 @@ Auto-generated from Swift source code using Swift-DocC:
 
 Generate all documentation:
 ```bash
-npm run docs:build
+pnpm run docs:build
 ```
 
 This runs both TypeScript and Swift documentation generation.
@@ -89,24 +89,24 @@ This runs both TypeScript and Swift documentation generation.
 
 Generate TypeScript API docs only:
 ```bash
-npm run docs:api
+pnpm run docs:api
 ```
 
 Generate Swift API docs only:
 ```bash
-npm run docs:swift
+pnpm run docs:swift
 ```
 
 Watch for changes (TypeScript only):
 ```bash
-npm run docs:api:watch
+pnpm run docs:api:watch
 ```
 
 ### Serving Documentation
 
 Start a local server to browse all documentation:
 ```bash
-npm run docs:serve
+pnpm run docs:serve
 ```
 
 Then open `http://localhost:8080` in your browser.

@@ -204,16 +204,16 @@ const harness = createTestHarness({
 
 ```bash
 # Run all tests
-npm test
+pnpm test
 
 # Run tests in watch mode
-npm run test:watch
+pnpm run test:watch
 
 # Run specific test file
-npm test watchman.test.ts
+pnpm test watchman.test.ts
 
 # Run with coverage
-npm run test:coverage
+pnpm run test:coverage
 ```
 
 ## Debugging Tests

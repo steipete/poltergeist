@@ -1054,13 +1054,13 @@ This architecture enables rich integrations while maintaining simplicity and rel
 ```bash
 # Build from source
 git clone https://github.com/steipete/poltergeist.git
-cd poltergeist && npm install && npm run build
+cd poltergeist && pnpm install && pnpm run build
 
 # Development commands
-npm test                    # Run tests
-npm run dev                 # Auto-rebuild mode
-npm run lint                # Code quality checks
-npm run typecheck           # Type validation
+pnpm test                   # Run tests
+pnpm run dev                # Auto-rebuild mode
+pnpm run lint               # Code quality checks
+pnpm run typecheck          # Type validation
 ```
 
 ### macOS App Development
