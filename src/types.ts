@@ -45,6 +45,16 @@ export interface ExecutableTarget extends BaseTarget {
   type: 'executable';
   buildCommand: string;
   outputPath: string;
+  autoRun?: ExecutableAutoRunConfig;
+}
+
+export interface ExecutableAutoRunConfig {
+  enabled?: boolean;
+  command?: string;
+  args?: string[];
+  restartSignal?: string;
+  restartDelayMs?: number;
+  env?: Record<string, string>;
 }
 
 // App bundle target (macOS, iOS apps)
@@ -304,6 +314,16 @@ export const ExecutableTargetSchema = BaseTargetSchema.extend({
   type: z.literal('executable'),
   buildCommand: z.string(),
   outputPath: z.string(),
+  autoRun: z
+    .object({
+      enabled: z.boolean().optional(),
+      command: z.string().optional(),
+      args: z.array(z.string()).optional(),
+      restartSignal: z.string().optional(),
+      restartDelayMs: z.number().optional(),
+      env: z.record(z.string(), z.string()).optional(),
+    })
+    .optional(),
 });
 
 export const AppBundleTargetSchema = BaseTargetSchema.extend({

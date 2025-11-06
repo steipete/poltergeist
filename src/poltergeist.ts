@@ -13,8 +13,15 @@ import type {
 import { createLogger, type Logger } from './logger.js';
 import { BuildNotifier } from './notifier.js';
 import { PriorityEngine } from './priority-engine.js';
+import { ExecutableRunner } from './runners/executable-runner.js';
 import { type PoltergeistState, StateManager } from './state.js';
-import type { BuildSchedulingConfig, BuildStatus, PoltergeistConfig, Target } from './types.js';
+import type {
+  BuildSchedulingConfig,
+  BuildStatus,
+  ExecutableTarget,
+  PoltergeistConfig,
+  Target,
+} from './types.js';
 import { BuildStatusManager } from './utils/build-status-manager.js';
 import { ConfigurationManager } from './utils/config-manager.js';
 import { FileSystemUtils } from './utils/filesystem.js';
@@ -30,6 +37,7 @@ interface TargetState {
   lastBuild?: BuildStatus;
   pendingFiles: Set<string>;
   buildTimer?: NodeJS.Timeout;
+  runner?: ExecutableRunner;
 }
 
 interface ConfigChanges {
@@ -172,11 +180,20 @@ export class Poltergeist {
       );
       await builder.validate();
 
+      let runner: ExecutableRunner | undefined;
+      if (target.type === 'executable' && target.autoRun?.enabled) {
+        runner = new ExecutableRunner(target as ExecutableTarget, {
+          projectRoot: this.projectRoot,
+          logger: this.logger,
+        });
+      }
+
       this.targetStates.set(target.name, {
         target,
         builder,
         watching: false,
         pendingFiles: new Set(),
+        runner,
       });
 
       // Register with intelligent build queue if enabled
@@ -417,6 +434,13 @@ export class Poltergeist {
       };
       const status = await state.builder.build(changedFiles, buildOptions);
       state.lastBuild = status;
+      if (state.runner) {
+        if (BuildStatusManager.isSuccess(status)) {
+          await state.runner.onBuildSuccess();
+        } else if (BuildStatusManager.isFailure(status)) {
+          state.runner.onBuildFailure(status);
+        }
+      }
 
       // Send notification
       if (this.notifier) {
@@ -459,6 +483,7 @@ export class Poltergeist {
       // Stop specific target
       const state = this.targetStates.get(targetName);
       if (state) {
+        await state.runner?.stop();
         state.builder.stop();
         this.targetStates.delete(targetName);
         await this.stateManager.removeState(targetName);
@@ -466,6 +491,7 @@ export class Poltergeist {
     } else {
       // Stop all targets
       for (const state of this.targetStates.values()) {
+        await state.runner?.stop();
         state.builder.stop();
       }
       this.targetStates.clear();
@@ -746,11 +772,20 @@ export class Poltergeist {
         );
         await builder.validate();
 
+        let runner: ExecutableRunner | undefined;
+        if (target.type === 'executable' && target.autoRun?.enabled) {
+          runner = new ExecutableRunner(target as ExecutableTarget, {
+            projectRoot: this.projectRoot,
+            logger: this.logger,
+          });
+        }
+
         this.targetStates.set(target.name, {
           target,
           builder,
           watching: false,
           pendingFiles: new Set(),
+          runner,
         });
 
         // Register with intelligent build queue if enabled

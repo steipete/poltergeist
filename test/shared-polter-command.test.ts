@@ -18,6 +18,9 @@ describe('Shared Polter Command Configuration', () => {
       expect(optionFlags).toContain('--verbose');
       expect(optionFlags).toContain('--no-logs');
       expect(optionFlags).toContain('--log-lines <number>');
+      expect(optionFlags).toContain('-w, --watch');
+      expect(optionFlags).toContain('--restart-signal <signal>');
+      expect(optionFlags).toContain('--restart-delay <ms>');
     });
 
     it('should have proper default values', () => {
@@ -29,6 +32,17 @@ describe('Shared Polter Command Configuration', () => {
 
       const logLinesOption = POLTER_OPTIONS.find((opt) => opt.flag.includes('--log-lines'));
       expect(logLinesOption?.defaultValue).toBe('5');
+
+      const watchOption = POLTER_OPTIONS.find((opt) => opt.flag.includes('--watch'));
+      expect(watchOption?.defaultValue).toBe(false);
+
+      const restartSignalOption = POLTER_OPTIONS.find((opt) =>
+        opt.flag.includes('--restart-signal')
+      );
+      expect(restartSignalOption?.defaultValue).toBe('SIGINT');
+
+      const restartDelayOption = POLTER_OPTIONS.find((opt) => opt.flag.includes('--restart-delay'));
+      expect(restartDelayOption?.defaultValue).toBe('250');
     });
   });
 
@@ -108,6 +122,26 @@ describe('Shared Polter Command Configuration', () => {
       expect(parsed.logLines).toBe(25);
       expect(typeof parsed.logLines).toBe('number');
     });
+
+    it('should parse watch mode options', () => {
+      const options = {
+        timeout: '5000',
+        force: false,
+        wait: true,
+        verbose: false,
+        logs: true,
+        logLines: '5',
+        watch: true,
+        restartSignal: 'SIGTERM',
+        restartDelay: '750',
+      };
+
+      const parsed = parsePolterOptions(options);
+
+      expect(parsed.watch).toBe(true);
+      expect(parsed.restartSignal).toBe('SIGTERM');
+      expect(parsed.restartDelay).toBe(750);
+    });
   });
 
   describe('configurePolterCommand', () => {
@@ -126,6 +160,9 @@ describe('Shared Polter Command Configuration', () => {
       expect(optionFlags).toContain('--verbose');
       expect(optionFlags).toContain('--no-logs');
       expect(optionFlags).toContain('--log-lines <number>');
+      expect(optionFlags).toContain('-w, --watch');
+      expect(optionFlags).toContain('--restart-signal <signal>');
+      expect(optionFlags).toContain('--restart-delay <ms>');
     });
 
     it('should set allowUnknownOption', () => {

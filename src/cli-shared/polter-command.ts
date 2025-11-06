@@ -18,6 +18,9 @@ export interface ParsedPolterOptions {
   verbose: boolean;
   showLogs: boolean;
   logLines: number;
+  watch: boolean;
+  restartSignal: NodeJS.Signals;
+  restartDelay: number;
   help?: boolean;
 }
 
@@ -53,12 +56,34 @@ export const POLTER_OPTIONS: PolterOption[] = [
     description: 'Number of log lines to show',
     defaultValue: '5',
   },
+  {
+    flag: '-w, --watch',
+    description: 'Keep the process running and restart on successful rebuilds',
+    defaultValue: false,
+  },
+  {
+    flag: '--restart-signal <signal>',
+    description: 'Signal used when stopping the running process before restart (default SIGINT)',
+    defaultValue: 'SIGINT',
+  },
+  {
+    flag: '--restart-delay <ms>',
+    description:
+      'Delay in milliseconds before relaunching after a successful rebuild (default 250)',
+    defaultValue: '250',
+  },
 ];
 
 /**
  * Parse raw command options into structured format
  */
 export function parsePolterOptions(options: any): ParsedPolterOptions {
+  const restartSignal =
+    typeof options.restartSignal === 'string' && options.restartSignal.trim() !== ''
+      ? (options.restartSignal as NodeJS.Signals)
+      : 'SIGINT';
+  const restartDelay = Number.parseInt(options.restartDelay, 10);
+
   return {
     timeout: Number.parseInt(options.timeout, 10),
     force: options.force,
@@ -66,6 +91,9 @@ export function parsePolterOptions(options: any): ParsedPolterOptions {
     verbose: options.verbose,
     showLogs: options.logs !== false, // --no-logs sets logs=false
     logLines: Number.parseInt(options.logLines, 10),
+    watch: options.watch,
+    restartSignal,
+    restartDelay: Number.isNaN(restartDelay) ? 250 : restartDelay,
     help: options.help,
   };
 }
