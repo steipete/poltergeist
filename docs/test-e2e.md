@@ -18,6 +18,11 @@ The runner wipes any prior state, runs `poltergeist init`, asserts minimal confi
 - Touching `src/main.py` regenerates `test-results.txt`.
 - The captured report ends with `OK`, confirming successful test execution.
 
+## Go CLI (`examples/go-cli`)
+- `poltergeist init --auto` identifies the Go module and enables the `greeter` target.
+- Touching `internal/messages/messages.go` triggers a rebuild that emits `dist/bin/greeter`.
+- Executing the binary prints the updated greeting containing the touch token.
+
 ## CMake Library (`examples/cmake-library`)
 - `poltergeist init --cmake` analyses available targets, validates that `cmake` is present, and configures two build targets.
 - Touching `src/math_ops.c` triggers the generated CMake build pipeline.

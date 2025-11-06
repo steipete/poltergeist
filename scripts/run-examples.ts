@@ -482,6 +482,66 @@ const examples: ExampleDefinition[] = [
     },
   },
   {
+    name: 'Go CLI',
+    directory: 'go-cli',
+    description: 'Go module with cmd/<name>/main.go layout',
+    initArgs: ['init', '--auto'],
+    cleanup: async ({ exampleRoot }) => {
+      await cleanupCommonFiles(exampleRoot);
+      await runCli(['stop'], exampleRoot, { allowFailure: true });
+    },
+    trigger: async ({ exampleRoot, metadata }) => {
+      const messagePath = path.join(exampleRoot, 'internal', 'messages', 'messages.go');
+      const original = await readFile(messagePath, 'utf-8');
+      const token = `touch-${Date.now()}`;
+      metadata.goTouchToken = token;
+      metadata.goTouchTime = Date.now();
+
+      const updated = original.replace(
+        /baseGreeting = "([^"]+)"/,
+        `baseGreeting = "Hello from Go! ${token}"`
+      );
+
+      await writeFile(messagePath, updated);
+      await runProcess('touch', [messagePath], { cwd: exampleRoot });
+      await sleep(3000);
+    },
+    verify: async ({ exampleRoot, metadata }) => {
+      const binaryPath = path.join(exampleRoot, 'dist', 'bin', 'greeter');
+      const touchTime = Number(metadata.goTouchTime) || 0;
+      const token = String(metadata.goTouchToken || '');
+
+      await waitFor(async () => existsSync(binaryPath), {
+        description: 'Go binary build',
+        timeoutMs: 60000,
+      });
+
+      if (touchTime) {
+        await waitFor(async () => {
+          try {
+            const info = await stat(binaryPath);
+            return info.mtimeMs >= touchTime;
+          } catch {
+            return false;
+          }
+        }, { description: 'Go binary updated', timeoutMs: 60000 });
+      }
+
+      const { stdout } = await runProcess(binaryPath, [], { cwd: exampleRoot });
+      if (token) {
+        assert(
+          stdout.includes(token),
+          `Go binary output missing token (${token}). Output: ${stdout}`
+        );
+      } else {
+        assert(
+          stdout.includes('Hello from Go!'),
+          `Unexpected Go binary output: ${stdout}`
+        );
+      }
+    },
+  },
+  {
     name: 'CMake Library',
     directory: 'cmake-library',
     description: 'CMake multi-step build',

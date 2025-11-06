@@ -1225,6 +1225,56 @@ async function augmentConfigWithDetectedTargets(
       return;
     }
 
+    const hasGoMod = entryMap.has('go.mod');
+    const hasRootGoFile = dirEntries.some(
+      (entry) => entry.isFile() && entry.name.toLowerCase().endsWith('.go')
+    );
+
+    if (hasGoMod || hasRootGoFile) {
+      const goTargets: Array<{ name: string; packagePath: string }> = [];
+      const cmdEntry = entryMap.get('cmd');
+
+      if (cmdEntry?.isDirectory()) {
+        const cmdDirPath = join(projectRoot, cmdEntry.name);
+        try {
+          const cmdDirEntries = await readdir(cmdDirPath, { withFileTypes: true });
+          for (const subEntry of cmdDirEntries) {
+            if (!subEntry.isDirectory()) continue;
+            const mainFilePath = join(cmdDirPath, subEntry.name, 'main.go');
+            if (existsSync(mainFilePath)) {
+              goTargets.push({
+                name: subEntry.name,
+                packagePath: `./cmd/${subEntry.name}`,
+              });
+            }
+          }
+        } catch {
+          // Ignore read errors and fall back to root detection.
+        }
+      }
+
+      if (goTargets.length === 0 && entryMap.has('main.go')) {
+        goTargets.push({
+          name: path.basename(projectRoot),
+          packagePath: '.',
+        });
+      }
+
+      if (goTargets.length > 0) {
+        for (const target of goTargets) {
+          config.targets.push({
+            name: target.name,
+            type: 'executable',
+            enabled: true,
+            buildCommand: `mkdir -p ./dist/bin && go build -o ./dist/bin/${target.name} ${target.packagePath}`,
+            outputPath: `./dist/bin/${target.name}`,
+            watchPaths: ['**/*.go', 'go.mod', 'go.sum'],
+          });
+        }
+        return;
+      }
+    }
+
     const hasPythonIndicator =
       entryMap.has('pyproject.toml') ||
       entryMap.has('requirements.txt') ||
