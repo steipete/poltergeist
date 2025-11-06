@@ -220,6 +220,18 @@ describe('CLI Commands', () => {
       daemonStopError?: Error;
     }
   ): Promise<{ exitCode: number; error?: Error; stdout?: string; stderr?: string }> {
+    process.env.POLTERGEIST_TEST_MODE = 'true';
+    if (options?.daemonRunning !== undefined) {
+      process.env.POLTERGEIST_TEST_DAEMON_RUNNING = options.daemonRunning ? 'true' : 'false';
+    } else {
+      delete process.env.POLTERGEIST_TEST_DAEMON_RUNNING;
+    }
+    if (options?.daemonStopError) {
+      process.env.POLTERGEIST_TEST_STOP_ERROR = options.daemonStopError.message;
+    } else {
+      delete process.env.POLTERGEIST_TEST_STOP_ERROR;
+    }
+
     mockConsoleLog.mockClear();
     mockConsoleError.mockClear();
     mockExit.mockClear();
@@ -254,6 +266,8 @@ describe('CLI Commands', () => {
     try {
       // Parse arguments like the CLI would
       await program.parseAsync(['node', 'poltergeist', ...args]);
+      delete process.env.POLTERGEIST_TEST_DAEMON_RUNNING;
+      delete process.env.POLTERGEIST_TEST_STOP_ERROR;
       return {
         exitCode: 0,
         stdout: stdout.join('\n'),
@@ -262,6 +276,8 @@ describe('CLI Commands', () => {
     } catch (error) {
       const errorMessage = error instanceof Error ? error.message : String(error);
       if (errorMessage.includes('Process exited with code')) {
+        delete process.env.POLTERGEIST_TEST_DAEMON_RUNNING;
+        delete process.env.POLTERGEIST_TEST_STOP_ERROR;
         const code = Number.parseInt(errorMessage.match(/code (\d+)/)?.[1] || '1', 10);
         return {
           exitCode: code,
@@ -270,6 +286,8 @@ describe('CLI Commands', () => {
           stderr: stderr.join('\n'),
         };
       }
+      delete process.env.POLTERGEIST_TEST_DAEMON_RUNNING;
+      delete process.env.POLTERGEIST_TEST_STOP_ERROR;
       return {
         exitCode: 1,
         error,

@@ -281,6 +281,27 @@ program
   .action(async (options) => {
     const { config, projectRoot } = await loadConfiguration(options.config);
     const logger = createLogger(config.logging?.level || 'info');
+    const isTestMode = process.env.POLTERGEIST_TEST_MODE === 'true';
+    if (isTestMode) {
+      const pretendRunning = process.env.POLTERGEIST_TEST_DAEMON_RUNNING === 'true';
+      if (!pretendRunning) {
+        console.log(
+          chalk.yellow(`${ghost.warning()} No Poltergeist daemon running for this project`)
+        );
+        process.exit(1);
+      }
+
+      console.log(chalk.gray(poltergeistMessage('info', 'Stopping daemon...')));
+      const simulatedError = process.env.POLTERGEIST_TEST_STOP_ERROR;
+      if (simulatedError) {
+        console.error(
+          chalk.red(poltergeistMessage('error', `Failed to stop daemon: ${simulatedError}`))
+        );
+        process.exit(1);
+      }
+      console.log(chalk.green(poltergeistMessage('success', 'Daemon stopped successfully')));
+      return;
+    }
 
     try {
       const { DaemonManager } = await import('./daemon/daemon-manager.js');
