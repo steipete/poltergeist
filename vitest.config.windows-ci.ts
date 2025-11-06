@@ -31,6 +31,7 @@ export default defineConfig({
       'test/state-windows.test.ts',
       'test/state-edge-cases.test.ts',
       'test/polter-fallback.test.ts',
+      'test/wrapper.test.ts',
     ],
     coverage: {
       reporter: ['text', 'html'],
