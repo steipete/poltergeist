@@ -81,10 +81,11 @@ All notable changes to Poltergeist will be documented in this file.
 - Binary discovery in subdirectories
 - Standardized CLI output and flag conventions
 
-## [2.0.0] - Unreleased
+## [2.0.0] - 2025-11-06
 
 - Auto-detect Go `cmd/<name>/main.go` projects during `poltergeist init --auto`, generating runnable binaries in `dist/bin/`
 - Extend the TypeScript example harness to cover the new Go CLI project with tokenized rebuild verification
+- Documented hot reload workflows in README, covering daemon setup and multi-target tuning
 
 ## [1.9.0] - 2025-11-06
 

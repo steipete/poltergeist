@@ -73,6 +73,8 @@ This checklist ensures reliable, complete releases without the mistakes we've ma
 - [ ] Note any flaky tests but don't block on daemon timing issues
 - [ ] Run linting: `pnpm run lint`
 - [ ] Run type checking: `pnpm run typecheck`
+- [ ] Run formatter check: `pnpm format:check`
+- [ ] Run example harness: `pnpm exec tsx scripts/run-examples.ts`
 
 ### 2. Changelog
 - [ ] Update `CHANGELOG.md` with all changes
