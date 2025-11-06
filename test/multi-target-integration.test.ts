@@ -91,7 +91,9 @@ describe('Multi-Target Integration Tests', () => {
   // Helper to start Poltergeist and clear initial build calls
   async function startAndClearBuilds() {
     await poltergeist.start();
-    harness.builderFactory.builders.forEach((builder) => vi.mocked(builder.build).mockClear());
+    harness.builderFactory.builders.forEach((builder) => {
+      vi.mocked(builder.build).mockClear();
+    });
   }
 
   describe('Target Independence', () => {

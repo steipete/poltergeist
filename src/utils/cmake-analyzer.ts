@@ -397,7 +397,9 @@ export class CMakeProjectAnalyzer {
         ignore: ['build/**', '_build/**', 'out/**'],
       });
 
-      matches.forEach((dir) => dirs.add(dir));
+      matches.forEach((dir) => {
+        dirs.add(dir);
+      });
     }
 
     // Also find directories containing source files
@@ -624,7 +626,9 @@ export class CMakeProjectAnalyzer {
           const key = `${prefix}|${suffix}`;
 
           groups.set(key, new Set(matches.map((m) => m.split('/')[diffIndex])));
-          matches.forEach((m) => processed.add(m));
+          matches.forEach((m) => {
+            processed.add(m);
+          });
         }
       }
     }

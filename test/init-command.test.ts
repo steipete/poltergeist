@@ -105,10 +105,14 @@ describe.skipIf(process.platform === 'win32' && process.env.CI)(
         expect(config.targets[0].name).toBe('dev');
         expect(config.targets[0].type).toBe('executable');
         expect(config.targets[0].buildCommand).toBe('npm run build');
-        expect(config.targets[0].watchPaths).toEqual(['src/**/*.{ts,js}', 'package.json']);
+        expect(config.targets[0].watchPaths).toEqual([
+          'src/**/*.ts',
+          'src/**/*.js',
+          'package.json',
+        ]);
 
-        // Should NOT have default fields
-        expect(config.targets[0]).not.toHaveProperty('enabled');
+        // Should NOT have default fields (other than explicit enabled flag)
+        expect(config.targets[0].enabled).toBe(true);
         expect(config.targets[0]).not.toHaveProperty('settlingDelay');
         expect(config.targets[0]).not.toHaveProperty('debounceInterval');
         expect(config).not.toHaveProperty('watchman');
@@ -345,8 +349,8 @@ let package = Package(
         const configPath = join(tempDir, 'poltergeist.config.json');
         expect(existsSync(configPath)).toBe(false);
 
-        // Output should show minimal config
-        expect(output).not.toContain('"enabled": true');
+        // Output should show minimal config (with enabled targets explicitly marked)
+        expect(output).toContain('"enabled": true');
         expect(output).not.toContain('"settlingDelay": 1000');
         expect(output).not.toContain('"useDefaultExclusions": true');
       });

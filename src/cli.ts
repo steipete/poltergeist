@@ -14,7 +14,7 @@ import {
   watchFile,
   writeFileSync,
 } from 'fs';
-import { readdir } from 'fs/promises';
+import { readdir, readFile } from 'fs/promises';
 import path, { join } from 'path';
 import { createInterface } from 'readline';
 import { FileSystemUtils } from './utils/filesystem.js';
@@ -22,7 +22,7 @@ import { isMainModule } from './utils/paths.js';
 
 // Version is hardcoded at compile time - NEVER read from filesystem
 // This ensures the binary always reports its compiled version
-const packageJson = { version: '1.8.0', name: '@steipete/poltergeist' };
+const packageJson = { version: '1.9.0', name: '@steipete/poltergeist' };
 
 import {
   configurePolterCommand,
@@ -209,7 +209,7 @@ program
         console.log(chalk.gray(poltergeistMessage('info', 'Starting daemon...')));
 
         // Start daemon with retry logic
-       const pid = await daemon.startDaemonWithRetry(config, {
+        const pid = await daemon.startDaemonWithRetry(config, {
           projectRoot,
           configPath,
           target: options.target,
@@ -1097,6 +1097,8 @@ program
       }
     }
 
+    await augmentConfigWithDetectedTargets(projectRoot, config);
+
     const configJson = JSON.stringify(config, null, 2);
 
     if (options.dryRun) {
@@ -1178,6 +1180,84 @@ function guessBundleId(projectName: string, projectPath: string): string {
   return isIOS ? `com.example.${cleanName}.ios` : `com.example.${cleanName}`;
 }
 
+async function augmentConfigWithDetectedTargets(
+  projectRoot: string,
+  config: PoltergeistConfig
+): Promise<void> {
+  const hasEnabledTarget = config.targets.some((target) => target.enabled !== false);
+  if (hasEnabledTarget) {
+    return;
+  }
+
+  try {
+    const dirEntries = await readdir(projectRoot, { withFileTypes: true });
+    const entryMap = new Map(dirEntries.map((entry) => [entry.name.toLowerCase(), entry]));
+
+    const resolveEntryName = (key: string): string => entryMap.get(key)?.name ?? key;
+
+    if (entryMap.has('makefile')) {
+      const makefileName = resolveEntryName('makefile');
+      const makefilePath = join(projectRoot, makefileName);
+      let targetName = 'app';
+      let outputPath = './app';
+      let buildCommand = 'make';
+
+      try {
+        const makefile = await readFile(makefilePath, 'utf-8');
+        const targetMatch = makefile.match(/^\s*TARGET\s*[:=]\s*([^\s]+)\s*$/m);
+        if (targetMatch) {
+          targetName = targetMatch[1];
+          outputPath = `./${targetName}`;
+          buildCommand = `make ${targetName}`;
+        }
+      } catch {
+        // Fallback to defaults if Makefile cannot be read
+      }
+
+      config.targets.push({
+        name: targetName,
+        type: 'executable',
+        enabled: true,
+        buildCommand,
+        outputPath,
+        watchPaths: ['**/*.c', '**/*.h', 'Makefile'],
+      });
+      return;
+    }
+
+    const hasPythonIndicator =
+      entryMap.has('pyproject.toml') ||
+      entryMap.has('requirements.txt') ||
+      entryMap.has('setup.py');
+    const hasPythonDirectory = dirEntries.some(
+      (entry) => entry.isDirectory() && ['tests', 'src'].includes(entry.name.toLowerCase())
+    );
+    const hasPythonFile = dirEntries.some(
+      (entry) => entry.isFile() && entry.name.toLowerCase().endsWith('.py')
+    );
+
+    if (hasPythonIndicator || hasPythonDirectory || hasPythonFile) {
+      config.targets.push({
+        name: 'tests',
+        type: 'executable',
+        enabled: true,
+        buildCommand: "python3 -m unittest discover -s tests -p '*.py' -v > test-results.txt 2>&1",
+        outputPath: './test-results.txt',
+        watchPaths: [
+          '*.py',
+          'src/**/*.py',
+          'tests/**/*.py',
+          'pyproject.toml',
+          'requirements.txt',
+          'setup.py',
+        ],
+      });
+    }
+  } catch {
+    // Ignore detection failures; config will remain minimal
+  }
+}
+
 // Helper function to generate default config for non-CMake projects
 function generateDefaultConfig(projectType: ProjectType): PoltergeistConfig {
   const baseConfig: PoltergeistConfig = {
@@ -1192,15 +1272,17 @@ function generateDefaultConfig(projectType: ProjectType): PoltergeistConfig {
       baseConfig.targets.push({
         name: 'dev',
         type: 'executable',
+        enabled: true,
         buildCommand: 'npm run build',
         outputPath: './dist/index.js',
-        watchPaths: ['src/**/*.{ts,js}', 'package.json'],
+        watchPaths: ['src/**/*.ts', 'src/**/*.js', 'package.json'],
       });
       break;
     case 'rust':
       baseConfig.targets.push({
         name: 'debug',
         type: 'executable',
+        enabled: true,
         buildCommand: 'cargo build',
         outputPath: './target/debug/app',
         watchPaths: ['src/**/*.rs', 'Cargo.toml'],
@@ -1210,6 +1292,7 @@ function generateDefaultConfig(projectType: ProjectType): PoltergeistConfig {
       baseConfig.targets.push({
         name: 'test',
         type: 'test',
+        enabled: true,
         testCommand: 'python -m pytest',
         watchPaths: ['**/*.py', 'requirements.txt'],
       });
@@ -1218,6 +1301,7 @@ function generateDefaultConfig(projectType: ProjectType): PoltergeistConfig {
       baseConfig.targets.push({
         name: 'debug',
         type: 'executable',
+        enabled: true,
         buildCommand: 'swift build',
         outputPath: '.build/debug/App',
         watchPaths: ['Sources/**/*.swift', 'Package.swift'],
@@ -1537,8 +1621,7 @@ program
       const msPerDay = 24 * 60 * 60 * 1000;
       const daysThreshold = Number.parseInt(options.days, 10);
       const ageThreshold = Date.now() - daysThreshold * msPerDay;
-      const fallbackProjectRoot =
-        FileSystemUtils.findProjectRoot(process.cwd()) || process.cwd();
+      const fallbackProjectRoot = FileSystemUtils.findProjectRoot(process.cwd()) || process.cwd();
       let removedCount = 0;
       let candidateCount = 0;
 

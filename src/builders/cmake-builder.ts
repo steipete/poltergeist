@@ -1,4 +1,5 @@
 // CMake builder base class
+import { execSync, spawn, spawnSync } from 'child_process';
 import { existsSync } from 'fs';
 import { join } from 'path';
 import type { CMakeCustomTarget, CMakeExecutableTarget, CMakeLibraryTarget } from '../types.js';
@@ -40,7 +41,6 @@ export abstract class CMakeBuilder<T extends CMakeTarget = CMakeTarget> extends 
   protected detectGenerator(): string {
     // Check if Ninja is available
     try {
-      const { execSync } = require('child_process');
       execSync('ninja --version', { stdio: 'ignore' });
       return 'Ninja';
     } catch {
@@ -118,7 +118,6 @@ export abstract class CMakeBuilder<T extends CMakeTarget = CMakeTarget> extends 
     this.logger.info(`[${this.target.name}] Configuring: ${command}`);
 
     await new Promise<void>((resolve, reject) => {
-      const { spawn } = require('child_process');
       const proc = spawn('cmake', args, {
         cwd: this.projectRoot,
         stdio: 'inherit',
@@ -161,11 +160,10 @@ export abstract class CMakeBuilder<T extends CMakeTarget = CMakeTarget> extends 
 
   public async validate(): Promise<void> {
     // Check if CMake is available
-    try {
-      const { execSync } = require('child_process');
-      execSync('cmake --version', { stdio: 'ignore' });
-    } catch {
-      throw new Error('CMake is not installed or not in PATH');
+    const check = spawnSync('cmake', ['--version'], { stdio: 'ignore' });
+    if (check.error || check.status !== 0) {
+      const reason = check.error ? `: ${check.error.message}` : '';
+      throw new Error(`CMake is not installed or not in PATH${reason}`);
     }
 
     // Check if CMakeLists.txt exists

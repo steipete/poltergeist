@@ -108,7 +108,9 @@ describe('Poltergeist', () => {
   // Helper to start Poltergeist and clear initial build calls
   async function _startAndClearBuilds() {
     await poltergeist.start();
-    harness.builderFactory.builders.forEach((builder) => vi.mocked(builder.build).mockClear());
+    harness.builderFactory.builders.forEach((builder) => {
+      vi.mocked(builder.build).mockClear();
+    });
   }
 
   describe('constructor', () => {

@@ -369,7 +369,7 @@ describe('Agent-Friendly Commands', () => {
 
       let exitCode: number | undefined;
       processExitSpy.mockImplementation((code?: string | number) => {
-        exitCode = typeof code === 'number' ? code : Number.parseInt(code || '0');
+        exitCode = typeof code === 'number' ? code : Number.parseInt(code || '0', 10);
         throw new Error('process.exit');
       });
 

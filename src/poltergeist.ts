@@ -18,6 +18,7 @@ import type { BuildSchedulingConfig, BuildStatus, PoltergeistConfig, Target } fr
 import { BuildStatusManager } from './utils/build-status-manager.js';
 import { ConfigurationManager } from './utils/config-manager.js';
 import { FileSystemUtils } from './utils/filesystem.js';
+import { expandGlobPatterns } from './utils/glob-utils.js';
 import { ProcessManager } from './utils/process-manager.js';
 import { WatchmanClient } from './watchman.js';
 import { WatchmanConfigManager } from './watchman-config.js';
@@ -160,6 +161,9 @@ export class Poltergeist {
 
     // Initialize target states
     for (const target of targetsToWatch) {
+      if (target.watchPaths?.length) {
+        target.watchPaths = expandGlobPatterns(target.watchPaths);
+      }
       const builder = this.builderFactory.createBuilder(
         target,
         this.projectRoot,
@@ -315,7 +319,9 @@ export class Poltergeist {
       const suggestions = await this.watchmanConfigManager.suggestOptimizations();
       if (suggestions.length > 0) {
         this.logger.info('💡 Optimization suggestions:');
-        suggestions.forEach((s) => this.logger.info(`  • ${s}`));
+        suggestions.forEach((s) => {
+          this.logger.info(`  • ${s}`);
+        });
       }
     } catch (error) {
       this.logger.error('❌ Watchman configuration setup failed');

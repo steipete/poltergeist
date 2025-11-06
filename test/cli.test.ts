@@ -1,11 +1,11 @@
 // Comprehensive tests for CLI commands
 
+import { cloneDeep, mergeWith } from 'es-toolkit/object';
 import { existsSync, mkdirSync, rmSync, writeFileSync } from 'fs';
 import { tmpdir } from 'os';
 import { join } from 'path';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import type { PoltergeistConfig } from '../src/types.js';
-import { cloneDeep, mergeWith } from 'es-toolkit/object';
 
 // We'll test the CLI by importing the commands directly rather than spawning processes
 // This gives us better control and avoids needing to build the CLI first
@@ -151,9 +151,7 @@ vi.mock('../src/config.js', () => ({
 }));
 
 vi.mock('../src/daemon/daemon-manager.js', () => {
-  const DaemonManager = vi.fn(function () {
-    return mockDaemonManager;
-  });
+  const DaemonManager = vi.fn(() => mockDaemonManager);
   return {
     DaemonManager,
   };

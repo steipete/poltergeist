@@ -298,7 +298,9 @@ async function executeStaleWithWarning(
       chalk.red(poltergeistMessage('error', `Binary not found for target '${targetName}'`))
     );
     console.error(chalk.yellow('Tried the following locations:'));
-    possiblePaths.forEach((path) => console.error(chalk.gray(`   ${path}`)));
+    possiblePaths.forEach((path) => {
+      console.error(chalk.gray(`   ${path}`));
+    });
     console.error(chalk.yellow('   Try running: poltergeist start'));
     return 1;
   }
@@ -630,7 +632,9 @@ export async function runWrapper(targetName: string, args: string[], options: Pa
       const availableTargets = ConfigurationManager.getExecutableTargets(config).map((t) => t.name);
       if (availableTargets.length > 0) {
         console.warn(chalk.yellow('👻 [Poltergeist] Available configured targets:'));
-        availableTargets.forEach((name) => console.warn(chalk.yellow(`   - ${name}`)));
+        availableTargets.forEach((name) => {
+          console.warn(chalk.yellow(`   - ${name}`));
+        });
         console.warn('');
       }
 

@@ -131,7 +131,7 @@ describe('Logs Command', () => {
     } catch (error) {
       const errorMessage = error instanceof Error ? error.message : String(error);
       if (errorMessage.includes('Process exited with code')) {
-        const code = Number.parseInt(errorMessage.match(/code (\\d+)/)?.[1] || '1');
+        const code = Number.parseInt(errorMessage.match(/code (\\d+)/)?.[1] || '1', 10);
         return {
           exitCode: code,
           stdout: stdout.join('\n'),

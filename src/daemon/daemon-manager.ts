@@ -366,7 +366,6 @@ export class DaemonManager {
           timeout = setTimeout(triggerTimeout, timeoutMs);
         }
 
-
         // Add error handler first
         child.once('error', (error: any) => {
           if (timeout) {

@@ -75,6 +75,14 @@ All notable changes to Poltergeist will be documented in this file.
 - Binary discovery in subdirectories
 - Standardized CLI output and flag conventions
 
+## [1.9.0] - 2025-11-06
+
+- Replaced the legacy example shell runner with a TypeScript harness that logs structured results to docs/test-e2e-report.json
+- Added brace-aware glob expansion so Watchman subscriptions fire reliably across mixed-language targets
+- Updated CLI defaults to emit enabled Node targets with separate TypeScript/JavaScript watch paths and aligned tests
+- Modernized the CMake builder to use ESM-friendly child_process imports and run library/executable builds without bailing
+- Introduced AGENTS.md guidance (symlinked from CLAUDE.md) and removed examples/run-all-examples.sh in favour of the new workflow
+
 ## [1.5.1] - 2025-08-03
 
 - Replaced Pino with LogTape for zero-dependency logging
