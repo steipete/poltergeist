@@ -81,10 +81,14 @@ All notable changes to Poltergeist will be documented in this file.
 - Binary discovery in subdirectories
 - Standardized CLI output and flag conventions
 
+## [2.0.0] - Unreleased
+
+- Auto-detect Go `cmd/<name>/main.go` projects during `poltergeist init --auto`, generating runnable binaries in `dist/bin/`
+- Extend the TypeScript example harness to cover the new Go CLI project with tokenized rebuild verification
+
 ## [1.9.0] - 2025-11-06
 
 - Replaced the legacy example shell runner with a TypeScript harness that logs structured results to docs/test-e2e-report.json
-- Auto-detect Go `cmd/<name>/main.go` projects during `poltergeist init --auto`, including generating runnable binaries in `dist/bin/`
 - Added brace-aware glob expansion so Watchman subscriptions fire reliably across mixed-language targets
 - Updated CLI defaults to emit enabled Node targets with separate TypeScript/JavaScript watch paths and aligned tests
 - Modernized the CMake builder to use ESM-friendly child_process imports and run library/executable builds without bailing
