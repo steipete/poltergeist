@@ -118,11 +118,44 @@ That's it! Poltergeist now watches your files and rebuilds automatically.
 
 Each project gets its own background process, but `poltergeist status` shows everything through a shared state system in `/tmp/poltergeist/`. One project crashing never affects others.
 
+## Hot Reload for Apps
+
+Poltergeist can power hot-reload loops for native apps, backends, and hybrid workspaces. The daemon handles rebuilds while `polter` relaunches binaries only after they are fresh.
+
+1. **Auto-detect your build targets**
+   ```bash
+   poltergeist init --auto
+   ```
+   Review the generated `poltergeist.config.json`. For app bundles or servers, ensure the target’s `buildCommand` compiles your artifact and the `outputPath` points at the produced binary or bundle root.
+
+2. **Keep the daemon running**
+   ```bash
+   poltergeist haunt
+   ```
+   The watcher streams filesystem changes to Watchman, debounces noisy saves, and queues builds smartly across multiple targets.
+
+3. **Launch through `polter`**
+   ```bash
+   polter my-app --some-flag
+   ```
+   `polter` waits for the daemon to finish rebuilding, then execs the binary. Rerun the command whenever you want to relaunch; builds that finish while the app is running are immediately available.
+
+4. **Wire into app-specific reload hooks (optional)**
+   - Swift/Xcode: enable a target that builds your `.app` bundle, then use scripts or plugins that monitor the bundle for relaunch.
+   - Electron/Web backends: chain commands (e.g., `buildCommand: "pnpm build && touch tmp/restart.txt"`) so your framework’s watcher restarts automatically.
+   - Mobile simulators or embedded devices: point `outputPath` at the packaged artifact and use post-build scripts to deploy.
+
+Configuration tips:
+- Tune `settlingDelay` and `debounceInterval` per target to avoid double rebuilds for large asset drops.
+- Inject environment variables under the target’s `environment` block (e.g., `SWIFT_HOT_RELOAD=1`) so your app enables its live-update code paths.
+- Add multiple enabled targets (UI, backend, integration tests). Poltergeist applies per-target priorities and rebuilds whichever a change touches first.
+
 ## Table of Contents
 
 - [Features](#features)
 - [Designed for Humans and Agents](#designed-for-humans-and-agents)
 - [Quick Start](#quick-start)
+- [Hot Reload for Apps](#hot-reload-for-apps)
 - [Command Line Interface](#command-line-interface)
   - [Core Commands](#core-commands-poltergeist)
   - [Smart Execution](#smart-execution-with-polter)
