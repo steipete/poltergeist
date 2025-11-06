@@ -10,6 +10,8 @@ jobs:
   coverage:
     name: Generate Test Coverage Report
     runs-on: ubuntu-latest
+    env:
+      POLTERGEIST_TEST_MODE: 'true'
     
     steps:
     - name: Checkout code
@@ -30,7 +32,7 @@ jobs:
       run: pnpm run build
       
     - name: Run tests with coverage
-      run: pnpm test -- --coverage
+      run: pnpm run test:coverage
       
     - name: Upload coverage reports to Codecov
       uses: codecov/codecov-action@v4

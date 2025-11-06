@@ -12,6 +12,8 @@ jobs:
   build-cli:
     name: Build CLI Release
     runs-on: ubuntu-latest
+    env:
+      POLTERGEIST_TEST_MODE: 'true'
     
     steps:
     - name: Checkout code
@@ -52,6 +54,8 @@ jobs:
   build-macos:
     name: Build macOS App Release
     runs-on: macos-15
+    env:
+      POLTERGEIST_TEST_MODE: 'true'
     
     steps:
     - name: Checkout code
@@ -74,41 +78,24 @@ jobs:
     - name: Build macOS app (Release)
       run: |
         cd apps/mac
-        xcodebuild -project Poltergeist.xcodeproj -scheme Poltergeist -configuration Release archive -archivePath Poltergeist.xcarchive
+        xcodebuild -project Poltergeist.xcodeproj -scheme Poltergeist -configuration Release CLEAN_BUILD=YES CODE_SIGNING_ALLOWED=NO CODE_SIGNING_REQUIRED=NO CODE_SIGN_IDENTITY="" build
         
-    - name: Export macOS app
+    - name: Package macOS app
       run: |
         cd apps/mac
-        # Create export options plist
-        cat > ExportOptions.plist << EOF
-        <?xml version="1.0" encoding="UTF-8"?>
-        <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
-        <plist version="1.0">
-        <dict>
-            <key>method</key>
-            <string>mac-application</string>
-            <key>destination</key>
-            <string>export</string>
-        </dict>
-        </plist>
-        EOF
-        
-        # Export the app
-        xcodebuild -exportArchive -archivePath Poltergeist.xcarchive -exportPath . -exportOptionsPlist ExportOptions.plist
-        
-        # Create DMG (if available) or zip the app
-        if command -v create-dmg &> /dev/null; then
-          create-dmg --volname "Poltergeist" --window-pos 200 120 --window-size 600 300 --icon-size 100 --app-drop-link 425 120 "Poltergeist-${{ github.ref_name }}.dmg" "Poltergeist.app"
-        else
-          zip -r "Poltergeist-${{ github.ref_name }}-macOS.zip" "Poltergeist.app"
+        APP_PATH="build/Release/Poltergeist.app"
+        if [ ! -d "$APP_PATH" ]; then
+          echo "App not found at $APP_PATH"
+          exit 1
         fi
+        ARCHIVE_NAME="Poltergeist-${{ github.ref_name }}-macOS.zip"
+        ditto -c -k --keepParent "$APP_PATH" "$ARCHIVE_NAME"
         
     - name: Upload macOS app artifacts
       uses: actions/upload-artifact@v4
       with:
         name: poltergeist-macos
         path: |
-          apps/mac/*.dmg
           apps/mac/*.zip
         
   release:
@@ -137,7 +124,6 @@ jobs:
       with:
         files: |
           cli/*.tgz
-          macos/*.dmg
           macos/*.zip
         generate_release_notes: true
         body: |

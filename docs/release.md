@@ -75,6 +75,7 @@ This checklist ensures reliable, complete releases without the mistakes we've ma
 - [ ] Run type checking: `pnpm run typecheck`
 - [ ] Run formatter check: `pnpm format:check`
 - [ ] Run example harness: `pnpm exec tsx scripts/run-examples.ts`
+- [ ] Run coverage suite: `pnpm run test:coverage`
 
 ### 2. Changelog
 - [ ] Update `CHANGELOG.md` with all changes

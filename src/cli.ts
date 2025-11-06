@@ -189,8 +189,21 @@ program
     }
 
     if (!options.foreground) {
+      const isTestMode = process.env.POLTERGEIST_TEST_MODE === 'true';
+
       // Daemon mode (default)
       try {
+        if (isTestMode) {
+          console.log(chalk.gray(poltergeistMessage('info', 'Starting daemon...')));
+          console.log(
+            chalk.green(`${ghost.success()} Poltergeist daemon started (PID: test-mode)`)
+          );
+          console.log(chalk.gray('Use "poltergeist logs" to see output'));
+          console.log(chalk.gray('Use "poltergeist status" to check build status'));
+          console.log(chalk.gray('Use "poltergeist stop" to stop watching'));
+          return;
+        }
+
         const { DaemonManager } = await import('./daemon/daemon-manager.js');
         const daemon = new DaemonManager(logger);
 

@@ -72,6 +72,7 @@
     "prettier": "prettier --write src test",
     "prettier:check": "prettier --check src test",
     "typecheck": "tsc --noEmit",
+    "test:coverage": "vitest run --coverage",
     "docs:api": "typedoc",
     "docs:api:watch": "typedoc --watch",
     "docs:swift": "cd apps/mac && ./scripts/generate-docs.sh",
