@@ -10,6 +10,8 @@ jobs:
   cli-test:
     name: CLI Tests - Node ${{ matrix.node-version }} on ${{ matrix.os }}
     runs-on: ${{ matrix.os }}
+    env:
+      POLTERGEIST_TEST_MODE: 'true'
     
     strategy:
       fail-fast: false
@@ -81,6 +83,8 @@ jobs:
   windows-specific:
     name: Windows-specific Tests
     runs-on: windows-latest
+    env:
+      POLTERGEIST_TEST_MODE: 'true'
     
     steps:
     - name: Checkout code
@@ -134,6 +138,8 @@ jobs:
   macos-app:
     name: macOS App - Swift 6 Build & Test
     runs-on: macos-15
+    env:
+      POLTERGEIST_TEST_MODE: 'true'
     
     steps:
     - name: Checkout code
@@ -181,15 +187,3 @@ jobs:
           echo "⚠️  Main app has build issues, skipping test execution"
         fi
         
-    - name: Archive macOS app (Release build)
-      if: github.event_name == 'push' && github.ref == 'refs/heads/main'
-      run: |
-        cd apps/mac
-        xcodebuild -project Poltergeist.xcodeproj -scheme Poltergeist -configuration Release archive -archivePath Poltergeist.xcarchive CODE_SIGN_IDENTITY="" CODE_SIGNING_REQUIRED=NO
-        
-    - name: Upload macOS app artifact
-      if: github.event_name == 'push' && github.ref == 'refs/heads/main'
-      uses: actions/upload-artifact@v4
-      with:
-        name: poltergeist-macos-app
-        path: apps/mac/Poltergeist.xcarchive
