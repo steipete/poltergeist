@@ -34,7 +34,7 @@ import { ConfigurationError } from './config.js';
 // Static import for daemon-worker to ensure it's included in Bun binary
 import { runDaemon } from './daemon/daemon-worker.js';
 import { createPoltergeist } from './factories.js';
-import { createLogger, type Logger } from './logger.js';
+import { createLogger } from './logger.js';
 import type { AppBundleTarget, PoltergeistConfig, ProjectType, Target } from './types.js';
 import { CLIFormatter, type CommandGroup, type OptionInfo } from './utils/cli-formatter.js';
 import { CMakeProjectAnalyzer } from './utils/cmake-analyzer.js';
@@ -1759,23 +1759,7 @@ program
         return state;
       };
 
-      const instantiateStateManager = () => {
-        if (typeof StateManager !== 'function') {
-          throw new Error('StateManager is not constructible');
-        }
-
-        try {
-          return (StateManager as unknown as (projectRoot: string, logger: Logger) => any)(
-            fallbackProjectRoot,
-            logger
-          );
-        } catch (error) {
-          if (error instanceof TypeError && error.message.includes('class constructor')) {
-            return new StateManager(fallbackProjectRoot, logger);
-          }
-          throw error;
-        }
-      };
+      const instantiateStateManager = () => new StateManager(fallbackProjectRoot, logger);
 
       for (const file of stateFiles) {
         const stateManager = instantiateStateManager();
