@@ -23,7 +23,11 @@ export default defineConfig({
       hooks: process.platform === 'win32' ? 'list' : 'parallel',
     },
     coverage: {
-      reporter: ['text', 'html'],
+      enabled: true,
+      all: true,
+      include: ['src/**/*.ts'],
+      reporter: ['text', 'text-summary', 'html'],
+      reportsDirectory: './coverage',
       exclude: [
         'node_modules/',
         'test/',

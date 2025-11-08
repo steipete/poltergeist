@@ -4,7 +4,10 @@ import { tmpdir } from 'os';
 import { join } from 'path';
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 
-describe.skipIf(process.env.CI === 'true')('Daemon with no enabled targets', () => {
+const skipLongRuns =
+  process.env.CI === 'true' || process.env.POLTERGEIST_COVERAGE_MODE === 'true';
+
+describe.skipIf(skipLongRuns)('Daemon with no enabled targets', () => {
   let testDir: string;
   let daemonProcess: ReturnType<typeof spawn> | null = null;
 

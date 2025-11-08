@@ -257,7 +257,7 @@ describe('StateManager', () => {
       const cliStates = stateFiles.filter((f) => f.includes('cli'));
 
       expect(cliStates.length).toBeGreaterThan(0);
-      expect(cliStates[0]).toMatch(/.*-cli\.state/);
+      expect(cliStates.some((file) => file.endsWith('-cli.state'))).toBe(true);
     });
   });
 });
