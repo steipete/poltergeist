@@ -1,4 +1,4 @@
-import { fork, spawn } from 'child_process';
+import { spawn } from 'child_process';
 import { createHash } from 'crypto';
 import { existsSync, openSync } from 'fs';
 import { mkdir, readFile, unlink, writeFile } from 'fs/promises';
@@ -302,22 +302,30 @@ export class DaemonManager {
         throw new Error('Daemon process exited immediately after starting');
       }
     } else {
-      // For Node.js runtime, use fork as before
-      // Log the daemon arguments for debugging
-      this.logger.debug('Forking daemon with args:', { daemonWorkerPath, configPath, projectRoot });
-      child = fork(daemonWorkerPath, [daemonArgs], {
+      // For Node.js runtime, spawn a detached process with IPC support
+      this.logger.debug('Spawning daemon with args:', { daemonWorkerPath, configPath, projectRoot });
+      const captureOutput = process.env.POLTERGEIST_DEBUG_DAEMON === 'true';
+      const stdio: Array<number | 'ignore' | 'pipe' | 'ipc'> = [
+        'ignore',
+        captureOutput ? 'pipe' : 'ignore',
+        captureOutput ? 'pipe' : 'ignore',
+        'ipc',
+      ];
+
+      child = spawn(process.execPath, [daemonWorkerPath, daemonArgs], {
         detached: true,
-        stdio: ['ignore', 'pipe', 'pipe', 'ipc'], // Capture stdout/stderr for debugging
+        stdio,
         env: { ...process.env },
+        cwd: projectRoot,
       });
 
-      // Log output for debugging
-      if (child.stdout) {
+      // Log output for debugging when explicitly requested
+      if (captureOutput && child.stdout) {
         child.stdout.on('data', (data: Buffer) => {
           this.logger.debug('Daemon stdout:', data.toString());
         });
       }
-      if (child.stderr) {
+      if (captureOutput && child.stderr) {
         child.stderr.on('data', (data: Buffer) => {
           this.logger.error('Daemon stderr:', data.toString());
         });
@@ -403,6 +411,16 @@ export class DaemonManager {
             };
 
             await this.saveDaemonInfo(projectRoot, daemonInfo);
+
+            // We no longer need daemon stdout/stderr once startup succeeds.
+            if (child.stdout) {
+              child.stdout.removeAllListeners();
+              child.stdout.destroy();
+            }
+            if (child.stderr) {
+              child.stderr.removeAllListeners();
+              child.stderr.destroy();
+            }
 
             // Detach from parent - disconnect IPC first, then unref
             child.disconnect();

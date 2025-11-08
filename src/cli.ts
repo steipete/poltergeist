@@ -128,7 +128,9 @@ async function loadConfiguration(
 program
   .command('haunt')
   .alias('start')
-  .description('Start watching and auto-building your project (runs as daemon by default)')
+  .description(
+    'Start watching and auto-building your project (spawns a daemon and returns immediately)'
+  )
   .option('-t, --target <name>', 'Target to build (omit to build all enabled targets)')
   .option('-c, --config <path>', 'Path to config file')
   .option('--verbose', 'Enable verbose logging (same as --log-level debug)')
@@ -161,6 +163,15 @@ program
       options.logLevel || (options.verbose ? 'debug' : config.logging?.level || 'info');
 
     const logger = createLogger(config.logging?.file || '.poltergeist.log', logLevel);
+    const flushLoggerIfPossible = () => {
+      if (typeof (logger as any).flush === 'function') {
+        try {
+          (logger as any).flush();
+        } catch {
+          // Ignore flush errors; logger is best-effort
+        }
+      }
+    };
 
     const resolvedLogPath = config.logging?.file
       ? path.isAbsolute(config.logging.file)
@@ -189,6 +200,7 @@ program
     }
 
     if (!options.foreground) {
+      // Default path: launch the daemon in the background and exit quickly so shells/tmux panes stay free.
       const isTestMode = process.env.POLTERGEIST_TEST_MODE === 'true';
 
       // Daemon mode (default)
@@ -216,6 +228,7 @@ program
           );
           console.log(chalk.gray('Use "poltergeist status" to see details'));
           console.log(chalk.gray('Use "poltergeist stop" to stop the daemon'));
+          flushLoggerIfPossible();
           process.exit(1);
         }
 
@@ -239,11 +252,15 @@ program
         }
 
         console.log(chalk.green(`${ghost.success()} Poltergeist daemon started (PID: ${pid})`));
-        console.log(chalk.gray('Use "poltergeist logs" to see output'));
+        console.log(
+          chalk.gray('Initial builds continue in the background; use "poltergeist logs" to follow progress')
+        );
         console.log(chalk.gray('Use "poltergeist status" to check build status'));
         console.log(chalk.gray('Use "poltergeist stop" to stop watching'));
+        flushLoggerIfPossible();
       } catch (error) {
         console.error(chalk.red(poltergeistMessage('error', `Failed to start daemon: ${error}`)));
+        flushLoggerIfPossible();
         process.exit(1);
       }
     } else {
@@ -268,8 +285,11 @@ program
         console.error(
           chalk.red(poltergeistMessage('error', `Failed to start Poltergeist: ${error}`))
         );
+        flushLoggerIfPossible();
         process.exit(1);
       }
+
+      flushLoggerIfPossible();
     }
   });
 
