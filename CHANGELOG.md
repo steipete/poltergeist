@@ -7,6 +7,7 @@ All notable changes to Poltergeist will be documented in this file.
 - Added hot-reload `polter --watch` flag with restart signal/delay options to keep executables fresh after successful builds
 - Introduced config-driven `autoRun` for executable targets so the daemon can relaunch binaries automatically after builds
 - Refactored launch handling into shared utilities and added regression tests covering watch mode parsing, launch prep, and the executable runner life cycle
+- `pnpm run poltergeist:haunt` now spawns the daemon, returns immediately, and streams initial builds in the background thanks to early IPC acknowledgement plus detached Node.js launcher pipes (no more hanging shell sessions)
 
 ## [1.8.0] - 2025-08-09
 

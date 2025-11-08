@@ -8,6 +8,7 @@ This file provides guidance to all coding agents (Claude, GPT, etc.) working in 
 - Launch tmux commands directly, then issue follow-up commands (e.g. `tmux capture-pane`) without wait loops.
 - Skip `tmux wait-for`; allow sessions to exit naturally before querying results.
 - NEVER SLEEP LONGER THAN 30 sec.
+- `pnpm run poltergeist:haunt` must spawn the daemon and return immediately. If it blocks, treat that as a regression—start the helper and then inspect progress via `poltergeist status` / `poltergeist logs` rather than tailing the launch command itself.
 
 ## Claude-Specific Notes
 
