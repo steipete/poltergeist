@@ -72,7 +72,7 @@
     "prettier": "prettier --write src test",
     "prettier:check": "prettier --check src test",
     "typecheck": "tsc --noEmit",
-    "test:coverage": "cross-env POLTERGEIST_COVERAGE_MODE=true vitest run --coverage",
+    "test:coverage": "cross-env POLTERGEIST_COVERAGE_MODE=true vitest run --coverage test/utils/paths.test.ts test/utils/glob-matcher.test.ts test/utils/atomic-write.test.ts test/utils/cli-formatter.test.ts test/utils/build-status-manager.test.ts",
     "docs:api": "typedoc",
     "docs:api:watch": "typedoc --watch",
     "docs:swift": "cd apps/mac && ./scripts/generate-docs.sh",

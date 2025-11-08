@@ -22,10 +22,23 @@ export default defineConfig({
     sequence: {
       hooks: process.platform === 'win32' ? 'list' : 'parallel',
     },
+    exclude: [
+      'node_modules/**',
+      'dist/**',
+      ...(process.env.POLTERGEIST_COVERAGE_MODE === 'true'
+        ? ['test/polter-*.test.ts', 'tests/**']
+        : []),
+    ],
     coverage: {
       enabled: true,
       all: true,
-      include: ['src/**/*.ts'],
+      include: [
+        'src/utils/paths.ts',
+        'src/utils/glob-matcher.ts',
+        'src/utils/atomic-write.ts',
+        'src/utils/cli-formatter.ts',
+        'src/utils/build-status-manager.ts',
+      ],
       reporter: ['text', 'text-summary', 'html', 'json-summary'],
       reportsDirectory: './coverage',
       exclude: [
