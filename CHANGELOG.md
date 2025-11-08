@@ -4,10 +4,18 @@ All notable changes to Poltergeist will be documented in this file.
 
 ## [Unreleased]
 
+- _No entries yet_
+
+## [2.1.0] - 2025-11-08
+
 - Added hot-reload `polter --watch` flag with restart signal/delay options to keep executables fresh after successful builds
 - Introduced config-driven `autoRun` for executable targets so the daemon can relaunch binaries automatically after builds
 - Refactored launch handling into shared utilities and added regression tests covering watch mode parsing, launch prep, and the executable runner life cycle
 - `pnpm run poltergeist:haunt` now spawns the daemon, returns immediately, and streams initial builds in the background thanks to early IPC acknowledgement plus detached Node.js launcher pipes (no more hanging shell sessions)
+- Added `POLTERGEIST_TEST_MODE` shims across CLI commands and workflows so CI can simulate daemon state without spawning background processes
+- Streamlined documentation by moving detailed CLI, configuration, and agent workflow guides into `docs/cli-reference.md`, `docs/configuration.md`, and `docs/agent-workflows.md`
+- Hardened coverage and release workflows with a dedicated `pnpm run test:coverage` script plus deterministic macOS app packaging via `ditto`-generated zip archives
+- Restored the macOS Swift CI job to automatic runs (with controlled failure handling) so every push and pull request validates the native app toolchain
 
 ## [1.8.0] - 2025-08-09
 
