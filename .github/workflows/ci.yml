@@ -140,7 +140,7 @@ jobs:
     runs-on: macos-15
     env:
       POLTERGEIST_TEST_MODE: 'true'
-    if: ${{ github.event_name == 'workflow_dispatch' }}
+    continue-on-error: true
     
     steps:
     - name: Checkout code
