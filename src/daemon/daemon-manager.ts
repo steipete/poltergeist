@@ -303,7 +303,11 @@ export class DaemonManager {
       }
     } else {
       // For Node.js runtime, spawn a detached process with IPC support
-      this.logger.debug('Spawning daemon with args:', { daemonWorkerPath, configPath, projectRoot });
+      this.logger.debug('Spawning daemon with args:', {
+        daemonWorkerPath,
+        configPath,
+        projectRoot,
+      });
       const captureOutput = process.env.POLTERGEIST_DEBUG_DAEMON === 'true';
       const stdio: Array<number | 'ignore' | 'pipe' | 'ipc'> = [
         'ignore',

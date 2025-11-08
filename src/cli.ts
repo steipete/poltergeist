@@ -253,7 +253,9 @@ program
 
         console.log(chalk.green(`${ghost.success()} Poltergeist daemon started (PID: ${pid})`));
         console.log(
-          chalk.gray('Initial builds continue in the background; use "poltergeist logs" to follow progress')
+          chalk.gray(
+            'Initial builds continue in the background; use "poltergeist logs" to follow progress'
+          )
         );
         console.log(chalk.gray('Use "poltergeist status" to check build status'));
         console.log(chalk.gray('Use "poltergeist stop" to stop watching'));
