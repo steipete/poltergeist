@@ -1,10 +1,5 @@
-import { describe, expect, it, vi, afterEach } from 'vitest';
-import {
-  getDirname,
-  getFilename,
-  isCompiledBinary,
-  isMainModule,
-} from '../../src/utils/paths.js';
+import { afterEach, describe, expect, it, vi } from 'vitest';
+import { getDirname, getFilename, isCompiledBinary, isMainModule } from '../../src/utils/paths.js';
 
 describe.sequential('paths utilities', () => {
   const originalArgv = process.argv.slice();

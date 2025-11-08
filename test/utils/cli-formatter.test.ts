@@ -11,7 +11,9 @@ import {
   usage,
 } from '../../src/utils/cli-formatter.js';
 
-const stripAnsi = (value: string) => value.replace(/\x1B\[[0-9;]*m/g, '');
+const ESC = String.fromCharCode(27);
+const ANSI_REGEX = new RegExp(`${ESC}\\[[0-9;]*m`, 'g');
+const stripAnsi = (value: string) => value.replace(ANSI_REGEX, '');
 
 describe('cli formatter', () => {
   it('formats headers, sections and usage', () => {

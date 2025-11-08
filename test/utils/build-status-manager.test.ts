@@ -1,8 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import {
-  BuildStatusManager,
-  BuildStatusType,
-} from '../../src/utils/build-status-manager.js';
+import { BuildStatusManager, BuildStatusType } from '../../src/utils/build-status-manager.js';
 
 describe('BuildStatusManager', () => {
   it('creates success, failure, and building statuses with defaults', () => {
@@ -47,11 +44,7 @@ describe('BuildStatusManager', () => {
 
   it('detects status helpers correctly', () => {
     const success = BuildStatusManager.createSuccessStatus('api', { duration: 0 });
-    const failure = BuildStatusManager.createFailureStatus(
-      'api',
-      { message: 'fail' },
-      {}
-    );
+    const failure = BuildStatusManager.createFailureStatus('api', { message: 'fail' }, {});
     const building = BuildStatusManager.createBuildingStatus('api');
 
     expect(BuildStatusManager.isSuccess(success)).toBe(true);
@@ -77,9 +70,9 @@ describe('BuildStatusManager', () => {
   });
 
   it('categorizes error types based on output', () => {
-    expect(
-      BuildStatusManager.categorizeError('error TS1111: Cannot find name Foo')
-    ).toBe('compilation');
+    expect(BuildStatusManager.categorizeError('error TS1111: Cannot find name Foo')).toBe(
+      'compilation'
+    );
     expect(BuildStatusManager.categorizeError('Runtime error in module')).toBe('runtime');
     expect(BuildStatusManager.categorizeError('Configuration missing')).toBe('configuration');
     expect(BuildStatusManager.categorizeError('Unknown crash')).toBe('unknown');

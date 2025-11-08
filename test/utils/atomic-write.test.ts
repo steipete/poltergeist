@@ -1,9 +1,9 @@
-import { mkdtemp, readFile, readdir, rm } from 'fs/promises';
-import { mkdtempSync, readFileSync, rmSync, statSync } from 'fs';
-import path from 'path';
-import { tmpdir } from 'os';
-import { afterEach, describe, expect, it, vi } from 'vitest';
 import { promises as fsPromises } from 'node:fs';
+import { mkdtempSync, readFileSync, rmSync, statSync } from 'fs';
+import { mkdtemp, readdir, readFile, rm } from 'fs/promises';
+import { tmpdir } from 'os';
+import path from 'path';
+import { afterEach, describe, expect, it, vi } from 'vitest';
 import writeFileAtomic, { writeFileAtomicSync } from '../../src/utils/atomic-write.js';
 
 describe('atomic write utilities', () => {
@@ -97,15 +97,15 @@ describe('atomic write utilities', () => {
 
     expect(renameSpy).toHaveBeenCalledTimes(1);
     expect(tmpPath).toBeDefined();
-    await expect(readFile(tmpPath!, 'utf8')).rejects.toThrow();
+    if (tmpPath) {
+      await expect(readFile(tmpPath, 'utf8')).rejects.toThrow();
+    }
   });
 
   it('cleans up temp file when write fails', async () => {
     tempDir = await mkdtemp(path.join(tmpdir(), 'atomic-fail-'));
     const filePath = path.join(tempDir, 'fail.txt');
-    const writeSpy = vi
-      .spyOn(fsPromises, 'writeFile')
-      .mockRejectedValue(new Error('disk full'));
+    const writeSpy = vi.spyOn(fsPromises, 'writeFile').mockRejectedValue(new Error('disk full'));
     const tmpFiles: string[] = [];
 
     await expect(

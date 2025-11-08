@@ -25,8 +25,7 @@ import { ProcessManager } from '../src/utils/process-manager.js';
 const mockFork = fork as unknown as ReturnType<typeof vi.fn>;
 const mockIsProcessAlive = ProcessManager.isProcessAlive as unknown as ReturnType<typeof vi.fn>;
 
-const skipLongRuns =
-  process.env.CI === 'true' || process.env.POLTERGEIST_COVERAGE_MODE === 'true';
+const skipLongRuns = process.env.CI === 'true' || process.env.POLTERGEIST_COVERAGE_MODE === 'true';
 
 describe.skipIf(skipLongRuns)('daemon resilience', () => {
   let testDir: string;
