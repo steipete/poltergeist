@@ -22,6 +22,7 @@ This file provides guidance to all coding agents (Claude, GPT, etc.) working in 
 3. **No subsections** - Don't use "### Features", "### Breaking Changes", etc.
 4. **Professional tone** - Direct, technical language without marketing speak
 5. **Specific details** - Include technical specifics, not vague descriptions
+6. **User-facing only** - Reserve entries for changes end users will notice (features, fixes, behavior tweaks); omit internal docs/tests chores
 
 ### Example Format
 ```markdown
