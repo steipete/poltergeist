@@ -49,6 +49,10 @@ interface ConfigChanges {
   buildSchedulingChanged: boolean;
 }
 
+export interface PoltergeistStartOptions {
+  waitForInitialBuilds?: boolean;
+}
+
 export class Poltergeist {
   private config: PoltergeistConfig;
   private projectRoot: string;
@@ -67,6 +71,8 @@ export class Poltergeist {
   private buildQueue?: IntelligentBuildQueue;
   private priorityEngine?: PriorityEngine;
   private buildSchedulingConfig: BuildSchedulingConfig;
+  private readyHandlers: Array<() => void> = [];
+  private isReady = false;
 
   constructor(
     config: PoltergeistConfig,
@@ -120,7 +126,20 @@ export class Poltergeist {
     return this.stateManager;
   }
 
-  public async start(targetName?: string): Promise<void> {
+  public onReady(handler: () => void): void {
+    if (this.isReady) {
+      try {
+        handler();
+      } catch (error) {
+        this.logger.error('Ready handler failed:', error);
+      }
+      return;
+    }
+    this.readyHandlers.push(handler);
+  }
+
+  public async start(targetName?: string, options?: PoltergeistStartOptions): Promise<void> {
+    const waitForInitialBuilds = options?.waitForInitialBuilds ?? true;
     if (this.isRunning) {
       throw new Error('Poltergeist is already running');
     }
@@ -217,8 +236,17 @@ export class Poltergeist {
     // Subscribe to file changes for each target
     await this.subscribeToChanges();
 
+    this.notifyReady();
+
     // Do initial builds
-    await this.performInitialBuilds();
+    const initialBuilds = this.performInitialBuilds();
+    if (waitForInitialBuilds) {
+      await initialBuilds;
+    } else {
+      initialBuilds.catch((error) => {
+        this.logger.error('Initial builds failed while running in background:', error);
+      });
+    }
 
     this.logger.info('👻 [Poltergeist] is now watching for changes...');
 
@@ -227,6 +255,22 @@ export class Poltergeist {
       await this.stop();
       await this.cleanup();
     });
+  }
+
+  private notifyReady(): void {
+    if (this.isReady) {
+      return;
+    }
+    this.isReady = true;
+    const handlers = this.readyHandlers.slice();
+    this.readyHandlers = [];
+    for (const handler of handlers) {
+      try {
+        handler();
+      } catch (error) {
+        this.logger.error('Ready handler failed:', error);
+      }
+    }
   }
 
   private getTargetsToWatch(targetName?: string): Target[] {

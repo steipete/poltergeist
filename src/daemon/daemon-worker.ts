@@ -50,22 +50,36 @@ export async function runDaemon(args: DaemonArgs): Promise<void> {
 
     // Start Poltergeist
     logger.info('Starting Poltergeist...');
-    await poltergeist.start(target);
-    logger.info('Daemon started successfully');
 
-    // Send confirmation to parent process
-    logger.debug(`process.send available: ${typeof process.send}`);
-    if (process.send) {
-      logger.debug('Sending started message to parent process');
-      try {
-        process.send({ type: 'started', pid: process.pid });
-        logger.debug('Started message sent successfully');
-      } catch (ipcError) {
-        logger.error('Failed to send IPC message:', ipcError);
+    let readyNotified = false;
+    const notifyParentReady = () => {
+      if (readyNotified) {
+        return;
       }
-    } else {
-      logger.warn('No IPC channel available (process.send is undefined)');
-    }
+      readyNotified = true;
+      logger.info('Daemon ready — initial builds continuing in background');
+      logger.debug(`process.send available: ${typeof process.send}`);
+      if (process.send) {
+        try {
+          process.send({ type: 'started', pid: process.pid });
+          logger.debug('Started message sent successfully');
+        } catch (ipcError) {
+          logger.error('Failed to send IPC message:', ipcError);
+        }
+      } else {
+        logger.warn('No IPC channel available (process.send is undefined)');
+      }
+    };
+
+    poltergeist.onReady(notifyParentReady);
+
+    await poltergeist.start(target, { waitForInitialBuilds: false });
+    logger.info('Daemon started successfully (initial builds running in background)');
+
+    // Keep the daemon process alive indefinitely; shutdown signals will call process.exit
+    const keepAlive = setInterval(() => {}, 60_000);
+    await new Promise<void>(() => {});
+    clearInterval(keepAlive);
 
     // Keep the process alive
     // The event loop will keep running due to Watchman subscriptions
