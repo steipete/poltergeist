@@ -1,5 +1,5 @@
 import type { ChildProcess } from 'child_process';
-import { fork } from 'child_process';
+import { spawn } from 'child_process';
 import { createHash } from 'crypto';
 import { existsSync } from 'fs';
 import { mkdir, readFile, rm, writeFile } from 'fs/promises';
@@ -11,9 +11,9 @@ import type { PoltergeistConfig } from '../dist/types.js';
 import { FileSystemUtils } from '../dist/utils/filesystem.js';
 import { ProcessManager } from '../dist/utils/process-manager.js';
 
-// Mock child_process.fork
+// Mock child_process.spawn
 vi.mock('child_process', () => ({
-  fork: vi.fn(),
+  spawn: vi.fn(),
 }));
 
 // Helper function to get project hash (same logic as DaemonManager)
@@ -132,7 +132,7 @@ describe('DaemonManager', () => {
         ],
       };
 
-      // Mock the fork function
+      // Mock the spawn function
       const mockChild = {
         pid: 12345,
         once: vi.fn((event, callback) => {
@@ -146,7 +146,7 @@ describe('DaemonManager', () => {
         kill: vi.fn(),
       };
 
-      vi.mocked(fork).mockReturnValue(mockChild as unknown as ChildProcess);
+      vi.mocked(spawn).mockReturnValue(mockChild as unknown as ChildProcess);
 
       const pid = await daemon.startDaemon(config, {
         projectRoot: testProjectPath,
@@ -154,12 +154,13 @@ describe('DaemonManager', () => {
       });
 
       expect(pid).toBe(12345);
-      expect(fork).toHaveBeenCalledWith(
-        expect.stringContaining('daemon-worker.js'),
-        expect.any(Array),
+      expect(spawn).toHaveBeenCalledWith(
+        process.execPath,
+        expect.arrayContaining([expect.stringContaining('daemon-worker.js')]),
         expect.objectContaining({
           detached: true,
-          stdio: ['ignore', 'pipe', 'pipe', 'ipc'],
+          stdio: ['ignore', 'ignore', 'ignore', 'ipc'],
+          cwd: testProjectPath,
         })
       );
 
@@ -215,7 +216,7 @@ describe('DaemonManager', () => {
         targets: [],
       };
 
-      // Mock fork to simulate error
+      // Mock spawn to simulate error
       const mockChild = {
         once: vi.fn((event, callback) => {
           if (event === 'message') {
@@ -225,7 +226,7 @@ describe('DaemonManager', () => {
         kill: vi.fn(),
       };
 
-      vi.mocked(fork).mockReturnValue(mockChild as unknown as ChildProcess);
+      vi.mocked(spawn).mockReturnValue(mockChild as unknown as ChildProcess);
 
       await expect(
         daemon.startDaemon(config, {
@@ -244,7 +245,7 @@ describe('DaemonManager', () => {
       // Set a short timeout for testing
       process.env.POLTERGEIST_DAEMON_TIMEOUT = '100';
 
-      // Mock fork to simulate timeout (don't send message)
+      // Mock spawn to simulate timeout (don't send message)
       const mockChild = {
         once: vi.fn(),
         unref: vi.fn(),
@@ -252,7 +253,7 @@ describe('DaemonManager', () => {
         kill: vi.fn(),
       };
 
-      vi.mocked(fork).mockReturnValue(mockChild as unknown as ChildProcess);
+      vi.mocked(spawn).mockReturnValue(mockChild as unknown as ChildProcess);
 
       // Simulate timeout by not calling the message callback
       mockChild.once.mockImplementation((event, _callback) => {
