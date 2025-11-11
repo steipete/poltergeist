@@ -2,6 +2,10 @@
 
 This file provides guidance to all coding agents (Claude, GPT, etc.) working in this repository.
 
+## Core Directive
+
+- Before answering, if you are unsure, read the relevant code and/or search the web for clarity before responding.
+
 ## Runtime Guardrails
 
 - When using tmux, avoid polling loops like `while tmux has-session …`.

@@ -4,7 +4,7 @@ All notable changes to Poltergeist will be documented in this file.
 
 ## [Unreleased]
 
-- _No entries yet_
+- Fixed the daemon skipping post-start builds by feeding an explicit initial-build marker into the intelligent queue, so every enabled target compiles immediately after `poltergeist haunt` and exposes up-to-date `lastBuild` metadata for `poltergeist status`.
 
 ## [2.1.0] - 2025-11-08
 
