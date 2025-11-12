@@ -5,6 +5,7 @@ All notable changes to Poltergeist will be documented in this file.
 ## [Unreleased]
 
 - Fixed the daemon skipping post-start builds by feeding an explicit initial-build marker into the intelligent queue, so every enabled target compiles immediately after `poltergeist haunt` and exposes up-to-date `lastBuild` metadata for `poltergeist status`.
+- `polter` automatically detects non-interactive terminals and disables the ora spinner/log streaming spam, falling back to concise status lines (override with `POLTER_FORCE_TTY=1` or `POLTER_DISABLE_TTY=1`).
 
 ## [2.1.0] - 2025-11-08
 
@@ -12,7 +13,6 @@ All notable changes to Poltergeist will be documented in this file.
 - Added `POLTERGEIST_TEST_MODE` shims across CLI commands and workflows so CI can simulate daemon state without spawning background processes
 - macOS companion app artifacts are now packaged directly with `ditto`-generated zip archives, ensuring consistent downloads across releases
 - Restored the macOS Swift CI job to automatic runs (with controlled failure handling) so every push and pull request validates the native app toolchain
-
 ## [1.8.0] - 2025-08-09
 
 - Target-specific log files in `/tmp/poltergeist/` with plain text format (80% size reduction)

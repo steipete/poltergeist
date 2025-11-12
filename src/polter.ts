@@ -68,6 +68,18 @@ interface LogOptions {
   logLines: number;
 }
 
+function hasRichTTY(): boolean {
+  if (process.env.POLTER_FORCE_TTY === '1') {
+    return true;
+  }
+
+  if (process.env.POLTER_DISABLE_TTY === '1') {
+    return false;
+  }
+
+  return Boolean(process.stdout.isTTY && process.stderr?.isTTY);
+}
+
 /**
  * Read the last N lines from a file
  */
@@ -176,54 +188,104 @@ async function waitForBuildCompletion(
   logOptions: LogOptions = { showLogs: true, logLines: 5 }
 ): Promise<'success' | 'failed' | 'timeout'> {
   const startTime = Date.now();
+  const supportsRichTTY = hasRichTTY();
+  const shouldStreamLogs = supportsRichTTY && logOptions.showLogs;
 
   // Use ora for professional spinner with automatic cursor management
   // In non-TTY environments (like tests), ora falls back to just console.log
-  const spinner = ora({
-    text: 'Build in progress...',
-    color: 'cyan',
-    spinner: 'dots',
-    isEnabled: process.stdout.isTTY !== false, // Explicitly check TTY
-  });
+  const spinner = supportsRichTTY
+    ? ora({
+        text: 'Build in progress...',
+        color: 'cyan',
+        spinner: 'dots',
+        isEnabled: true,
+      })
+    : null;
+
+  const reportSuccess = (message: string) => {
+    if (spinner) {
+      spinner.succeed(message);
+    } else {
+      console.log(chalk.green(poltergeistMessage('success', message)));
+    }
+  };
+
+  const reportFailure = (message: string) => {
+    if (spinner) {
+      spinner.fail(message);
+    } else {
+      console.error(chalk.red(poltergeistMessage('error', message)));
+    }
+  };
 
   // Start spinner (automatically handles TTY detection and cursor hiding)
-  spinner.start();
+  if (spinner) {
+    spinner.start();
+  } else {
+    console.log(
+      chalk.cyan(
+        poltergeistMessage(
+          'info',
+          '👻 [Poltergeist] Build in progress (non-interactive terminal, waiting quietly)'
+        )
+      )
+    );
+    if (logOptions.showLogs && !shouldStreamLogs) {
+      console.log(
+        chalk.gray(
+          poltergeistMessage(
+            'info',
+            'Log streaming disabled automatically (TTY features unavailable)'
+          )
+        )
+      );
+    }
+  }
 
   // Determine log file path using consistent naming
   const logFile = FileSystemUtils.getLogFilePath(projectRoot, target.name);
 
   // Update elapsed time and build logs periodically
-  const timeInterval = setInterval(() => {
-    const elapsed = Date.now() - startTime;
+  let timeInterval: NodeJS.Timeout | null = null;
+  if (spinner) {
+    timeInterval = setInterval(() => {
+      const elapsed = Date.now() - startTime;
 
-    if (logOptions.showLogs) {
-      // Read actual log file
-      const logLines = readLastLines(logFile, logOptions.logLines);
+      if (shouldStreamLogs) {
+        const logLines = readLastLines(logFile, logOptions.logLines);
 
-      if (logLines.length > 0) {
-        const logText = logLines.map((line) => `│ ${line.trim()}`).join('\n');
-        spinner.text = `Build in progress... ${Math.round(elapsed / 100) / 10}s\n${logText}`;
+        if (logLines.length > 0) {
+          const logText = logLines.map((line) => `│ ${line.trim()}`).join('\n');
+          spinner.text = `Build in progress... ${Math.round(elapsed / 100) / 10}s\n${logText}`;
+        } else {
+          spinner.text = `Build in progress... ${Math.round(elapsed / 100) / 10}s`;
+        }
       } else {
         spinner.text = `Build in progress... ${Math.round(elapsed / 100) / 10}s`;
       }
-    } else {
-      spinner.text = `Build in progress... ${Math.round(elapsed / 100) / 10}s`;
+    }, 100);
+  }
+
+  const clearStatusInterval = () => {
+    if (timeInterval) {
+      clearInterval(timeInterval);
+      timeInterval = null;
     }
-  }, 100);
+  };
 
   try {
     while (Date.now() - startTime < timeoutMs) {
       const status = await getBuildStatus(projectRoot, target, { checkProcessForBuilding: true });
 
       if (status === 'success') {
-        clearInterval(timeInterval);
-        spinner.succeed('Build completed successfully');
+        clearStatusInterval();
+        reportSuccess('Build completed successfully');
         return 'success';
       }
 
       if (status === 'failed') {
-        clearInterval(timeInterval);
-        spinner.fail('Build failed');
+        clearStatusInterval();
+        reportFailure('Build failed');
         return 'failed';
       }
 
@@ -233,17 +295,17 @@ async function waitForBuildCompletion(
           checkProcessForBuilding: true,
         });
 
-        clearInterval(timeInterval);
+        clearStatusInterval();
 
         if (finalStatus === 'success') {
-          spinner.succeed('Build completed successfully');
+          reportSuccess('Build completed successfully');
           return 'success';
         } else if (finalStatus === 'failed') {
-          spinner.fail('Build failed');
+          reportFailure('Build failed');
           return 'failed';
         } else {
           // If status is unknown (e.g., file deleted), assume build process died and proceed
-          spinner.succeed('Build process completed');
+          reportSuccess('Build process completed');
           return 'success';
         }
       }
@@ -252,12 +314,12 @@ async function waitForBuildCompletion(
       await new Promise((resolve) => setTimeout(resolve, 250));
     }
 
-    clearInterval(timeInterval);
-    spinner.fail('Build timeout');
+    clearStatusInterval();
+    reportFailure('Build timeout');
     return 'timeout';
   } catch (error) {
-    clearInterval(timeInterval);
-    spinner.fail('Build error');
+    clearStatusInterval();
+    reportFailure('Build error');
     throw error;
   }
 }
@@ -592,9 +654,9 @@ async function executeStaleWithWarning(
       chalk.red(poltergeistMessage('error', `Binary not found for target '${targetName}'`))
     );
     console.error(chalk.yellow('Tried the following locations:'));
-    possiblePaths.forEach((path) => {
+    for (const path of possiblePaths) {
       console.error(chalk.gray(`   ${path}`));
-    });
+    }
     console.error(chalk.yellow('   Try running: poltergeist start'));
     return 1;
   }
@@ -909,9 +971,9 @@ export async function runWrapper(targetName: string, args: string[], options: Pa
       const availableTargets = ConfigurationManager.getExecutableTargets(config).map((t) => t.name);
       if (availableTargets.length > 0) {
         console.warn(chalk.yellow('👻 [Poltergeist] Available configured targets:'));
-        availableTargets.forEach((name) => {
+        for (const name of availableTargets) {
           console.warn(chalk.yellow(`   - ${name}`));
-        });
+        }
         console.warn('');
       }
 
