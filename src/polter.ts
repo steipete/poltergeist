@@ -16,6 +16,7 @@ import { Command } from 'commander';
 import { existsSync, readFileSync, unwatchFile, watchFile } from 'fs';
 import ora from 'ora';
 import { resolve as resolvePath } from 'path';
+import type { WriteStream } from 'tty';
 import { isMainModule } from './utils/paths.js';
 
 // Version is hardcoded at compile time - NEVER read from filesystem
@@ -68,16 +69,62 @@ interface LogOptions {
   logLines: number;
 }
 
-function hasRichTTY(): boolean {
-  if (process.env.POLTER_FORCE_TTY === '1') {
-    return true;
-  }
-
-  if (process.env.POLTER_DISABLE_TTY === '1') {
+function envFlagEnabled(value: string | undefined): boolean {
+  if (!value) {
     return false;
   }
 
-  return Boolean(process.stdout.isTTY && process.stderr?.isTTY);
+  const normalized = value.trim().toLowerCase();
+  if (normalized.length === 0) {
+    return false;
+  }
+
+  return normalized !== '0' && normalized !== 'false' && normalized !== 'no';
+}
+
+function hasPositiveDimension(value: number | undefined): boolean {
+  if (typeof value === 'number') {
+    return value > 0;
+  }
+  return true;
+}
+
+function hasRichTTY(): boolean {
+  if (envFlagEnabled(process.env.POLTER_FORCE_TTY)) {
+    return true;
+  }
+
+  if (envFlagEnabled(process.env.POLTER_DISABLE_TTY)) {
+    return false;
+  }
+
+  const stdout = process.stdout;
+  const stderr = process.stderr;
+
+  if (!stdout?.isTTY || !stderr?.isTTY) {
+    return false;
+  }
+
+  if (envFlagEnabled(process.env.CI)) {
+    return false;
+  }
+
+  const term = process.env.TERM?.toLowerCase();
+  if (!term || term === 'dumb') {
+    return false;
+  }
+
+  const stdoutStream = stdout as WriteStream;
+
+  if (!hasPositiveDimension(stdoutStream.columns) || !hasPositiveDimension(stdoutStream.rows)) {
+    return false;
+  }
+
+  if (typeof stdoutStream.getColorDepth === 'function' && stdoutStream.getColorDepth() <= 1) {
+    return false;
+  }
+
+  return true;
 }
 
 /**

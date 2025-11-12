@@ -5,7 +5,7 @@ All notable changes to Poltergeist will be documented in this file.
 ## [Unreleased]
 
 - Fixed the daemon skipping post-start builds by feeding an explicit initial-build marker into the intelligent queue, so every enabled target compiles immediately after `poltergeist haunt` and exposes up-to-date `lastBuild` metadata for `poltergeist status`.
-- `polter` automatically detects non-interactive terminals and disables the ora spinner/log streaming spam, falling back to concise status lines (override with `POLTER_FORCE_TTY=1` or `POLTER_DISABLE_TTY=1`).
+- `polter` now performs strict TTY capability checks (screen size, color depth, TERM, CI flags) before enabling the ora spinner/log stream so scripted runs stay quiet while real terminals keep the rich UI (still override with `POLTER_FORCE_TTY=1` or `POLTER_DISABLE_TTY=1`).
 
 ## [2.1.0] - 2025-11-08
 
