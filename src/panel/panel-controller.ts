@@ -36,7 +36,7 @@ export class StatusPanelController {
       ])
     );
     this.gitCollector = new GitMetricsCollector({ throttleMs: options.gitPollIntervalMs ?? 5000 });
-    this.logReader = new LogTailReader(options.projectRoot);
+    this.logReader = new LogTailReader(options.projectRoot, { maxLines: 200 });
     this.gitPollMs = options.gitPollIntervalMs ?? 5000;
     this.statusPollMs = options.statusPollIntervalMs ?? 2000;
 
@@ -99,8 +99,8 @@ export class StatusPanelController {
     await this.refreshStatus({ refreshGit: true, forceGit: true });
   }
 
-  public async getLogLines(targetName: string): Promise<string[]> {
-    return this.logReader.read(targetName);
+  public async getLogLines(targetName: string, limit?: number): Promise<string[]> {
+    return this.logReader.read(targetName, limit);
   }
 
   public dispose(): void {

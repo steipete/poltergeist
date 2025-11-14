@@ -79,12 +79,47 @@ function TargetRow({
   );
 }
 
+function useTerminalSize(): { columns: number; rows: number } {
+  const [size, setSize] = useState(() => ({
+    columns: process.stdout.columns ?? 80,
+    rows: process.stdout.rows ?? 24,
+  }));
+
+  useEffect(() => {
+    if (!process.stdout.isTTY) return;
+    const handler = () => {
+      setSize({
+        columns: process.stdout.columns ?? size.columns,
+        rows: process.stdout.rows ?? size.rows,
+      });
+    };
+    process.stdout.on('resize', handler);
+    return () => {
+      process.stdout.off('resize', handler);
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  return size;
+}
+
 export function PanelApp({ controller }: { controller: StatusPanelController }) {
   const { exit } = useApp();
   const [snapshot, setSnapshot] = useState<PanelSnapshot>(controller.getSnapshot());
   const [selectedIndex, setSelectedIndex] = useState(() => snapshot.preferredIndex ?? 0);
   const [userNavigated, setUserNavigated] = useState(false);
   const [logLines, setLogLines] = useState<string[]>([]);
+  const { rows } = useTerminalSize();
+
+  const logViewport = useMemo(() => {
+    if (!rows || rows <= 0) {
+      return 10;
+    }
+    const reservedStaticRows = 12; // headers, separators, spacing, controls
+    const reservedByTargets = snapshot.targets.length;
+    const available = rows - (reservedStaticRows + reservedByTargets);
+    return Math.max(3, available);
+  }, [rows, snapshot.targets.length]);
 
   useEffect(() => {
     return controller.onUpdate((next) => {
@@ -137,7 +172,7 @@ export function PanelApp({ controller }: { controller: StatusPanelController }) 
     }
 
     const refreshLogs = async () => {
-      const lines = await controller.getLogLines(selectedEntry.name);
+      const lines = await controller.getLogLines(selectedEntry.name, logViewport + 2);
       if (!cancelled) {
         setLogLines(lines);
       }
@@ -148,7 +183,7 @@ export function PanelApp({ controller }: { controller: StatusPanelController }) 
     let interval: NodeJS.Timeout | undefined;
     if (selectedEntry.status.lastBuild?.status === 'building') {
       interval = setInterval(() => {
-        void refreshLogs();
+          void refreshLogs();
       }, 1000);
     }
 
@@ -158,7 +193,14 @@ export function PanelApp({ controller }: { controller: StatusPanelController }) 
         clearInterval(interval);
       }
     };
-  }, [controller, selectedEntry, shouldTailLogs]);
+  }, [controller, selectedEntry, shouldTailLogs, logViewport]);
+
+  const displayedLogLines = useMemo(() => {
+    if (!shouldTailLogs) {
+      return [];
+    }
+    return logLines.slice(-logViewport);
+  }, [logLines, logViewport, shouldTailLogs]);
 
   const gitSummary = useMemo(() => {
     const dirty = snapshot.git.dirtyFiles;
@@ -224,8 +266,8 @@ export function PanelApp({ controller }: { controller: StatusPanelController }) 
         </Text>
         <Text color="gray">{'='.repeat(80)}</Text>
         {shouldTailLogs ? (
-          logLines.length > 0 ? (
-            logLines.map((line, idx) => (
+          displayedLogLines.length > 0 ? (
+            displayedLogLines.map((line, idx) => (
               <Text key={`${line}-${idx}`} color="gray">
                 {line}
               </Text>

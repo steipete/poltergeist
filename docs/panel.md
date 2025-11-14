@@ -42,8 +42,8 @@ Provide an interactive “panel” view that keeps project/target build status, 
 ## Local Usage (Poltergeist Watching Itself)
 1. Run `pnpm run build` once to seed `dist/`.
 2. In terminal A, start the daemon: `pnpm run poltergeist:self:haunt`.
-3. In terminal B, open the dashboard: `pnpm run poltergeist:self:panel`.
-4. Edit `src/` as usual—state + logs live under `/tmp/poltergeist/`, so the panel updates automatically while the daemon rebuilds.
+3. In terminal B, open the dashboard: `pnpm run poltergeist:self:panel` (auto restarts via `node --watch` whenever `dist/` is rebuilt).
+4. Edit `src/` as usual—state + logs live under `/tmp/poltergeist/`, so the panel updates automatically while the daemon rebuilds, and the panel process reloads itself after each compile.
 
 ## Open Questions
 - Should the panel collapse targets by project by default or list every target row? (Current behavior: list all rows.)  

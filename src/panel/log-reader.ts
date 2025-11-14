@@ -12,11 +12,12 @@ export class LogTailReader {
 
   constructor(private readonly projectRoot: string, options: LogReaderOptions = {}) {
     this.maxBytes = options.maxBytes ?? 16 * 1024;
-    this.maxLines = options.maxLines ?? 20;
+    this.maxLines = options.maxLines ?? 50;
   }
 
-  public async read(targetName: string): Promise<string[]> {
+  public async read(targetName: string, limit?: number): Promise<string[]> {
     const logPath = FileSystemUtils.getLogFilePath(this.projectRoot, targetName);
+    const maxLines = limit ?? this.maxLines;
 
     try {
       const handle = await fs.open(logPath, 'r');
@@ -31,7 +32,7 @@ export class LogTailReader {
         await handle.read(buffer, 0, readLength, stats.size - readLength);
         const text = buffer.toString('utf-8').replace(/\0/g, '');
         const lines = text.split(/\r?\n/).filter((line) => line.trim().length > 0);
-        return lines.slice(-this.maxLines);
+        return lines.slice(-maxLines);
       } finally {
         await handle.close();
       }
