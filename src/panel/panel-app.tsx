@@ -125,9 +125,12 @@ export function PanelApp({ controller }: { controller: StatusPanelController }) 
     if (!rows || rows <= 0) {
       return 10;
     }
-    const reservedStaticRows = 10; // headers, separators, spacing (controls handled separately)
-    const reservedByTargets = snapshot.targets.length;
-    const available = rows - (reservedStaticRows + reservedByTargets);
+    const headerRows = 5; // title + two info lines + spacing
+    const tableHeaderRows = 3; // columns + separator + spacing
+    const targetRows = snapshot.targets.length;
+    const controlsRows = 1;
+    const padding = 3; // blank lines / breathing room
+    const available = rows - (headerRows + tableHeaderRows + targetRows + controlsRows + padding);
     return Math.max(3, available);
   }, [rows, snapshot.targets.length]);
 
@@ -207,12 +210,14 @@ export function PanelApp({ controller }: { controller: StatusPanelController }) 
     };
   }, [controller, selectedEntry, shouldTailLogs, logViewport]);
 
+  const logTextCapacity = Math.max(1, logViewport - 2); // minus header + divider inside log box
+
   const displayedLogLines = useMemo(() => {
     if (!shouldTailLogs) {
       return [];
     }
-    return logLines.slice(-logViewport);
-  }, [logLines, logViewport, shouldTailLogs]);
+    return logLines.slice(-logTextCapacity);
+  }, [logLines, logTextCapacity, shouldTailLogs]);
 
   const gitSummary = useMemo(() => {
     const dirty = snapshot.git.dirtyFiles;
@@ -269,7 +274,7 @@ export function PanelApp({ controller }: { controller: StatusPanelController }) 
           )}
         </Box>
       </Box>
-      <Box flexDirection="column" marginTop={1} flexGrow={1}>
+      <Box flexDirection="column" marginTop={1} flexGrow={1} height={logViewport}>
         <Text color={palette.header}>
           Logs — {selectedEntry ? selectedEntry.name : 'No target selected'}{' '}
           {selectedEntry?.status.lastBuild?.status
