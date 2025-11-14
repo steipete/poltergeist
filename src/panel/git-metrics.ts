@@ -5,6 +5,7 @@ const execFileAsync = promisify(execFile);
 
 export interface GitMetrics {
   dirtyFiles: number;
+  dirtyFileNames: string[];
   insertions: number;
   deletions: number;
   branch?: string;
@@ -71,7 +72,7 @@ export class GitMetricsCollector {
         ['status', '--porcelain=v2', '--branch', '-z'],
         projectRoot
       );
-      const dirtyFiles = this.parseDirtyFiles(statusRaw);
+      const { count: dirtyFiles, files: dirtyFileNames } = this.parseDirtyFiles(statusRaw);
       const branch = this.parseBranch(statusRaw);
 
       const diffRaw = await this.runner(['diff', '--shortstat', 'HEAD'], projectRoot).catch(() => '');
@@ -79,6 +80,7 @@ export class GitMetricsCollector {
 
       const metrics: GitMetrics = {
         dirtyFiles,
+        dirtyFileNames,
         insertions,
         deletions,
         branch,
@@ -91,6 +93,7 @@ export class GitMetricsCollector {
     } catch {
       const fallback: GitMetrics = {
         dirtyFiles: 0,
+        dirtyFileNames: [],
         insertions: 0,
         deletions: 0,
         branch: undefined,
@@ -102,10 +105,36 @@ export class GitMetricsCollector {
     }
   }
 
-  private parseDirtyFiles(raw: string): number {
-    if (!raw) return 0;
+  private parseDirtyFiles(raw: string): { count: number; files: string[] } {
+    if (!raw) return { count: 0, files: [] };
     const entries = raw.split('\0').filter((line) => line.length > 0);
-    return entries.filter((line) => /^[12u?]/.test(line)).length;
+    const files: string[] = [];
+    for (const line of entries) {
+      if (!/^[12u?]/.test(line)) continue;
+      const path = this.extractPathFromStatus(line);
+      if (path) {
+        files.push(path);
+        if (files.length >= 20) {
+          break;
+        }
+      }
+    }
+    const count = entries.filter((line) => /^[12u?]/.test(line)).length;
+    return { count, files };
+  }
+
+  private extractPathFromStatus(line: string): string | null {
+    if (line.startsWith('?')) {
+      return line.replace(/^\?\s+/, '').trim() || null;
+    }
+    const tabIndex = line.indexOf('\t');
+    if (tabIndex >= 0) {
+      const remainder = line.slice(tabIndex + 1);
+      const parts = remainder.split('\t');
+      return parts[parts.length - 1]?.trim() || null;
+    }
+    const segments = line.trim().split(/\s+/);
+    return segments.length > 0 ? segments[segments.length - 1] : null;
   }
 
   private parseBranch(raw: string): string | undefined {

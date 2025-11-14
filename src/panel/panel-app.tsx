@@ -347,6 +347,27 @@ export function PanelApp({ controller }: { controller: StatusPanelController }) 
           )}
         </Box>
       </Box>
+      {snapshot.git.dirtyFileNames?.length ? (
+        <Box flexDirection="column" marginTop={1} flexShrink={0}>
+          <Text color={palette.header}>
+            Dirty Files ({Math.min(snapshot.git.dirtyFileNames.length, 20)}
+            {snapshot.git.dirtyFiles > snapshot.git.dirtyFileNames.length
+              ? ` of ${snapshot.git.dirtyFiles}`
+              : ''}
+            ):
+          </Text>
+          {snapshot.git.dirtyFileNames.slice(0, 20).map((file, index) => (
+            <Text key={`${file}-${index}`} color={palette.muted}>
+              • {file}
+            </Text>
+          ))}
+          {snapshot.git.dirtyFiles > 20 && (
+            <Text color={palette.muted}>
+              …and {snapshot.git.dirtyFiles - 20} more
+            </Text>
+          )}
+        </Box>
+      ) : null}
       {statusScriptsByTarget.global.length > 0 && (
         <Box flexDirection="column" marginTop={1} flexShrink={0}>
           {statusScriptsByTarget.global.map((script, index) => (
