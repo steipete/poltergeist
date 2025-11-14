@@ -29,6 +29,22 @@ function formatDuration(durationMs?: number): string {
   return `${seconds}s`;
 }
 
+function formatDurationShort(ms: number): string {
+  if (ms < 1000) {
+    return `${ms}ms`;
+  }
+  const totalSeconds = Math.round(ms / 1000);
+  const minutes = Math.floor(totalSeconds / 60);
+  const seconds = totalSeconds % 60;
+  if (minutes === 0) {
+    return `${seconds}s`;
+  }
+  if (seconds === 0) {
+    return `${minutes}m`;
+  }
+  return `${minutes}m ${seconds}s`;
+}
+
 const palette = {
   accent: '#8BE9FD',
   header: '#2EE6FF',
@@ -332,11 +348,15 @@ export function PanelApp({ controller }: { controller: StatusPanelController }) 
                 {statusScriptsByTarget.targetMap.get(entry.name)?.map((script, idx) => (
                   <Box key={`${script.label}-${idx}`} flexDirection="column" paddingLeft={2}>
                     {script.lines.length === 0 ? (
-                      <Text color={palette.header}>{script.label}: (no output)</Text>
+                      <Text color={palette.header}>
+                        {script.label}: (no output) [{formatDurationShort(script.durationMs)}]
+                      </Text>
                     ) : (
                       script.lines.map((line, lineIndex) => (
                         <Text key={`${script.label}-${idx}-${lineIndex}`} color={palette.header}>
-                          {lineIndex === 0 ? `${script.label}: ${line}` : `  ${line}`}
+                          {lineIndex === 0
+                            ? `${script.label}: ${line} [${formatDurationShort(script.durationMs)}]`
+                            : `  ${line}`}
                         </Text>
                       ))
                     )}
@@ -373,11 +393,15 @@ export function PanelApp({ controller }: { controller: StatusPanelController }) 
           {statusScriptsByTarget.global.map((script, index) => (
             <Box key={`${script.label}-${index}`} flexDirection="column">
               {script.lines.length === 0 ? (
-                <Text color={palette.header}>{script.label}: (no output)</Text>
+                <Text color={palette.header}>
+                  {script.label}: (no output) [{formatDurationShort(script.durationMs)}]
+                </Text>
               ) : (
                 script.lines.map((line, lineIndex) => (
                   <Text key={`${script.label}-${index}-${lineIndex}`} color={palette.header}>
-                    {lineIndex === 0 ? `${script.label}: ${line}` : `  ${line}`}
+                    {lineIndex === 0
+                      ? `${script.label}: ${line} [${formatDurationShort(script.durationMs)}]`
+                      : `  ${line}`}
                   </Text>
                 ))
               )}

@@ -309,8 +309,10 @@ export class StatusPanelController {
       env: { ...process.env, FORCE_COLOR: '0' },
     } as const;
 
+    const start = Date.now();
     try {
       const { stdout, stderr } = await execAsync(script.command, options);
+      const durationMs = Date.now() - start;
       const lines = this.extractLines(stdout, stderr, maxLines);
       return {
         label: script.label,
@@ -318,8 +320,10 @@ export class StatusPanelController {
         targets: script.targets,
         lastRun: now,
         exitCode: 0,
+        durationMs,
       };
     } catch (error) {
+      const durationMs = Date.now() - start;
       const execError = error as NodeJS.ErrnoException & { stdout?: string; stderr?: string };
       const output = this.extractLines(execError.stdout, execError.stderr, maxLines);
       if (output.length === 0) {
@@ -336,6 +340,7 @@ export class StatusPanelController {
             : typeof execError.code === 'string'
               ? Number.parseInt(execError.code, 10)
               : null,
+        durationMs,
       };
     }
   }

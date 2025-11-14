@@ -34,6 +34,7 @@ export interface PanelStatusScriptResult {
   targets?: string[];
   lastRun: number;
   exitCode: number | null;
+  durationMs: number;
 }
 
 export interface PanelControllerOptions {
