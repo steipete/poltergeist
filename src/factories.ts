@@ -69,6 +69,7 @@ export function createMockDependencies(): PoltergeistDependencies {
       removeState: vi.fn().mockResolvedValue(undefined),
       isLocked: vi.fn().mockResolvedValue(false),
       discoverStates: vi.fn().mockResolvedValue({}),
+      forceUnlock: vi.fn().mockResolvedValue(undefined),
       startHeartbeat: vi.fn(),
       stopHeartbeat: vi.fn(),
       cleanup: vi.fn().mockResolvedValue(undefined),

@@ -42,6 +42,8 @@ import { ConfigurationManager } from './utils/config-manager.js';
 import { ghost, poltergeistMessage } from './utils/ghost.js';
 import { validateTarget } from './utils/target-validator.js';
 import { WatchmanConfigManager } from './watchman-config.js';
+import type { StatusObject } from './status/types.js';
+import { runStatusPanel } from './panel/run-panel.js';
 
 const { version } = packageJson;
 
@@ -77,6 +79,7 @@ program
             { name: 'logs', args: '[target]', description: 'Show build logs' },
             { name: 'wait', args: '[target]', description: 'Wait for build to complete' },
             { name: 'polter', args: '<target> [args...]', description: 'Execute fresh binaries' },
+            { name: 'panel', description: 'Interactive status dashboard' },
             { name: 'version', description: 'Show Poltergeist version' },
           ],
         },
@@ -524,19 +527,51 @@ program
   });
 
 program
-  .command('status')
+  .command('panel')
+  .description('Open the interactive status panel')
+  .option('-c, --config <path>', 'Path to config file')
+  .action(async (options) => {
+    const { config, projectRoot, configPath } = await loadConfiguration(options.config);
+    const logger = createLogger(config.logging?.level || 'info');
+    await runStatusPanel({
+      config,
+      projectRoot,
+      configPath,
+      logger,
+    });
+  });
+
+program
+  .command('status [view]')
   .description('Check Poltergeist status')
   .option('-t, --target <name>', 'Check specific target status')
   .option('-c, --config <path>', 'Path to config file')
   .option('--verbose', 'Show detailed status information')
   .option('--json', 'Output status as JSON')
-  .action(async (options) => {
+  .action(async (view: string | undefined, options) => {
     const { config, projectRoot, configPath } = await loadConfiguration(options.config);
 
     try {
       const logger = createLogger(config.logging?.level || 'info');
+
+      if (view === 'panel') {
+        if (options.json) {
+          console.error(chalk.red('--json is not compatible with the panel view.'));
+          process.exit(1);
+        }
+
+        await runStatusPanel({
+          config,
+          projectRoot,
+          configPath,
+          logger,
+        });
+        return;
+      }
+
+      const effectiveTarget = options.target ?? (view && view !== 'panel' ? view : undefined);
       const poltergeist = createPoltergeist(config, projectRoot, logger, configPath);
-      const status = await poltergeist.getStatus(options.target);
+      const status = await poltergeist.getStatus(effectiveTarget);
 
       if (options.json) {
         console.log(JSON.stringify(status, null, 2));
@@ -544,13 +579,13 @@ program
         console.log(chalk.cyan(`${ghost.brand()} Poltergeist Status`));
         console.log(chalk.gray('═'.repeat(50)));
 
-        if (options.target) {
+        if (effectiveTarget) {
           // Check if target exists in status
-          const targetStatus = status[options.target];
+          const targetStatus = status[effectiveTarget];
           if (!targetStatus) {
-            console.log(chalk.yellow(`Target '${options.target}' not found`));
+            console.log(chalk.yellow(`Target '${effectiveTarget}' not found`));
           } else {
-            formatTargetStatus(options.target, targetStatus, options.verbose);
+            formatTargetStatus(effectiveTarget, targetStatus, options.verbose);
           }
         } else {
           // All targets status
@@ -563,6 +598,10 @@ program
               console.log(); // Empty line between targets
             });
           }
+
+          console.log(
+            chalk.gray('Tip: run "poltergeist status panel" to open the live dashboard.')
+          );
         }
       }
     } catch (error) {
@@ -570,45 +609,6 @@ program
       process.exit(1);
     }
   });
-
-interface StatusObject {
-  status?: string;
-  pid?: number; // Legacy format
-  process?: {
-    pid: number;
-    hostname: string;
-    isActive: boolean;
-    lastHeartbeat?: string;
-    startTime?: string;
-  };
-  lastBuild?: {
-    timestamp: string;
-    status: string;
-    duration?: number;
-    exitCode?: number;
-    errorSummary?: string;
-    gitHash?: string;
-    builder?: string;
-    error?: string;
-  };
-  app?: {
-    bundleId?: string;
-    runningPid?: number;
-  };
-  appInfo?: {
-    bundleId?: string;
-    outputPath?: string;
-    iconPath?: string;
-  };
-  pendingFiles?: number;
-  buildCommand?: string;
-  buildStats?: {
-    averageDuration: number;
-    minDuration?: number;
-    maxDuration?: number;
-    successfulBuilds?: Array<{ duration: number; timestamp: string }>;
-  };
-}
 
 function formatTargetStatus(name: string, status: unknown, verbose?: boolean): void {
   const statusObj = status as StatusObject;

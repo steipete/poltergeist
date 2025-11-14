@@ -15,6 +15,7 @@ poltergeist start
 # Inspect projects
 poltergeist status          # All targets
 poltergeist status --target my-app
+poltergeist status panel    # Live dashboard (Ink TUI)
 poltergeist logs -f         # Follow target logs
 
 # Manage the daemon
@@ -27,6 +28,16 @@ poltergeist init --auto
 poltergeist init --cmake
 poltergeist list
 poltergeist clean --dry-run
+
+# Live Status Panel
+
+`poltergeist panel` (or `poltergeist status panel`) launches an Ink-based dashboard that refreshes whenever state files change and every five seconds for git stats. Controls:
+
+- `↑/↓` switch targets
+- `r` forces an immediate refresh (state + git)
+- `q` exits the panel
+
+The header shows dirty git files plus total LOC delta, while the lower pane streams the selected target’s log when the build is running or failed.
 ```
 
 ### Daemon Mode Details
