@@ -1,7 +1,11 @@
 import { useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import { Box, Text, useApp, useInput, measureElement } from 'ink';
 import type { StatusPanelController } from './panel-controller.js';
-import type { PanelSnapshot, TargetPanelEntry } from './types.js';
+import type {
+  PanelSnapshot,
+  PanelStatusScriptResult,
+  TargetPanelEntry,
+} from './types.js';
 
 function formatRelativeTime(timestamp?: string): string {
   if (!timestamp) return '—';
@@ -221,6 +225,22 @@ export function PanelApp({ controller }: { controller: StatusPanelController }) 
     return logLines.slice(sliceStart);
   }, [logLines, logTextCapacity, shouldTailLogs]);
 
+  const statusScriptsByTarget = useMemo(() => {
+    const targetMap = new Map<string, PanelStatusScriptResult[]>();
+    const global: PanelStatusScriptResult[] = [];
+    (snapshot.statusScripts ?? []).forEach((script) => {
+      if (script.targets?.length) {
+        script.targets.forEach((target) => {
+          const list = targetMap.get(target) ?? [];
+          targetMap.set(target, [...list, script]);
+        });
+      } else {
+        global.push(script);
+      }
+    });
+    return { targetMap, global };
+  }, [snapshot.statusScripts]);
+
   return (
     <Box
       flexDirection="column"
@@ -307,11 +327,43 @@ export function PanelApp({ controller }: { controller: StatusPanelController }) 
             <Text color={palette.header}>No targets configured.</Text>
           ) : (
             snapshot.targets.map((entry, index) => (
-              <TargetRow key={entry.name} entry={entry} selected={index === selectedIndex} />
+              <Box key={entry.name} flexDirection="column">
+                <TargetRow entry={entry} selected={index === selectedIndex} />
+                {statusScriptsByTarget.targetMap.get(entry.name)?.map((script, idx) => (
+                  <Box key={`${script.label}-${idx}`} flexDirection="column" paddingLeft={2}>
+                    {script.lines.length === 0 ? (
+                      <Text color={palette.header}>{script.label}: (no output)</Text>
+                    ) : (
+                      script.lines.map((line, lineIndex) => (
+                        <Text key={`${script.label}-${idx}-${lineIndex}`} color={palette.header}>
+                          {lineIndex === 0 ? `${script.label}: ${line}` : `  ${line}`}
+                        </Text>
+                      ))
+                    )}
+                  </Box>
+                ))}
+              </Box>
             ))
           )}
         </Box>
       </Box>
+      {statusScriptsByTarget.global.length > 0 && (
+        <Box flexDirection="column" marginTop={1} flexShrink={0}>
+          {statusScriptsByTarget.global.map((script, index) => (
+            <Box key={`${script.label}-${index}`} flexDirection="column">
+              {script.lines.length === 0 ? (
+                <Text color={palette.header}>{script.label}: (no output)</Text>
+              ) : (
+                script.lines.map((line, lineIndex) => (
+                  <Text key={`${script.label}-${index}-${lineIndex}`} color={palette.header}>
+                    {lineIndex === 0 ? `${script.label}: ${line}` : `  ${line}`}
+                  </Text>
+                ))
+              )}
+            </Box>
+          ))}
+        </Box>
+      )}
       <Box
         ref={logContainerRef}
         flexDirection="column"

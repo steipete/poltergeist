@@ -1,10 +1,20 @@
 import { EventEmitter } from 'events';
 import { existsSync, mkdirSync, watch, type FSWatcher } from 'fs';
+import { exec } from 'child_process';
+import { promisify } from 'util';
 import { FileSystemUtils } from '../utils/filesystem.js';
-import type { PanelControllerOptions, PanelSnapshot, TargetPanelEntry } from './types.js';
+import type {
+  PanelControllerOptions,
+  PanelSnapshot,
+  PanelStatusScriptResult,
+  TargetPanelEntry,
+} from './types.js';
 import { GitMetricsCollector } from './git-metrics.js';
 import { LogTailReader } from './log-reader.js';
 import type { StatusObject } from '../status/types.js';
+import type { StatusScriptConfig } from '../types.js';
+
+const execAsync = promisify(exec);
 
 interface UpdateEvent {
   snapshot: PanelSnapshot;
@@ -23,9 +33,11 @@ export class StatusPanelController {
   private statusInterval?: NodeJS.Timeout;
   private gitInterval?: NodeJS.Timeout;
   private refreshing?: Promise<void>;
+  private scriptRefreshing?: Promise<void>;
   private disposed = false;
   private readonly gitPollMs: number;
   private readonly statusPollMs: number;
+  private scriptCache: Map<string, CachedStatusScript>;
 
   constructor(private readonly options: PanelControllerOptions) {
     this.stateDir = FileSystemUtils.getStateDirectory();
@@ -39,6 +51,7 @@ export class StatusPanelController {
     this.logReader = new LogTailReader(options.projectRoot, { maxLines: 200 });
     this.gitPollMs = options.gitPollIntervalMs ?? 5000;
     this.statusPollMs = options.statusPollIntervalMs ?? 2000;
+    this.scriptCache = new Map();
 
     this.snapshot = {
       targets: options.config.targets.map((target) => ({
@@ -65,6 +78,7 @@ export class StatusPanelController {
       projectRoot: options.projectRoot,
       preferredIndex: 0,
       lastUpdated: Date.now(),
+      statusScripts: [],
     };
   }
 
@@ -78,6 +92,7 @@ export class StatusPanelController {
     }
 
     await this.refreshStatus({ refreshGit: true, forceGit: true });
+    await this.refreshStatusScripts(true);
     this.setupWatchers();
     this.statusInterval = setInterval(() => {
       void this.refreshStatus();
@@ -97,6 +112,7 @@ export class StatusPanelController {
 
   public async forceRefresh(): Promise<void> {
     await this.refreshStatus({ refreshGit: true, forceGit: true });
+    await this.refreshStatusScripts(true);
   }
 
   public async getLogLines(targetName: string, limit?: number): Promise<string[]> {
@@ -207,10 +223,12 @@ export class StatusPanelController {
         projectRoot: this.snapshot.projectRoot,
         preferredIndex: this.computePreferredIndex(targets),
         lastUpdated: Date.now(),
+        statusScripts: this.snapshot.statusScripts,
       };
 
       this.emitter.emit('update', { snapshot: this.snapshot });
-    })().finally(() => {
+      void this.refreshStatusScripts();
+  })().finally(() => {
       this.refreshing = undefined;
     });
 
@@ -230,4 +248,114 @@ export class StatusPanelController {
     };
     this.emitter.emit('update', { snapshot: this.snapshot });
   }
+
+  private async refreshStatusScripts(force?: boolean): Promise<void> {
+    if (this.disposed || !(this.options.config.statusScripts?.length)) {
+      return;
+    }
+
+    if (this.scriptRefreshing) {
+      return this.scriptRefreshing;
+    }
+
+    this.scriptRefreshing = (async () => {
+      const configs = this.options.config.statusScripts ?? [];
+      const results: PanelStatusScriptResult[] = [];
+      const now = Date.now();
+
+      for (const scriptConfig of configs) {
+        const cacheKey = this.getScriptCacheKey(scriptConfig);
+        const cache = this.scriptCache.get(cacheKey);
+        const cooldownMs = (scriptConfig.cooldownSeconds ?? 60) * 1000;
+
+        if (!force && cache && now - cache.lastRun < cooldownMs) {
+          results.push(cache.result);
+          continue;
+        }
+
+        const result = await this.runStatusScript(scriptConfig);
+        this.scriptCache.set(cacheKey, { lastRun: result.lastRun, result });
+        results.push(result);
+      }
+
+      this.snapshot = {
+        ...this.snapshot,
+        statusScripts: results,
+        lastUpdated: Date.now(),
+      };
+      this.emitter.emit('update', { snapshot: this.snapshot });
+    })().finally(() => {
+      this.scriptRefreshing = undefined;
+    });
+
+    await this.scriptRefreshing;
+  }
+
+  private getScriptCacheKey(script: StatusScriptConfig): string {
+    const targetsKey = script.targets?.slice().sort().join(',') ?? '';
+    return `${script.label}::${script.command}::${targetsKey}`;
+  }
+
+  private async runStatusScript(script: StatusScriptConfig): Promise<PanelStatusScriptResult> {
+    const now = Date.now();
+    const maxLines = script.maxLines ?? 1;
+
+    const options = {
+      cwd: this.options.projectRoot,
+      timeout: (script.timeoutSeconds ?? 30) * 1000,
+      maxBuffer: 1024 * 1024,
+      env: { ...process.env, FORCE_COLOR: '0' },
+    } as const;
+
+    try {
+      const { stdout, stderr } = await execAsync(script.command, options);
+      const lines = this.extractLines(stdout, stderr, maxLines);
+      return {
+        label: script.label,
+        lines,
+        targets: script.targets,
+        lastRun: now,
+        exitCode: 0,
+      };
+    } catch (error) {
+      const execError = error as NodeJS.ErrnoException & { stdout?: string; stderr?: string };
+      const output = this.extractLines(execError.stdout, execError.stderr, maxLines);
+      if (output.length === 0) {
+        output.push(`Error: ${execError.message}`);
+      }
+      return {
+        label: script.label,
+        lines: output,
+        targets: script.targets,
+        lastRun: now,
+        exitCode:
+          typeof execError.code === 'number'
+            ? execError.code
+            : typeof execError.code === 'string'
+              ? Number.parseInt(execError.code, 10)
+              : null,
+      };
+    }
+  }
+
+  private extractLines(
+    stdout?: string,
+    stderr?: string,
+    maxLines: number = 1
+  ): string[] {
+    const combined = `${stdout ?? ''}\n${stderr ?? ''}`.trim();
+    if (!combined) {
+      return [];
+    }
+    return combined
+      .split(/\r?\n/)
+      .map((line) => line.trim())
+      .filter((line) => line.length > 0)
+      .slice(0, maxLines);
+  }
+}
+
+interface CachedStatusScript {
+  lastRun: number;
+  result: PanelStatusScriptResult;
 }

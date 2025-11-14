@@ -264,6 +264,8 @@ export interface PoltergeistConfig {
   projectType: ProjectType;
   /** Array of build targets to watch and build */
   targets: Target[];
+  /** Optional status scripts to surface in the panel */
+  statusScripts?: StatusScriptConfig[];
   /** Watchman file watching configuration */
   watchman?: WatchmanConfig;
   /** Performance optimization settings */
@@ -281,6 +283,15 @@ export interface PoltergeistConfig {
     file?: string;
     level: 'debug' | 'info' | 'warn' | 'error';
   };
+}
+
+export interface StatusScriptConfig {
+  label: string;
+  command: string;
+  targets?: string[];
+  cooldownSeconds?: number;
+  timeoutSeconds?: number;
+  maxLines?: number;
 }
 
 // Zod schemas for validation
@@ -458,10 +469,20 @@ export const BuildSchedulingConfigSchema = z.object({
   }),
 });
 
+export const StatusScriptConfigSchema = z.object({
+  label: z.string().min(1),
+  command: z.string().min(1),
+  targets: z.array(z.string()).optional(),
+  cooldownSeconds: z.number().min(1).default(60),
+  timeoutSeconds: z.number().min(1).default(30),
+  maxLines: z.number().min(1).max(10).default(1),
+});
+
 export const PoltergeistConfigSchema = z.object({
   version: z.literal('1.0'),
   projectType: z.enum(['swift', 'node', 'rust', 'python', 'cmake', 'mixed']),
   targets: z.array(TargetSchema),
+  statusScripts: z.array(StatusScriptConfigSchema).optional(),
   watchman: WatchmanConfigSchema.optional(),
   performance: PerformanceConfigSchema.optional(),
   buildScheduling: BuildSchedulingConfigSchema.optional(),

@@ -45,6 +45,31 @@ Provide an interactive “panel” view that keeps project/target build status, 
 3. In terminal B, open the dashboard: `pnpm run poltergeist:self:panel` (alias: `pnpm run poltergeist:panel`). Both variants auto restart via `node --watch` whenever `dist/` is rebuilt and enter the terminal's alternate screen buffer so the panel owns the whole window.
 4. Edit `src/` as usual—state + logs live under `/tmp/poltergeist/`, so the panel updates automatically while the daemon rebuilds, and the panel process reloads itself after each compile.
 
+## Status Scripts
+Add lightweight health checks (lint, tests, etc.) to the panel output without baking logic into Poltergeist. The config supports arbitrary commands with cooldowns and optional target associations:
+
+```jsonc
+"statusScripts": [
+  {
+    "label": "Typecheck",
+    "command": "./scripts/status-typecheck.sh",
+    "targets": ["cli", "polter"],
+    "cooldownSeconds": 60,
+    "timeoutSeconds": 120,
+    "maxLines": 6
+  }
+]
+```
+
+- `label`: text shown in the panel.
+- `command`: shell command executed from the project root.
+- `targets`: optional list of target names. When present, the output renders beneath those target rows; otherwise it shows in a global section.
+- `cooldownSeconds`: minimum time between runs (default 60s). Cached output is reused until the cooldown expires.
+- `timeoutSeconds`: abort long-running scripts (default 30s).
+- `maxLines`: truncate stdout to avoid flooding the panel (default 1).
+
+Commands should always exit 0 (even on failure) and print their own pass/fail summary plus any detail lines you want surfaced.
+
 ## Open Questions
 - Should the panel collapse targets by project by default or list every target row? (Current behavior: list all rows.)  
 - Is 5 seconds the right refresh cadence for git stats, or should we make it configurable? (Currently fixed at 5 s.)

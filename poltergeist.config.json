@@ -34,5 +34,23 @@
       "watchPaths": ["apps/mac/**/*.swift"],
       "outputPath": "apps/mac/build/Release/Poltergeist.app"
     }
+  ],
+  "statusScripts": [
+    {
+      "label": "Typecheck",
+      "command": "./scripts/status-typecheck.sh",
+      "targets": ["build", "cli", "polter"],
+      "cooldownSeconds": 60,
+      "timeoutSeconds": 120,
+      "maxLines": 6
+    },
+    {
+      "label": "Biome",
+      "command": "./scripts/status-biome.sh",
+      "targets": ["build", "cli", "polter"],
+      "cooldownSeconds": 60,
+      "timeoutSeconds": 120,
+      "maxLines": 6
+    }
   ]
 }

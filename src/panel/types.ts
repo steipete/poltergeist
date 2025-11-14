@@ -25,6 +25,15 @@ export interface PanelSnapshot {
   projectRoot: string;
   preferredIndex: number;
   lastUpdated: number;
+  statusScripts?: PanelStatusScriptResult[];
+}
+
+export interface PanelStatusScriptResult {
+  label: string;
+  lines: string[];
+  targets?: string[];
+  lastRun: number;
+  exitCode: number | null;
 }
 
 export interface PanelControllerOptions {
