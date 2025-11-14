@@ -52,11 +52,11 @@ function TargetRow({
 
   return (
     <Box flexDirection="row">
-      <Box width={20}>
+      <Box width={28}>
         <Text color={selected ? 'cyan' : undefined}>{entry.name}</Text>
         {!entry.enabled ? <Text color="gray"> (disabled)</Text> : null}
       </Box>
-      <Box width={12}>
+      <Box width={16}>
         <Text color={color}>{label}</Text>
       </Box>
       <Box width={18}>
@@ -65,7 +65,7 @@ function TargetRow({
       <Box width={12}>
         <Text>{formatDuration(entry.status.lastBuild?.duration)}</Text>
       </Box>
-      <Box width={10}>
+      <Box width={8}>
         <Text>{entry.status.pendingFiles ?? 0}</Text>
       </Box>
       <Box flexGrow={1}>
@@ -227,10 +227,10 @@ export function PanelApp({ controller }: { controller: StatusPanelController }) 
       </Box>
       <Box flexDirection="column" marginTop={1}>
         <Box flexDirection="row">
-          <Box width={20}>
+          <Box width={28}>
             <Text color="gray">Target</Text>
           </Box>
-          <Box width={12}>
+          <Box width={16}>
             <Text color="gray">Status</Text>
           </Box>
           <Box width={18}>
@@ -239,7 +239,7 @@ export function PanelApp({ controller }: { controller: StatusPanelController }) 
           <Box width={12}>
             <Text color="gray">Duration</Text>
           </Box>
-          <Box width={10}>
+          <Box width={8}>
             <Text color="gray">Pending</Text>
           </Box>
           <Box flexGrow={1}>
