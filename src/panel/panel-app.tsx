@@ -52,6 +52,20 @@ function scriptColorFromExitCode(exitCode?: number | null): string {
   return palette.failure;
 }
 
+function groupDirtyFiles(files: string[]): Array<{ dir: string; files: string[] }> {
+  const limit = files.slice(0, 10);
+  const groups = new Map<string, string[]>();
+  for (const path of limit) {
+    const lastSlash = path.lastIndexOf('/');
+    const dir = lastSlash >= 0 ? path.slice(0, lastSlash) : '';
+    const fileName = lastSlash >= 0 ? path.slice(lastSlash + 1) : path;
+    const existing = groups.get(dir) ?? [];
+    existing.push(fileName);
+    groups.set(dir, existing);
+  }
+  return Array.from(groups.entries()).map(([dir, groupFiles]) => ({ dir, files: groupFiles }));
+}
+
 const palette = {
   accent: '#8BE9FD',
   header: '#2EE6FF',
@@ -264,6 +278,11 @@ export function PanelApp({ controller }: { controller: StatusPanelController }) 
     return { targetMap, global };
   }, [snapshot.statusScripts]);
 
+  const dirtyFileGroups = useMemo(
+    () => groupDirtyFiles(snapshot.git.dirtyFileNames ?? []),
+    [snapshot.git.dirtyFileNames]
+  );
+
   return (
     <Box
       flexDirection="column"
@@ -377,7 +396,7 @@ export function PanelApp({ controller }: { controller: StatusPanelController }) 
           )}
         </Box>
       </Box>
-      {snapshot.git.dirtyFileNames?.length ? (
+      {dirtyFileGroups.length ? (
         <Box flexDirection="column" marginTop={1} flexShrink={0}>
           <Text color={palette.header}>
             Dirty Files ({Math.min(snapshot.git.dirtyFileNames.length, 10)}
@@ -386,9 +405,14 @@ export function PanelApp({ controller }: { controller: StatusPanelController }) 
               : ''}
             ):
           </Text>
-          {snapshot.git.dirtyFileNames.slice(0, 10).map((file, index) => (
-            <Text key={`${file}-${index}`} color={palette.muted}>
-              • {file}
+          {dirtyFileGroups.map((group, index) => (
+            <Text key={`${group.dir}-${index}`} color={palette.muted}>
+              •{' '}
+              {group.files.length === 1
+                ? group.dir
+                  ? `${group.dir}/${group.files[0]}`
+                  : group.files[0]
+                : `${group.dir || '.'}: ${group.files.join(', ')}`}
             </Text>
           ))}
           {snapshot.git.dirtyFiles > 10 && (
