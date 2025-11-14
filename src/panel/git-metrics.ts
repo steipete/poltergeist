@@ -114,7 +114,7 @@ export class GitMetricsCollector {
       const path = this.extractPathFromStatus(line);
       if (path) {
         files.push(path);
-        if (files.length >= 20) {
+        if (files.length >= 10) {
           break;
         }
       }
