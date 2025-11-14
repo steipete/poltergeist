@@ -109,7 +109,7 @@ export function PanelApp({ controller }: { controller: StatusPanelController }) 
   const [selectedIndex, setSelectedIndex] = useState(() => snapshot.preferredIndex ?? 0);
   const [userNavigated, setUserNavigated] = useState(false);
   const [logLines, setLogLines] = useState<string[]>([]);
-  const { rows } = useTerminalSize();
+  const { rows, columns } = useTerminalSize();
 
   const logViewport = useMemo(() => {
     if (!rows || rows <= 0) {
@@ -246,7 +246,7 @@ export function PanelApp({ controller }: { controller: StatusPanelController }) 
             <Text color="gray">Process</Text>
           </Box>
         </Box>
-        <Text color="gray">{'='.repeat(Math.max(40, process.stdout.columns ?? 80))}</Text>
+        <Text color="gray">{'─'.repeat(Math.max(20, columns - 2))}</Text>
         <Box flexDirection="column">
           {snapshot.targets.length === 0 ? (
             <Text color="gray">No targets configured.</Text>
@@ -264,7 +264,7 @@ export function PanelApp({ controller }: { controller: StatusPanelController }) 
             ? `(${selectedEntry.status.lastBuild.status})`
             : ''}
         </Text>
-        <Text color="gray">{'='.repeat(Math.max(40, process.stdout.columns ?? 80))}</Text>
+        <Text color="gray">{'─'.repeat(Math.max(20, columns - 2))}</Text>
         {shouldTailLogs ? (
           displayedLogLines.length > 0 ? (
             displayedLogLines.map((line, idx) => (
