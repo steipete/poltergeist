@@ -203,6 +203,37 @@ export class StateManager implements IStateManager {
   }
 
   /**
+   * Forcefully clear locks and mark processes inactive for a target.
+   * Used by manual --force builds to take over from stuck processes.
+   */
+  public async forceUnlock(targetName: string): Promise<boolean> {
+    const stateFile = this.getStateFilePath(targetName);
+    const lockFile = stateFile.replace('.state', '.lock');
+    let unlocked = false;
+
+    if (existsSync(lockFile)) {
+      try {
+        unlinkSync(lockFile);
+        unlocked = true;
+        this.logger.warn(`Force unlocked lock file for ${targetName}`);
+      } catch (error) {
+        this.logger.error(`Failed to remove lock file for ${targetName}: ${error}`);
+      }
+    }
+
+    const state = await this.readState(targetName);
+    if (state) {
+      state.process.isActive = false;
+      this.states.set(targetName, state);
+      await this.writeState(targetName, false);
+      unlocked = true;
+      this.logger.warn(`Marked process inactive for ${targetName} due to force unlock`);
+    }
+
+    return unlocked;
+  }
+
+  /**
    * Writes state to file using write-file-atomic for robust cross-platform atomic writes.
    * This prevents corruption during concurrent writes and handles Windows race conditions.
    */

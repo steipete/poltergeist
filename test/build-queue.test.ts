@@ -280,6 +280,37 @@ describe('IntelligentBuildQueue', () => {
     });
   });
 
+  describe('Retry Handling', () => {
+    it('should retry failed builds up to target maxRetries', async () => {
+      const controllable = createControllableMockBuilder('frontend');
+      const retryTarget = {
+        ...targets[0],
+        maxRetries: 2,
+        backoffMultiplier: 1,
+      };
+
+      buildQueue.registerTarget(retryTarget, controllable.builder);
+      await buildQueue.onFileChanged(['frontend/src/app.ts'], [retryTarget]);
+
+      // Fail first attempt
+      controllable.fail('First failure');
+      await waitForAsync();
+      expect(controllable.builder.build).toHaveBeenCalledTimes(1);
+
+      // Fast-forward retry delay (1s base, multiplier 1)
+      await waitForAsync(1000);
+      expect(controllable.builder.build).toHaveBeenCalledTimes(2);
+
+      // Fail second attempt
+      controllable.fail('Second failure');
+      await waitForAsync();
+
+      // Advance timers again; no third attempt (maxRetries reached)
+      await waitForAsync(1000);
+      expect(controllable.builder.build).toHaveBeenCalledTimes(2);
+    });
+  });
+
   describe('Pending Rebuild Handling', () => {
     it('should mark builds for rebuild when already running', async () => {
       const mockBuilder = createMockBuilder('frontend');

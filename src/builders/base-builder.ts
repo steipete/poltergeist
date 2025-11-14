@@ -10,6 +10,8 @@ import { BuildStatusManager } from '../utils/build-status-manager.js';
 export interface BuildOptions {
   captureLogs?: boolean;
   logFile?: string;
+  force?: boolean;
+  onLock?: () => void;
 }
 
 export abstract class BaseBuilder<T extends Target = Target> {
@@ -37,9 +39,17 @@ export abstract class BaseBuilder<T extends Target = Target> {
       `[${this.target.name}] Building with ${changedFiles.length} changed file(s)${fileListText}`
     );
 
+    if (options.force) {
+      const unlocked = await this.stateManager.forceUnlock(this.target.name);
+      if (unlocked) {
+        this.logger.warn(`[${this.target.name}] Force option enabled - cleared existing lock`);
+      }
+    }
+
     // Check if already building using state manager
-    if (await this.stateManager.isLocked(this.target.name)) {
+    if (!options.force && (await this.stateManager.isLocked(this.target.name))) {
       this.logger.warn(`[${this.target.name}] Build already in progress, skipping`);
+      options.onLock?.();
       return BuildStatusManager.createBuildingStatus(this.target.name, {
         gitHash: this.getGitHash(),
         builder: this.getBuilderName(),

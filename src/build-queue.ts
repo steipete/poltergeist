@@ -197,7 +197,7 @@ export class IntelligentBuildQueue {
       const result = await buildPromise;
 
       // Handle completion
-      await this.handleBuildCompletion(targetName, result, startTime);
+      await this.handleBuildCompletion(targetName, result, startTime, request);
     } catch (error) {
       this.logger.error(`Build failed for ${targetName}: ${error}`);
 
@@ -210,7 +210,7 @@ export class IntelligentBuildQueue {
         duration: Date.now() - startTime,
       };
 
-      await this.handleBuildCompletion(targetName, failureResult, startTime);
+      await this.handleBuildCompletion(targetName, failureResult, startTime, request);
 
       // Send exception notification if notifier is available
       if (this.notifier) {
@@ -246,7 +246,8 @@ export class IntelligentBuildQueue {
   private async handleBuildCompletion(
     targetName: string,
     result: BuildStatus,
-    startTime: number
+    startTime: number,
+    request: QueuedBuild
   ): Promise<void> {
     // Remove from running builds
     this.runningBuilds.delete(targetName);
@@ -285,6 +286,11 @@ export class IntelligentBuildQueue {
           this.scheduleTargetBuild(targetObj, ['pending changes']);
         }
       }
+    }
+
+    // Schedule automatic retry if configured and build failed
+    if (BuildStatusManager.isFailure(result)) {
+      this.tryScheduleRetry(request, result);
     }
 
     this.logger.info(`Build completed for ${targetName}: ${result.status} (${result.duration}ms)`);
@@ -397,5 +403,48 @@ export class IntelligentBuildQueue {
       this.queueStats.avgBuildTime =
         this.queueStats.avgBuildTime * (1 - alpha) + result.duration * alpha;
     }
+  }
+
+  private tryScheduleRetry(request: QueuedBuild, result: BuildStatus): void {
+    const target = request.target;
+    const maxRetries = target.maxRetries ?? 0;
+    if (maxRetries <= 0) {
+      return;
+    }
+
+    if (request.retryCount >= maxRetries) {
+      this.logger.warn(
+        `Max retries reached for ${target.name} (${request.retryCount}/${maxRetries}), not retrying`
+      );
+      return;
+    }
+
+    const attemptNumber = request.retryCount + 1;
+    const backoffMultiplier = target.backoffMultiplier ?? 2;
+    const baseDelay = 1000; // 1 second base
+    const delay = Math.min(
+      30000,
+      Math.round(baseDelay * Math.pow(backoffMultiplier, attemptNumber - 1))
+    );
+    const errorMessage = BuildStatusManager.getErrorMessage(result);
+
+    this.logger.warn(
+      `Retrying ${target.name} (attempt ${attemptNumber}/${maxRetries}) in ${delay}ms due to failure${errorMessage ? `: ${errorMessage}` : ''}`
+    );
+
+    setTimeout(() => {
+      const retryRequest: QueuedBuild = {
+        ...request,
+        id: this.generateRequestId(),
+        timestamp: Date.now(),
+        retryCount: attemptNumber,
+      };
+      this.pendingQueue.push(retryRequest);
+      this.sortQueue();
+      this.logger.info(
+        `Queued retry for ${target.name} (attempt ${attemptNumber}/${maxRetries})`
+      );
+      this.processQueue();
+    }, delay);
   }
 }

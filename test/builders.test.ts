@@ -46,6 +46,7 @@ const mockStateManager = {
   updateAppInfo: vi.fn(),
   readState: vi.fn(),
   isLocked: vi.fn(),
+  forceUnlock: vi.fn(),
   initializeState: vi.fn(),
   updateState: vi.fn(),
   removeState: vi.fn(),
@@ -321,6 +322,45 @@ describe('ExecutableBuilder', () => {
         expect.stringContaining('[cli] Build already in progress')
       );
       expect(spawn).not.toHaveBeenCalled();
+    });
+
+    it('should force unlock when force option is provided', async () => {
+      const mockProcess = new MockChildProcess();
+      vi.mocked(spawn).mockReturnValue(mockProcess as ReturnType<typeof spawn>);
+
+      vi.mocked(mockStateManager.forceUnlock).mockResolvedValue(true);
+      vi.mocked(mockStateManager.initializeState).mockResolvedValue({
+        target: target.name,
+        projectName: 'test-project',
+        projectRoot: '/test/project',
+        process: {
+          pid: process.pid,
+          hostname: 'test-host',
+          isActive: true,
+          lastHeartbeat: new Date().toISOString(),
+        },
+        lastBuild: null,
+        buildHistory: [],
+      });
+      vi.mocked(mockStateManager.updateBuildStatus).mockResolvedValue(undefined);
+
+      const buildPromise = builder.build([], { force: true });
+      setTimeout(() => mockProcess.emit('close', 0), 10);
+      await buildPromise;
+
+      expect(mockStateManager.forceUnlock).toHaveBeenCalledWith('cli');
+      expect(mockStateManager.isLocked).not.toHaveBeenCalled();
+    });
+
+    it('should invoke onLock callback when build is already running', async () => {
+      vi.mocked(mockStateManager.isLocked).mockResolvedValue(true);
+      const onLock = vi.fn();
+
+      const result = await builder.build([], { onLock });
+
+      expect(onLock).toHaveBeenCalled();
+      expect(result.status).toBe('building');
+      expect(mockStateManager.initializeState).not.toHaveBeenCalled();
     });
   });
 

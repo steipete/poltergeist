@@ -401,6 +401,7 @@ program
   .description('Manually trigger a build for a target')
   .option('-c, --config <path>', 'Path to config file')
   .option('--verbose', 'Show build output in real-time')
+  .option('-f, --force', 'Force rebuild even if another build is running')
   .option('--json', 'Output result as JSON')
   .action(async (targetName, options) => {
     const { config, projectRoot } = await loadConfiguration(options.config);
@@ -448,9 +449,17 @@ program
 
       // Execute build with real-time output
       const startTime = Date.now();
+      let lockHintShown = false;
+      const showLockHints = (): void => {
+        if (lockHintShown || options.json) return;
+        lockHintShown = true;
+        printBuildLockHints(targetToBuild.name);
+      };
       const buildStatus = await builder.build([], {
         captureLogs: true,
         logFile: `.poltergeist-build-${targetToBuild.name}.log`,
+        force: options.force ?? false,
+        onLock: showLockHints,
       });
 
       const duration = Date.now() - startTime;
@@ -474,6 +483,10 @@ program
           console.log(
             chalk.green(`✅ Build completed successfully in ${Math.round(duration / 1000)}s`)
           );
+        } else if (buildStatus.status === 'building') {
+          showLockHints();
+          console.error(chalk.yellow('Build skipped because another build is already running.'));
+          process.exit(1);
         } else {
           console.error(chalk.red(`❌ Build failed after ${Math.round(duration / 1000)}s`));
           if (buildStatus.errorSummary) {
@@ -752,6 +765,14 @@ function formatStatus(status: string): string {
     default:
       return chalk.gray(status);
   }
+}
+
+function printBuildLockHints(targetName: string): void {
+  const writer = process.stdout.isTTY ? console.error : console.log;
+  writer(chalk.yellow(`⚠️  Build already running for '${targetName}'.`));
+  writer(`   Attach logs: poltergeist logs ${targetName} -f`);
+  writer(`   Wait for result: poltergeist wait ${targetName}`);
+  writer(`   Force rebuild: poltergeist build ${targetName} --force`);
 }
 
 // Log entry interface

@@ -77,6 +77,7 @@ export function createMockStateManager(): IStateManager {
     readState: vi.fn().mockResolvedValue(null),
     updateState: vi.fn().mockResolvedValue(undefined),
     updateBuildStatus: vi.fn().mockResolvedValue(undefined),
+    forceUnlock: vi.fn().mockResolvedValue(false),
     removeState: vi.fn().mockResolvedValue(undefined),
     isLocked: vi.fn().mockResolvedValue(false),
     discoverStates: vi.fn().mockResolvedValue({}),
