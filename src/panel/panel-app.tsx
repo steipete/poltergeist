@@ -45,6 +45,13 @@ function formatDurationShort(ms: number): string {
   return `${minutes}m ${seconds}s`;
 }
 
+function scriptColorFromExitCode(exitCode?: number | null): string {
+  if (!exitCode || exitCode <= 0) {
+    return palette.success;
+  }
+  return palette.failure;
+}
+
 const palette = {
   accent: '#8BE9FD',
   header: '#2EE6FF',
@@ -345,23 +352,26 @@ export function PanelApp({ controller }: { controller: StatusPanelController }) 
             snapshot.targets.map((entry, index) => (
               <Box key={entry.name} flexDirection="column">
                 <TargetRow entry={entry} selected={index === selectedIndex} />
-                {statusScriptsByTarget.targetMap.get(entry.name)?.map((script, idx) => (
-                  <Box key={`${script.label}-${idx}`} flexDirection="column" paddingLeft={2}>
-                    {script.lines.length === 0 ? (
-                      <Text color={palette.header}>
-                        {script.label}: (no output) [{formatDurationShort(script.durationMs)}]
-                      </Text>
-                    ) : (
-                      script.lines.map((line, lineIndex) => (
-                        <Text key={`${script.label}-${idx}-${lineIndex}`} color={palette.header}>
-                          {lineIndex === 0
-                            ? `${script.label}: ${line} [${formatDurationShort(script.durationMs)}]`
-                            : `  ${line}`}
+                {statusScriptsByTarget.targetMap.get(entry.name)?.map((script, idx) => {
+                  const scriptColor = scriptColorFromExitCode(script.exitCode);
+                  return (
+                    <Box key={`${script.label}-${idx}`} flexDirection="column" paddingLeft={2}>
+                      {script.lines.length === 0 ? (
+                        <Text color={scriptColor}>
+                          {script.label}: (no output) [{formatDurationShort(script.durationMs)}]
                         </Text>
-                      ))
-                    )}
-                  </Box>
-                ))}
+                      ) : (
+                        script.lines.map((line, lineIndex) => (
+                          <Text key={`${script.label}-${idx}-${lineIndex}`} color={scriptColor}>
+                            {lineIndex === 0
+                              ? `${script.label}: ${line} [${formatDurationShort(script.durationMs)}]`
+                              : `  ${line}`}
+                          </Text>
+                        ))
+                      )}
+                    </Box>
+                  );
+                })}
               </Box>
             ))
           )}
@@ -390,23 +400,26 @@ export function PanelApp({ controller }: { controller: StatusPanelController }) 
       ) : null}
       {statusScriptsByTarget.global.length > 0 && (
         <Box flexDirection="column" marginTop={1} flexShrink={0}>
-          {statusScriptsByTarget.global.map((script, index) => (
-            <Box key={`${script.label}-${index}`} flexDirection="column">
-              {script.lines.length === 0 ? (
-                <Text color={palette.header}>
-                  {script.label}: (no output) [{formatDurationShort(script.durationMs)}]
-                </Text>
-              ) : (
-                script.lines.map((line, lineIndex) => (
-                  <Text key={`${script.label}-${index}-${lineIndex}`} color={palette.header}>
-                    {lineIndex === 0
-                      ? `${script.label}: ${line} [${formatDurationShort(script.durationMs)}]`
-                      : `  ${line}`}
+          {statusScriptsByTarget.global.map((script, index) => {
+            const scriptColor = scriptColorFromExitCode(script.exitCode);
+            return (
+              <Box key={`${script.label}-${index}`} flexDirection="column">
+                {script.lines.length === 0 ? (
+                  <Text color={scriptColor}>
+                    {script.label}: (no output) [{formatDurationShort(script.durationMs)}]
                   </Text>
-                ))
-              )}
-            </Box>
-          ))}
+                ) : (
+                  script.lines.map((line, lineIndex) => (
+                    <Text key={`${script.label}-${index}-${lineIndex}`} color={scriptColor}>
+                      {lineIndex === 0
+                        ? `${script.label}: ${line} [${formatDurationShort(script.durationMs)}]`
+                        : `  ${line}`}
+                    </Text>
+                  ))
+                )}
+              </Box>
+            );
+          })}
         </Box>
       )}
       <Box
