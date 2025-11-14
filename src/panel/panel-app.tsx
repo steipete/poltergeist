@@ -27,7 +27,9 @@ function formatDuration(durationMs?: number): string {
 
 const palette = {
   accent: '#8BE9FD',
-  header: '#8E95B3',
+  header: '#2EE6FF',
+  text: '#F8F8F2',
+  muted: '#8E95B3',
   line: '#5C6080',
   success: '#50FA7B',
   failure: '#FF5555',
@@ -219,25 +221,58 @@ export function PanelApp({ controller }: { controller: StatusPanelController }) 
     return logLines.slice(-logTextCapacity);
   }, [logLines, logTextCapacity, shouldTailLogs]);
 
-  const gitSummary = useMemo(() => {
-    const dirty = snapshot.git.dirtyFiles;
-    const delta = snapshot.git.insertions + snapshot.git.deletions;
-    if (!snapshot.git.hasRepo) {
-      return 'Not a git repository';
-    }
-    return `Dirty files: ${dirty}  |  ΔLOC: +${snapshot.git.insertions} / -${snapshot.git.deletions} (total ${delta})`;
-  }, [snapshot.git]);
-
   return (
     <Box flexDirection="column" paddingLeft={1} paddingRight={1} height={rows || undefined}>
       <Box flexDirection="column" flexShrink={0}>
-        <Text color={palette.header}>
+        <Text color={palette.text}>
           {snapshot.projectName} — {snapshot.projectRoot}
         </Text>
-        <Text color={palette.header}>
-          Branch: {snapshot.git.branch ?? 'unknown'} | {gitSummary}
+        <Text>
+          <Text color={palette.muted}>Branch:</Text>{' '}
+          <Text color={palette.text}>{snapshot.git.branch ?? 'unknown'}</Text>
+          {'  |  '}
+          <Text color={palette.muted}>Dirty files:</Text>{' '}
+          <Text
+            color={
+              !snapshot.git.hasRepo
+                ? palette.info
+                : snapshot.git.dirtyFiles > 0
+                  ? palette.failure
+                  : palette.success
+            }
+          >
+            {snapshot.git.hasRepo ? snapshot.git.dirtyFiles : 'n/a'}
+          </Text>
+          {'  |  '}
+          <Text color={palette.muted}>ΔLOC:</Text>{' '}
+          <Text
+            color={
+              !snapshot.git.hasRepo
+                ? palette.info
+                : snapshot.git.insertions > 0
+                  ? palette.success
+                  : palette.info
+            }
+          >
+            {snapshot.git.hasRepo ? `+${snapshot.git.insertions}` : 'n/a'}
+          </Text>{' '}
+          <Text color={palette.muted}>/</Text>{' '}
+          <Text
+            color={
+              !snapshot.git.hasRepo
+                ? palette.info
+                : snapshot.git.deletions > 0
+                  ? palette.failure
+                  : palette.info
+            }
+          >
+            {snapshot.git.hasRepo ? `-${snapshot.git.deletions}` : 'n/a'}
+          </Text>{' '}
+          <Text color={palette.muted}>
+            ({snapshot.git.hasRepo ? `total ${snapshot.git.insertions + snapshot.git.deletions}` : 'no repo'})
+          </Text>
         </Text>
-        <Text color={palette.header}>
+        <Text color={palette.muted}>
           Builds: {snapshot.summary.building} building · {snapshot.summary.failures} failed ·{' '}
           {snapshot.summary.running} daemons running · total {snapshot.summary.totalTargets}
         </Text>
