@@ -115,11 +115,13 @@ export function PanelApp({ controller }: { controller: StatusPanelController }) 
     if (!rows || rows <= 0) {
       return 10;
     }
-    const reservedStaticRows = 12; // headers, separators, spacing, controls
+    const reservedStaticRows = 10; // headers, separators, spacing (controls handled separately)
     const reservedByTargets = snapshot.targets.length;
     const available = rows - (reservedStaticRows + reservedByTargets);
     return Math.max(3, available);
   }, [rows, snapshot.targets.length]);
+
+  const controlsLine = 'Controls: ↑/↓ move · r refresh · q quit';
 
   useEffect(() => {
     return controller.onUpdate((next) => {
@@ -212,8 +214,8 @@ export function PanelApp({ controller }: { controller: StatusPanelController }) 
   }, [snapshot.git]);
 
   return (
-    <Box flexDirection="column" paddingLeft={1} paddingRight={1}>
-      <Box flexDirection="column">
+    <Box flexDirection="column" paddingLeft={1} paddingRight={1} height={rows || undefined}>
+      <Box flexDirection="column" flexShrink={0}>
         <Text>
           {snapshot.projectName} — {snapshot.projectRoot}
         </Text>
@@ -225,7 +227,7 @@ export function PanelApp({ controller }: { controller: StatusPanelController }) 
           {snapshot.summary.running} daemons running · total {snapshot.summary.totalTargets}
         </Text>
       </Box>
-      <Box flexDirection="column" marginTop={1}>
+      <Box flexDirection="column" marginTop={1} flexShrink={0}>
         <Box flexDirection="row">
           <Box width={28}>
             <Text color="gray">Target</Text>
@@ -257,7 +259,7 @@ export function PanelApp({ controller }: { controller: StatusPanelController }) 
           )}
         </Box>
       </Box>
-      <Box flexDirection="column" marginTop={1}>
+      <Box flexDirection="column" marginTop={1} flexGrow={1}>
         <Text>
           Logs — {selectedEntry ? selectedEntry.name : 'No target selected'}{' '}
           {selectedEntry?.status.lastBuild?.status
@@ -265,22 +267,24 @@ export function PanelApp({ controller }: { controller: StatusPanelController }) 
             : ''}
         </Text>
         <Text color="gray">{'─'.repeat(Math.max(20, columns - 2))}</Text>
-        {shouldTailLogs ? (
-          displayedLogLines.length > 0 ? (
-            displayedLogLines.map((line, idx) => (
-              <Text key={`${line}-${idx}`} color="gray">
-                {line}
-              </Text>
-            ))
+        <Box flexGrow={1} flexDirection="column">
+          {shouldTailLogs ? (
+            displayedLogLines.length > 0 ? (
+              displayedLogLines.map((line, idx) => (
+                <Text key={`${line}-${idx}`} color="gray">
+                  {line}
+                </Text>
+              ))
+            ) : (
+              <Text color="gray">No log output yet…</Text>
+            )
           ) : (
-            <Text color="gray">No log output yet…</Text>
-          )
-        ) : (
-          <Text color="gray">Logs are shown when the selected target is building or failed.</Text>
-        )}
+            <Text color="gray">Logs are shown when the selected target is building or failed.</Text>
+          )}
+        </Box>
       </Box>
-      <Box marginTop={1}>
-        <Text color="gray">Controls: ↑/↓ move · r refresh · q quit</Text>
+      <Box flexDirection="row" justifyContent="space-between" flexShrink={0}>
+        <Text color="gray">{controlsLine}</Text>
       </Box>
     </Box>
   );
