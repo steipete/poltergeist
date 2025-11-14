@@ -21,13 +21,17 @@ export async function runStatusPanel(options: RunPanelOptions): Promise<void> {
     return;
   }
 
+  const useAltBuffer = process.env.POLTERGEIST_PANEL_ALT !== '0';
+
   const enterAlternateBuffer = () => {
+    if (!useAltBuffer) return;
     process.stdout.write('\x1b[?1049h'); // Switch to alt buffer
     process.stdout.write('\x1b[?25l'); // Hide cursor
     process.stdout.write('\x1b[2J\x1b[H');
   };
 
   const leaveAlternateBuffer = () => {
+    if (!useAltBuffer) return;
     process.stdout.write('\x1b[?25h'); // Show cursor
     process.stdout.write('\x1b[?1049l'); // Restore main buffer
   };

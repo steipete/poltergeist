@@ -52,6 +52,13 @@ export class StatusPanelController {
     this.gitPollMs = options.gitPollIntervalMs ?? 5000;
     this.statusPollMs = options.statusPollIntervalMs ?? 2000;
     this.scriptCache = new Map();
+    if (options.config.statusScripts?.length) {
+      this.options.logger.info(
+        `[Panel] Loaded ${options.config.statusScripts.length} status script(s)`
+      );
+    } else {
+      this.options.logger.info('[Panel] No status scripts configured');
+    }
 
     this.snapshot = {
       targets: options.config.targets.map((target) => ({
