@@ -52,37 +52,31 @@ function statusColor(status?: string): { color: string; label: string } {
   }
 }
 
-function TargetRow({
-  entry,
-  selected,
-}: {
-  entry: TargetPanelEntry;
-  selected: boolean;
-}) {
+function TargetRow({ entry, selected }: { entry: TargetPanelEntry; selected: boolean }) {
   const status = entry.status.lastBuild?.status || entry.status.status || 'unknown';
   const { color, label } = statusColor(status);
 
   return (
     <Box flexDirection="row">
-      <Box width={28}>
+      <Box width={34}>
         <Text color={selected ? palette.accent : undefined}>{entry.name}</Text>
         {!entry.enabled ? <Text color={palette.header}> (disabled)</Text> : null}
       </Box>
-      <Box width={16}>
+      <Box width={14}>
         <Text color={color}>{label}</Text>
       </Box>
-      <Box width={18}>
+      <Box width={16}>
         <Text>{formatRelativeTime(entry.status.lastBuild?.timestamp)}</Text>
       </Box>
-      <Box width={12}>
+      <Box width={10}>
         <Text>{formatDuration(entry.status.lastBuild?.duration)}</Text>
       </Box>
-      <Box width={8}>
+      <Box width={6}>
         <Text>{entry.status.pendingFiles ?? 0}</Text>
       </Box>
       <Box flexGrow={1}>
         {entry.status.process?.isActive ? (
-          <Text color={palette.success}>pid {entry.status.process.pid}</Text>
+          <Text color={palette.success}>{entry.status.process.pid}</Text>
         ) : (
           <Text color={palette.header}>idle</Text>
         )}
@@ -278,19 +272,19 @@ export function PanelApp({ controller }: { controller: StatusPanelController }) 
       </Box>
       <Box flexDirection="column" marginTop={1} flexShrink={0}>
         <Box flexDirection="row">
-          <Box width={28}>
+          <Box width={34}>
             <Text color={palette.header}>Target</Text>
           </Box>
-          <Box width={16}>
+          <Box width={14}>
             <Text color={palette.header}>Status</Text>
           </Box>
-          <Box width={18}>
+          <Box width={16}>
             <Text color={palette.header}>Last Build</Text>
           </Box>
-          <Box width={12}>
+          <Box width={10}>
             <Text color={palette.header}>Duration</Text>
           </Box>
-          <Box width={8}>
+          <Box width={6}>
             <Text color={palette.header}>Pending</Text>
           </Box>
           <Box flexGrow={1}>
