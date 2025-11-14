@@ -222,8 +222,14 @@ export function PanelApp({ controller }: { controller: StatusPanelController }) 
   }, [logLines, logTextCapacity, shouldTailLogs]);
 
   return (
-    <Box flexDirection="column" paddingLeft={1} paddingRight={1} height={rows || undefined}>
-      <Box flexDirection="column" flexShrink={0}>
+    <Box
+      flexDirection="column"
+      paddingLeft={1}
+      paddingRight={1}
+      height={rows || undefined}
+      minHeight={0}
+    >
+      <Box flexDirection="column" flexShrink={0} minHeight={0}>
         <Text color={palette.text}>
           {snapshot.projectName} — {snapshot.projectRoot}
         </Text>
@@ -277,7 +283,7 @@ export function PanelApp({ controller }: { controller: StatusPanelController }) 
           {snapshot.summary.running} daemons running · total {snapshot.summary.totalTargets}
         </Text>
       </Box>
-      <Box flexDirection="column" marginTop={1} flexShrink={0}>
+      <Box flexDirection="column" marginTop={1} flexShrink={0} minHeight={0}>
         <Box flexDirection="row">
           <Box width={34}>
             <Text color={palette.header}>Target</Text>
@@ -309,10 +315,10 @@ export function PanelApp({ controller }: { controller: StatusPanelController }) 
       <Box
         ref={logContainerRef}
         flexDirection="column"
-        marginTop={1}
         flexGrow={1}
         minHeight={3}
         minWidth={0}
+        marginTop={1}
       >
         <Text color={palette.header}>
           Logs — {selectedEntry ? selectedEntry.name : 'No target selected'}{' '}
@@ -337,7 +343,7 @@ export function PanelApp({ controller }: { controller: StatusPanelController }) 
           )}
         </Box>
       </Box>
-      <Box flexDirection="row" justifyContent="space-between" flexShrink={0}>
+      <Box flexDirection="row" justifyContent="space-between" flexShrink={0} minHeight={0}>
         <Text color={palette.header}>{controlsLine}</Text>
       </Box>
     </Box>
