@@ -25,18 +25,28 @@ function formatDuration(durationMs?: number): string {
   return `${seconds}s`;
 }
 
+const palette = {
+  accent: '#8BE9FD',
+  header: '#8E95B3',
+  line: '#5C6080',
+  success: '#50FA7B',
+  failure: '#FF5555',
+  warning: '#F1FA8C',
+  info: '#AEB1C2',
+};
+
 function statusColor(status?: string): { color: string; label: string } {
   switch (status) {
     case 'success':
-      return { color: 'green', label: 'success' };
+      return { color: palette.success, label: 'success' };
     case 'failure':
-      return { color: 'red', label: 'failed' };
+      return { color: palette.failure, label: 'failed' };
     case 'building':
-      return { color: 'yellow', label: 'building' };
+      return { color: palette.warning, label: 'building' };
     case 'watching':
-      return { color: 'blue', label: 'watching' };
+      return { color: palette.accent, label: 'watching' };
     default:
-      return { color: 'gray', label: status || 'unknown' };
+      return { color: palette.info, label: status || 'unknown' };
   }
 }
 
@@ -53,8 +63,8 @@ function TargetRow({
   return (
     <Box flexDirection="row">
       <Box width={28}>
-        <Text color={selected ? 'cyan' : undefined}>{entry.name}</Text>
-        {!entry.enabled ? <Text color="gray"> (disabled)</Text> : null}
+        <Text color={selected ? palette.accent : undefined}>{entry.name}</Text>
+        {!entry.enabled ? <Text color={palette.header}> (disabled)</Text> : null}
       </Box>
       <Box width={16}>
         <Text color={color}>{label}</Text>
@@ -70,9 +80,9 @@ function TargetRow({
       </Box>
       <Box flexGrow={1}>
         {entry.status.process?.isActive ? (
-          <Text color="green">pid {entry.status.process.pid}</Text>
+          <Text color={palette.success}>pid {entry.status.process.pid}</Text>
         ) : (
-          <Text color="gray">idle</Text>
+          <Text color={palette.header}>idle</Text>
         )}
       </Box>
     </Box>
@@ -216,13 +226,13 @@ export function PanelApp({ controller }: { controller: StatusPanelController }) 
   return (
     <Box flexDirection="column" paddingLeft={1} paddingRight={1} height={rows || undefined}>
       <Box flexDirection="column" flexShrink={0}>
-        <Text>
+        <Text color={palette.header}>
           {snapshot.projectName} — {snapshot.projectRoot}
         </Text>
-        <Text color="gray">
+        <Text color={palette.header}>
           Branch: {snapshot.git.branch ?? 'unknown'} | {gitSummary}
         </Text>
-        <Text color="gray">
+        <Text color={palette.header}>
           Builds: {snapshot.summary.building} building · {snapshot.summary.failures} failed ·{' '}
           {snapshot.summary.running} daemons running · total {snapshot.summary.totalTargets}
         </Text>
@@ -230,28 +240,28 @@ export function PanelApp({ controller }: { controller: StatusPanelController }) 
       <Box flexDirection="column" marginTop={1} flexShrink={0}>
         <Box flexDirection="row">
           <Box width={28}>
-            <Text color="gray">Target</Text>
+            <Text color={palette.header}>Target</Text>
           </Box>
           <Box width={16}>
-            <Text color="gray">Status</Text>
+            <Text color={palette.header}>Status</Text>
           </Box>
           <Box width={18}>
-            <Text color="gray">Last Build</Text>
+            <Text color={palette.header}>Last Build</Text>
           </Box>
           <Box width={12}>
-            <Text color="gray">Duration</Text>
+            <Text color={palette.header}>Duration</Text>
           </Box>
           <Box width={8}>
-            <Text color="gray">Pending</Text>
+            <Text color={palette.header}>Pending</Text>
           </Box>
           <Box flexGrow={1}>
-            <Text color="gray">Process</Text>
+            <Text color={palette.header}>Process</Text>
           </Box>
         </Box>
-        <Text color="gray">{'─'.repeat(Math.max(20, columns - 2))}</Text>
+        <Text color={palette.line}>{'─'.repeat(Math.max(20, columns - 2))}</Text>
         <Box flexDirection="column">
           {snapshot.targets.length === 0 ? (
-            <Text color="gray">No targets configured.</Text>
+            <Text color={palette.header}>No targets configured.</Text>
           ) : (
             snapshot.targets.map((entry, index) => (
               <TargetRow key={entry.name} entry={entry} selected={index === selectedIndex} />
@@ -260,31 +270,31 @@ export function PanelApp({ controller }: { controller: StatusPanelController }) 
         </Box>
       </Box>
       <Box flexDirection="column" marginTop={1} flexGrow={1}>
-        <Text>
+        <Text color={palette.header}>
           Logs — {selectedEntry ? selectedEntry.name : 'No target selected'}{' '}
           {selectedEntry?.status.lastBuild?.status
             ? `(${selectedEntry.status.lastBuild.status})`
             : ''}
         </Text>
-        <Text color="gray">{'─'.repeat(Math.max(20, columns - 2))}</Text>
+        <Text color={palette.line}>{'─'.repeat(Math.max(20, columns - 2))}</Text>
         <Box flexGrow={1} flexDirection="column">
           {shouldTailLogs ? (
             displayedLogLines.length > 0 ? (
               displayedLogLines.map((line, idx) => (
-                <Text key={`${line}-${idx}`} color="gray">
+                <Text key={`${line}-${idx}`} color={palette.header}>
                   {line}
                 </Text>
               ))
             ) : (
-              <Text color="gray">No log output yet…</Text>
+              <Text color={palette.header}>No log output yet…</Text>
             )
           ) : (
-            <Text color="gray">Logs are shown when the selected target is building or failed.</Text>
+            <Text color={palette.header}>Logs are shown when the selected target is building or failed.</Text>
           )}
         </Box>
       </Box>
       <Box flexDirection="row" justifyContent="space-between" flexShrink={0}>
-        <Text color="gray">{controlsLine}</Text>
+        <Text color={palette.header}>{controlsLine}</Text>
       </Box>
     </Box>
   );
