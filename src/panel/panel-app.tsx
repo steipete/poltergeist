@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import { Box, Text, useApp, useInput, measureElement } from 'ink';
 import type { StatusPanelController } from './panel-controller.js';
 import type { PanelSnapshot, TargetPanelEntry } from './types.js';
@@ -121,14 +121,16 @@ export function PanelApp({ controller }: { controller: StatusPanelController }) 
   const [userNavigated, setUserNavigated] = useState(false);
   const [logLines, setLogLines] = useState<string[]>([]);
   const { rows, columns } = useTerminalSize();
-  const logContainerRef = useRef<null | Parameters<typeof measureElement>[0]>(null);
-  const [logHeight, setLogHeight] = useState(10);
+  const logContainerRef = useRef<Parameters<typeof measureElement>[0] | null>(null);
+  const [logHeight, setLogHeight] = useState(0);
+  const [scrollOffset, setScrollOffset] = useState(0);
+  const [isPinnedToBottom, setIsPinnedToBottom] = useState(true);
 
-  useEffect(() => {
+  useLayoutEffect(() => {
     if (!logContainerRef.current) return;
-    const { height } = measureElement(logContainerRef.current);
-    const next = Math.max(0, Math.floor(height ?? 0));
-    if (next > 0 && next !== logHeight) {
+    const measurement = measureElement(logContainerRef.current);
+    const next = Math.max(0, Math.floor(measurement?.height ?? 0));
+    if (next !== logHeight) {
       setLogHeight(next);
     }
   }, [rows, columns, snapshot.targets.length]);
@@ -169,6 +171,42 @@ export function PanelApp({ controller }: { controller: StatusPanelController }) 
         }
         return Math.min(snapshot.targets.length - 1, prev + 1);
       });
+      return;
+    }
+
+    const scrollBy = (delta: number) => {
+      if (!shouldTailLogs || logTextCapacity <= 0) return;
+      setScrollOffset((prev) => {
+        const next = Math.min(Math.max(prev + delta, 0), maxScrollOffset);
+        setIsPinnedToBottom(next === maxScrollOffset);
+        return next;
+      });
+    };
+
+    if (key.pageUp) {
+      scrollBy(-logTextCapacity);
+      return;
+    }
+    if (key.pageDown) {
+      scrollBy(logTextCapacity);
+      return;
+    }
+    if (input === 'k') {
+      scrollBy(-1);
+      return;
+    }
+    if (input === 'j') {
+      scrollBy(1);
+      return;
+    }
+    if (input === 'g') {
+      setIsPinnedToBottom(false);
+      setScrollOffset(0);
+      return;
+    }
+    if (input === 'G') {
+      setIsPinnedToBottom(true);
+      setScrollOffset(maxScrollOffset);
     }
   });
 
@@ -179,6 +217,15 @@ export function PanelApp({ controller }: { controller: StatusPanelController }) 
       selectedEntry.status.lastBuild?.status === 'failure');
 
   const logTextCapacity = Math.max(1, logHeight - 2); // minus header + divider inside log box
+  const totalLogLines = shouldTailLogs ? logLines.length : 0;
+  const maxScrollOffset = Math.max(0, totalLogLines - logTextCapacity);
+
+  useEffect(() => {
+    setScrollOffset((prev) => {
+      const target = isPinnedToBottom ? maxScrollOffset : Math.min(prev, maxScrollOffset);
+      return target === prev ? prev : target;
+    });
+  }, [maxScrollOffset, isPinnedToBottom]);
 
   useEffect(() => {
     let cancelled = false;
@@ -212,11 +259,23 @@ export function PanelApp({ controller }: { controller: StatusPanelController }) 
   }, [controller, selectedEntry, shouldTailLogs, logTextCapacity]);
 
   const displayedLogLines = useMemo(() => {
-    if (!shouldTailLogs) {
+    if (!shouldTailLogs || logTextCapacity <= 0) {
       return [];
     }
-    return logLines.slice(-logTextCapacity);
-  }, [logLines, logTextCapacity, shouldTailLogs]);
+    const start = Math.min(scrollOffset, maxScrollOffset);
+    const clampedStart = Math.max(0, Math.min(start, Math.max(0, totalLogLines - logTextCapacity)));
+    return logLines.slice(clampedStart, clampedStart + logTextCapacity);
+  }, [logLines, logTextCapacity, shouldTailLogs, scrollOffset, maxScrollOffset, totalLogLines]);
+
+  const scrollHint = useMemo(() => {
+    if (!shouldTailLogs || logTextCapacity <= 0) return '';
+    const atTop = scrollOffset <= 0;
+    const atBottom = scrollOffset >= maxScrollOffset;
+    if (!atTop && !atBottom) return '↑↓ scroll';
+    if (!atTop) return '↑ scroll';
+    if (!atBottom) return '↓ scroll';
+    return '';
+  }, [shouldTailLogs, logTextCapacity, scrollOffset, maxScrollOffset]);
 
   return (
     <Box flexDirection="column" paddingLeft={1} paddingRight={1} height={rows || undefined}>
@@ -309,12 +368,14 @@ export function PanelApp({ controller }: { controller: StatusPanelController }) 
         marginTop={1}
         flexGrow={1}
         minHeight={3}
+        minWidth={0}
       >
         <Text color={palette.header}>
           Logs — {selectedEntry ? selectedEntry.name : 'No target selected'}{' '}
           {selectedEntry?.status.lastBuild?.status
             ? `(${selectedEntry.status.lastBuild.status})`
             : ''}
+          {scrollHint ? `  ${scrollHint}` : ''}
         </Text>
         <Text color={palette.line}>{'─'.repeat(Math.max(20, columns - 2))}</Text>
         <Box flexGrow={1} flexDirection="column">
