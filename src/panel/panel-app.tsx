@@ -123,16 +123,15 @@ export function PanelApp({ controller }: { controller: StatusPanelController }) 
   const [logLines, setLogLines] = useState<string[]>([]);
   const { rows, columns } = useTerminalSize();
 
-  const logViewport = useMemo(() => {
+  const logAreaRows = useMemo(() => {
     if (!rows || rows <= 0) {
       return 10;
     }
-    const headerRows = 5; // title + two info lines + spacing
-    const tableHeaderRows = 3; // columns + separator + spacing
-    const targetRows = snapshot.targets.length;
-    const controlsRows = 1;
-    const padding = 3; // blank lines / breathing room
-    const available = rows - (headerRows + tableHeaderRows + targetRows + controlsRows + padding);
+    const topRows = 4; // project line + branch line + builds line + spacing
+    const tableRows = snapshot.targets.length + 3; // header row + divider + spacing + target rows
+    const controlRows = 1;
+    const paddingRows = 2;
+    const available = rows - (topRows + tableRows + controlRows + paddingRows);
     return Math.max(3, available);
   }, [rows, snapshot.targets.length]);
 
@@ -181,6 +180,8 @@ export function PanelApp({ controller }: { controller: StatusPanelController }) 
     (selectedEntry.status.lastBuild?.status === 'building' ||
       selectedEntry.status.lastBuild?.status === 'failure');
 
+  const logTextCapacity = Math.max(1, logAreaRows - 2); // minus header + divider inside log box
+
   useEffect(() => {
     let cancelled = false;
     if (!selectedEntry || !shouldTailLogs) {
@@ -189,7 +190,7 @@ export function PanelApp({ controller }: { controller: StatusPanelController }) 
     }
 
     const refreshLogs = async () => {
-      const lines = await controller.getLogLines(selectedEntry.name, logViewport + 2);
+      const lines = await controller.getLogLines(selectedEntry.name, logTextCapacity + 2);
       if (!cancelled) {
         setLogLines(lines);
       }
@@ -210,9 +211,7 @@ export function PanelApp({ controller }: { controller: StatusPanelController }) 
         clearInterval(interval);
       }
     };
-  }, [controller, selectedEntry, shouldTailLogs, logViewport]);
-
-  const logTextCapacity = Math.max(1, logViewport - 2); // minus header + divider inside log box
+  }, [controller, selectedEntry, shouldTailLogs, logTextCapacity]);
 
   const displayedLogLines = useMemo(() => {
     if (!shouldTailLogs) {
@@ -309,7 +308,7 @@ export function PanelApp({ controller }: { controller: StatusPanelController }) 
           )}
         </Box>
       </Box>
-      <Box flexDirection="column" marginTop={1} flexGrow={1} height={logViewport}>
+      <Box flexDirection="column" marginTop={1} flexGrow={1} height={logAreaRows}>
         <Text color={palette.header}>
           Logs — {selectedEntry ? selectedEntry.name : 'No target selected'}{' '}
           {selectedEntry?.status.lastBuild?.status
