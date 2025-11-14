@@ -1,5 +1,5 @@
-import { useEffect, useMemo, useState } from 'react';
-import { Box, Text, useApp, useInput } from 'ink';
+import { useEffect, useMemo, useRef, useState } from 'react';
+import { Box, Text, useApp, useInput, measureElement } from 'ink';
 import type { StatusPanelController } from './panel-controller.js';
 import type { PanelSnapshot, TargetPanelEntry } from './types.js';
 
@@ -121,18 +121,17 @@ export function PanelApp({ controller }: { controller: StatusPanelController }) 
   const [userNavigated, setUserNavigated] = useState(false);
   const [logLines, setLogLines] = useState<string[]>([]);
   const { rows, columns } = useTerminalSize();
+  const logContainerRef = useRef<null | Parameters<typeof measureElement>[0]>(null);
+  const [logHeight, setLogHeight] = useState(10);
 
-  const logAreaRows = useMemo(() => {
-    if (!rows || rows <= 0) {
-      return 10;
+  useEffect(() => {
+    if (!logContainerRef.current) return;
+    const { height } = measureElement(logContainerRef.current);
+    const next = Math.max(0, Math.floor(height ?? 0));
+    if (next > 0 && next !== logHeight) {
+      setLogHeight(next);
     }
-    const topRows = 4; // project line + branch line + builds line + spacing
-    const tableRows = snapshot.targets.length + 3; // header row + divider + spacing + target rows
-    const controlRows = 1;
-    const paddingRows = 2;
-    const available = rows - (topRows + tableRows + controlRows + paddingRows);
-    return Math.max(3, available);
-  }, [rows, snapshot.targets.length]);
+  }, [rows, columns, snapshot.targets.length]);
 
   const controlsLine = 'Controls: ↑/↓ move · r refresh · q quit';
 
@@ -179,7 +178,7 @@ export function PanelApp({ controller }: { controller: StatusPanelController }) 
     (selectedEntry.status.lastBuild?.status === 'building' ||
       selectedEntry.status.lastBuild?.status === 'failure');
 
-  const logTextCapacity = Math.max(1, logAreaRows - 2); // minus header + divider inside log box
+  const logTextCapacity = Math.max(1, logHeight - 2); // minus header + divider inside log box
 
   useEffect(() => {
     let cancelled = false;
@@ -304,7 +303,13 @@ export function PanelApp({ controller }: { controller: StatusPanelController }) 
           )}
         </Box>
       </Box>
-      <Box flexDirection="column" marginTop={1} flexGrow={1} height={logAreaRows}>
+      <Box
+        ref={logContainerRef}
+        flexDirection="column"
+        marginTop={1}
+        flexGrow={1}
+        minHeight={3}
+      >
         <Text color={palette.header}>
           Logs — {selectedEntry ? selectedEntry.name : 'No target selected'}{' '}
           {selectedEntry?.status.lastBuild?.status
