@@ -39,6 +39,12 @@ Provide an interactive “panel” view that keeps project/target build status, 
 4. Wire CLI routing so `poltergeist status panel` and `poltergeist panel` both launch the Ink app, and emit a hint after the standard `status` output.  
 5. Document usage in `docs/cli-reference.md`.
 
+## Local Usage (Poltergeist Watching Itself)
+1. Run `pnpm run build` once to seed `dist/`.
+2. In terminal A, start the daemon: `pnpm run poltergeist:self:haunt`.
+3. In terminal B, open the dashboard: `pnpm run poltergeist:self:panel`.
+4. Edit `src/` as usual—state + logs live under `/tmp/poltergeist/`, so the panel updates automatically while the daemon rebuilds.
+
 ## Open Questions
 - Should the panel collapse targets by project by default or list every target row? (Current behavior: list all rows.)  
 - Is 5 seconds the right refresh cadence for git stats, or should we make it configurable? (Currently fixed at 5 s.)
