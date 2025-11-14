@@ -55,6 +55,18 @@ function statusColor(status?: string): { color: string; label: string } {
 function TargetRow({ entry, selected }: { entry: TargetPanelEntry; selected: boolean }) {
   const status = entry.status.lastBuild?.status || entry.status.status || 'unknown';
   const { color, label } = statusColor(status);
+  const pending = entry.status.pendingFiles ?? 0;
+  const isRunning = entry.status.process?.isActive;
+  const processColor = isRunning
+    ? palette.success
+    : pending > 0
+      ? palette.warning
+      : palette.header;
+  const processText = isRunning
+    ? `${entry.status.process?.pid}${pending > 0 ? ` · +${pending}` : ''}`
+    : pending > 0
+      ? `${pending} pending`
+      : 'idle';
 
   return (
     <Box flexDirection="row">
@@ -71,15 +83,8 @@ function TargetRow({ entry, selected }: { entry: TargetPanelEntry; selected: boo
       <Box width={10}>
         <Text>{formatDuration(entry.status.lastBuild?.duration)}</Text>
       </Box>
-      <Box width={6}>
-        <Text>{entry.status.pendingFiles ?? 0}</Text>
-      </Box>
       <Box flexGrow={1}>
-        {entry.status.process?.isActive ? (
-          <Text color={palette.success}>{entry.status.process.pid}</Text>
-        ) : (
-          <Text color={palette.header}>idle</Text>
-        )}
+        <Text color={processColor}>{processText}</Text>
       </Box>
     </Box>
   );
@@ -283,9 +288,6 @@ export function PanelApp({ controller }: { controller: StatusPanelController }) 
           </Box>
           <Box width={10}>
             <Text color={palette.header}>Duration</Text>
-          </Box>
-          <Box width={6}>
-            <Text color={palette.header}>Pending</Text>
           </Box>
           <Box flexGrow={1}>
             <Text color={palette.header}>Process</Text>
