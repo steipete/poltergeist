@@ -21,6 +21,13 @@ export async function runStatusPanel(options: RunPanelOptions): Promise<void> {
     return;
   }
 
+  // Ensure each launch starts with a clean viewport (especially when auto-restarted via --watch).
+  if (typeof process.stdout.write === 'function') {
+    process.stdout.write('\x1b[2J\x1b[H');
+  } else {
+    console.clear();
+  }
+
   const poltergeist = createPoltergeist(options.config, options.projectRoot, options.logger, options.configPath);
   const controller = new StatusPanelController({
     config: options.config,
