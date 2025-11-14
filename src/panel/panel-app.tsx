@@ -179,7 +179,8 @@ export function PanelApp({ controller }: { controller: StatusPanelController }) 
     (selectedEntry.status.lastBuild?.status === 'building' ||
       selectedEntry.status.lastBuild?.status === 'failure');
 
-  const logTextCapacity = Math.max(1, Math.min(10, logHeight > 0 ? logHeight - 2 : 10));
+  const logTextCapacity =
+    logHeight > 0 ? Math.max(1, Math.min(10, logHeight - 2)) : 0;
 
   useEffect(() => {
     let cancelled = false;
