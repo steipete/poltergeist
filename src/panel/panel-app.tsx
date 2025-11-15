@@ -571,29 +571,34 @@ export function PanelApp({ controller }: { controller: StatusPanelController }) 
         </Box>
       )}
       {hasLogLines ? (
-        <Box
-          ref={logContainerRef}
-          flexDirection="column"
-          flexGrow={1}
-          minHeight={3}
-          minWidth={0}
-          marginTop={1}
-        >
-          <Text color={palette.header}>
-            Logs — {selectedEntry ? selectedEntry.name : 'No target selected'}{' '}
-            {selectedEntry?.status.lastBuild?.status
-              ? `(${selectedEntry.status.lastBuild.status})`
-              : ''}
-          </Text>
-          <Text color={palette.line}>{horizontalRule}</Text>
-          <Box flexGrow={1} flexDirection="column">
-            {displayedLogLines.map((line, idx) => (
-              <Text key={`${line}-${idx}`} color={palette.header}>
-                {line}
-              </Text>
-            ))}
+        <>
+          <Box marginTop={1}>
+            <Text color={palette.line}>{horizontalRule}</Text>
           </Box>
-        </Box>
+          <Box
+            ref={logContainerRef}
+            flexDirection="column"
+            flexGrow={1}
+            minHeight={3}
+            minWidth={0}
+            marginTop={1}
+          >
+            <Text color={palette.header}>
+              Logs — {selectedEntry ? selectedEntry.name : 'No target selected'}{' '}
+              {selectedEntry?.status.lastBuild?.status
+                ? `(${selectedEntry.status.lastBuild.status})`
+                : ''}
+            </Text>
+            <Text color={palette.line}>{horizontalRule}</Text>
+            <Box flexGrow={1} flexDirection="column">
+              {displayedLogLines.map((line, idx) => (
+                <Text key={`${line}-${idx}`} color={palette.header}>
+                  {line}
+                </Text>
+              ))}
+            </Box>
+          </Box>
+        </>
       ) : null}
       <Box flexDirection="row" justifyContent="space-between" flexShrink={0} minHeight={0}>
         <Text color={palette.header}>{controlsLine}</Text>
