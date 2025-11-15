@@ -3,6 +3,9 @@ import { promisify } from 'util';
 
 const execFileAsync = promisify(execFile);
 
+const CLAUDE_SUMMARY_PROMPT =
+  'Write a concise single-sentence headline summarizing the most important dirty-file changes, then output a 5-item bullet list. Read the diffs carefully and focus on user-visible impact. Never use filler like "Here is a summary" or "Now that I have context"—start with the headline (no prefix), then the list. Keep each bullet under 120 characters.';
+
 export interface GitMetrics {
   dirtyFiles: number;
   dirtyFileNames: string[];
@@ -240,16 +243,13 @@ export class GitMetricsCollector {
   }
 
   private runClaudeSummary(projectRoot: string): Promise<string[] | undefined> {
-    const prompt =
-      'Give me a 5 line summary as simple - list without header of the dirty files. you must read the diffs. think and ensure you return 5 lines with the most important changes. Do not add any title to the list such as "Based on my analysis of the diffs, here are the 5 most important changes" - only emit the list of changes.';
-
     return new Promise((resolve, reject) => {
       const child = spawn(
         'bash',
         [
           '-lc',
           `claude -p ${JSON.stringify(
-            prompt
+            CLAUDE_SUMMARY_PROMPT
           )} --allow-dangerously-skip-permissions --model haiku`,
         ],
         {
