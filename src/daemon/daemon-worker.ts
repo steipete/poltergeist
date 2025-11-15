@@ -20,6 +20,11 @@ interface DaemonArgs {
 export async function runDaemon(args: DaemonArgs): Promise<void> {
   const { config, projectRoot, configPath, target, verbose, logLevel, logFile } = args;
 
+  if (process.env.POLTERGEIST_DEBUG_DAEMON === 'true') {
+    console.error('[daemon-worker] argv:', process.argv);
+    console.error('[daemon-worker] configPath:', configPath, 'projectRoot:', projectRoot, 'target:', target);
+  }
+
   // Create file-based logger using the standard logger factory
   // Priority: logLevel flag > verbose flag > config > default
   const effectiveLogLevel = logLevel || (verbose ? 'debug' : config.logging?.level || 'info');
@@ -105,8 +110,9 @@ export async function runDaemon(args: DaemonArgs): Promise<void> {
 // This prevents the code from running when imported by CLI
 // For Bun compiled binaries, we need to explicitly check for daemon mode flags
 if (
-  // Check if we're running as daemon-worker.js directly
+  // Check if we're running as daemon-worker.js or daemon-worker.ts directly
   process.argv[1]?.endsWith('daemon-worker.js') ||
+  process.argv[1]?.endsWith('daemon-worker.ts') ||
   // Or if we have the --daemon-worker flag (for compiled binaries)
   process.argv.includes('--daemon-worker')
 ) {

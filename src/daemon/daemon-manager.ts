@@ -167,17 +167,33 @@ export class DaemonManager {
     await mkdir(stateDir, { recursive: true });
 
     const logFile = this.getLogFilePath(projectRoot, target);
-    // daemon-worker.js is in the same directory as daemon-manager.js
-    // Use __dirname if available (Bun compiled), otherwise compute from import.meta
+    // daemon-worker lives next to this file; prefer built .js, fall back to .ts with tsx loader
     let daemonDir: string;
     if (typeof __dirname !== 'undefined') {
       daemonDir = __dirname;
     } else {
-      // In ES modules, compute the directory from import.meta.url
       const currentFileUrl = new URL(import.meta.url);
       daemonDir = dirname(currentFileUrl.pathname);
     }
-    const daemonWorkerPath = join(daemonDir, 'daemon-worker.js');
+
+    const daemonWorkerJs = join(daemonDir, 'daemon-worker.js');
+    const daemonWorkerTs = join(daemonDir, 'daemon-worker.ts');
+    const tsxLoader = join(daemonDir, '..', '..', 'node_modules', 'tsx', 'dist', 'esm', 'index.mjs');
+
+    let daemonWorkerPath = daemonWorkerJs;
+    const spawnArgs: string[] = [];
+
+    if (!existsSync(daemonWorkerJs) && existsSync(daemonWorkerTs)) {
+      if (!existsSync(tsxLoader)) {
+        throw new Error(
+          'daemon-worker.js not found and tsx runtime missing. ' +
+            'Run pnpm install in the poltergeist repo or build the JS output.'
+        );
+      }
+      daemonWorkerPath = daemonWorkerTs;
+      spawnArgs.push('--import', tsxLoader);
+      this.logger.debug(`Using TS daemon worker via tsx import at ${tsxLoader}`);
+    }
 
     // Prepare arguments for daemon
     const daemonArgs = JSON.stringify({
@@ -316,7 +332,9 @@ export class DaemonManager {
         'ipc',
       ];
 
-      child = spawn(process.execPath, [daemonWorkerPath, daemonArgs], {
+      const args = spawnArgs.length > 0 ? [...spawnArgs, daemonWorkerPath, daemonArgs] : [daemonWorkerPath, daemonArgs];
+
+      child = spawn(process.execPath, args, {
         detached: true,
         stdio,
         env: { ...process.env },
