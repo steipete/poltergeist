@@ -539,6 +539,20 @@ export class Poltergeist {
     }
   }
 
+  private async runInitialBuildsFor(targetNames: string[]): Promise<void> {
+    const builds = targetNames.map(async (targetName) => {
+      const state = this.targetStates.get(targetName);
+      if (!state) {
+        return;
+      }
+      if (state.pendingFiles.size === 0) {
+        state.pendingFiles.add('__config_reload__');
+      }
+      await this.buildTarget(targetName);
+    });
+    await Promise.all(builds);
+  }
+
   public async stop(targetName?: string): Promise<void> {
     this.logger.info('👻 [Poltergeist] Putting Poltergeist to rest...');
 
@@ -872,6 +886,10 @@ export class Poltergeist {
       } catch (error) {
         this.logger.error(`❌ Failed to add target ${target.name}: ${error}`);
       }
+    }
+
+    if (targetsToAdd.length > 0) {
+      await this.runInitialBuildsFor(targetsToAdd.map((target) => target.name));
     }
 
     // If we have target changes, we need to update file watching subscriptions
