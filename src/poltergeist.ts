@@ -457,9 +457,11 @@ export class Poltergeist {
   private async performInitialBuilds(): Promise<void> {
     // Use intelligent build queue if available
     if (this.buildQueue && this.buildSchedulingConfig.prioritization.enabled) {
-      // Trigger initial builds through the queue
-      const allTargets = Array.from(this.targetStates.values()).map((state) => state.target);
-      await this.buildQueue.onFileChanged(['initial build'], allTargets);
+      await Promise.all(
+        Array.from(this.targetStates.values()).map((state) =>
+          this.buildQueue!.queueTargetBuild(state.target, 'initial-build')
+        )
+      );
       return;
     }
 

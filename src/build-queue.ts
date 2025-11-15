@@ -97,6 +97,14 @@ export class IntelligentBuildQueue {
   }
 
   /**
+   * Queue a build without running change-detection (used for initial builds).
+   */
+  public async queueTargetBuild(target: Target, reason: string = 'manual'): Promise<void> {
+    await this.scheduleTargetBuild(target, [reason]);
+    this.processQueue();
+  }
+
+  /**
    * Schedule a build for a specific target
    */
   private async scheduleTargetBuild(target: Target, triggeringFiles: string[]): Promise<void> {
