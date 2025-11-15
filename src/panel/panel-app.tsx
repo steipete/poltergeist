@@ -388,6 +388,9 @@ export function PanelApp({ controller }: { controller: StatusPanelController }) 
     [snapshot.git.dirtyFileNames]
   );
 
+  const horizontalRule = '─'.repeat(Math.max(20, columns - 2));
+  const hasLogLines = displayedLogLines.length > 0;
+
   return (
     <Box
       flexDirection="column"
@@ -502,6 +505,9 @@ export function PanelApp({ controller }: { controller: StatusPanelController }) 
           )}
         </Box>
       </Box>
+      <Box marginTop={1}>
+        <Text color={palette.line}>{horizontalRule}</Text>
+      </Box>
       {dirtyFileGroups.length && !hasAiSummary ? (
         <Box flexDirection="column" marginTop={1} flexShrink={0}>
           <Text color={palette.header}>
@@ -564,37 +570,31 @@ export function PanelApp({ controller }: { controller: StatusPanelController }) 
           })}
         </Box>
       )}
-      <Box
-        ref={logContainerRef}
-        flexDirection="column"
-        flexGrow={1}
-        minHeight={3}
-        minWidth={0}
-        marginTop={1}
-      >
-        <Text color={palette.header}>
-          Logs — {selectedEntry ? selectedEntry.name : 'No target selected'}{' '}
-          {selectedEntry?.status.lastBuild?.status
-            ? `(${selectedEntry.status.lastBuild.status})`
-            : ''}
-        </Text>
-        <Text color={palette.line}>{'─'.repeat(Math.max(20, columns - 2))}</Text>
-        <Box flexGrow={1} flexDirection="column">
-          {shouldTailLogs ? (
-            displayedLogLines.length > 0 ? (
-              displayedLogLines.map((line, idx) => (
-                <Text key={`${line}-${idx}`} color={palette.header}>
-                  {line}
-                </Text>
-              ))
-            ) : (
-              <Text color={palette.header}>No log output yet…</Text>
-            )
-          ) : (
-            <Text color={palette.header}>Logs are shown when the selected target is building or failed.</Text>
-          )}
+      {hasLogLines ? (
+        <Box
+          ref={logContainerRef}
+          flexDirection="column"
+          flexGrow={1}
+          minHeight={3}
+          minWidth={0}
+          marginTop={1}
+        >
+          <Text color={palette.header}>
+            Logs — {selectedEntry ? selectedEntry.name : 'No target selected'}{' '}
+            {selectedEntry?.status.lastBuild?.status
+              ? `(${selectedEntry.status.lastBuild.status})`
+              : ''}
+          </Text>
+          <Text color={palette.line}>{horizontalRule}</Text>
+          <Box flexGrow={1} flexDirection="column">
+            {displayedLogLines.map((line, idx) => (
+              <Text key={`${line}-${idx}`} color={palette.header}>
+                {line}
+              </Text>
+            ))}
+          </Box>
         </Box>
-      </Box>
+      ) : null}
       <Box flexDirection="row" justifyContent="space-between" flexShrink={0} minHeight={0}>
         <Text color={palette.header}>{controlsLine}</Text>
       </Box>
