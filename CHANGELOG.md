@@ -4,10 +4,15 @@ All notable changes to Poltergeist will be documented in this file.
 
 ## [Unreleased]
 
+- TBD.
+
+## [2.2.0] - 2025-11-15
+
 - Fixed the daemon skipping post-start builds by feeding an explicit initial-build marker into the intelligent queue, so every enabled target compiles immediately after `poltergeist haunt` and exposes up-to-date `lastBuild` metadata for `poltergeist status`.
 - `polter` now performs strict TTY capability checks (screen size, color depth, TERM, CI flags) before enabling the ora spinner/log stream so scripted runs stay quiet while real terminals keep the rich UI (still override with `POLTER_FORCE_TTY=1` or `POLTER_DISABLE_TTY=1`).
 - Automatic build retries now respect each target’s `maxRetries`/`backoffMultiplier`, using capped exponential backoff and clear logging whenever the daemon decides to try again after a failure.
 - `poltergeist build <target>` prints attach/wait/force instructions when another build already holds the lock, and the new `--force` flag clears stale locks so manual builds can take over immediately.
+- Status panel adds `--git-mode ai|list`, Claude summaries deduped by dirty signatures, inline markdown parsing with dynamic headers, and updated docs/README guidance (including Peekaboo’s SwiftLint status script example).
 
 ## [2.1.0] - 2025-11-08
 
