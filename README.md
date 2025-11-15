@@ -98,6 +98,16 @@ That's it! Poltergeist now watches your files and rebuilds automatically.
 
 Each project gets its own background process, but `poltergeist status` shows everything through a shared state system in `/tmp/poltergeist/`. One project crashing never affects others.
 
+### Live Status Panel
+
+Need a full-screen dashboard? Run `poltergeist status panel` (or `poltergeist panel`) to launch the Ink-based status panel. It keeps targets, git metrics, and log tails visible, plus:
+
+- **Adaptive git summaries**: Poltergeist polls `git status`/`git diff` every 5 s and either lists dirty files or—when `--git-mode ai` or `POLTERGEIST_GIT_MODE=ai` is set—shows a Claude-generated summary of the most important diffs.
+- **Status scripts**: Each project can list lightweight health checks under `statusScripts`. Peekaboo, for example, prints `SwiftLint: 0 errors / 0 warnings [31s]` under the `peekaboo` target so you can spot lint regressions instantly.
+- **Log-aware layout**: Selecting a target scrolls its log tail into view and the controls bar stays pinned to the last row, keeping the terminal clean.
+
+See [docs/panel.md](docs/panel.md) for configuration details and troubleshooting tips (this is the status panel tracker the team keeps up-to-date).
+
 ## Hot Reload for Apps
 
 Poltergeist can power hot-reload loops for native apps, backends, and hybrid workspaces. The daemon handles rebuilds while `polter` relaunches binaries only after they are fresh.
