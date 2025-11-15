@@ -49,6 +49,14 @@ export class ConfigValidationError extends Error {
  */
 // biome-ignore lint/complexity/noStaticOnlyClass: Intentional design for API organization
 export class ConfigurationManager {
+  public static normalizeTargetName(name: string): string {
+    return name
+      .trim()
+      .toLowerCase()
+      .replace(/[\s_.]+/g, '-')
+      .replace(/-+/g, '-');
+  }
+
   /**
    * Load configuration from a specific file path
    */
@@ -163,7 +171,17 @@ export class ConfigurationManager {
    * Find a target by name in the configuration
    */
   public static findTarget(config: PoltergeistConfig, name: string) {
-    return config.targets.find((target) => target.name === name) || null;
+    const direct = config.targets.find((target) => target.name === name);
+    if (direct) {
+      return direct;
+    }
+
+    const normalized = ConfigurationManager.normalizeTargetName(name);
+    return (
+      config.targets.find(
+        (target) => ConfigurationManager.normalizeTargetName(target.name) === normalized
+      ) || null
+    );
   }
 
   /**

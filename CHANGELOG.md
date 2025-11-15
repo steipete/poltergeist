@@ -4,22 +4,19 @@ All notable changes to Poltergeist will be documented in this file.
 
 ## [Unreleased]
 
-- Added per-target `postBuild` hooks so long-running test suites can run automatically after successful builds; results are persisted in state, surfaced by `poltergeist status`, and rendered inline in the panel with JSON/formatter support and the new queued-file display baked into the Status column.
+- _No entries yet_
 
-## [2.2.0] - 2025-11-15
+## [2.1.0] - 2025-11-15
 
-- Fixed the daemon skipping post-start builds by feeding an explicit initial-build marker into the intelligent queue, so every enabled target compiles immediately after `poltergeist haunt` and exposes up-to-date `lastBuild` metadata for `poltergeist status`.
-- `polter` now performs strict TTY capability checks (screen size, color depth, TERM, CI flags) before enabling the ora spinner/log stream so scripted runs stay quiet while real terminals keep the rich UI (still override with `POLTER_FORCE_TTY=1` or `POLTER_DISABLE_TTY=1`).
-- Automatic build retries now respect each target’s `maxRetries`/`backoffMultiplier`, using capped exponential backoff and clear logging whenever the daemon decides to try again after a failure.
-- `poltergeist build <target>` prints attach/wait/force instructions when another build already holds the lock, and the new `--force` flag clears stale locks so manual builds can take over immediately.
-- Status panel adds `--git-mode ai|list`, Claude summaries deduped by dirty signatures, inline markdown parsing with dynamic headers, and updated docs/README guidance (including Peekaboo’s SwiftLint status script example).
+- Rebuilt the `poltergeist panel` on top of `@mariozechner/pi-tui`, bringing auto-refresh, scrollable per-target log tails, sticky controls, and `--git-mode ai|list` git summaries (Claude dedupes dirty-file signatures) so the full-screen dashboard stays responsive when launched via `poltergeist panel`.
+- Panel rows now respect configurable `statusScripts` (cooldown, timeout, line caps) with exit-code coloring + durations, grouped dirty-file lists, and gated log panes so lint/test signals stay visible without flooding the viewport.
+- Targets now track pending-file queues and structured `postBuild` hooks; hooks can emit JSON or pipe through a formatter, and their summaries/durations/lines surface in `poltergeist status`, the panel, and the Status column’s new `+N queued` badges.
+- Introduced a dedicated `test` builder (`type: 'test'` with `testCommand`) so the daemon can schedule long-running suites without fake output paths or wrapper scripts.
+- `pnpm run poltergeist:haunt` now spawns the daemon, returns immediately after a ready signal, streams initial builds in the background, reruns builds after config reloads, and flips targets to `watching` even when only state files existed.
+- `poltergeist build <target>` explains when another build holds the lock, adds a `--force` override for stale locks, and automatic retries honor each target’s `maxRetries`/`backoffMultiplier` with capped exponential backoff plus logging.
+- `polter` inspects terminal capabilities (columns, colors, TERM, CI) before enabling the ora spinner/log stream so scripted runs stay quiet unless you set `POLTER_FORCE_TTY=1` or `POLTER_DISABLE_TTY=1`.
+- Added `POLTERGEIST_TEST_MODE` shims so CI can exercise start/status/stop flows (including `pnpm run poltergeist:haunt`) without spawning background daemons while real runs continue streaming via detached pipes.
 
-## [2.1.0] - 2025-11-08
-
-- `pnpm run poltergeist:haunt` now spawns the daemon, returns immediately, and streams initial builds in the background thanks to early IPC acknowledgement plus detached Node.js launcher pipes (no more hanging shell sessions)
-- Added `POLTERGEIST_TEST_MODE` shims across CLI commands and workflows so CI can simulate daemon state without spawning background processes
-- macOS companion app artifacts are now packaged directly with `ditto`-generated zip archives, ensuring consistent downloads across releases
-- Restored the macOS Swift CI job to automatic runs (with controlled failure handling) so every push and pull request validates the native app toolchain
 ## [1.8.0] - 2025-08-09
 
 - Target-specific log files in `/tmp/poltergeist/` with plain text format (80% size reduction)
