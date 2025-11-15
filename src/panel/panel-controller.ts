@@ -175,7 +175,8 @@ export class StatusPanelController {
   }
 
   private computeSummary(targets: TargetPanelEntry[]): PanelSnapshot['summary'] {
-    return targets.reduce<PanelSnapshot['summary']>(
+    const activeDaemonKeys = new Set<string>();
+    const summary = targets.reduce<PanelSnapshot['summary']>(
       (acc, entry) => {
         acc.totalTargets += 1;
         if (entry.status.lastBuild?.status === 'building') {
@@ -184,12 +185,20 @@ export class StatusPanelController {
           acc.failures += 1;
         }
         if (entry.status.process?.isActive) {
-          acc.running += 1;
+          const pid = entry.status.process.pid;
+          const key =
+            typeof pid === 'number' || typeof pid === 'string'
+              ? String(pid)
+              : `target:${entry.name}`;
+          activeDaemonKeys.add(key);
         }
         return acc;
       },
       { totalTargets: 0, building: 0, failures: 0, running: 0 }
     );
+
+    summary.running = activeDaemonKeys.size;
+    return summary;
   }
 
   private computePreferredIndex(targets: TargetPanelEntry[]): number {

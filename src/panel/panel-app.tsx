@@ -174,13 +174,17 @@ function TargetRow({ entry, selected }: { entry: TargetPanelEntry; selected: boo
   const { color, label } = statusColor(status);
   const pending = entry.status.pendingFiles ?? 0;
   const isRunning = entry.status.process?.isActive;
+  const daemonLabel =
+    entry.status.process?.pid !== undefined && entry.status.process?.pid !== null
+      ? `daemon ${entry.status.process?.pid}`
+      : 'watching';
   const processColor = isRunning
     ? palette.success
     : pending > 0
       ? palette.warning
       : palette.header;
   const processText = isRunning
-    ? `${entry.status.process?.pid}${pending > 0 ? ` · +${pending}` : ''}`
+    ? `${daemonLabel}${pending > 0 ? ` · +${pending}` : ''}`
     : pending > 0
       ? `${pending} pending`
       : 'idle';
@@ -443,7 +447,9 @@ export function PanelApp({ controller }: { controller: StatusPanelController }) 
         </Text>
         <Text color={palette.muted}>
           Builds: {snapshot.summary.building} building · {snapshot.summary.failures} failed ·{' '}
-          {snapshot.summary.running} daemons running · total {snapshot.summary.totalTargets}
+          {snapshot.summary.running}{' '}
+          {snapshot.summary.running === 1 ? 'daemon running' : 'daemons running'} · total{' '}
+          {snapshot.summary.totalTargets}
         </Text>
       </Box>
       <Box flexDirection="column" marginTop={1} flexShrink={0} minHeight={0}>
