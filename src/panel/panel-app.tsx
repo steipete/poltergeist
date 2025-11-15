@@ -540,7 +540,7 @@ export function PanelApp({ controller }: { controller: StatusPanelController }) 
           )}
         </Box>
       </Box>
-      <Box marginTop={1}>
+      <Box>
         <Text color={palette.line}>{horizontalRule}</Text>
       </Box>
       {dirtyFileGroups.length && !hasAiSummary ? (
