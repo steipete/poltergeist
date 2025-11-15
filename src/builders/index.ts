@@ -10,6 +10,7 @@ import { CMakeExecutableBuilder } from './cmake-executable-builder.js';
 import { CMakeLibraryBuilder } from './cmake-library-builder.js';
 import { ExecutableBuilder } from './executable-builder.js';
 import { NPMBuilder } from './npm-builder.js';
+import { TestBuilder } from './test-builder.js';
 
 export * from './app-bundle-builder.js';
 export * from './base-builder.js';
@@ -19,6 +20,7 @@ export * from './cmake-executable-builder.js';
 export * from './cmake-library-builder.js';
 export * from './executable-builder.js';
 export * from './npm-builder.js';
+export * from './test-builder.js';
 
 export function createBuilder(
   target: Target,
@@ -48,9 +50,11 @@ export function createBuilder(
     case 'cmake-custom':
       return new CMakeCustomBuilder(target, projectRoot, targetLogger, stateManager);
 
+    case 'test':
+      return new TestBuilder(target, projectRoot, targetLogger, stateManager);
+
     case 'library':
     case 'framework':
-    case 'test':
     case 'docker':
       // These would be implemented in their own files
       throw new Error(`Builder for target type '${target.type}' not yet implemented`);
