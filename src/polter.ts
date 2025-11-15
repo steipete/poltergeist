@@ -64,7 +64,7 @@ function getStateFile(projectRoot: string, targetName: string): string | null {
   }
 }
 
-function resolveBinaryPath(targetName: string, projectRoot: string): string | null {
+export function resolveBinaryPath(targetName: string, projectRoot: string): string | null {
   const possiblePaths = [
     resolvePath(projectRoot, targetName),
     resolvePath(projectRoot, `./${targetName}`),
@@ -88,7 +88,7 @@ function resolveBinaryPath(targetName: string, projectRoot: string): string | nu
   return null;
 }
 
-async function isBinaryFresh(
+export async function isBinaryFresh(
   projectRoot: string,
   targetName: string,
   binaryPath: string | null
