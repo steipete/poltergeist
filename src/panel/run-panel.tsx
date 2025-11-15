@@ -10,6 +10,7 @@ interface RunPanelOptions {
   projectRoot: string;
   configPath?: string;
   logger: Logger;
+  gitSummaryMode?: 'ai' | 'list';
 }
 
 export async function runStatusPanel(options: RunPanelOptions): Promise<void> {
@@ -38,12 +39,18 @@ export async function runStatusPanel(options: RunPanelOptions): Promise<void> {
 
   enterAlternateBuffer();
 
-  const poltergeist = createPoltergeist(options.config, options.projectRoot, options.logger, options.configPath);
+  const poltergeist = createPoltergeist(
+    options.config,
+    options.projectRoot,
+    options.logger,
+    options.configPath
+  );
   const controller = new StatusPanelController({
     config: options.config,
     projectRoot: options.projectRoot,
     logger: options.logger,
     fetchStatus: () => poltergeist.getStatus(),
+    gitSummaryMode: options.gitSummaryMode,
   });
 
   await controller.start();

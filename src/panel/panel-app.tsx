@@ -1,4 +1,5 @@
 import { useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
+import type { JSX } from 'react';
 import { Box, Text, useApp, useInput, measureElement } from 'ink';
 import type { StatusPanelController } from './panel-controller.js';
 import type {
@@ -6,6 +7,81 @@ import type {
   PanelStatusScriptResult,
   TargetPanelEntry,
 } from './types.js';
+
+interface MarkdownSegment {
+  text: string;
+  bold?: boolean;
+  italic?: boolean;
+  code?: boolean;
+}
+
+function parseInlineMarkdown(text: string): MarkdownSegment[] {
+  const segments: MarkdownSegment[] = [];
+  const pattern = /(\*\*[^*]+\*\*|__[^_]+__|`[^`]+`|\*[^*]+\*|_[^_]+_)/g;
+  let lastIndex = 0;
+  let match: RegExpExecArray | null;
+  while ((match = pattern.exec(text)) !== null) {
+    if (match.index > lastIndex) {
+      segments.push({ text: text.slice(lastIndex, match.index) });
+    }
+    const token = match[0];
+    if ((token.startsWith('**') && token.endsWith('**')) || (token.startsWith('__') && token.endsWith('__'))) {
+      segments.push({ text: token.slice(2, -2), bold: true });
+    } else if (
+      (token.startsWith('*') && token.endsWith('*')) ||
+      (token.startsWith('_') && token.endsWith('_'))
+    ) {
+      segments.push({ text: token.slice(1, -1), italic: true });
+    } else if (token.startsWith('`') && token.endsWith('`')) {
+      segments.push({ text: token.slice(1, -1), code: true });
+    } else {
+      segments.push({ text: token });
+    }
+    lastIndex = match.index + token.length;
+  }
+  if (lastIndex < text.length) {
+    segments.push({ text: text.slice(lastIndex) });
+  }
+  return segments;
+}
+
+function MarkdownLine({ line }: { line: string }): JSX.Element | null {
+  const trimmed = line.trim();
+  if (!trimmed) {
+    return null;
+  }
+  const bulletMatch = trimmed.match(/^([-*+])\s+/);
+  const bullet = bulletMatch ? '•' : '';
+  const content = bulletMatch ? trimmed.slice(bulletMatch[0].length) : trimmed;
+  const segments = parseInlineMarkdown(content);
+
+  return (
+    <Text>
+      {bullet ? <Text color={palette.header}>{`${bullet} `}</Text> : null}
+      {segments.map((segment, index) => (
+        <Text
+          // eslint-disable-next-line react/no-array-index-key
+          key={`markdown-segment-${index}`}
+          color={segment.code ? palette.accent : undefined}
+          bold={segment.bold}
+          italic={segment.italic}
+        >
+          {segment.text}
+        </Text>
+      ))}
+    </Text>
+  );
+}
+
+function MarkdownSummary({ lines }: { lines: string[] }): JSX.Element {
+  return (
+    <Box flexDirection="column" marginTop={0}>
+      {lines.map((line, index) => (
+        <MarkdownLine key={`ai-summary-${index}`} line={line} />
+      ))}
+    </Box>
+  );
+}
 
 function formatRelativeTime(timestamp?: string): string {
   if (!timestamp) return '—';
@@ -175,6 +251,8 @@ export function PanelApp({ controller }: { controller: StatusPanelController }) 
   }, [rows, columns, snapshot.targets.length]);
 
   const controlsLine = 'Controls: ↑/↓ move · r refresh · q quit';
+  const aiSummaryLines = snapshot.git.summary ?? [];
+  const hasAiSummary = aiSummaryLines.length > 0;
 
   useEffect(() => {
     return controller.onUpdate((next) => {
@@ -396,7 +474,7 @@ export function PanelApp({ controller }: { controller: StatusPanelController }) 
           )}
         </Box>
       </Box>
-      {dirtyFileGroups.length ? (
+      {dirtyFileGroups.length && !hasAiSummary ? (
         <Box flexDirection="column" marginTop={1} flexShrink={0}>
           <Text color={palette.header}>
             Dirty Files ({Math.min(snapshot.git.dirtyFileNames.length, 10)}
@@ -420,6 +498,12 @@ export function PanelApp({ controller }: { controller: StatusPanelController }) 
               …and {snapshot.git.dirtyFiles - 10} more
             </Text>
           )}
+        </Box>
+      ) : null}
+      {hasAiSummary ? (
+        <Box flexDirection="column" marginTop={1} flexShrink={0}>
+          <Text color={palette.header}>AI summary of changed files:</Text>
+          <MarkdownSummary lines={aiSummaryLines} />
         </Box>
       ) : null}
       {statusScriptsByTarget.global.length > 0 && (

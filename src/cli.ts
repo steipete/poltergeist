@@ -128,6 +128,19 @@ async function loadConfiguration(
   }
 }
 
+function parseGitSummaryModeOption(value?: string): 'ai' | 'list' | undefined {
+  if (!value) {
+    return undefined;
+  }
+  const normalized = value.toLowerCase();
+  if (normalized === 'ai' || normalized === 'list') {
+    return normalized;
+  }
+  console.error(chalk.red(`Invalid git mode "${value}". Use "ai" or "list".`));
+  process.exit(1);
+  return undefined;
+}
+
 program
   .command('haunt')
   .alias('start')
@@ -530,14 +543,17 @@ program
   .command('panel')
   .description('Open the interactive status panel')
   .option('-c, --config <path>', 'Path to config file')
+  .option('--git-mode <mode>', 'Git summary mode (ai | list)', 'ai')
   .action(async (options) => {
     const { config, projectRoot, configPath } = await loadConfiguration(options.config);
     const logger = createLogger(config.logging?.level || 'info');
+    const gitSummaryMode = parseGitSummaryModeOption(options.gitMode);
     await runStatusPanel({
       config,
       projectRoot,
       configPath,
       logger,
+      gitSummaryMode,
     });
   });
 
@@ -548,6 +564,7 @@ program
   .option('-c, --config <path>', 'Path to config file')
   .option('--verbose', 'Show detailed status information')
   .option('--json', 'Output status as JSON')
+  .option('--git-mode <mode>', 'Git summary mode (ai | list)', 'ai')
   .action(async (view: string | undefined, options) => {
     const { config, projectRoot, configPath } = await loadConfiguration(options.config);
 
@@ -559,12 +576,14 @@ program
           console.error(chalk.red('--json is not compatible with the panel view.'));
           process.exit(1);
         }
+        const gitSummaryMode = parseGitSummaryModeOption(options.gitMode);
 
         await runStatusPanel({
           config,
           projectRoot,
           configPath,
           logger,
+          gitSummaryMode,
         });
         return;
       }

@@ -81,7 +81,8 @@
     "docs:swift": "cd apps/mac && ./scripts/generate-docs.sh",
     "docs:serve": "cd docs && python3 -m http.server 8080",
     "docs:build": "npm run docs:api && npm run docs:swift && echo 'Complete API documentation generated in docs/api/'",
-    "prepublishOnly": "npm run build"
+    "prepublishOnly": "npm run build",
+    "oracle": "oracle"
   },
   "dependencies": {
     "@logtape/logtape": "^1.1.2",
@@ -102,6 +103,7 @@
   "devDependencies": {
     "@biomejs/biome": "^2.3.4",
     "@prettier/plugin-oxc": "^0.0.4",
+    "@steipete/oracle": "file:../oracle",
     "@types/fb-watchman": "^2.0.6",
     "@types/node": "^24.10.0",
     "@types/node-notifier": "^8.0.5",

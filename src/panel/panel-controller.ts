@@ -38,6 +38,7 @@ export class StatusPanelController {
   private readonly gitPollMs: number;
   private readonly statusPollMs: number;
   private scriptCache: Map<string, CachedStatusScript>;
+  private readonly gitSummaryMode: 'list' | 'ai';
 
   constructor(private readonly options: PanelControllerOptions) {
     this.stateDir = FileSystemUtils.getStateDirectory();
@@ -47,7 +48,14 @@ export class StatusPanelController {
         target.name,
       ])
     );
-    this.gitCollector = new GitMetricsCollector({ throttleMs: options.gitPollIntervalMs ?? 5000 });
+    const envGitMode = (process.env.POLTERGEIST_GIT_MODE ?? '').toLowerCase();
+    const defaultGitMode: 'ai' | 'list' = envGitMode === 'list' ? 'list' : 'ai';
+    this.gitSummaryMode = options.gitSummaryMode ?? defaultGitMode;
+    this.gitCollector = new GitMetricsCollector({
+      throttleMs: options.gitPollIntervalMs ?? 5000,
+      summaryMode: this.gitSummaryMode,
+      logger: options.logger,
+    });
     this.logReader = new LogTailReader(options.projectRoot, { maxLines: 200 });
     this.gitPollMs = options.gitPollIntervalMs ?? 5000;
     this.statusPollMs = options.statusPollIntervalMs ?? 2000;
@@ -82,6 +90,7 @@ export class StatusPanelController {
           branch: undefined,
           hasRepo: true,
           lastUpdated: Date.now(),
+          summaryMode: this.gitSummaryMode,
         },
       projectName: options.projectRoot.split(/[\\/]/).pop() || options.projectRoot,
       projectRoot: options.projectRoot,

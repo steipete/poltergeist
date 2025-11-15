@@ -1,4 +1,4 @@
-import { execFile } from 'child_process';
+import { execFile, spawn } from 'child_process';
 import { promisify } from 'util';
 
 const execFileAsync = promisify(execFile);
@@ -11,6 +11,8 @@ export interface GitMetrics {
   branch?: string;
   hasRepo: boolean;
   lastUpdated: number;
+  summary?: string[];
+  summaryMode?: 'list' | 'ai';
 }
 
 type GitCommandRunner = (args: string[], cwd: string) => Promise<string>;
@@ -18,6 +20,8 @@ type GitCommandRunner = (args: string[], cwd: string) => Promise<string>;
 export interface GitMetricsOptions {
   throttleMs?: number;
   runner?: GitCommandRunner;
+  summaryMode?: 'list' | 'ai';
+  logger?: { warn(message: string): void };
 }
 
 function defaultRunner(args: string[], cwd: string): Promise<string> {
@@ -33,10 +37,18 @@ export class GitMetricsCollector {
   private inflight = new Map<string, Promise<GitMetrics>>();
   private readonly throttleMs: number;
   private readonly runner: GitCommandRunner;
+  private readonly summaryMode: 'list' | 'ai';
+  private readonly logger?: { warn(message: string): void };
+  private summaryJobs = new Map<string, Promise<void>>();
+  private summaryCooldownUntil = new Map<string, number>();
+  private summaryCache = new Map<string, string[] | undefined>();
+  private summarySignatures = new Map<string, string>();
 
   constructor(options: GitMetricsOptions = {}) {
     this.throttleMs = options.throttleMs ?? 5000;
     this.runner = options.runner ?? defaultRunner;
+    this.summaryMode = options.summaryMode ?? 'ai';
+    this.logger = options.logger;
   }
 
   public getCached(projectRoot: string): GitMetrics | undefined {
@@ -77,6 +89,8 @@ export class GitMetricsCollector {
 
       const diffRaw = await this.runner(['diff', '--shortstat', 'HEAD'], projectRoot).catch(() => '');
       const { insertions, deletions } = this.parseDiffStats(diffRaw);
+      const summary =
+        this.summaryMode === 'ai' ? this.summaryCache.get(projectRoot) : undefined;
 
       const metrics: GitMetrics = {
         dirtyFiles,
@@ -86,9 +100,20 @@ export class GitMetricsCollector {
         branch,
         hasRepo: true,
         lastUpdated: Date.now(),
+        summary,
+        summaryMode: this.summaryMode,
       };
 
       this.cache.set(projectRoot, metrics);
+
+      if (dirtyFiles === 0) {
+        this.summaryCache.delete(projectRoot);
+        this.summaryCooldownUntil.delete(projectRoot);
+        this.summarySignatures.delete(projectRoot);
+      } else {
+        void this.maybeStartSummaryJob(projectRoot, dirtyFiles, insertions, deletions);
+      }
+
       return metrics;
     } catch {
       const fallback: GitMetrics = {
@@ -99,6 +124,7 @@ export class GitMetricsCollector {
         branch: undefined,
         hasRepo: false,
         lastUpdated: Date.now(),
+        summaryMode: this.summaryMode,
       };
       this.cache.set(projectRoot, fallback);
       return fallback;
@@ -157,5 +183,110 @@ export class GitMetricsCollector {
       insertions: insertionMatch ? Number.parseInt(insertionMatch[1], 10) : 0,
       deletions: deletionMatch ? Number.parseInt(deletionMatch[1], 10) : 0,
     };
+  }
+
+  private maybeStartSummaryJob(
+    projectRoot: string,
+    dirtyCount: number,
+    insertions: number,
+    deletions: number
+  ): void {
+    if (this.summaryMode !== 'ai' || dirtyCount === 0) {
+      return;
+    }
+    if (this.summaryJobs.has(projectRoot)) {
+      return;
+    }
+    const cooldownUntil = this.summaryCooldownUntil.get(projectRoot);
+    const now = Date.now();
+    if (cooldownUntil && now < cooldownUntil) {
+      return;
+    }
+
+    const signature = `${dirtyCount}:${insertions}:${deletions}`;
+    const previousSignature = this.summarySignatures.get(projectRoot);
+    if (previousSignature === signature) {
+      return;
+    }
+
+    const job = this.runClaudeSummary(projectRoot)
+      .then((lines) => {
+        this.summaryCache.set(projectRoot, lines);
+        this.summarySignatures.set(projectRoot, signature);
+        const cached = this.cache.get(projectRoot);
+        if (cached) {
+          const updated: GitMetrics = {
+            ...cached,
+            summary: lines,
+            lastUpdated: Date.now(),
+          };
+          this.cache.set(projectRoot, updated);
+        }
+      })
+      .catch((error) => {
+        this.logger?.warn?.(
+          `[Panel] Failed to summarize dirty files via Claude: ${
+            error instanceof Error ? error.message : error
+          }`
+        );
+        this.summaryCache.set(projectRoot, undefined);
+      })
+      .finally(() => {
+        this.summaryJobs.delete(projectRoot);
+        this.summaryCooldownUntil.set(projectRoot, Date.now() + this.throttleMs);
+      });
+
+    this.summaryJobs.set(projectRoot, job);
+  }
+
+  private runClaudeSummary(projectRoot: string): Promise<string[] | undefined> {
+    const prompt =
+      'Give me a 5 line summary as simple - list without header of the dirty files. you must read the diffs. think and ensure you return 5 lines with the most important changes. Do not add any title to the list such as "Based on my analysis of the diffs, here are the 5 most important changes" - only emit the list of changes.';
+
+    return new Promise((resolve, reject) => {
+      const child = spawn(
+        'bash',
+        [
+          '-lc',
+          `claude -p ${JSON.stringify(
+            prompt
+          )} --allow-dangerously-skip-permissions --model haiku`,
+        ],
+        {
+          cwd: projectRoot,
+          stdio: ['ignore', 'pipe', 'pipe'],
+        }
+      );
+
+      let stdout = '';
+      let stderr = '';
+
+      child.stdout.on('data', (chunk) => {
+        stdout += chunk.toString();
+      });
+
+      child.stderr.on('data', (chunk) => {
+        stderr += chunk.toString();
+      });
+
+      child.once('error', (error) => {
+        reject(error);
+      });
+
+      child.once('close', (code) => {
+        if (code !== 0) {
+          const message = stderr.trim() || `Claude exited with code ${code ?? -1}`;
+          reject(new Error(message));
+          return;
+        }
+        const lines = stdout
+          .trim()
+          .split(/\r?\n/)
+          .map((line) => line.trim())
+          .filter((line) => line.length > 0)
+          .slice(0, 5);
+        resolve(lines.length > 0 ? lines : undefined);
+      });
+    });
   }
 }

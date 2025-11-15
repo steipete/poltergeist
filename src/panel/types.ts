@@ -44,4 +44,5 @@ export interface PanelControllerOptions {
   logger: Logger;
   gitPollIntervalMs?: number;
   statusPollIntervalMs?: number;
+  gitSummaryMode?: 'ai' | 'list';
 }
