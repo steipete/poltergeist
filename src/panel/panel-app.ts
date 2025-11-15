@@ -677,16 +677,20 @@ function splitStatusScripts(scripts: PanelStatusScriptResult[]): {
 function formatScriptLines(script: PanelStatusScriptResult, prefix = ''): string[] {
   const scriptColor = scriptColorFromExitCode(script.exitCode);
   const limit = Math.max(1, script.maxLines ?? script.lines.length);
-  const selectedLines = script.lines.slice(0, limit);
+  const selectedLines = script.lines.slice(0, limit).map(stripAnsiCodes);
   const durationTag = ` [${formatDurationShort(script.durationMs ?? 0)}]`;
   if (selectedLines.length === 0) {
     return [scriptColor(`${prefix}${script.label}: (no output)${durationTag}`)];
   }
-  const formatted = selectedLines.map((line, index) => {
-    if (index === 0) {
-      return `${prefix}${script.label}: ${line}${durationTag}`;
-    }
-    return `${prefix}  ${line}`;
-  });
-  return formatted.map((line) => scriptColor(line));
+  const block = selectedLines
+    .map((line, index) =>
+      index === 0
+        ? `${prefix}${script.label}: ${line}${durationTag}`
+        : `${prefix}  ${line}`
+    )
+    .join('\n');
+  return scriptColor(block).split('\n');
+}
+function stripAnsiCodes(value: string): string {
+  return value.replace(/\x1B\[[0-?]*[ -\/]*[@-~]/g, '');
 }
