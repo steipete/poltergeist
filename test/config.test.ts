@@ -6,6 +6,8 @@ import { dirname, join } from 'path';
 import { fileURLToPath } from 'url';
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 import { ConfigLoader, ConfigurationError, migrateOldConfig } from '../src/config.js';
+import type { PoltergeistConfig } from '../src/types.js';
+import { ConfigurationManager } from '../src/utils/config-manager.js';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
@@ -677,5 +679,49 @@ describe('ConfigLoader', () => {
 
       expect(() => loader.loadConfig()).toThrow('Invalid target names');
     });
+  });
+});
+
+describe('ConfigurationManager target lookup', () => {
+  const config = {
+    version: '1.0',
+    projectType: 'mixed',
+    targets: [
+      {
+        name: 'Peekaboo',
+        type: 'executable',
+        enabled: true,
+        buildCommand: 'echo peek',
+        outputPath: './peekaboo',
+        watchPaths: ['src/**/*.swift'],
+      },
+      {
+        name: 'Peekaboo.app',
+        type: 'app-bundle',
+        enabled: true,
+        buildCommand: 'echo app',
+        bundleId: 'boo.peekaboo.app',
+        watchPaths: ['Apps/**/*.swift'],
+      },
+    ],
+  } satisfies PoltergeistConfig;
+
+  it('matches target names case-insensitively', () => {
+    const match = ConfigurationManager.findTarget(config, 'peekaboo');
+    expect(match?.name).toBe('Peekaboo');
+
+    const upper = ConfigurationManager.findTarget(config, 'PEEKABOO');
+    expect(upper?.name).toBe('Peekaboo');
+  });
+
+  it('normalizes dots, underscores, and spaces when matching', () => {
+    expect(ConfigurationManager.findTarget(config, 'peekaboo-app')).not.toBeNull();
+    expect(ConfigurationManager.findTarget(config, 'peekaboo app')).not.toBeNull();
+    expect(ConfigurationManager.findTarget(config, 'Peekaboo_App')).not.toBeNull();
+  });
+
+  it('exposes normalization helper for reuse', () => {
+    expect(ConfigurationManager.normalizeTargetName('Peekaboo.app')).toBe('peekaboo-app');
+    expect(ConfigurationManager.normalizeTargetName(' Peekaboo__App ')).toBe('peekaboo-app');
   });
 });

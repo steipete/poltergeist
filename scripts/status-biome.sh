@@ -4,7 +4,7 @@ set -uo pipefail
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 cd "$ROOT"
 
-OUTPUT="$(pnpm run lint -- --color never 2>&1)"
+OUTPUT="$(NO_COLOR=1 pnpm run lint 2>&1)"
 STATUS=$?
 
 if [ $STATUS -eq 0 ]; then

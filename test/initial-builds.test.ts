@@ -1,7 +1,7 @@
 import { describe, expect, test, vi } from 'vitest';
+import { createMockDependencies } from '../src/factories.js';
 import { createLogger } from '../src/logger.js';
 import { Poltergeist } from '../src/poltergeist.js';
-import { createMockDependencies } from '../src/factories.js';
 import type { PoltergeistConfig, Target } from '../src/types.js';
 
 const logger = createLogger();

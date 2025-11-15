@@ -1,5 +1,5 @@
-import { FileSystemUtils } from '../utils/filesystem.js';
 import { promises as fs } from 'fs';
+import { FileSystemUtils } from '../utils/filesystem.js';
 
 export interface LogReaderOptions {
   maxBytes?: number;
@@ -10,7 +10,10 @@ export class LogTailReader {
   private readonly maxBytes: number;
   private readonly maxLines: number;
 
-  constructor(private readonly projectRoot: string, options: LogReaderOptions = {}) {
+  constructor(
+    private readonly projectRoot: string,
+    options: LogReaderOptions = {}
+  ) {
     this.maxBytes = options.maxBytes ?? 16 * 1024;
     this.maxLines = options.maxLines ?? 50;
   }

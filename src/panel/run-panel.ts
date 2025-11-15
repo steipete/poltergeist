@@ -1,8 +1,8 @@
 import { createPoltergeist } from '../factories.js';
-import type { PoltergeistConfig } from '../types.js';
 import type { Logger } from '../logger.js';
-import { StatusPanelController } from './panel-controller.js';
+import type { PoltergeistConfig } from '../types.js';
 import { PanelApp } from './panel-app.js';
+import { StatusPanelController } from './panel-controller.js';
 
 interface RunPanelOptions {
   config: PoltergeistConfig;

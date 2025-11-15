@@ -103,7 +103,7 @@
   "devDependencies": {
     "@biomejs/biome": "^2.3.4",
     "@prettier/plugin-oxc": "^0.0.4",
-    "@steipete/oracle": "file:../oracle",
+    "@steipete/oracle": "link:../oracle",
     "@types/fb-watchman": "^2.0.6",
     "@types/node": "^24.10.0",
     "@types/node-notifier": "^8.0.5",

@@ -1,6 +1,7 @@
 import chalk from 'chalk';
 import { sortBy } from 'es-toolkit/array';
 import type { PoltergeistConfig, Target } from '../types.js';
+import { ConfigurationManager } from './config-manager.js';
 
 /**
  * Calculate Levenshtein distance between two strings for fuzzy matching
@@ -70,8 +71,9 @@ export function formatAvailableTargets(config: PoltergeistConfig): string[] {
  */
 export function validateTarget(targetName: string, config: PoltergeistConfig): void {
   const targetNames = config.targets.map((t) => t.name);
+  const match = ConfigurationManager.findTarget(config, targetName);
 
-  if (!targetNames.includes(targetName)) {
+  if (!match) {
     console.error(chalk.red(`❌ Target '${targetName}' not found`));
     console.error('');
 
@@ -112,9 +114,11 @@ export function validateTarget(targetName: string, config: PoltergeistConfig): v
 /**
  * Get target if it exists, otherwise show error and exit
  */
-export function getTargetOrFail(targetName: string, config: PoltergeistConfig) {
-  validateTarget(targetName, config);
-  const target = config.targets.find((t) => t.name === targetName);
-  // We know the target exists because validateTarget would have thrown otherwise
-  return target as Target;
+export function getTargetOrFail(targetName: string, config: PoltergeistConfig): Target {
+  const target = ConfigurationManager.findTarget(config, targetName);
+  if (!target) {
+    validateTarget(targetName, config);
+    throw new Error('Unreachable');
+  }
+  return target;
 }

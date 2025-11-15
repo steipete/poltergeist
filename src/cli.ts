@@ -35,6 +35,8 @@ import { ConfigurationError } from './config.js';
 import { runDaemon } from './daemon/daemon-worker.js';
 import { createPoltergeist } from './factories.js';
 import { createLogger, type Logger } from './logger.js';
+import { runStatusPanel } from './panel/run-panel.js';
+import type { StatusObject } from './status/types.js';
 import type { AppBundleTarget, PoltergeistConfig, ProjectType, Target } from './types.js';
 import { CLIFormatter, type CommandGroup, type OptionInfo } from './utils/cli-formatter.js';
 import { CMakeProjectAnalyzer } from './utils/cmake-analyzer.js';
@@ -42,8 +44,6 @@ import { ConfigurationManager } from './utils/config-manager.js';
 import { ghost, poltergeistMessage } from './utils/ghost.js';
 import { validateTarget } from './utils/target-validator.js';
 import { WatchmanConfigManager } from './watchman-config.js';
-import type { StatusObject } from './status/types.js';
-import { runStatusPanel } from './panel/run-panel.js';
 
 const { version } = packageJson;
 
@@ -428,7 +428,7 @@ program
       let targetToBuild: Target | undefined;
 
       if (targetName) {
-        targetToBuild = config.targets.find((t) => t.name === targetName);
+        targetToBuild = ConfigurationManager.findTarget(config, targetName) ?? undefined;
         if (!targetToBuild) {
           console.error(chalk.red(`❌ Target '${targetName}' not found`));
           console.error(chalk.yellow('Available targets:'));
@@ -774,14 +774,10 @@ function formatTargetStatus(name: string, status: unknown, verbose?: boolean): v
     console.log('  Post-build tasks:');
     statusObj.postBuild.forEach((result) => {
       const summary =
-        result.summary ||
-        `${result.name}: ${result.status ?? 'pending'}`.replace(/\s+/g, ' ');
+        result.summary || `${result.name}: ${result.status ?? 'pending'}`.replace(/\s+/g, ' ');
       const duration = formatShortDuration(result.durationMs);
-      const exitInfo =
-        result.exitCode !== undefined ? chalk.dim(` (exit ${result.exitCode})`) : '';
-      console.log(
-        `    - ${summary}${duration ? chalk.dim(` [${duration}]`) : ''}${exitInfo}`
-      );
+      const exitInfo = result.exitCode !== undefined ? chalk.dim(` (exit ${result.exitCode})`) : '';
+      console.log(`    - ${summary}${duration ? chalk.dim(` [${duration}]`) : ''}${exitInfo}`);
       result.lines?.slice(0, 3).forEach((line) => {
         console.log(chalk.gray(`      ${line}`));
       });

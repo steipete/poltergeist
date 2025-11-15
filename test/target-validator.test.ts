@@ -123,16 +123,15 @@ describe('Target Validator', () => {
       expect(hasExample).toBe(true);
     });
 
-    it('should handle case-insensitive fuzzy matching', () => {
-      expect(() => validateTarget('POLTERGEIST-CLI', mockConfig)).toThrow('process.exit called');
+    it('accepts case-insensitive matches without exiting', () => {
+      expect(() => validateTarget('POLTERGEIST-CLI', mockConfig)).not.toThrow();
+      expect(mockProcessExit).not.toHaveBeenCalled();
+    });
 
-      const errorCalls = mockConsoleError.mock.calls.map((call) => call[0]);
-
-      // Should show single suggestion for exact case-insensitive match
-      const hasSingleSuggestion = errorCalls.some(
-        (msg) => typeof msg === 'string' && msg.includes("Did you mean 'poltergeist-cli'?")
-      );
-      expect(hasSingleSuggestion).toBe(true);
+    it('accepts dotted and spaced variants', () => {
+      expect(() => validateTarget('Poltergeist.CLI', mockConfig)).not.toThrow();
+      expect(() => validateTarget('Poltergeist CLI', mockConfig)).not.toThrow();
+      expect(mockProcessExit).not.toHaveBeenCalled();
     });
   });
 

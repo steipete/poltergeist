@@ -12,6 +12,7 @@ import type {
 } from './interfaces.js';
 import { createLogger, type Logger } from './logger.js';
 import { BuildNotifier } from './notifier.js';
+import { PostBuildRunner } from './post-build/post-build-runner.js';
 import { PriorityEngine } from './priority-engine.js';
 import { ExecutableRunner } from './runners/executable-runner.js';
 import { type PoltergeistState, StateManager } from './state.js';
@@ -29,7 +30,6 @@ import { expandGlobPatterns } from './utils/glob-utils.js';
 import { ProcessManager } from './utils/process-manager.js';
 import { WatchmanClient } from './watchman.js';
 import { WatchmanConfigManager } from './watchman-config.js';
-import { PostBuildRunner } from './post-build/post-build-runner.js';
 
 interface TargetState {
   target: Target;
@@ -289,7 +289,7 @@ export class Poltergeist {
 
   private getTargetsToWatch(targetName?: string): Target[] {
     if (targetName) {
-      const target = this.config.targets.find((t) => t.name === targetName);
+      const target = ConfigurationManager.findTarget(this.config, targetName);
       if (!target) {
         throw new Error(`Target '${targetName}' not found`);
       }
@@ -456,10 +456,11 @@ export class Poltergeist {
 
   private async performInitialBuilds(): Promise<void> {
     // Use intelligent build queue if available
-    if (this.buildQueue && this.buildSchedulingConfig.prioritization.enabled) {
+    const queue = this.buildQueue;
+    if (queue && this.buildSchedulingConfig.prioritization.enabled) {
       await Promise.all(
         Array.from(this.targetStates.values()).map((state) =>
-          this.buildQueue!.queueTargetBuild(state.target, 'initial-build')
+          queue.queueTargetBuild(state.target, 'initial-build')
         )
       );
       return;
@@ -608,12 +609,13 @@ export class Poltergeist {
     const status: Record<string, unknown> = {};
 
     if (targetName) {
-      const state = this.targetStates.get(targetName);
-      const stateFile = await this.stateManager.readState(targetName);
+      const targetConfig = ConfigurationManager.findTarget(this.config, targetName);
+      const lookupName = targetConfig?.name ?? targetName;
+      const state = this.targetStates.get(lookupName);
+      const stateFile = await this.stateManager.readState(lookupName);
 
       if (state && stateFile) {
-        const targetConfig = this.config.targets.find((t) => t.name === targetName);
-        status[targetName] = {
+        status[lookupName] = {
           status: state.watching ? 'watching' : 'idle',
           process: stateFile.process,
           lastBuild: stateFile.lastBuild || state.lastBuild,
@@ -626,8 +628,7 @@ export class Poltergeist {
             : undefined,
         };
       } else if (stateFile) {
-        const targetConfig = this.config.targets.find((t) => t.name === targetName);
-        status[targetName] = {
+        status[lookupName] = {
           status: stateFile.lastBuild?.status
             ? stateFile.lastBuild.status
             : stateFile.process.isActive
@@ -649,36 +650,36 @@ export class Poltergeist {
         const stateFile = await this.stateManager.readState(target.name);
 
         if (state && stateFile) {
-        status[target.name] = {
-          status: state.watching ? 'watching' : 'idle',
-          enabled: target.enabled,
-          type: target.type,
-          process: stateFile.process,
-          lastBuild: stateFile.lastBuild || state.lastBuild,
-          appInfo: stateFile.appInfo,
-          pendingFiles: state.pendingFiles.size,
-          buildStats: stateFile.buildStats,
-          buildCommand: target.buildCommand,
-          postBuild: stateFile.postBuildResults
-            ? Object.values(stateFile.postBuildResults)
-            : undefined,
-        };
-      } else if (stateFile) {
-        status[target.name] = {
-          status: stateFile.lastBuild?.status
-            ? stateFile.lastBuild.status
-            : stateFile.process.isActive
-              ? 'watching'
-              : 'stopped',
-          enabled: target.enabled,
-          type: target.type,
-          process: stateFile.process,
-          lastBuild: stateFile.lastBuild,
-          appInfo: stateFile.appInfo,
-          buildStats: stateFile.buildStats,
-          postBuild: stateFile.postBuildResults
-            ? Object.values(stateFile.postBuildResults)
-            : undefined,
+          status[target.name] = {
+            status: state.watching ? 'watching' : 'idle',
+            enabled: target.enabled,
+            type: target.type,
+            process: stateFile.process,
+            lastBuild: stateFile.lastBuild || state.lastBuild,
+            appInfo: stateFile.appInfo,
+            pendingFiles: state.pendingFiles.size,
+            buildStats: stateFile.buildStats,
+            buildCommand: target.buildCommand,
+            postBuild: stateFile.postBuildResults
+              ? Object.values(stateFile.postBuildResults)
+              : undefined,
+          };
+        } else if (stateFile) {
+          status[target.name] = {
+            status: stateFile.lastBuild?.status
+              ? stateFile.lastBuild.status
+              : stateFile.process.isActive
+                ? 'watching'
+                : 'stopped',
+            enabled: target.enabled,
+            type: target.type,
+            process: stateFile.process,
+            lastBuild: stateFile.lastBuild,
+            appInfo: stateFile.appInfo,
+            buildStats: stateFile.buildStats,
+            postBuild: stateFile.postBuildResults
+              ? Object.values(stateFile.postBuildResults)
+              : undefined,
             buildCommand: target.buildCommand,
           };
         } else {

@@ -156,6 +156,28 @@ polter poltergeist-cli status
 - Poltergeist detects its own changes and rebuilds automatically
 - The Mac app (poltergeist-mac target) also rebuilds automatically when enabled
 
+### Panel Testing via iTerm MCP
+- Use mcporter with the `iterm.send_keys` tool to script the entire flow end-to-end (no manual typing):
+  ```bash
+  cd ~/Projects/mcporter
+  ./runner pnpm run mcporter call \
+    'iterm.send_keys(text: "cd ~/Projects/poltergeist && POLTERGEIST_INPUT_DEBUG=1 pnpm exec tsx src/cli.ts panel\r")'
+  ./runner pnpm run mcporter call 'iterm.send_keys(text: "q")'
+  ./runner pnpm run mcporter call 'iterm.read_terminal_output(linesOfOutput: 20)'
+  tail -n20 /tmp/poltergeist-panel-input.log   # confirm bytes=71 + exit via q
+  ```
+- **Goal:** this sequence should work unattended. If any step fails (panel doesn’t exit, log missing, etc.), stop and document the exact failing command so the user can help—it’s not acceptable to continue guessing.
+
+### Panel Testing via iTerm MCP
+- Use `mcporter` with the `iterm-mcp` server to exercise the panel in a real terminal:
+  ```bash
+  cd ~/Projects/mcporter
+  ./runner pnpm run mcporter call 'iterm.write_to_terminal(command: "cd ~/Projects/poltergeist && pnpm exec tsx src/cli.ts panel")'
+  ./runner pnpm run mcporter call 'iterm.write_to_terminal(command: "q")'
+  ./runner pnpm run mcporter call 'iterm.read_terminal_output(linesOfOutput: 20)'
+  ```
+- This mirrors actual iTerm behavior (mouse, tmux, etc.) without leaving the CLI.
+
 ## Important Rules
 
 ### No Version 2 Files

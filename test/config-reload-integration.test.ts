@@ -277,7 +277,9 @@ describe('Configuration Reloading Integration', () => {
             watchPaths: ['src/worker/**/*.ts'],
             settlingDelay: 500,
           },
-        ].filter((target, index, array) => array.findIndex((t) => t.name === target.name) === index),
+        ].filter(
+          (target, index, array) => array.findIndex((t) => t.name === target.name) === index
+        ),
       };
 
       const poltergeistPrivate = poltergeist as unknown as {

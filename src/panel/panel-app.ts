@@ -1,22 +1,19 @@
-import chalk from 'chalk';
+import { appendFileSync } from 'node:fs';
 import {
+  type Component,
   Container,
   Markdown,
   ProcessTerminal,
   Spacer,
   Text,
   TUI,
-  type Component,
   visibleWidth,
 } from '@mariozechner/pi-tui';
+import chalk from 'chalk';
 import wrapAnsi from 'wrap-ansi';
-import type { StatusPanelController } from './panel-controller.js';
-import type {
-  PanelSnapshot,
-  PanelStatusScriptResult,
-  TargetPanelEntry,
-} from './types.js';
 import type { Logger } from '../logger.js';
+import type { StatusPanelController } from './panel-controller.js';
+import type { PanelSnapshot, PanelStatusScriptResult, TargetPanelEntry } from './types.js';
 
 const CONTROLS_LINE = 'Controls: ↑/↓ move · r refresh · q quit';
 const LOG_FETCH_LIMIT = 40;
@@ -36,7 +33,7 @@ export class PanelApp {
     this.handleInput(input);
   });
   private readonly view = new PanelView();
-  private readonly profileEnabled = process.env.POLTERGEIST_PANEL_PROFILE === '1';
+  private readonly debugInput = process.env.POLTERGEIST_INPUT_DEBUG === '1';
   private exitPromise?: Promise<void>;
   private exitResolver?: () => void;
   private unsubscribe?: () => void;
@@ -133,30 +130,55 @@ export class PanelApp {
   }
 
   private handleInput(input: string): void {
-    if (this.disposed) return;
-    // Ignore mouse reporting / other escape sequences (wheel events can show up as SGR/X10 codes).
-    if (
-      input.startsWith('\x1b[<') || // SGR mouse events
-      input.startsWith('\x1b[M') || // X10 mouse events
-      (input.startsWith('\x1b[') && input.length > 3) // other long escape sequences (wheel)
-    ) {
-      return;
+    if (this.disposed || !input) return;
+
+    if (this.debugInput) {
+      const bytesHex = [...Buffer.from(input)]
+        .map((b) => b.toString(16).padStart(2, '0'))
+        .join(' ');
+      appendFileSync(
+        '/tmp/poltergeist-panel-input.log',
+        `[PanelInputDebug] ${new Date().toISOString()} bytes=${bytesHex} text=${JSON.stringify(input)}\n`
+      );
     }
-    if (input === '\x03' || input.toLowerCase() === 'q') {
-      this.dispose();
-      return;
-    }
-    if (input.toLowerCase() === 'r') {
-      void this.controller.forceRefresh();
-      return;
-    }
-    if (input === '\x1b[A') {
-      this.moveSelection(-1);
-      return;
-    }
-    if (input === '\x1b[B') {
-      this.moveSelection(1);
-      return;
+
+    // Byte-by-byte handling (mirrors working pitui loop).
+    for (let i = 0; i < input.length; ) {
+      const char = input[i];
+
+      const lower = char.toLowerCase();
+      if (lower === 'q') {
+        if (this.debugInput) {
+          appendFileSync('/tmp/poltergeist-panel-input.log', '[PanelInputDebug] exit via q\n');
+        }
+        this.dispose();
+        return;
+      }
+      if (lower === 'r') {
+        void this.controller.forceRefresh();
+      }
+      if (char === '\u0003') {
+        if (this.debugInput) {
+          appendFileSync('/tmp/poltergeist-panel-input.log', '[PanelInputDebug] exit via Ctrl+C\n');
+        }
+        this.dispose();
+        return;
+      }
+      if (char === '\x1b' && input[i + 1] === '[') {
+        const code = input[i + 2];
+        if (code === 'A') {
+          this.moveSelection(-1);
+          i += 3;
+          continue;
+        }
+        if (code === 'B') {
+          this.moveSelection(1);
+          i += 3;
+          continue;
+        }
+      }
+
+      i += 1;
     }
   }
 
@@ -181,11 +203,10 @@ export class PanelApp {
     return status === 'building' || status === 'failure';
   }
 
-  private updateView(reason: string = 'update'): void {
+  private updateView(_reason: string = 'update'): void {
     const entry = this.snapshot.targets[this.selectedIndex];
     const shouldShowLogs = this.shouldShowLogs(entry);
     const width = this.terminal.columns || 80;
-    const start = Date.now();
     this.view.update({
       snapshot: this.snapshot,
       selectedIndex: this.selectedIndex,
@@ -194,12 +215,6 @@ export class PanelApp {
       controlsLine: CONTROLS_LINE,
       width,
     });
-    const updateMs = Date.now() - start;
-    if (this.profileEnabled) {
-      this.logger.info(
-        `[PanelProfile] view update reason=${reason} width=${width} targets=${this.snapshot.targets.length} logLines=${shouldShowLogs ? this.logLines.length : 0} updateMs=${updateMs}`
-      );
-    }
     if (this.started) {
       this.tui.requestRender();
     }
@@ -207,9 +222,6 @@ export class PanelApp {
 
   private queueLogRefresh(): void {
     if (this.pendingLogRefresh) {
-      if (this.profileEnabled) {
-        this.logger.info('[PanelProfile] log refresh skipped (pending)');
-      }
       return;
     }
     this.pendingLogRefresh = (async () => {
@@ -229,15 +241,8 @@ export class PanelApp {
       return;
     }
     try {
-      const readStart = Date.now();
       const lines = await this.controller.getLogLines(entry.name, LOG_FETCH_LIMIT);
-      const readMs = Date.now() - readStart;
       this.logLines = lines.slice(-LOG_DISPLAY_LIMIT);
-      if (this.profileEnabled) {
-        this.logger.info(
-          `[PanelProfile] log refresh target=${entry.name} lines=${this.logLines.length} ms=${readMs}`
-        );
-      }
     } catch (error) {
       const message = error instanceof Error ? error.message : String(error);
       this.logLines = [`Failed to read log: ${message}`];
@@ -400,11 +405,10 @@ const colors = {
 
 function formatHeader(snapshot: PanelSnapshot): string {
   const branch = snapshot.git.branch ?? 'unknown';
-  const dirtyFiles = snapshot.git.hasRepo ? snapshot.git.dirtyFiles : NaN;
-  const insertions = snapshot.git.hasRepo ? snapshot.git.insertions : NaN;
-  const deletions = snapshot.git.hasRepo ? snapshot.git.deletions : NaN;
-  const dirtyColor =
-    !snapshot.git.hasRepo || dirtyFiles === 0 ? colors.success : colors.failure;
+  const dirtyFiles = snapshot.git.hasRepo ? snapshot.git.dirtyFiles : Number.NaN;
+  const insertions = snapshot.git.hasRepo ? snapshot.git.insertions : Number.NaN;
+  const deletions = snapshot.git.hasRepo ? snapshot.git.deletions : Number.NaN;
+  const dirtyColor = !snapshot.git.hasRepo || dirtyFiles === 0 ? colors.success : colors.failure;
   const insertColor = !snapshot.git.hasRepo || insertions === 0 ? colors.info : colors.success;
   const deleteColor = !snapshot.git.hasRepo || deletions === 0 ? colors.info : colors.failure;
 
@@ -427,8 +431,7 @@ function formatHeader(snapshot: PanelSnapshot): string {
 }
 
 function formatSummary(snapshot: PanelSnapshot): string {
-  const daemonLabel =
-    snapshot.summary.running === 1 ? 'daemon running' : 'daemons running';
+  const daemonLabel = snapshot.summary.running === 1 ? 'daemon running' : 'daemons running';
   const daemonSuffix = formatDaemonSuffix(snapshot.summary.activeDaemons ?? []);
   return `${colors.muted('Builds:')} ${snapshot.summary.building} building · ${snapshot.summary.failures} failed · ${snapshot.summary.running} ${daemonLabel}${daemonSuffix} · total ${snapshot.summary.totalTargets}`;
 }
@@ -479,29 +482,32 @@ function formatTargets(
     lines.push(row);
 
     const scriptLines =
-      scriptsByTarget.get(entry.name)?.flatMap((script) => formatScriptLines(script, '  ', width)) ??
-      [];
-    scriptLines.forEach((line) => lines.push(line));
+      scriptsByTarget
+        .get(entry.name)
+        ?.flatMap((script) => formatScriptLines(script, '  ', width)) ?? [];
+    lines.push(...scriptLines);
 
     entry.status.postBuild?.forEach((result) => {
       const postColor = postBuildColor(result.status);
       const durationTag =
         result.durationMs !== undefined ? ` [${formatDurationShort(result.durationMs)}]` : '';
       const summaryText =
-        result.summary ||
-        `${result.name}: ${result.status ?? 'pending'}`.replace(/\s+/g, ' ');
-      const postLines = wrapAnsi(
-        postColor(`  ${summaryText}${durationTag}`),
-        Math.max(1, width),
-        { hard: false, trim: false }
-      ).split('\n');
-      postLines.forEach((line) => lines.push(line));
+        result.summary || `${result.name}: ${result.status ?? 'pending'}`.replace(/\s+/g, ' ');
+      const postLines = wrapAnsi(postColor(`  ${summaryText}${durationTag}`), Math.max(1, width), {
+        hard: false,
+        trim: false,
+      }).split('\n');
+      for (const line of postLines) {
+        lines.push(line);
+      }
       result.lines?.forEach((line) => {
         const wrapped = wrapAnsi(postColor(`    ${line}`), Math.max(1, width), {
           hard: false,
           trim: false,
         }).split('\n');
-        wrapped.forEach((wrappedLine) => lines.push(wrappedLine));
+        for (const wrappedLine of wrapped) {
+          lines.push(wrappedLine);
+        }
       });
     });
   });
@@ -589,11 +595,7 @@ function formatAiSummary(lines: string[]): { header?: string; body: string } | n
   return { body: filtered.join('\n') };
 }
 
-function formatLogs(
-  entry: TargetPanelEntry | undefined,
-  lines: string[],
-  width: number
-): string {
+function formatLogs(entry: TargetPanelEntry | undefined, lines: string[], width: number): string {
   if (!entry) {
     return '';
   }
@@ -602,13 +604,13 @@ function formatLogs(
   );
   const divider = colors.line('─'.repeat(Math.max(4, width)));
   const content =
-    lines.length > 0 ? lines.map((line) => colors.accent(line)).join('\n') : colors.muted('  (no logs)');
+    lines.length > 0
+      ? lines.map((line) => colors.accent(line)).join('\n')
+      : colors.muted('  (no logs)');
   return `\n${header}\n${divider}\n${content}`;
 }
 
-function statusColor(
-  status?: string
-): { color: (value: string) => string; label: string } {
+function statusColor(status?: string): { color: (value: string) => string; label: string } {
   switch (status) {
     case 'success':
       return { color: colors.success, label: 'success' };
@@ -673,9 +675,7 @@ function postBuildColor(status?: string): (value: string) => string {
   }
 }
 
-function groupDirtyFiles(
-  files: string[]
-): Array<{ dir: string; files: string[] }> {
+function groupDirtyFiles(files: string[]): Array<{ dir: string; files: string[] }> {
   const limit = files.slice(0, 10);
   const groups = new Map<string, string[]>();
   for (const path of limit) {
@@ -717,21 +717,25 @@ function formatScriptLines(script: PanelStatusScriptResult, prefix = '', width =
   const selectedLines = script.lines.slice(0, limit).map(stripAnsiCodes);
   const durationTag = ` [${formatDurationShort(script.durationMs ?? 0)}]`;
   if (selectedLines.length === 0) {
-    return wrapAnsi(scriptColor(`${prefix}${script.label}: (no output)${durationTag}`), Math.max(1, width), {
-      hard: false,
-      trim: false,
-    }).split('\n');
+    return wrapAnsi(
+      scriptColor(`${prefix}${script.label}: (no output)${durationTag}`),
+      Math.max(1, width),
+      {
+        hard: false,
+        trim: false,
+      }
+    ).split('\n');
   }
   const block = selectedLines
     .map((line, index) =>
-      index === 0
-        ? `${prefix}${script.label}: ${line}${durationTag}`
-        : `${prefix}  ${line}`
+      index === 0 ? `${prefix}${script.label}: ${line}${durationTag}` : `${prefix}  ${line}`
     )
     .join('\n');
   const colored = scriptColor(block);
   return wrapAnsi(colored, Math.max(1, width), { hard: false, trim: false }).split('\n');
 }
+const ansiRegexPattern = '\\x1B\\[[0-?]*[ -/]*[@-~]';
+const ansiRegex = new RegExp(ansiRegexPattern, 'g');
 function stripAnsiCodes(value: string): string {
-  return value.replace(/\x1B\[[0-?]*[ -\/]*[@-~]/g, '');
+  return value.replace(ansiRegex, '');
 }

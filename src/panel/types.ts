@@ -1,7 +1,7 @@
-import type { PoltergeistConfig } from '../types.js';
-import type { StatusObject } from '../status/types.js';
-import type { GitMetrics } from './git-metrics.js';
 import type { Logger } from '../logger.js';
+import type { StatusObject } from '../status/types.js';
+import type { PoltergeistConfig } from '../types.js';
+import type { GitMetrics } from './git-metrics.js';
 
 export interface TargetPanelEntry {
   name: string;

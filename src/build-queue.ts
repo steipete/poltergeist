@@ -430,10 +430,7 @@ export class IntelligentBuildQueue {
     const attemptNumber = request.retryCount + 1;
     const backoffMultiplier = target.backoffMultiplier ?? 2;
     const baseDelay = 1000; // 1 second base
-    const delay = Math.min(
-      30000,
-      Math.round(baseDelay * Math.pow(backoffMultiplier, attemptNumber - 1))
-    );
+    const delay = Math.min(30000, Math.round(baseDelay * backoffMultiplier ** (attemptNumber - 1)));
     const errorMessage = BuildStatusManager.getErrorMessage(result);
 
     this.logger.warn(
@@ -449,9 +446,7 @@ export class IntelligentBuildQueue {
       };
       this.pendingQueue.push(retryRequest);
       this.sortQueue();
-      this.logger.info(
-        `Queued retry for ${target.name} (attempt ${attemptNumber}/${maxRetries})`
-      );
+      this.logger.info(`Queued retry for ${target.name} (attempt ${attemptNumber}/${maxRetries})`);
       this.processQueue();
     }, delay);
   }

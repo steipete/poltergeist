@@ -69,8 +69,11 @@ export class GitMetricsCollector {
       return cached;
     }
 
-    if (!force && this.inflight.has(projectRoot)) {
-      return this.inflight.get(projectRoot)!;
+    if (!force) {
+      const inflightExisting = this.inflight.get(projectRoot);
+      if (inflightExisting) {
+        return inflightExisting;
+      }
     }
 
     const promise = this.collect(projectRoot).finally(() => {
@@ -90,10 +93,11 @@ export class GitMetricsCollector {
       const { count: dirtyFiles, files: dirtyFileNames } = this.parseDirtyFiles(statusRaw);
       const branch = this.parseBranch(statusRaw);
 
-      const diffRaw = await this.runner(['diff', '--shortstat', 'HEAD'], projectRoot).catch(() => '');
+      const diffRaw = await this.runner(['diff', '--shortstat', 'HEAD'], projectRoot).catch(
+        () => ''
+      );
       const { insertions, deletions } = this.parseDiffStats(diffRaw);
-      const summary =
-        this.summaryMode === 'ai' ? this.summaryCache.get(projectRoot) : undefined;
+      const summary = this.summaryMode === 'ai' ? this.summaryCache.get(projectRoot) : undefined;
 
       const metrics: GitMetrics = {
         dirtyFiles,
@@ -168,9 +172,7 @@ export class GitMetricsCollector {
 
   private parseBranch(raw: string): string | undefined {
     if (!raw) return undefined;
-    const branchLine = raw
-      .split('\0')
-      .find((line) => line.startsWith('# branch.head '));
+    const branchLine = raw.split('\0').find((line) => line.startsWith('# branch.head '));
     if (!branchLine) return undefined;
     const parts = branchLine.split(' ');
     return parts[2] && parts[2] !== '(detached)' ? parts[2] : undefined;

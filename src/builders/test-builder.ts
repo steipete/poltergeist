@@ -1,5 +1,5 @@
-import { BaseBuilder } from './base-builder.js';
 import type { TestTarget } from '../types.js';
+import { BaseBuilder } from './base-builder.js';
 
 export class TestBuilder extends BaseBuilder<TestTarget> {
   protected getBuilderName(): string {

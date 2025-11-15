@@ -1,9 +1,9 @@
-import { describe, expect, test, beforeEach, afterEach } from 'vitest';
 import fs from 'fs';
 import os from 'os';
 import path from 'path';
-import { TestBuilder } from '../src/builders/test-builder.js';
+import { afterEach, beforeEach, describe, expect, test } from 'vitest';
 import { BuilderFactory } from '../src/builders/index.js';
+import { TestBuilder } from '../src/builders/test-builder.js';
 import { createLogger } from '../src/logger.js';
 import type { TestTarget } from '../src/types.js';
 
@@ -28,7 +28,8 @@ describe('TestBuilder', () => {
       name: 'unit-tests',
       type: 'test',
       enabled: true,
-      testCommand: "node -e \"const fs=require('fs');fs.writeFileSync(process.env.TEST_OUTPUT,'ran')\"",
+      testCommand:
+        "node -e \"const fs=require('fs');fs.writeFileSync(process.env.TEST_OUTPUT,'ran')\"",
       watchPaths: ['src/**/*.ts'],
       environment: {
         TEST_OUTPUT: outputFile,

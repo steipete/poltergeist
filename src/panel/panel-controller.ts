@@ -1,18 +1,18 @@
-import { EventEmitter } from 'events';
-import { existsSync, mkdirSync, watch, type FSWatcher } from 'fs';
 import { exec } from 'child_process';
+import { EventEmitter } from 'events';
+import { existsSync, type FSWatcher, mkdirSync, watch } from 'fs';
 import { promisify } from 'util';
+import type { StatusObject } from '../status/types.js';
+import type { StatusScriptConfig } from '../types.js';
 import { FileSystemUtils } from '../utils/filesystem.js';
+import { GitMetricsCollector } from './git-metrics.js';
+import { LogTailReader } from './log-reader.js';
 import type {
   PanelControllerOptions,
   PanelSnapshot,
   PanelStatusScriptResult,
   TargetPanelEntry,
 } from './types.js';
-import { GitMetricsCollector } from './git-metrics.js';
-import { LogTailReader } from './log-reader.js';
-import type { StatusObject } from '../status/types.js';
-import type { StatusScriptConfig } from '../types.js';
 
 const execAsync = promisify(exec);
 
@@ -84,17 +84,16 @@ export class StatusPanelController {
         running: 0,
         activeDaemons: [],
       },
-      git:
-        this.gitCollector.getCached(options.projectRoot) ?? {
-          dirtyFiles: 0,
-          dirtyFileNames: [],
-          insertions: 0,
-          deletions: 0,
-          branch: undefined,
-          hasRepo: true,
-          lastUpdated: Date.now(),
-          summaryMode: this.gitSummaryMode,
-        },
+      git: this.gitCollector.getCached(options.projectRoot) ?? {
+        dirtyFiles: 0,
+        dirtyFileNames: [],
+        insertions: 0,
+        deletions: 0,
+        branch: undefined,
+        hasRepo: true,
+        lastUpdated: Date.now(),
+        summaryMode: this.gitSummaryMode,
+      },
       projectName: options.projectRoot.split(/[\\/]/).pop() || options.projectRoot,
       projectRoot: options.projectRoot,
       preferredIndex: 0,
@@ -223,7 +222,10 @@ export class StatusPanelController {
     return 0;
   }
 
-  private async refreshStatus(options?: { refreshGit?: boolean; forceGit?: boolean }): Promise<void> {
+  private async refreshStatus(options?: {
+    refreshGit?: boolean;
+    forceGit?: boolean;
+  }): Promise<void> {
     if (this.disposed) {
       return;
     }
@@ -299,7 +301,7 @@ export class StatusPanelController {
   }
 
   private async refreshStatusScripts(force?: boolean): Promise<void> {
-    if (this.disposed || !(this.options.config.statusScripts?.length)) {
+    if (this.disposed || !this.options.config.statusScripts?.length) {
       return;
     }
 
@@ -412,11 +414,7 @@ export class StatusPanelController {
     }
   }
 
-  private extractLines(
-    stdout?: string,
-    stderr?: string,
-    maxLines: number = 1
-  ): string[] {
+  private extractLines(stdout?: string, stderr?: string, maxLines: number = 1): string[] {
     const combined = `${stdout ?? ''}\n${stderr ?? ''}`.trim();
     if (!combined) {
       return [];

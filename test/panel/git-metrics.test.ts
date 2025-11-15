@@ -8,7 +8,7 @@ describe('GitMetricsCollector', () => {
         return [
           '# branch.head main',
           '# branch.upstream origin/main',
-          "1 XYZ. N... 100644 100644 100644 abc123... file.ts",
+          '1 XYZ. N... 100644 100644 100644 abc123... file.ts',
           '? new-file.ts',
           '',
         ].join('\0');

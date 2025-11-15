@@ -1,7 +1,7 @@
-import { spawn, type ChildProcess } from 'child_process';
+import { type ChildProcess, spawn } from 'child_process';
 import path from 'path';
-import type { Logger } from '../logger.js';
 import type { IStateManager } from '../interfaces.js';
+import type { Logger } from '../logger.js';
 import type { PostBuildCommandConfig } from '../types.js';
 
 type Trigger = 'success' | 'failure';
