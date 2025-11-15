@@ -626,7 +626,11 @@ export class Poltergeist {
       } else if (stateFile) {
         const targetConfig = this.config.targets.find((t) => t.name === targetName);
         status[targetName] = {
-          status: stateFile.process.isActive ? 'running' : 'stopped',
+          status: stateFile.lastBuild?.status
+            ? stateFile.lastBuild.status
+            : stateFile.process.isActive
+              ? 'watching'
+              : 'stopped',
           process: stateFile.process,
           lastBuild: stateFile.lastBuild,
           appInfo: stateFile.appInfo,
@@ -659,7 +663,11 @@ export class Poltergeist {
         };
       } else if (stateFile) {
         status[target.name] = {
-          status: stateFile.process.isActive ? 'running' : 'stopped',
+          status: stateFile.lastBuild?.status
+            ? stateFile.lastBuild.status
+            : stateFile.process.isActive
+              ? 'watching'
+              : 'stopped',
           enabled: target.enabled,
           type: target.type,
           process: stateFile.process,
