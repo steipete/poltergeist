@@ -218,6 +218,87 @@ describe('Configuration Reloading Integration', () => {
       const apiServerChange = changes.targetsModified.find((t) => t.name === 'api-server');
       expect(apiServerChange?.newTarget.type).toBe('app-bundle');
     });
+
+    test('should trigger initial builds for added and modified targets', async () => {
+      const configPath = '/test/poltergeist.config.json';
+      const builderMocks = new Map<string, { build: ReturnType<typeof vi.fn> }>();
+      const enhancedMocks = {
+        ...harness.mocks,
+        watchmanConfigManager: {
+          ensureConfigUpToDate: vi.fn().mockResolvedValue(undefined),
+          suggestOptimizations: vi.fn().mockResolvedValue([]),
+          normalizeWatchPattern: vi.fn().mockImplementation((pattern: string) => pattern),
+          validateWatchPattern: vi.fn(),
+          createExclusionExpressions: vi.fn().mockReturnValue([]),
+        },
+      };
+      enhancedMocks.builderFactory.createBuilder.mockImplementation((target) => {
+        const builder = {
+          build: vi.fn().mockResolvedValue({
+            status: 'success' as const,
+            targetName: target.name,
+            timestamp: new Date().toISOString(),
+          }),
+          validate: vi.fn().mockResolvedValue(undefined),
+          stop: vi.fn(),
+          getOutputInfo: vi.fn(),
+        };
+        builderMocks.set(target.name, builder);
+        return builder;
+      });
+
+      const poltergeist = new (await import('../src/poltergeist.js')).Poltergeist(
+        baseConfig,
+        '/test/project',
+        harness.logger,
+        enhancedMocks,
+        configPath
+      );
+
+      const newConfig: PoltergeistConfig = {
+        ...baseConfig,
+        targets: [
+          {
+            name: 'web-app',
+            type: 'executable',
+            enabled: true,
+            buildCommand: 'npm run build:web:optimized',
+            outputPath: './dist/web-app.js',
+            watchPaths: ['src/web/**/*.ts'],
+            settlingDelay: 900,
+          },
+          ...baseConfig.targets,
+          {
+            name: 'worker-service',
+            type: 'executable',
+            enabled: true,
+            buildCommand: 'npm run build:worker',
+            outputPath: './dist/worker.js',
+            watchPaths: ['src/worker/**/*.ts'],
+            settlingDelay: 500,
+          },
+        ].filter((target, index, array) => array.findIndex((t) => t.name === target.name) === index),
+      };
+
+      const poltergeistPrivate = poltergeist as unknown as {
+        detectConfigChanges: (
+          oldConfig: PoltergeistConfig,
+          newConfig: PoltergeistConfig
+        ) => ReturnType<(typeof poltergeist)['detectConfigChanges']>;
+        applyConfigChanges: (
+          newConfig: PoltergeistConfig,
+          changes: ReturnType<(typeof poltergeist)['detectConfigChanges']>
+        ) => Promise<void>;
+      };
+      const detectChanges = poltergeistPrivate.detectConfigChanges.bind(poltergeist);
+      const applyChanges = poltergeistPrivate.applyConfigChanges.bind(poltergeist);
+
+      const changes = detectChanges(baseConfig, newConfig);
+      await applyChanges(newConfig, changes);
+
+      expect(builderMocks.get('worker-service')?.build).toHaveBeenCalledTimes(1);
+      expect(builderMocks.get('web-app')?.build).toHaveBeenCalledTimes(1);
+    });
   });
 
   describe('Global Configuration Changes', () => {
