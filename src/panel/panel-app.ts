@@ -275,7 +275,7 @@ class PanelView extends Container {
     this.targets.setText(
       formatTargets(snapshot.targets, selectedIndex, scriptsByTarget, state.width)
     );
-    this.globalScripts.setText(formatGlobalScripts(globalScripts));
+    this.globalScripts.setText(formatGlobalScripts(globalScripts, state.width));
     const aiSummary = formatAiSummary(snapshot.git.summary ?? []);
     if (aiSummary && aiSummary.body.trim().length > 0) {
       this.dirtyFiles.setText('');
@@ -451,9 +451,10 @@ function formatTargets(
       `${duration}`;
     lines.push(row);
 
-    (scriptsByTarget.get(entry.name) ?? []).forEach((script) => {
-      lines.push(...formatScriptLines(script, '  '));
-    });
+    const scriptLines =
+      scriptsByTarget.get(entry.name)?.flatMap((script) => formatScriptLines(script, '  ', width)) ??
+      [];
+    scriptLines.forEach((line) => lines.push(line));
 
     entry.status.postBuild?.forEach((result) => {
       const postColor = postBuildColor(result.status);
@@ -462,9 +463,18 @@ function formatTargets(
       const summaryText =
         result.summary ||
         `${result.name}: ${result.status ?? 'pending'}`.replace(/\s+/g, ' ');
-      lines.push(postColor(`  ${summaryText}${durationTag}`));
+      const postLines = wrapAnsi(
+        postColor(`  ${summaryText}${durationTag}`),
+        Math.max(1, width),
+        { hard: false, trim: false }
+      ).split('\n');
+      postLines.forEach((line) => lines.push(line));
       result.lines?.forEach((line) => {
-        lines.push(postColor(`    ${line}`));
+        const wrapped = wrapAnsi(postColor(`    ${line}`), Math.max(1, width), {
+          hard: false,
+          trim: false,
+        }).split('\n');
+        wrapped.forEach((wrappedLine) => lines.push(wrappedLine));
       });
     });
   });
@@ -490,11 +500,11 @@ function formatDaemonSuffix(activeDaemons: string[]): string {
   return ` (${formatted.join(', ')})`;
 }
 
-function formatGlobalScripts(scripts: PanelStatusScriptResult[]): string {
+function formatGlobalScripts(scripts: PanelStatusScriptResult[], width: number): string {
   if (scripts.length === 0) {
     return '';
   }
-  const lines = scripts.flatMap((script) => formatScriptLines(script));
+  const lines = scripts.flatMap((script) => formatScriptLines(script, '', width));
   return `\n${lines.join('\n')}`;
 }
 
@@ -674,13 +684,16 @@ function splitStatusScripts(scripts: PanelStatusScriptResult[]): {
   return { scriptsByTarget, globalScripts };
 }
 
-function formatScriptLines(script: PanelStatusScriptResult, prefix = ''): string[] {
+function formatScriptLines(script: PanelStatusScriptResult, prefix = '', width = 80): string[] {
   const scriptColor = scriptColorFromExitCode(script.exitCode);
   const limit = Math.max(1, script.maxLines ?? script.lines.length);
   const selectedLines = script.lines.slice(0, limit).map(stripAnsiCodes);
   const durationTag = ` [${formatDurationShort(script.durationMs ?? 0)}]`;
   if (selectedLines.length === 0) {
-    return [scriptColor(`${prefix}${script.label}: (no output)${durationTag}`)];
+    return wrapAnsi(scriptColor(`${prefix}${script.label}: (no output)${durationTag}`), Math.max(1, width), {
+      hard: false,
+      trim: false,
+    }).split('\n');
   }
   const block = selectedLines
     .map((line, index) =>
@@ -689,7 +702,8 @@ function formatScriptLines(script: PanelStatusScriptResult, prefix = ''): string
         : `${prefix}  ${line}`
     )
     .join('\n');
-  return scriptColor(block).split('\n');
+  const colored = scriptColor(block);
+  return wrapAnsi(colored, Math.max(1, width), { hard: false, trim: false }).split('\n');
 }
 function stripAnsiCodes(value: string): string {
   return value.replace(/\x1B\[[0-?]*[ -\/]*[@-~]/g, '');
