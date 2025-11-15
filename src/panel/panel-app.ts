@@ -1,0 +1,692 @@
+import chalk from 'chalk';
+import {
+  Container,
+  Markdown,
+  ProcessTerminal,
+  Spacer,
+  Text,
+  TUI,
+  type Component,
+  visibleWidth,
+} from '@mariozechner/pi-tui';
+import wrapAnsi from 'wrap-ansi';
+import type { StatusPanelController } from './panel-controller.js';
+import type {
+  PanelSnapshot,
+  PanelStatusScriptResult,
+  TargetPanelEntry,
+} from './types.js';
+import type { Logger } from '../logger.js';
+
+const CONTROLS_LINE = 'Controls: ↑/↓ move · r refresh · q quit';
+const LOG_FETCH_LIMIT = 40;
+const LOG_DISPLAY_LIMIT = 12;
+
+interface PanelAppOptions {
+  controller: StatusPanelController;
+  logger: Logger;
+}
+
+export class PanelApp {
+  private readonly controller: StatusPanelController;
+  private readonly logger: Logger;
+  private readonly terminal = new ProcessTerminal();
+  private readonly tui = new TUI(this.terminal);
+  private readonly inputBridge = new InputBridge((input) => {
+    this.handleInput(input);
+  });
+  private readonly view = new PanelView();
+  private exitPromise?: Promise<void>;
+  private exitResolver?: () => void;
+  private unsubscribe?: () => void;
+  private logTimer?: NodeJS.Timeout;
+  private pendingLogRefresh?: Promise<void>;
+  private disposed = false;
+  private started = false;
+  private resizeListenerAttached = false;
+  private userNavigated = false;
+  private snapshot: PanelSnapshot;
+  private selectedIndex: number;
+  private logLines: string[] = [];
+  private readonly handleTerminalResize = () => {
+    if (!this.disposed) {
+      this.updateView();
+    }
+  };
+
+  constructor(options: PanelAppOptions) {
+    this.controller = options.controller;
+    this.logger = options.logger;
+    this.snapshot = this.controller.getSnapshot();
+    this.selectedIndex = this.snapshot.preferredIndex ?? 0;
+
+    this.tui.addChild(this.view);
+    // Input bridge never renders anything but receives all keyboard input.
+    this.tui.addChild(this.inputBridge);
+    this.tui.setFocus(this.inputBridge);
+  }
+
+  public start(): Promise<void> {
+    if (this.exitPromise) {
+      return this.exitPromise;
+    }
+
+    this.exitPromise = new Promise((resolve) => {
+      this.exitResolver = resolve;
+    });
+
+    this.updateView();
+
+    this.unsubscribe = this.controller.onUpdate((snapshot) => {
+      this.handleSnapshot(snapshot);
+    });
+
+    this.tui.start();
+    this.started = true;
+    this.tui.requestRender();
+    if (typeof process.stdout.on === 'function') {
+      process.stdout.on('resize', this.handleTerminalResize);
+      this.resizeListenerAttached = true;
+    }
+    this.queueLogRefresh();
+    this.updateLogPolling();
+
+    return this.exitPromise;
+  }
+
+  public dispose(): void {
+    if (this.disposed) {
+      return;
+    }
+    this.disposed = true;
+    if (this.unsubscribe) {
+      this.unsubscribe();
+      this.unsubscribe = undefined;
+    }
+    if (this.resizeListenerAttached && typeof process.stdout.off === 'function') {
+      process.stdout.off('resize', this.handleTerminalResize);
+      this.resizeListenerAttached = false;
+    }
+    if (this.logTimer) {
+      clearInterval(this.logTimer);
+      this.logTimer = undefined;
+    }
+    this.pendingLogRefresh = undefined;
+    this.tui.stop();
+    if (this.exitResolver) {
+      this.exitResolver();
+      this.exitResolver = undefined;
+    }
+  }
+
+  private handleSnapshot(next: PanelSnapshot): void {
+    this.snapshot = next;
+    if (!this.userNavigated) {
+      this.selectedIndex = next.preferredIndex ?? this.selectedIndex ?? 0;
+    } else if (this.selectedIndex >= next.targets.length) {
+      this.selectedIndex = Math.max(0, next.targets.length - 1);
+    }
+    this.updateView();
+    this.queueLogRefresh();
+    this.updateLogPolling();
+  }
+
+  private handleInput(input: string): void {
+    if (this.disposed) return;
+    if (input === '\x03' || input.toLowerCase() === 'q') {
+      this.dispose();
+      return;
+    }
+    if (input.toLowerCase() === 'r') {
+      void this.controller.forceRefresh();
+      return;
+    }
+    if (input === '\x1b[A') {
+      this.moveSelection(-1);
+      return;
+    }
+    if (input === '\x1b[B') {
+      this.moveSelection(1);
+      return;
+    }
+  }
+
+  private moveSelection(delta: number): void {
+    const targets = this.snapshot.targets;
+    if (targets.length === 0) {
+      return;
+    }
+    this.userNavigated = true;
+    const nextIndex = Math.min(Math.max(this.selectedIndex + delta, 0), targets.length - 1);
+    if (nextIndex === this.selectedIndex) {
+      return;
+    }
+    this.selectedIndex = nextIndex;
+    this.updateView();
+    this.queueLogRefresh();
+    this.updateLogPolling();
+  }
+
+  private shouldShowLogs(entry?: TargetPanelEntry): boolean {
+    const status = entry?.status.lastBuild?.status;
+    return status === 'building' || status === 'failure';
+  }
+
+  private updateView(): void {
+    const entry = this.snapshot.targets[this.selectedIndex];
+    const shouldShowLogs = this.shouldShowLogs(entry);
+    this.view.update({
+      snapshot: this.snapshot,
+      selectedIndex: this.selectedIndex,
+      logLines: shouldShowLogs ? this.logLines.slice(-LOG_DISPLAY_LIMIT) : [],
+      shouldShowLogs,
+      controlsLine: CONTROLS_LINE,
+      width: this.terminal.columns || 80,
+    });
+    if (this.started) {
+      this.tui.requestRender();
+    }
+  }
+
+  private queueLogRefresh(): void {
+    if (this.pendingLogRefresh) {
+      return;
+    }
+    this.pendingLogRefresh = (async () => {
+      try {
+        await this.refreshLogs();
+      } finally {
+        this.pendingLogRefresh = undefined;
+      }
+    })();
+  }
+
+  private async refreshLogs(): Promise<void> {
+    const entry = this.snapshot.targets[this.selectedIndex];
+    if (!entry || !this.shouldShowLogs(entry)) {
+      this.logLines = [];
+      this.updateView();
+      return;
+    }
+    try {
+      const lines = await this.controller.getLogLines(entry.name, LOG_FETCH_LIMIT);
+      this.logLines = lines.slice(-LOG_DISPLAY_LIMIT);
+    } catch (error) {
+      const message = error instanceof Error ? error.message : String(error);
+      this.logLines = [`Failed to read log: ${message}`];
+      this.logger.warn(`[Panel] Failed to read logs for ${entry.name}: ${message}`);
+    }
+    this.updateView();
+  }
+
+  private updateLogPolling(): void {
+    const entry = this.snapshot.targets[this.selectedIndex];
+    const active = entry?.status.lastBuild?.status === 'building';
+    if (active && !this.logTimer) {
+      this.logTimer = setInterval(() => {
+        this.queueLogRefresh();
+      }, 1000);
+      return;
+    }
+    if (!active && this.logTimer) {
+      clearInterval(this.logTimer);
+      this.logTimer = undefined;
+    }
+  }
+}
+
+interface PanelViewState {
+  snapshot: PanelSnapshot;
+  selectedIndex: number;
+  logLines: string[];
+  shouldShowLogs: boolean;
+  controlsLine: string;
+  width: number;
+}
+
+class PanelView extends Container {
+  private readonly header = new Text('', 0, 0);
+  private readonly targets = new Text('', 0, 0);
+  private readonly globalScripts = new Text('', 0, 0);
+  private readonly dirtyFiles = new Text('', 0, 0);
+  private readonly aiHeader = new Text('', 0, 0);
+  private readonly aiMarkdown = createWordWrappedMarkdown();
+  private readonly logs = new Text('', 0, 0);
+  private readonly footer = new Text('', 0, 0);
+  private readonly spacer = new Spacer(1);
+
+  constructor() {
+    super();
+    this.addChild(this.header);
+    this.addChild(this.spacer);
+    this.addChild(this.targets);
+    this.addChild(this.globalScripts);
+    this.addChild(this.dirtyFiles);
+    this.addChild(this.aiHeader);
+    this.addChild(this.aiMarkdown);
+    this.addChild(this.logs);
+    this.addChild(this.footer);
+  }
+
+  public update(state: PanelViewState): void {
+    const { snapshot, selectedIndex } = state;
+    const { scriptsByTarget, globalScripts } = splitStatusScripts(snapshot.statusScripts ?? []);
+    this.header.setText(formatHeader(snapshot));
+    this.targets.setText(
+      formatTargets(snapshot.targets, selectedIndex, scriptsByTarget, state.width)
+    );
+    this.globalScripts.setText(formatGlobalScripts(globalScripts));
+    const aiSummary = formatAiSummary(snapshot.git.summary ?? []);
+    if (aiSummary && aiSummary.body.trim().length > 0) {
+      this.dirtyFiles.setText('');
+      const headerText = aiSummary.header ?? colors.header('AI summary of changed files:');
+      this.aiHeader.setText(`\n${headerText}`);
+      this.aiMarkdown.setText(aiSummary.body.trim());
+    } else {
+      this.dirtyFiles.setText(formatDirtyFiles(snapshot));
+      this.aiHeader.setText('');
+      this.aiMarkdown.setText('');
+    }
+    if (state.shouldShowLogs) {
+      const entry = snapshot.targets[selectedIndex];
+      this.logs.setText(formatLogs(entry, state.logLines, state.width));
+    } else {
+      this.logs.setText('');
+    }
+    this.footer.setText(colors.header(state.controlsLine));
+  }
+}
+
+function createWordWrappedMarkdown(): Markdown {
+  const markdown = new Markdown('');
+  enableMarkdownWordWrap(markdown);
+  return markdown;
+}
+
+function enableMarkdownWordWrap(markdown: Markdown): void {
+  // TODO: Upstream a proper word-wrapping option to @mariozechner/pi-tui's Markdown component.
+
+  const patchTarget = markdown as unknown as {
+    wrapLine?: (line: string, width: number) => string[];
+    wrapSingleLine?: (line: string, width: number) => string[];
+  };
+
+  // Override both wrap helpers with wrap-ansi so we get word-aware wrapping even for colored lines.
+  const wrap = (line: string, width: number): string[] => {
+    if (line === undefined || line === null) {
+      return [''];
+    }
+    const segments = line.split('\n');
+    const result: string[] = [];
+    for (const segment of segments) {
+      if (segment === '') {
+        result.push('');
+        continue;
+      }
+      const wrapped = wrapAnsi(segment, Math.max(1, width), {
+        hard: false,
+        trim: false,
+      });
+      result.push(...wrapped.split('\n'));
+    }
+    return result.length > 0 ? result : [''];
+  };
+  patchTarget.wrapLine = wrap;
+  patchTarget.wrapSingleLine = wrap;
+}
+
+class InputBridge implements Component {
+  constructor(private readonly handler: (input: string) => void) {}
+
+  render(): string[] {
+    return [];
+  }
+
+  handleInput(data: string): void {
+    this.handler(data);
+  }
+}
+
+const palette = {
+  accent: '#8BE9FD',
+  header: '#2EE6FF',
+  text: '#F8F8F2',
+  muted: '#8E95B3',
+  line: '#5C6080',
+  success: '#50FA7B',
+  failure: '#FF5555',
+  warning: '#F1FA8C',
+  info: '#AEB1C2',
+};
+
+const colors = {
+  accent: (value: string) => chalk.hex(palette.accent)(value),
+  header: (value: string) => chalk.hex(palette.header)(value),
+  text: (value: string) => chalk.hex(palette.text)(value),
+  muted: (value: string) => chalk.hex(palette.muted)(value),
+  line: (value: string) => chalk.hex(palette.line)(value),
+  success: (value: string) => chalk.hex(palette.success)(value),
+  failure: (value: string) => chalk.hex(palette.failure)(value),
+  warning: (value: string) => chalk.hex(palette.warning)(value),
+  info: (value: string) => chalk.hex(palette.info)(value),
+};
+
+function formatHeader(snapshot: PanelSnapshot): string {
+  const branch = snapshot.git.branch ?? 'unknown';
+  const dirtyFiles = snapshot.git.hasRepo ? snapshot.git.dirtyFiles : NaN;
+  const insertions = snapshot.git.hasRepo ? snapshot.git.insertions : NaN;
+  const deletions = snapshot.git.hasRepo ? snapshot.git.deletions : NaN;
+  const dirtyColor =
+    !snapshot.git.hasRepo || dirtyFiles === 0 ? colors.success : colors.failure;
+  const insertColor = !snapshot.git.hasRepo || insertions === 0 ? colors.info : colors.success;
+  const deleteColor = !snapshot.git.hasRepo || deletions === 0 ? colors.info : colors.failure;
+
+  const projectLine = `${colors.text(snapshot.projectName)} — ${snapshot.projectRoot}`;
+  const branchLine = [
+    `${colors.muted('Branch:')} ${colors.text(branch)}`,
+    `${colors.muted('Dirty files:')} ${
+      snapshot.git.hasRepo ? dirtyColor(String(dirtyFiles)) : colors.info('n/a')
+    }`,
+    `${colors.muted('ΔLOC:')} ${
+      snapshot.git.hasRepo
+        ? `${insertColor(`+${insertions}`)} ${colors.muted('/')} ${deleteColor(`-${deletions}`)}`
+        : colors.info('n/a')
+    }`,
+  ].join(`  ${colors.muted('|')}  `);
+
+  const summaryLine = formatSummary(snapshot);
+
+  return `${projectLine}\n${branchLine}\n${summaryLine}`;
+}
+
+function formatSummary(snapshot: PanelSnapshot): string {
+  const daemonLabel =
+    snapshot.summary.running === 1 ? 'daemon running' : 'daemons running';
+  const daemonSuffix = formatDaemonSuffix(snapshot.summary.activeDaemons ?? []);
+  return `${colors.muted('Builds:')} ${snapshot.summary.building} building · ${snapshot.summary.failures} failed · ${snapshot.summary.running} ${daemonLabel}${daemonSuffix} · total ${snapshot.summary.totalTargets}`;
+}
+
+function pad(text: string, width: number): string {
+  const length = visibleWidth(text);
+  if (length >= width) {
+    return text;
+  }
+  return `${text}${' '.repeat(width - length)}`;
+}
+
+function formatTargets(
+  entries: TargetPanelEntry[],
+  selectedIndex: number,
+  scriptsByTarget: Map<string, PanelStatusScriptResult[]>,
+  width: number
+): string {
+  if (entries.length === 0) {
+    return colors.header('No targets configured.');
+  }
+
+  const lines: string[] = [];
+  const headerLine =
+    `${pad(colors.header('Target'), 34)}` +
+    `${pad(colors.header('Status'), 20)}` +
+    `${pad(colors.header('Last Build'), 20)}` +
+    `${colors.header('Duration')}`;
+  const divider = colors.line('─'.repeat(Math.max(4, width)));
+  lines.push(headerLine);
+  lines.push(divider);
+
+  entries.forEach((entry, index) => {
+    const status = entry.status.lastBuild?.status || entry.status.status || 'unknown';
+    const { color, label } = statusColor(status);
+    const pending = entry.status.pendingFiles ?? 0;
+    const targetName = index === selectedIndex ? colors.accent(entry.name) : entry.name;
+    const enabledLabel = entry.enabled ? '' : colors.header(' (disabled)');
+    const statusLabel = pending > 0 ? `${label} · +${pending} queued` : label;
+    const lastBuild = formatRelativeTime(entry.status.lastBuild?.timestamp);
+    const duration = formatDuration(entry.status.lastBuild?.duration);
+
+    const row =
+      `${pad(`${targetName}${enabledLabel}`, 34)}` +
+      `${pad(color(statusLabel), 20)}` +
+      `${pad(lastBuild, 20)}` +
+      `${duration}`;
+    lines.push(row);
+
+    (scriptsByTarget.get(entry.name) ?? []).forEach((script) => {
+      lines.push(...formatScriptLines(script, '  '));
+    });
+
+    entry.status.postBuild?.forEach((result) => {
+      const postColor = postBuildColor(result.status);
+      const durationTag =
+        result.durationMs !== undefined ? ` [${formatDurationShort(result.durationMs)}]` : '';
+      const summaryText =
+        result.summary ||
+        `${result.name}: ${result.status ?? 'pending'}`.replace(/\s+/g, ' ');
+      lines.push(postColor(`  ${summaryText}${durationTag}`));
+      result.lines?.forEach((line) => {
+        lines.push(postColor(`    ${line}`));
+      });
+    });
+  });
+
+  lines.push(divider);
+
+  return lines.join('\n');
+}
+
+function formatDaemonSuffix(activeDaemons: string[]): string {
+  if (!activeDaemons.length) {
+    return '';
+  }
+  const formatted = activeDaemons.map((daemon) => {
+    if (daemon.startsWith('target:')) {
+      return daemon.replace('target:', '');
+    }
+    if (/^\d+$/.test(daemon)) {
+      return `PID ${daemon}`;
+    }
+    return daemon;
+  });
+  return ` (${formatted.join(', ')})`;
+}
+
+function formatGlobalScripts(scripts: PanelStatusScriptResult[]): string {
+  if (scripts.length === 0) {
+    return '';
+  }
+  const lines = scripts.flatMap((script) => formatScriptLines(script));
+  return `\n${lines.join('\n')}`;
+}
+
+function formatDirtyFiles(snapshot: PanelSnapshot): string {
+  const dirtyFiles = snapshot.git.dirtyFileNames ?? [];
+  if ((snapshot.git.dirtyFiles ?? 0) === 0 && dirtyFiles.length === 0) {
+    return '';
+  }
+  const groups = groupDirtyFiles(dirtyFiles);
+  const visibleCount = Math.min(dirtyFiles.length, 10);
+  const lines: string[] = [];
+  lines.push(
+    colors.header(
+      `Dirty Files (${visibleCount}${
+        (snapshot.git.dirtyFiles ?? dirtyFiles.length) > visibleCount
+          ? ` of ${snapshot.git.dirtyFiles}`
+          : ''
+      }):`
+    )
+  );
+  groups.forEach((group) => {
+    const dir = group.dir || '.';
+    const label =
+      group.files.length === 1
+        ? dir === '.'
+          ? group.files[0]
+          : `${dir}/${group.files[0]}`
+        : `${dir}: ${group.files.join(', ')}`;
+    lines.push(colors.muted(`• ${label}`));
+  });
+  const remaining = (snapshot.git.dirtyFiles ?? dirtyFiles.length) - visibleCount;
+  if (remaining > 0) {
+    lines.push(colors.muted(`…and ${remaining} more`));
+  }
+  return `\n${lines.join('\n')}`;
+}
+
+function formatAiSummary(lines: string[]): { header?: string; body: string } | null {
+  const filtered = lines.filter((line) => line.trim().length > 0);
+  if (filtered.length === 0) {
+    return null;
+  }
+  const first = filtered[0];
+  const match = first.match(/^(?![-*+])([^:]{3,80}):\s*(.*)$/);
+  if (match) {
+    const header = colors.header(`${match[1].trim()}:`);
+    const remainder = match[2].trim();
+    if (remainder.length > 0) {
+      filtered[0] = remainder;
+    } else {
+      filtered.shift();
+    }
+    return { header, body: filtered.join('\n') };
+  }
+  return { body: filtered.join('\n') };
+}
+
+function formatLogs(
+  entry: TargetPanelEntry | undefined,
+  lines: string[],
+  width: number
+): string {
+  if (!entry) {
+    return '';
+  }
+  const header = colors.header(
+    `Logs — ${entry.name}${entry.status.lastBuild?.status ? ` (${entry.status.lastBuild.status})` : ''}`
+  );
+  const divider = colors.line('─'.repeat(Math.max(4, width)));
+  const content =
+    lines.length > 0 ? lines.map((line) => colors.accent(line)).join('\n') : colors.muted('  (no logs)');
+  return `\n${header}\n${divider}\n${content}`;
+}
+
+function statusColor(
+  status?: string
+): { color: (value: string) => string; label: string } {
+  switch (status) {
+    case 'success':
+      return { color: colors.success, label: 'success' };
+    case 'failure':
+      return { color: colors.failure, label: 'failed' };
+    case 'building':
+      return { color: colors.warning, label: 'building' };
+    case 'watching':
+      return { color: colors.accent, label: 'watching' };
+    default:
+      return { color: colors.info, label: status || 'unknown' };
+  }
+}
+
+function formatRelativeTime(timestamp?: string): string {
+  if (!timestamp) return '—';
+  const delta = Date.now() - new Date(timestamp).getTime();
+  const seconds = Math.max(0, Math.floor(delta / 1000));
+  if (seconds < 60) return `${seconds}s ago`;
+  const minutes = Math.floor(seconds / 60);
+  if (minutes < 60) return `${minutes}m ago`;
+  const hours = Math.floor(minutes / 60);
+  if (hours < 24) return `${hours}h ago`;
+  const days = Math.floor(hours / 24);
+  return `${days}d ago`;
+}
+
+function formatDuration(durationMs?: number | null): string {
+  if (!durationMs) return '—';
+  if (durationMs < 1000) return `${durationMs}ms`;
+  const seconds = Math.round(durationMs / 1000);
+  return `${seconds}s`;
+}
+
+function formatDurationShort(ms: number): string {
+  if (ms < 1000) return `${ms}ms`;
+  const totalSeconds = Math.round(ms / 1000);
+  const minutes = Math.floor(totalSeconds / 60);
+  const seconds = totalSeconds % 60;
+  if (minutes === 0) return `${seconds}s`;
+  if (seconds === 0) return `${minutes}m`;
+  return `${minutes}m ${seconds}s`;
+}
+
+function scriptColorFromExitCode(exitCode?: number | null): (value: string) => string {
+  if (!exitCode || exitCode <= 0) {
+    return colors.success;
+  }
+  return colors.failure;
+}
+
+function postBuildColor(status?: string): (value: string) => string {
+  switch (status) {
+    case 'success':
+      return colors.success;
+    case 'failure':
+      return colors.failure;
+    case 'running':
+      return colors.warning;
+    default:
+      return colors.info;
+  }
+}
+
+function groupDirtyFiles(
+  files: string[]
+): Array<{ dir: string; files: string[] }> {
+  const limit = files.slice(0, 10);
+  const groups = new Map<string, string[]>();
+  for (const path of limit) {
+    const lastSlash = path.lastIndexOf('/');
+    const dir = lastSlash >= 0 ? path.slice(0, lastSlash) : '';
+    const fileName = lastSlash >= 0 ? path.slice(lastSlash + 1) : path;
+    const existing = groups.get(dir) ?? [];
+    existing.push(fileName);
+    groups.set(dir, existing);
+  }
+  return Array.from(groups.entries()).map(([dir, groupFiles]) => ({
+    dir,
+    files: groupFiles,
+  }));
+}
+
+function splitStatusScripts(scripts: PanelStatusScriptResult[]): {
+  scriptsByTarget: Map<string, PanelStatusScriptResult[]>;
+  globalScripts: PanelStatusScriptResult[];
+} {
+  const scriptsByTarget = new Map<string, PanelStatusScriptResult[]>();
+  const globalScripts: PanelStatusScriptResult[] = [];
+  scripts.forEach((script) => {
+    if (script.targets?.length) {
+      script.targets.forEach((target) => {
+        const existing = scriptsByTarget.get(target) ?? [];
+        scriptsByTarget.set(target, [...existing, script]);
+      });
+    } else {
+      globalScripts.push(script);
+    }
+  });
+  return { scriptsByTarget, globalScripts };
+}
+
+function formatScriptLines(script: PanelStatusScriptResult, prefix = ''): string[] {
+  const scriptColor = scriptColorFromExitCode(script.exitCode);
+  const limit = Math.max(1, script.maxLines ?? script.lines.length);
+  const selectedLines = script.lines.slice(0, limit);
+  const durationTag = ` [${formatDurationShort(script.durationMs ?? 0)}]`;
+  if (selectedLines.length === 0) {
+    return [scriptColor(`${prefix}${script.label}: (no output)${durationTag}`)];
+  }
+  const formatted = selectedLines.map((line, index) => {
+    if (index === 0) {
+      return `${prefix}${script.label}: ${line}${durationTag}`;
+    }
+    return `${prefix}  ${line}`;
+  });
+  return formatted.map((line) => scriptColor(line));
+}

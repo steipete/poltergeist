@@ -1,4 +1,3 @@
-import { render } from 'ink';
 import { createPoltergeist } from '../factories.js';
 import type { PoltergeistConfig } from '../types.js';
 import type { Logger } from '../logger.js';
@@ -54,12 +53,12 @@ export async function runStatusPanel(options: RunPanelOptions): Promise<void> {
   });
 
   await controller.start();
-
-  const ink = render(<PanelApp controller={controller} />);
+  const panel = new PanelApp({ controller, logger: options.logger });
 
   try {
-    await ink.waitUntilExit();
+    await panel.start();
   } finally {
+    panel.dispose();
     controller.dispose();
     leaveAlternateBuffer();
   }
