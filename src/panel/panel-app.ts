@@ -135,7 +135,11 @@ export class PanelApp {
   private handleInput(input: string): void {
     if (this.disposed) return;
     // Ignore mouse reporting / other escape sequences (wheel events can show up as SGR/X10 codes).
-    if (input.startsWith('\x1b[<') || input.startsWith('\x1b[M') || (input.startsWith('\x1b[') && input.length > 3)) {
+    if (
+      input.startsWith('\x1b[<') || // SGR mouse events
+      input.startsWith('\x1b[M') || // X10 mouse events
+      (input.startsWith('\x1b[') && input.length > 3) // other long escape sequences (wheel)
+    ) {
       return;
     }
     if (input === '\x03' || input.toLowerCase() === 'q') {
