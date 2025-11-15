@@ -1,4 +1,4 @@
-import { useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
+import { Fragment, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import type { JSX } from 'react';
 import { Box, Text, useApp, useInput, measureElement } from 'ink';
 import type { StatusPanelController } from './panel-controller.js';
@@ -128,6 +128,19 @@ function scriptColorFromExitCode(exitCode?: number | null): string {
   return palette.failure;
 }
 
+function postBuildColor(status?: string): string {
+  switch (status) {
+    case 'success':
+      return palette.success;
+    case 'failure':
+      return palette.failure;
+    case 'running':
+      return palette.warning;
+    default:
+      return palette.info;
+  }
+}
+
 function groupDirtyFiles(files: string[]): Array<{ dir: string; files: string[] }> {
   const limit = files.slice(0, 10);
   const groups = new Map<string, string[]>();
@@ -180,8 +193,11 @@ function TargetRow({ entry, selected }: { entry: TargetPanelEntry; selected: boo
         <Text color={selected ? palette.accent : undefined}>{entry.name}</Text>
         {!entry.enabled ? <Text color={palette.header}> (disabled)</Text> : null}
       </Box>
-      <Box width={14}>
-        <Text color={color}>{label}</Text>
+      <Box width={20}>
+        <Text color={color}>
+          {label}
+          {pending > 0 ? ` · +${pending} queued` : ''}
+        </Text>
       </Box>
       <Box width={16}>
         <Text>{formatRelativeTime(entry.status.lastBuild?.timestamp)}</Text>
@@ -189,13 +205,7 @@ function TargetRow({ entry, selected }: { entry: TargetPanelEntry; selected: boo
       <Box width={10}>
         <Text>{formatDuration(entry.status.lastBuild?.duration)}</Text>
       </Box>
-      <Box flexGrow={1}>
-        {pending > 0 ? (
-          <Text color={palette.warning}>+{pending} files queued</Text>
-        ) : (
-          <Text color={palette.header}></Text>
-        )}
-      </Box>
+      <Box flexGrow={1} />
     </Box>
   );
 }
@@ -366,6 +376,7 @@ export function PanelApp({ controller }: { controller: StatusPanelController }) 
     const sliceStart = Math.max(0, logLines.length - logTextCapacity);
     return logLines.slice(sliceStart);
   }, [logLines, logTextCapacity, shouldTailLogs]);
+  const hasLogLines = shouldTailLogs && displayedLogLines.length > 0;
 
   const statusScriptsByTarget = useMemo(() => {
     const targetMap = new Map<string, PanelStatusScriptResult[]>();
@@ -389,7 +400,6 @@ export function PanelApp({ controller }: { controller: StatusPanelController }) 
   );
 
   const horizontalRule = '─'.repeat(Math.max(20, columns - 2));
-  const hasLogLines = displayedLogLines.length > 0;
 
   return (
     <Box
@@ -468,17 +478,15 @@ export function PanelApp({ controller }: { controller: StatusPanelController }) 
           <Box width={10}>
             <Text color={palette.header}>Duration</Text>
           </Box>
-          <Box flexGrow={1}>
-            <Text color={palette.header}>Queued</Text>
-          </Box>
+          <Box flexGrow={1} />
         </Box>
-        <Text color={palette.line}>{'─'.repeat(Math.max(20, columns - 2))}</Text>
-        <Box flexDirection="column" gap={0}>
+        <Text color={palette.line}>{horizontalRule}</Text>
+        <Box flexDirection="column">
           {snapshot.targets.length === 0 ? (
             <Text color={palette.header}>No targets configured.</Text>
           ) : (
             snapshot.targets.map((entry, index) => (
-              <Box key={entry.name} flexDirection="column">
+              <Fragment key={entry.name}>
                 <TargetRow entry={entry} selected={index === selectedIndex} />
                 {statusScriptsByTarget.targetMap.get(entry.name)?.map((script, idx) => {
                   const scriptColor = scriptColorFromExitCode(script.exitCode);
@@ -500,7 +508,34 @@ export function PanelApp({ controller }: { controller: StatusPanelController }) 
                     </Box>
                   );
                 })}
-              </Box>
+                {Array.isArray(entry.status.postBuild) &&
+                  entry.status.postBuild.map((result, idx) => {
+                    const testColor = postBuildColor(result.status);
+                    const durationTag =
+                      result.durationMs !== undefined
+                        ? ` [${formatDurationShort(result.durationMs)}]`
+                        : '';
+                    const summary =
+                      result.summary ||
+                      `${result.name}: ${result.status ?? 'pending'}`.replace(/\s+/g, ' ');
+                    return (
+                      <Box key={`${entry.name}-test-${idx}`} flexDirection="column" paddingLeft={2}>
+                        <Text color={testColor}>
+                          {summary}
+                          {durationTag}
+                        </Text>
+                        {result.lines?.map((line, lineIndex) => (
+                          <Text
+                            key={`${entry.name}-test-${idx}-${lineIndex}`}
+                            color={testColor}
+                          >
+                            {lineIndex === 0 ? `  ${line}` : `  ${line}`}
+                          </Text>
+                        ))}
+                      </Box>
+                    );
+                  })}
+              </Fragment>
             ))
           )}
         </Box>

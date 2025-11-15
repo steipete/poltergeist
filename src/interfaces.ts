@@ -3,7 +3,7 @@
 import type { BaseBuilder } from './builders/index.js';
 import type { Logger } from './logger.js';
 import type { BuildNotifier } from './notifier.js';
-import type { PoltergeistState } from './state.js';
+import type { PoltergeistState, PostBuildResult } from './state.js';
 import type { BuildStatus, PoltergeistConfig, Target } from './types.js';
 
 /**
@@ -39,6 +39,11 @@ export interface IStateManager {
   readState(targetName: string): Promise<PoltergeistState | null>;
   updateState(targetName: string, updates: Partial<PoltergeistState>): Promise<void>;
   updateBuildStatus(targetName: string, buildStatus: BuildStatus): Promise<void>;
+  updatePostBuildResult(
+    targetName: string,
+    hookName: string,
+    updates: Partial<PostBuildResult>
+  ): Promise<void>;
   forceUnlock(targetName: string): Promise<boolean>;
   removeState(targetName: string): Promise<void>;
   isLocked(targetName: string): Promise<boolean>;

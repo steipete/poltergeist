@@ -37,6 +37,16 @@ export interface StatusObject {
   };
   enabled?: boolean;
   type?: string;
+  postBuild?: Array<{
+    name: string;
+    status?: 'pending' | 'running' | 'success' | 'failure';
+    summary?: string;
+    lines?: string[];
+    startedAt?: string;
+    completedAt?: string;
+    durationMs?: number;
+    exitCode?: number;
+  }>;
 }
 
 export type StatusMap = Record<string, unknown>;

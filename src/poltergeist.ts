@@ -29,6 +29,7 @@ import { expandGlobPatterns } from './utils/glob-utils.js';
 import { ProcessManager } from './utils/process-manager.js';
 import { WatchmanClient } from './watchman.js';
 import { WatchmanConfigManager } from './watchman-config.js';
+import { PostBuildRunner } from './post-build/post-build-runner.js';
 
 interface TargetState {
   target: Target;
@@ -38,6 +39,7 @@ interface TargetState {
   pendingFiles: Set<string>;
   buildTimer?: NodeJS.Timeout;
   runner?: ExecutableRunner;
+  postBuildRunner?: PostBuildRunner;
 }
 
 interface ConfigChanges {
@@ -207,12 +209,24 @@ export class Poltergeist {
         });
       }
 
+      const postBuildRunner =
+        target.postBuild && target.postBuild.length > 0
+          ? new PostBuildRunner({
+              targetName: target.name,
+              hooks: target.postBuild,
+              projectRoot: this.projectRoot,
+              stateManager: this.stateManager,
+              logger: this.logger,
+            })
+          : undefined;
+
       this.targetStates.set(target.name, {
         target,
         builder,
         watching: false,
         pendingFiles: new Set(),
         runner,
+        postBuildRunner,
       });
 
       // Register with intelligent build queue if enabled
@@ -485,6 +499,11 @@ export class Poltergeist {
           state.runner.onBuildFailure(status);
         }
       }
+      if (BuildStatusManager.isSuccess(status)) {
+        state.postBuildRunner?.onBuildResult('success');
+      } else if (BuildStatusManager.isFailure(status)) {
+        state.postBuildRunner?.onBuildResult('failure');
+      }
 
       // Send notification
       if (this.notifier) {
@@ -528,6 +547,7 @@ export class Poltergeist {
       const state = this.targetStates.get(targetName);
       if (state) {
         await state.runner?.stop();
+        await state.postBuildRunner?.stop();
         state.builder.stop();
         this.targetStates.delete(targetName);
         await this.stateManager.removeState(targetName);
@@ -536,6 +556,7 @@ export class Poltergeist {
       // Stop all targets
       for (const state of this.targetStates.values()) {
         await state.runner?.stop();
+        await state.postBuildRunner?.stop();
         state.builder.stop();
       }
       this.targetStates.clear();
@@ -577,6 +598,9 @@ export class Poltergeist {
           pendingFiles: state.pendingFiles.size,
           buildStats: stateFile.buildStats,
           buildCommand: targetConfig?.buildCommand,
+          postBuild: stateFile.postBuildResults
+            ? Object.values(stateFile.postBuildResults)
+            : undefined,
         };
       } else if (stateFile) {
         const targetConfig = this.config.targets.find((t) => t.name === targetName);
@@ -598,26 +622,32 @@ export class Poltergeist {
         const stateFile = await this.stateManager.readState(target.name);
 
         if (state && stateFile) {
-          status[target.name] = {
-            status: state.watching ? 'watching' : 'idle',
-            enabled: target.enabled,
-            type: target.type,
-            process: stateFile.process,
-            lastBuild: stateFile.lastBuild || state.lastBuild,
-            appInfo: stateFile.appInfo,
-            pendingFiles: state.pendingFiles.size,
-            buildStats: stateFile.buildStats,
-            buildCommand: target.buildCommand,
-          };
-        } else if (stateFile) {
-          status[target.name] = {
-            status: stateFile.process.isActive ? 'running' : 'stopped',
-            enabled: target.enabled,
-            type: target.type,
-            process: stateFile.process,
-            lastBuild: stateFile.lastBuild,
-            appInfo: stateFile.appInfo,
-            buildStats: stateFile.buildStats,
+        status[target.name] = {
+          status: state.watching ? 'watching' : 'idle',
+          enabled: target.enabled,
+          type: target.type,
+          process: stateFile.process,
+          lastBuild: stateFile.lastBuild || state.lastBuild,
+          appInfo: stateFile.appInfo,
+          pendingFiles: state.pendingFiles.size,
+          buildStats: stateFile.buildStats,
+          buildCommand: target.buildCommand,
+          postBuild: stateFile.postBuildResults
+            ? Object.values(stateFile.postBuildResults)
+            : undefined,
+        };
+      } else if (stateFile) {
+        status[target.name] = {
+          status: stateFile.process.isActive ? 'running' : 'stopped',
+          enabled: target.enabled,
+          type: target.type,
+          process: stateFile.process,
+          lastBuild: stateFile.lastBuild,
+          appInfo: stateFile.appInfo,
+          buildStats: stateFile.buildStats,
+          postBuild: stateFile.postBuildResults
+            ? Object.values(stateFile.postBuildResults)
+            : undefined,
             buildCommand: target.buildCommand,
           };
         } else {

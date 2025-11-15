@@ -11,6 +11,18 @@ import { type ProcessInfo, ProcessManager } from './utils/process-manager.js';
 
 // Re-export ProcessInfo for compatibility
 export type { ProcessInfo } from './utils/process-manager.js';
+export interface PostBuildResult {
+  name: string;
+  status: 'pending' | 'running' | 'success' | 'failure';
+  summary?: string;
+  lines?: string[];
+  startedAt?: string;
+  completedAt?: string;
+  durationMs?: number;
+  exitCode?: number;
+  formatterError?: string;
+  trigger?: 'success' | 'failure';
+}
 
 export interface AppInfo {
   bundleId?: string;
@@ -44,6 +56,7 @@ export interface PoltergeistState {
     command: string;
     timestamp: string;
   };
+  postBuildResults?: Record<string, PostBuildResult>;
 }
 
 export class StateManager implements IStateManager {
@@ -199,6 +212,35 @@ export class StateManager implements IStateManager {
 
     // Store error context in state
     state.lastBuildError = errorContext;
+    await this.writeState(targetName);
+  }
+
+  public async updatePostBuildResult(
+    targetName: string,
+    hookName: string,
+    updates: Partial<PostBuildResult>
+  ): Promise<void> {
+    const state = this.states.get(targetName);
+    if (!state) {
+      this.logger.error(`No state found for target: ${targetName}`);
+      return;
+    }
+
+    if (!state.postBuildResults) {
+      state.postBuildResults = {};
+    }
+
+    const existing = state.postBuildResults[hookName] || {
+      name: hookName,
+      status: 'pending',
+    };
+
+    state.postBuildResults[hookName] = {
+      ...existing,
+      ...updates,
+      name: hookName,
+    };
+
     await this.writeState(targetName);
   }
 

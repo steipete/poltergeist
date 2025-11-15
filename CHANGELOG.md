@@ -4,7 +4,7 @@ All notable changes to Poltergeist will be documented in this file.
 
 ## [Unreleased]
 
-- TBD.
+- Added per-target `postBuild` hooks so long-running test suites can run automatically after successful builds; results are persisted in state, surfaced by `poltergeist status`, and rendered inline in the panel with JSON/formatter support and the new queued-file display baked into the Status column.
 
 ## [2.2.0] - 2025-11-15
 

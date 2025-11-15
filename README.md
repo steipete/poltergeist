@@ -104,6 +104,7 @@ Need a full-screen dashboard? Run `poltergeist status panel` (or `poltergeist pa
 
 - **Adaptive git summaries**: Poltergeist polls `git status`/`git diff` every 5 s and either lists dirty files or—when `--git-mode ai` or `POLTERGEIST_GIT_MODE=ai` is set—shows a Claude-generated summary of the most important diffs.
 - **Status scripts**: Each project can list lightweight health checks under `statusScripts`. Peekaboo, for example, prints `SwiftLint: 0 errors / 0 warnings [31s]` under the `peekaboo` target so you can spot lint regressions instantly.
+- **Post-build tests**: Targets can declare `postBuild` commands that run automatically after a successful build; the panel renders their summaries (for example `Swift tests: success [2m]`) as second lines under the target.
 - **Log-aware layout**: Selecting a target scrolls its log tail into view and the controls bar stays pinned to the last row, keeping the terminal clean.
 
 See [docs/panel.md](docs/panel.md) for configuration details and troubleshooting tips (this is the status panel tracker the team keeps up-to-date).

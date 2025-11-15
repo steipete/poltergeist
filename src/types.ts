@@ -25,6 +25,19 @@ export type TargetType =
   | 'cmake-library'
   | 'cmake-custom';
 
+export type PostBuildRunCondition = 'success' | 'failure' | 'always';
+
+export interface PostBuildCommandConfig {
+  name: string;
+  command: string;
+  runOn?: PostBuildRunCondition | PostBuildRunCondition[];
+  formatter?: string;
+  timeoutSeconds?: number;
+  env?: Record<string, string>;
+  cwd?: string;
+  maxLines?: number;
+}
+
 // Base target interface
 export interface BaseTarget {
   name: string;
@@ -38,6 +51,7 @@ export interface BaseTarget {
   backoffMultiplier?: number;
   debounceInterval?: number;
   icon?: string; // Path to icon file for notifications
+  postBuild?: PostBuildCommandConfig[];
 }
 
 // Executable target (CLI tools, binaries)
@@ -319,6 +333,25 @@ export const BaseTargetSchema = z.object({
   backoffMultiplier: z.number().optional(),
   debounceInterval: z.number().optional(),
   icon: z.string().optional(),
+  postBuild: z
+    .array(
+      z.object({
+        name: z.string().min(1),
+        command: z.string().min(1),
+        runOn: z
+          .union([
+            z.enum(['success', 'failure', 'always']),
+            z.array(z.enum(['success', 'failure', 'always'])),
+          ])
+          .optional(),
+        formatter: z.string().optional(),
+        timeoutSeconds: z.number().optional(),
+        env: z.record(z.string(), z.string()).optional(),
+        cwd: z.string().optional(),
+        maxLines: z.number().optional(),
+      })
+    )
+    .optional(),
 });
 
 export const ExecutableTargetSchema = BaseTargetSchema.extend({

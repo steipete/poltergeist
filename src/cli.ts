@@ -634,6 +634,25 @@ function formatTargetStatus(name: string, status: unknown, verbose?: boolean): v
   console.log(chalk.cyan(`Target: ${name}`));
   console.log(`  Status: ${formatStatus(statusObj.status || 'unknown')}`);
 
+  const formatShortDuration = (ms?: number): string | undefined => {
+    if (!ms || ms <= 0) {
+      return undefined;
+    }
+    if (ms < 1000) {
+      return `${ms}ms`;
+    }
+    const totalSeconds = Math.round(ms / 1000);
+    if (totalSeconds < 60) {
+      return `${totalSeconds}s`;
+    }
+    const minutes = Math.floor(totalSeconds / 60);
+    const seconds = totalSeconds % 60;
+    if (seconds === 0) {
+      return `${minutes}m`;
+    }
+    return `${minutes}m ${seconds}s`;
+  };
+
   // Process information
   if (statusObj.process) {
     const { pid, hostname, isActive, lastHeartbeat } = statusObj.process;
@@ -749,6 +768,24 @@ function formatTargetStatus(name: string, status: unknown, verbose?: boolean): v
         console.log(`      - ${timestamp}: ${duration}s`);
       });
     }
+  }
+
+  if (statusObj.postBuild?.length) {
+    console.log('  Post-build tasks:');
+    statusObj.postBuild.forEach((result) => {
+      const summary =
+        result.summary ||
+        `${result.name}: ${result.status ?? 'pending'}`.replace(/\s+/g, ' ');
+      const duration = formatShortDuration(result.durationMs);
+      const exitInfo =
+        result.exitCode !== undefined ? chalk.dim(` (exit ${result.exitCode})`) : '';
+      console.log(
+        `    - ${summary}${duration ? chalk.dim(` [${duration}]`) : ''}${exitInfo}`
+      );
+      result.lines?.slice(0, 3).forEach((line) => {
+        console.log(chalk.gray(`      ${line}`));
+      });
+    });
   }
 
   // Pending files

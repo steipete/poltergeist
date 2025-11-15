@@ -48,6 +48,39 @@ This document tracks the current behaviour and expectations for the Poltergeist 
 - Example from Peekaboo’s lint script:  
   `SwiftLint: 0 errors / 0 warnings [31s]`
 
+## Post-Build Tests
+
+Targets can define `postBuild` hooks that run automatically after a build finishes. Typical use: kick off long-running test suites only after a successful build and surface the results inline below the target row:
+
+```jsonc
+{
+  "name": "peekaboo",
+  "type": "executable",
+  "buildCommand": "./scripts/build-swift-debug.sh",
+  "outputPath": "./peekaboo",
+  "watchPaths": ["Core/PeekabooCore/**/*.swift"],
+  "postBuild": [
+    {
+      "name": "Swift tests",
+      "command": "./scripts/status-swifttests.sh",
+      "runOn": "success",
+      "timeoutSeconds": 1800,
+      "maxLines": 5
+    }
+  ]
+}
+```
+
+- `runOn`: defaults to `success`, but accepts `failure`, `always`, or an array (e.g. `["success","failure"]`).
+- Hooks execute in the project root (override with `cwd`) and inherit the daemon’s environment plus any `env` overrides.
+- Output parsing:
+  - If the command prints JSON (either the whole stdout or a single line prefixed with `POLTERGEIST_POSTBUILD_RESULT:`), the panel uses that structured summary (`{ "summary": "...", "lines": ["detail"], "status": "success" }`).
+  - Otherwise Poltergeist heuristically summarizes the command and shows the last few log lines.
+  - For full control, provide a `formatter` command; it receives the original stdout on stdin and should emit JSON with the same `summary/lines/status` shape.
+- Results persist in the state file (`postBuildResults`) so `poltergeist status --verbose` and the Ink panel can display them even if the panel wasn’t open during the run.
+
+Peekaboo wires `./scripts/status-swifttests.sh`, which streams `swift test` output via `./runner` and then prints a final `POLTERGEIST_POSTBUILD_RESULT:{...}` JSON line so the panel renders `Swift tests: success [33s]` plus the most relevant failures.
+
 ## Self-hosting / Hot Reload
 
 When working on Poltergeist itself:
