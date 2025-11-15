@@ -36,6 +36,7 @@ export class PanelApp {
     this.handleInput(input);
   });
   private readonly view = new PanelView();
+  private readonly profileEnabled = process.env.POLTERGEIST_PANEL_PROFILE === '1';
   private exitPromise?: Promise<void>;
   private exitResolver?: () => void;
   private unsubscribe?: () => void;
@@ -50,7 +51,7 @@ export class PanelApp {
   private logLines: string[] = [];
   private readonly handleTerminalResize = () => {
     if (!this.disposed) {
-      this.updateView();
+      this.updateView('resize');
     }
   };
 
@@ -75,7 +76,7 @@ export class PanelApp {
       this.exitResolver = resolve;
     });
 
-    this.updateView();
+    this.updateView('init');
 
     this.unsubscribe = this.controller.onUpdate((snapshot) => {
       this.handleSnapshot(snapshot);
@@ -126,7 +127,7 @@ export class PanelApp {
     } else if (this.selectedIndex >= next.targets.length) {
       this.selectedIndex = Math.max(0, next.targets.length - 1);
     }
-    this.updateView();
+    this.updateView('snapshot');
     this.queueLogRefresh();
     this.updateLogPolling();
   }
@@ -162,7 +163,7 @@ export class PanelApp {
       return;
     }
     this.selectedIndex = nextIndex;
-    this.updateView();
+    this.updateView('selection');
     this.queueLogRefresh();
     this.updateLogPolling();
   }
@@ -172,17 +173,25 @@ export class PanelApp {
     return status === 'building' || status === 'failure';
   }
 
-  private updateView(): void {
+  private updateView(reason: string = 'update'): void {
     const entry = this.snapshot.targets[this.selectedIndex];
     const shouldShowLogs = this.shouldShowLogs(entry);
+    const width = this.terminal.columns || 80;
+    const start = Date.now();
     this.view.update({
       snapshot: this.snapshot,
       selectedIndex: this.selectedIndex,
       logLines: shouldShowLogs ? this.logLines.slice(-LOG_DISPLAY_LIMIT) : [],
       shouldShowLogs,
       controlsLine: CONTROLS_LINE,
-      width: this.terminal.columns || 80,
+      width,
     });
+    const updateMs = Date.now() - start;
+    if (this.profileEnabled) {
+      this.logger.info(
+        `[PanelProfile] view update reason=${reason} width=${width} targets=${this.snapshot.targets.length} logLines=${shouldShowLogs ? this.logLines.length : 0} updateMs=${updateMs}`
+      );
+    }
     if (this.started) {
       this.tui.requestRender();
     }
@@ -190,6 +199,9 @@ export class PanelApp {
 
   private queueLogRefresh(): void {
     if (this.pendingLogRefresh) {
+      if (this.profileEnabled) {
+        this.logger.info('[PanelProfile] log refresh skipped (pending)');
+      }
       return;
     }
     this.pendingLogRefresh = (async () => {
@@ -205,18 +217,25 @@ export class PanelApp {
     const entry = this.snapshot.targets[this.selectedIndex];
     if (!entry || !this.shouldShowLogs(entry)) {
       this.logLines = [];
-      this.updateView();
+      this.updateView('logs-reset');
       return;
     }
     try {
+      const readStart = Date.now();
       const lines = await this.controller.getLogLines(entry.name, LOG_FETCH_LIMIT);
+      const readMs = Date.now() - readStart;
       this.logLines = lines.slice(-LOG_DISPLAY_LIMIT);
+      if (this.profileEnabled) {
+        this.logger.info(
+          `[PanelProfile] log refresh target=${entry.name} lines=${this.logLines.length} ms=${readMs}`
+        );
+      }
     } catch (error) {
       const message = error instanceof Error ? error.message : String(error);
       this.logLines = [`Failed to read log: ${message}`];
       this.logger.warn(`[Panel] Failed to read logs for ${entry.name}: ${message}`);
     }
-    this.updateView();
+    this.updateView('logs');
   }
 
   private updateLogPolling(): void {

@@ -39,6 +39,7 @@ export class StatusPanelController {
   private readonly statusPollMs: number;
   private scriptCache: Map<string, CachedStatusScript>;
   private readonly gitSummaryMode: 'list' | 'ai';
+  private readonly profileEnabled: boolean;
 
   constructor(private readonly options: PanelControllerOptions) {
     this.stateDir = FileSystemUtils.getStateDirectory();
@@ -60,6 +61,7 @@ export class StatusPanelController {
     this.gitPollMs = options.gitPollIntervalMs ?? 5000;
     this.statusPollMs = options.statusPollIntervalMs ?? 2000;
     this.scriptCache = new Map();
+    this.profileEnabled = process.env.POLTERGEIST_PANEL_PROFILE === '1';
     if (options.config.statusScripts?.length) {
       this.options.logger.info(
         `[Panel] Loaded ${options.config.statusScripts.length} status script(s)`
@@ -111,7 +113,8 @@ export class StatusPanelController {
     }
 
     await this.refreshStatus({ refreshGit: true, forceGit: true });
-    await this.refreshStatusScripts(true);
+    // Kick scripts asynchronously so the panel can render immediately.
+    void this.refreshStatusScripts(true);
     this.setupWatchers();
     this.statusInterval = setInterval(() => {
       void this.refreshStatus();
@@ -230,7 +233,11 @@ export class StatusPanelController {
     }
 
     this.refreshing = (async () => {
+      const totalStart = Date.now();
+      const fetchStart = totalStart;
       const statusMap = await this.options.fetchStatus();
+      const fetchMs = Date.now() - fetchStart;
+
       const targets = this.options.config.targets.map((target) => ({
         name: target.name,
         status: (statusMap[target.name] as StatusObject) || { status: 'unknown' },
@@ -240,10 +247,14 @@ export class StatusPanelController {
 
       const summary = this.computeSummary(targets);
       let git = this.snapshot.git;
+      let gitMs = 0;
       if (options?.refreshGit) {
+        const gitStart = Date.now();
         git = await this.gitCollector.refresh(this.options.projectRoot, options.forceGit);
+        gitMs = Date.now() - gitStart;
       }
 
+      const emitStart = Date.now();
       this.snapshot = {
         targets,
         summary,
@@ -256,8 +267,17 @@ export class StatusPanelController {
       };
 
       this.emitter.emit('update', { snapshot: this.snapshot });
+      const emitMs = Date.now() - emitStart;
+
+      const totalMs = Date.now() - totalStart;
+      if (this.profileEnabled) {
+        this.options.logger.info(
+          `[PanelProfile] refreshStatus total=${totalMs}ms fetch=${fetchMs}ms git=${gitMs}ms emit=${emitMs}ms`
+        );
+      }
+
       void this.refreshStatusScripts();
-  })().finally(() => {
+    })().finally(() => {
       this.refreshing = undefined;
     });
 
@@ -288,6 +308,7 @@ export class StatusPanelController {
     }
 
     this.scriptRefreshing = (async () => {
+      const totalStart = Date.now();
       const configs = this.options.config.statusScripts ?? [];
       const results: PanelStatusScriptResult[] = [];
       const now = Date.now();
@@ -299,10 +320,22 @@ export class StatusPanelController {
 
         if (!force && cache && now - cache.lastRun < cooldownMs) {
           results.push(cache.result);
+          if (this.profileEnabled) {
+            this.options.logger.info(
+              `[PanelProfile] script ${scriptConfig.label ?? scriptConfig.command} skipped (cache hit)`
+            );
+          }
           continue;
         }
 
+        const scriptStart = Date.now();
         const result = await this.runStatusScript(scriptConfig);
+        const scriptMs = Date.now() - scriptStart;
+        if (this.profileEnabled) {
+          this.options.logger.info(
+            `[PanelProfile] script ${scriptConfig.label ?? scriptConfig.command} ran in ${scriptMs}ms (exit ${result.exitCode ?? 0})`
+          );
+        }
         this.scriptCache.set(cacheKey, { lastRun: result.lastRun, result });
         results.push(result);
       }
@@ -313,6 +346,11 @@ export class StatusPanelController {
         lastUpdated: Date.now(),
       };
       this.emitter.emit('update', { snapshot: this.snapshot });
+      if (this.profileEnabled) {
+        this.options.logger.info(
+          `[PanelProfile] refreshStatusScripts total=${Date.now() - totalStart}ms scripts=${results.length}`
+        );
+      }
     })().finally(() => {
       this.scriptRefreshing = undefined;
     });
