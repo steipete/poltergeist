@@ -251,8 +251,31 @@ export function PanelApp({ controller }: { controller: StatusPanelController }) 
   }, [rows, columns, snapshot.targets.length]);
 
   const controlsLine = 'Controls: ↑/↓ move · r refresh · q quit';
-  const aiSummaryLines = snapshot.git.summary ?? [];
-  const hasAiSummary = aiSummaryLines.length > 0;
+  const parsedAiSummary = useMemo(() => {
+    const lines = [...(snapshot.git.summary ?? [])];
+    let detectedHeader: string | null = null;
+
+    const firstIndex = lines.findIndex((line) => line.trim().length > 0);
+    if (firstIndex !== -1) {
+      const rawLine = lines[firstIndex].trim();
+      const headerMatch = rawLine.match(/^(?![-*+])([^:]{3,80}):\s*(.*)$/);
+      if (headerMatch) {
+        detectedHeader = `${headerMatch[1].trim()}:`;
+        const remainder = headerMatch[2]?.trim() ?? '';
+        if (remainder.length > 0) {
+          lines[firstIndex] = remainder;
+        } else {
+          lines.splice(firstIndex, 1);
+        }
+      }
+    }
+
+    return {
+      lines,
+      header: detectedHeader,
+    };
+  }, [snapshot.git.summary]);
+  const hasAiSummary = parsedAiSummary.header !== null || parsedAiSummary.lines.length > 0;
 
   useEffect(() => {
     return controller.onUpdate((next) => {
@@ -502,8 +525,14 @@ export function PanelApp({ controller }: { controller: StatusPanelController }) 
       ) : null}
       {hasAiSummary ? (
         <Box flexDirection="column" marginTop={1} flexShrink={0}>
-          <Text color={palette.header}>AI summary of changed files:</Text>
-          <MarkdownSummary lines={aiSummaryLines} />
+          {parsedAiSummary.header ? (
+            <Text color={palette.header}>{parsedAiSummary.header}</Text>
+          ) : (
+            <Text color={palette.header}>AI summary of changed files:</Text>
+          )}
+          {parsedAiSummary.lines.length > 0 ? (
+            <MarkdownSummary lines={parsedAiSummary.lines} />
+          ) : null}
         </Box>
       ) : null}
       {statusScriptsByTarget.global.length > 0 && (
