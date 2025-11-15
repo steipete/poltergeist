@@ -348,6 +348,7 @@ export class StatusPanelController {
         lastRun: now,
         exitCode: 0,
         durationMs,
+        maxLines,
       };
     } catch (error) {
       const durationMs = Date.now() - start;
@@ -368,6 +369,7 @@ export class StatusPanelController {
               ? Number.parseInt(execError.code, 10)
               : null,
         durationMs,
+        maxLines,
       };
     }
   }

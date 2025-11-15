@@ -36,6 +36,7 @@ export interface PanelStatusScriptResult {
   lastRun: number;
   exitCode: number | null;
   durationMs: number;
+  maxLines?: number;
 }
 
 export interface PanelControllerOptions {
