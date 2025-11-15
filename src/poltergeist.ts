@@ -351,6 +351,13 @@ export class Poltergeist {
           exclusionExpressions
         );
 
+        targetNames.forEach((targetName) => {
+          const state = this.targetStates.get(targetName);
+          if (state) {
+            state.watching = true;
+          }
+        });
+
         this.logger.info(`👻 Watching ${targetNames.size} target(s): ${normalizedPattern}`);
       } catch (error) {
         this.logger.error(`❌ Invalid watch pattern "${pattern}": ${error}`);
