@@ -473,7 +473,7 @@ export function PanelApp({ controller }: { controller: StatusPanelController }) 
           </Box>
         </Box>
         <Text color={palette.line}>{'─'.repeat(Math.max(20, columns - 2))}</Text>
-        <Box flexDirection="column">
+        <Box flexDirection="column" gap={0}>
           {snapshot.targets.length === 0 ? (
             <Text color={palette.header}>No targets configured.</Text>
           ) : (
