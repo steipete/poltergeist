@@ -173,21 +173,6 @@ function TargetRow({ entry, selected }: { entry: TargetPanelEntry; selected: boo
   const status = entry.status.lastBuild?.status || entry.status.status || 'unknown';
   const { color, label } = statusColor(status);
   const pending = entry.status.pendingFiles ?? 0;
-  const isRunning = entry.status.process?.isActive;
-  const daemonLabel =
-    entry.status.process?.pid !== undefined && entry.status.process?.pid !== null
-      ? `daemon ${entry.status.process?.pid}`
-      : 'watching';
-  const processColor = isRunning
-    ? palette.success
-    : pending > 0
-      ? palette.warning
-      : palette.header;
-  const processText = isRunning
-    ? `${daemonLabel}${pending > 0 ? ` · +${pending}` : ''}`
-    : pending > 0
-      ? `${pending} pending`
-      : 'idle';
 
   return (
     <Box flexDirection="row">
@@ -205,7 +190,11 @@ function TargetRow({ entry, selected }: { entry: TargetPanelEntry; selected: boo
         <Text>{formatDuration(entry.status.lastBuild?.duration)}</Text>
       </Box>
       <Box flexGrow={1}>
-        <Text color={processColor}>{processText}</Text>
+        {pending > 0 ? (
+          <Text color={palette.warning}>+{pending} files queued</Text>
+        ) : (
+          <Text color={palette.header}></Text>
+        )}
       </Box>
     </Box>
   );
@@ -280,6 +269,17 @@ export function PanelApp({ controller }: { controller: StatusPanelController }) 
     };
   }, [snapshot.git.summary]);
   const hasAiSummary = parsedAiSummary.header !== null || parsedAiSummary.lines.length > 0;
+  const activeDaemons = snapshot.summary.activeDaemons ?? [];
+  const formattedDaemonIds = activeDaemons.map((id) => {
+    if (id.startsWith('target:')) {
+      return id.replace(/^target:/, '');
+    }
+    return /^\d+$/.test(id) ? `PID ${id}` : id;
+  });
+  const daemonLabelText =
+    snapshot.summary.running === 1 ? 'daemon running' : 'daemons running';
+  const daemonSuffix =
+    formattedDaemonIds.length > 0 ? ` (${formattedDaemonIds.join(', ')})` : '';
 
   useEffect(() => {
     return controller.onUpdate((next) => {
@@ -447,9 +447,8 @@ export function PanelApp({ controller }: { controller: StatusPanelController }) 
         </Text>
         <Text color={palette.muted}>
           Builds: {snapshot.summary.building} building · {snapshot.summary.failures} failed ·{' '}
-          {snapshot.summary.running}{' '}
-          {snapshot.summary.running === 1 ? 'daemon running' : 'daemons running'} · total{' '}
-          {snapshot.summary.totalTargets}
+          {snapshot.summary.running} {daemonLabelText}
+          {daemonSuffix} · total {snapshot.summary.totalTargets}
         </Text>
       </Box>
       <Box flexDirection="column" marginTop={1} flexShrink={0} minHeight={0}>
@@ -467,7 +466,7 @@ export function PanelApp({ controller }: { controller: StatusPanelController }) 
             <Text color={palette.header}>Duration</Text>
           </Box>
           <Box flexGrow={1}>
-            <Text color={palette.header}>Process</Text>
+            <Text color={palette.header}>Queued</Text>
           </Box>
         </Box>
         <Text color={palette.line}>{'─'.repeat(Math.max(20, columns - 2))}</Text>

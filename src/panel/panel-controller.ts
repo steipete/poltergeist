@@ -80,6 +80,7 @@ export class StatusPanelController {
         building: 0,
         failures: 0,
         running: 0,
+        activeDaemons: [],
       },
       git:
         this.gitCollector.getCached(options.projectRoot) ?? {
@@ -194,10 +195,11 @@ export class StatusPanelController {
         }
         return acc;
       },
-      { totalTargets: 0, building: 0, failures: 0, running: 0 }
+      { totalTargets: 0, building: 0, failures: 0, running: 0, activeDaemons: [] }
     );
 
     summary.running = activeDaemonKeys.size;
+    summary.activeDaemons = Array.from(activeDaemonKeys);
     return summary;
   }
 

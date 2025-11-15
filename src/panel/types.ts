@@ -15,6 +15,7 @@ export interface PanelSummary {
   building: number;
   failures: number;
   running: number;
+  activeDaemons?: string[];
 }
 
 export interface PanelSnapshot {
