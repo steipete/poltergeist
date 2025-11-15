@@ -11,9 +11,9 @@
  */
 
 import chalk from 'chalk';
-import { type ChildProcess, spawn } from 'child_process';
+import { execSync, type ChildProcess, spawn } from 'child_process';
 import { Command } from 'commander';
-import { existsSync, readFileSync, unwatchFile, watchFile } from 'fs';
+import { existsSync, readFileSync, statSync, unwatchFile, watchFile } from 'fs';
 import ora from 'ora';
 import { resolve as resolvePath } from 'path';
 import type { WriteStream } from 'tty';
@@ -61,6 +61,80 @@ function getStateFile(projectRoot: string, targetName: string): string | null {
     return FileSystemUtils.getStateFilePath(projectRoot, targetName);
   } catch {
     return null;
+  }
+}
+
+function resolveBinaryPath(targetName: string, projectRoot: string): string | null {
+  const possiblePaths = [
+    resolvePath(projectRoot, targetName),
+    resolvePath(projectRoot, `./${targetName}`),
+    resolvePath(projectRoot, `./build/${targetName}`),
+    resolvePath(projectRoot, `./dist/${targetName}`),
+    resolvePath(projectRoot, `./${targetName}.js`), // Cross-platform Node.js scripts
+    resolvePath(projectRoot, `./build/${targetName}.js`),
+    resolvePath(projectRoot, `./dist/${targetName}.js`),
+    resolvePath(projectRoot, `./${targetName.replace('-cli', '')}`), // Handle cli suffix
+    resolvePath(projectRoot, `./${targetName.replace('-cli', '')}.js`), // Handle cli suffix with .js
+    resolvePath(projectRoot, `./${targetName.replace('-app', '')}`), // Handle app suffix
+    resolvePath(projectRoot, `./${targetName.replace('-app', '')}.js`), // Handle app suffix with .js
+  ];
+
+  for (const path of possiblePaths) {
+    if (existsSync(path)) {
+      return path;
+    }
+  }
+
+  return null;
+}
+
+async function isBinaryFresh(
+  projectRoot: string,
+  targetName: string,
+  binaryPath: string | null
+): Promise<boolean> {
+  if (!binaryPath) {
+    return false;
+  }
+
+  const statePath = getStateFile(projectRoot, targetName);
+  if (!statePath || !existsSync(statePath)) {
+    return false;
+  }
+
+  try {
+    const state = FileSystemUtils.readJsonFileStrict<PoltergeistState>(statePath);
+    if (!state?.lastBuild || !BuildStatusManager.isSuccess(state.lastBuild)) {
+      return false;
+    }
+
+    const buildTime = new Date(state.lastBuild.timestamp).getTime();
+    const binMTime = statSync(binaryPath).mtimeMs;
+    if (Number.isNaN(buildTime) || binMTime + 1 < buildTime) {
+      return false;
+    }
+
+    try {
+      const head = execSync('git rev-parse HEAD', { cwd: projectRoot, stdio: 'pipe' })
+        .toString()
+        .trim();
+      if (state.lastBuild.gitHash && head && head !== state.lastBuild.gitHash) {
+        return false;
+      }
+
+      const status = execSync('git status --porcelain', { cwd: projectRoot, stdio: 'pipe' })
+        .toString()
+        .trim();
+      if (status.length > 0) {
+        return false;
+      }
+    } catch {
+      return false;
+    }
+
+    return true;
+  } catch {
+    return false;
   }
 }
 
@@ -673,58 +747,54 @@ async function executeStaleWithWarning(
   args: string[],
   options: { verbose: boolean }
 ): Promise<number> {
-  // Try common binary locations for the target
-  const possiblePaths = [
-    resolvePath(projectRoot, targetName),
-    resolvePath(projectRoot, `./${targetName}`),
-    resolvePath(projectRoot, `./build/${targetName}`),
-    resolvePath(projectRoot, `./dist/${targetName}`),
-    resolvePath(projectRoot, `./${targetName}.js`), // Cross-platform Node.js scripts
-    resolvePath(projectRoot, `./build/${targetName}.js`),
-    resolvePath(projectRoot, `./dist/${targetName}.js`),
-    resolvePath(projectRoot, `./${targetName.replace('-cli', '')}`), // Handle cli suffix
-    resolvePath(projectRoot, `./${targetName.replace('-cli', '')}.js`), // Handle cli suffix with .js
-    resolvePath(projectRoot, `./${targetName.replace('-app', '')}`), // Handle app suffix
-    resolvePath(projectRoot, `./${targetName.replace('-app', '')}.js`), // Handle app suffix with .js
-  ];
-
-  let binaryPath: string | null = null;
-  for (const path of possiblePaths) {
-    if (existsSync(path)) {
-      binaryPath = path;
-      break;
-    }
-  }
+  const binaryPath = resolveBinaryPath(targetName, projectRoot);
 
   if (!binaryPath) {
     console.error(
       chalk.red(poltergeistMessage('error', `Binary not found for target '${targetName}'`))
     );
     console.error(chalk.yellow('Tried the following locations:'));
-    for (const path of possiblePaths) {
+    for (const path of [
+      resolvePath(projectRoot, targetName),
+      resolvePath(projectRoot, `./${targetName}`),
+      resolvePath(projectRoot, `./build/${targetName}`),
+      resolvePath(projectRoot, `./dist/${targetName}`),
+      resolvePath(projectRoot, `./${targetName}.js`),
+      resolvePath(projectRoot, `./build/${targetName}.js`),
+      resolvePath(projectRoot, `./dist/${targetName}.js`),
+    ]) {
       console.error(chalk.gray(`   ${path}`));
     }
     console.error(chalk.yellow('   Try running: poltergeist start'));
     return 1;
   }
 
-  // Show warning banner
-  console.warn(chalk.yellow(poltergeistMessage('warning', '⚠ Executing potentially stale binary')));
-  console.warn(chalk.yellow('   The binary may be outdated. For fresh builds:'));
-  console.warn(chalk.yellow('   npm run poltergeist:haunt'));
-  console.warn('');
+  const fresh = await isBinaryFresh(projectRoot, targetName, binaryPath);
+
+  if (!fresh) {
+    console.warn(
+      chalk.yellow(poltergeistMessage('warning', '⚠ Executing potentially stale binary'))
+    );
+    console.warn(chalk.yellow('   The binary may be outdated. For fresh builds:'));
+    console.warn(chalk.yellow('   npm run poltergeist:haunt'));
+    console.warn('');
+  }
 
   if (options.verbose) {
     console.log(chalk.gray(poltergeistMessage('info', `Project root: ${projectRoot}`)));
     console.log(chalk.gray(poltergeistMessage('info', `Binary path: ${binaryPath}`)));
-    console.log(
-      chalk.yellow(poltergeistMessage('warning', '⚠ Status: Executing without build verification'))
-    );
+    if (!fresh) {
+      console.log(
+        chalk.yellow(
+          poltergeistMessage('warning', '⚠ Status: Executing without build verification')
+        )
+      );
+    }
   }
 
-  // Always show this message as tests depend on it
+  const freshnessLabel = fresh ? 'fresh' : 'potentially stale';
   console.log(
-    chalk.green(poltergeistMessage('success', `Running binary: ${targetName} (potentially stale)`))
+    chalk.green(poltergeistMessage('success', `Running binary: ${targetName} (${freshnessLabel})`))
   );
 
   return new Promise((resolve) => {
@@ -1059,11 +1129,25 @@ export async function runWrapper(targetName: string, args: string[], options: Pa
     // Check if Poltergeist is not running
     if (status === 'poltergeist-not-running') {
       poltergeistNotRunning = true;
+      const binaryPath = resolveBinaryPath(target.name, projectRoot);
+      const fresh = await isBinaryFresh(projectRoot, target.name, binaryPath);
+
       if (!isSilentTarget) {
-        console.warn(chalk.yellow('👻 [Poltergeist] ⚠ Executing potentially stale binary'));
-        console.warn(chalk.yellow('   The binary may be outdated. For fresh builds:'));
-        console.warn(chalk.yellow('   npm run poltergeist:haunt'));
-        console.warn('');
+        if (fresh) {
+          console.log(
+            chalk.green(
+              poltergeistMessage(
+                'success',
+                'Running recently-built binary (daemon offline; freshness verified)'
+              )
+            )
+          );
+        } else {
+          console.warn(chalk.yellow('👻 [Poltergeist] ⚠ Executing potentially stale binary'));
+          console.warn(chalk.yellow('   The binary may be outdated. For fresh builds:'));
+          console.warn(chalk.yellow('   npm run poltergeist:haunt'));
+          console.warn('');
+        }
       }
     }
 
