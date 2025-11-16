@@ -533,7 +533,7 @@ class PanelView extends Container {
           : undefined,
         rowSummaries,
         state.summaryModes,
-        state.activeSummaryKey,
+        state.summarySelected ? state.activeSummaryKey : undefined,
         snapshot
       )
     );
