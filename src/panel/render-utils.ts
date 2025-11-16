@@ -1,6 +1,7 @@
 import { homedir } from 'node:os';
 import chalk from 'chalk';
 import wrapAnsi from 'wrap-ansi';
+import type { SummaryModeOption } from './panel-state.js';
 import type { TargetRow } from './target-tree.js';
 import { boxLines, centerText, pad, truncateVisible } from './text-utils.js';
 import type { PanelSnapshot, PanelStatusScriptResult, PanelSummaryScriptResult } from './types.js';
@@ -161,7 +162,9 @@ export function formatTargets(
   scriptsByTarget: Map<string, PanelStatusScriptResult[]>,
   width: number,
   summaryRow?: { label: string; selected: boolean },
-  rowSummaries: Array<PanelSummaryScriptResult & { selected?: boolean }> = []
+  rowSummaries: Array<PanelSummaryScriptResult & { selected?: boolean }> = [],
+  summaryModes: SummaryModeOption[] = [],
+  activeSummaryKey?: string
 ): string {
   if (rows.length === 0) {
     return `${colors.header('No targets configured.')}\n${colors.muted('Hint: run poltergeist status to populate targets')}`;
@@ -201,14 +204,10 @@ export function formatTargets(
     const badge = formatStatusBadge(status, statusLabel, color);
     const timePart = lastBuild && lastBuild !== '—' ? color(lastBuild) : '';
     const durationPart = duration && duration !== '—' ? colors.muted(duration) : '';
-
-    let statusDetails = truncateVisible(badge, statusCol);
-    if (timePart) {
-      statusDetails = truncateVisible(`${statusDetails} ${timePart}`, statusCol);
-    }
-    if (durationPart) {
-      statusDetails = truncateVisible(`${statusDetails} · ${durationPart}`, statusCol);
-    }
+    const statusDetails = truncateVisible(
+      [badge, timePart, durationPart].filter(Boolean).join(' '),
+      statusCol
+    );
 
     const rowLine = `${pad(`${targetName}${enabledLabel}`, targetCol)}${pad(statusDetails, statusCol)}`;
     lines.push(rowLine);
@@ -244,9 +243,10 @@ export function formatTargets(
     });
   });
 
-  if (summaryRow) {
+  if (summaryRow && summaryModes.length > 0) {
     const summaryName = summaryRow.selected ? colors.accent(summaryRow.label) : summaryRow.label;
-    const summaryStatus = colors.muted('view');
+    const chips = formatSummaryChips(summaryModes, activeSummaryKey);
+    const summaryStatus = chips || colors.muted('no summary data');
     lines.push(`${pad(summaryName, targetCol)}${pad(summaryStatus, statusCol)}`);
   }
 
@@ -260,6 +260,26 @@ export function formatTargets(
   lines.push(divider);
 
   return lines.join('\n');
+}
+
+function formatSummaryChips(modes: SummaryModeOption[], activeSummaryKey?: string): string {
+  if (modes.length === 0) return '';
+  return modes
+    .map((mode) => {
+      const isActive = mode.key === activeSummaryKey;
+      const hasData = mode.hasData;
+      const symbol = isActive ? '⦿' : hasData ? '●' : '○';
+      const label = summaryChipLabel(mode);
+      const color = isActive ? colors.accent : hasData ? colors.text : colors.muted;
+      return color(`${symbol} ${label}`);
+    })
+    .join('  ');
+}
+
+function summaryChipLabel(mode: SummaryModeOption): string {
+  if (mode.type === 'ai') return 'AI';
+  if (mode.type === 'git') return 'Git';
+  return mode.summary?.label ?? (mode.label.replace(/^Summary\s*\(|\)$/g, '') || 'Custom');
 }
 
 function formatDaemonSuffix(activeDaemons: string[]): string {

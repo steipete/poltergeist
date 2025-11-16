@@ -56,6 +56,24 @@ describe('render utils', () => {
     expect(line).toMatch(/ThisIsAVeryLong.*…/);
   });
 
+  it('truncates status badges when columns are narrow', () => {
+    const now = Date.now();
+    const target: TargetPanelEntry = {
+      ...makeTarget('short'),
+      status: {
+        lastBuild: {
+          status: 'failure',
+          timestamp: new Date(now - 3_600_000).toISOString(),
+          duration: 12_345,
+        },
+      },
+    };
+    const rows = buildTargetRows([target]);
+    const text = formatTargets(rows, 0, new Map(), 26); // narrow: targetCol=18, statusCol=8
+    const statusPart = stripAnsiCodes(text.split('\n')[2]).slice(18);
+    expect(statusPart).toContain('…');
+  });
+
   it('renders compact header separators on narrow width', () => {
     const snapshot = {
       projectName: 'proj',
