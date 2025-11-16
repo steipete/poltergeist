@@ -1,5 +1,6 @@
 import type { Command } from 'commander';
 import { configurePolterCommand, getPolterDescription, parsePolterOptions } from '../../cli-shared/polter-command.js';
+import { loadRunWrapper } from '../loaders.js';
 
 export const registerPolterCommand = (program: Command): void => {
   const polterCommand = program.command('polter <target> [args...]').description(getPolterDescription());
@@ -7,7 +8,7 @@ export const registerPolterCommand = (program: Command): void => {
   configurePolterCommand(polterCommand);
 
   polterCommand.action(async (target: string, args: string[], options) => {
-    const { runWrapper } = await import('../../polter.js');
+    const runWrapper = await loadRunWrapper();
     const parsedOptions = parsePolterOptions(options);
     await runWrapper(target, args, parsedOptions);
   });

@@ -9,6 +9,7 @@ import { ghost, poltergeistMessage } from '../../utils/ghost.js';
 import { printBuildLockHints } from '../status-formatters.js';
 import { validateTarget } from '../../utils/target-validator.js';
 import { loadConfigOrExit, exitWithError } from '../shared.js';
+import { createBuilderForTarget, instantiateStateManager, loadDaemonManager } from '../loaders.js';
 import type { Target } from '../../types.js';
 
 export const registerDaemonCommands = (program: Command): void => {
@@ -94,7 +95,7 @@ export const registerDaemonCommands = (program: Command): void => {
             return;
           }
 
-          const { DaemonManager } = await import('../../daemon/daemon-manager.js');
+          const { DaemonManager } = await loadDaemonManager();
           const daemon = new DaemonManager(logger);
 
           if (await daemon.isDaemonRunning(projectRoot)) {
@@ -187,7 +188,7 @@ export const registerDaemonCommands = (program: Command): void => {
       }
 
       try {
-        const { DaemonManager } = await import('../../daemon/daemon-manager.js');
+        const { DaemonManager } = await loadDaemonManager();
         const daemon = new DaemonManager(logger);
 
         if (!(await daemon.isDaemonRunning(projectRoot))) {
@@ -217,7 +218,7 @@ export const registerDaemonCommands = (program: Command): void => {
       const logger = createLogger(config.logging?.level || 'info');
 
       try {
-        const { DaemonManager } = await import('../../daemon/daemon-manager.js');
+        const { DaemonManager } = await loadDaemonManager();
         const daemon = new DaemonManager(logger);
 
         const isRunning = await daemon.isDaemonRunning(projectRoot);
@@ -292,10 +293,8 @@ export const registerDaemonCommands = (program: Command): void => {
 
         console.log(chalk.cyan(`🔨 Building ${target.name}...`));
 
-        const { createBuilder } = await import('../../builders/index.js');
-        const { StateManager } = await import('../../state.js');
-        const stateManager = new StateManager(projectRoot, logger);
-        const builder = createBuilder(target, projectRoot, logger, stateManager);
+        const stateManager = await instantiateStateManager(projectRoot, logger);
+        const builder = await createBuilderForTarget(target, projectRoot, logger, stateManager);
 
         const startTime = Date.now();
         let lockHintShown = false;

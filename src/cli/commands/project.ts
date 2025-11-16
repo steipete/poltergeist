@@ -4,12 +4,13 @@ import chalk from 'chalk';
 import type { Command } from 'commander';
 import { augmentConfigWithDetectedTargets, findXcodeProjects, generateDefaultConfig, guessBundleId } from '../init-helpers.js';
 import { loadConfigOrExit, exitWithError } from '../shared.js';
-import { createLogger, type Logger } from '../../logger.js';
+import { createLogger } from '../../logger.js';
 import { WatchmanConfigManager } from '../../watchman-config.js';
 import { CMakeProjectAnalyzer } from '../../utils/cmake-analyzer.js';
 import { FileSystemUtils } from '../../utils/filesystem.js';
 import { ghost, poltergeistMessage } from '../../utils/ghost.js';
 import type { AppBundleTarget, PoltergeistConfig, ProjectType, Target } from '../../types.js';
+import { instantiateStateManager } from '../loaders.js';
 
 export const registerProjectCommands = (program: Command): void => {
   program
@@ -294,26 +295,8 @@ export const registerProjectCommands = (program: Command): void => {
           return state;
         };
 
-        const instantiateStateManager = () => {
-          if (typeof StateManager !== 'function') {
-            throw new Error('StateManager is not constructible');
-          }
-
-          try {
-            return (StateManager as unknown as (projectRoot: string, logger: Logger) => any)(
-              fallbackProjectRoot,
-              logger
-            );
-          } catch (error) {
-            if (error instanceof TypeError && error.message.includes('class constructor')) {
-              return new StateManager(fallbackProjectRoot, logger);
-            }
-            throw error;
-          }
-        };
-
         for (const file of stateFiles) {
-          const stateManager = instantiateStateManager();
+          const stateManager = await instantiateStateManager(fallbackProjectRoot, logger);
           const targetName = deriveTargetName(file);
           const state = await readStateForFile(stateManager, file, targetName);
 
