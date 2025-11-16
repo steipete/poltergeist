@@ -890,7 +890,9 @@ function normalizeScriptLine(
   const lowerLine = line.toLowerCase();
   const lowerLabel = label.toLowerCase();
   const looksLikeSwiftLint =
-    lowerLabel.includes('swiftlint') || lowerLine.startsWith('swiftlint') || lowerLine.includes('swiftlint:');
+    lowerLabel.includes('swiftlint') ||
+    lowerLine.startsWith('swiftlint') ||
+    lowerLine.includes('swiftlint:');
 
   if (looksLikeSwiftLint && isFirstLine && (exitCode ?? 0) === 0) {
     const zeroMatch = /swiftlint:\s*0\s+errors\s*\/\s*0\s+warnings/i;
