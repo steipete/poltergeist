@@ -20,6 +20,7 @@ import {
   getSummaryModes,
   hasSummaryRow,
   resolveSummaryMode,
+  type SummaryModeOption,
   getLogChannels as stateLogChannels,
   getSelectedChannel as stateSelectedChannel,
   syncLogChannelState,

@@ -1,3 +1,4 @@
+import type { SummaryModeOption } from './panel-state.js';
 import {
   findSummaryByMode,
   getRowSummaries,
@@ -37,6 +38,7 @@ export interface PanelViewState {
   width: number;
   summaryRowLabel?: string;
   summarySelected: boolean;
+  summaryModes: SummaryModeOption[];
   customSummary?: PanelSummaryScriptResult;
   rowSummaries: PanelSummaryScriptResult[];
   summaryInfo: SummaryRenderInfo;
@@ -102,6 +104,7 @@ export const buildPanelViewState = (input: BuildViewStateInput): PanelViewState 
     width,
     height,
     snapshot,
+    summaryModes,
     summaryInfo,
     controlsLine,
     selectedRowIndex,
@@ -124,6 +127,7 @@ export const buildPanelViewState = (input: BuildViewStateInput): PanelViewState 
     width,
     summaryRowLabel: getSummaryLabel(summaryModes, resolvedSummaryMode),
     summarySelected: viewingSummary,
+    summaryModes,
     customSummary: viewingCustomRow ?? findSummaryByMode(summaryModes, resolvedSummaryMode),
     rowSummaries,
     summaryInfo,
@@ -138,6 +142,7 @@ function computeLogDisplayLimit({
   width,
   height,
   snapshot,
+  summaryModes,
   summaryInfo,
   controlsLine,
   selectedRowIndex,
@@ -149,6 +154,7 @@ function computeLogDisplayLimit({
   width: number;
   height: number;
   snapshot: PanelSnapshot;
+  summaryModes: SummaryModeOption[];
   summaryInfo: SummaryRenderInfo;
   controlsLine: string;
   selectedRowIndex: number;
@@ -159,7 +165,7 @@ function computeLogDisplayLimit({
 }): number {
   const rows = buildTargetRows(snapshot.targets);
   const headerText = formatHeader(snapshot, width);
-  const summaryLabel = getSummaryLabel(getSummaryModes(snapshot), summaryMode);
+  const summaryLabel = getSummaryLabel(summaryModes, summaryMode);
   const customStart = rows.length + (summaryIndex !== null ? 1 : 0);
   const rowSummariesWithSelection = rowSummaries.map((row, idx) => ({
     ...row,
@@ -172,7 +178,9 @@ function computeLogDisplayLimit({
     scriptsSplit.scriptsByTarget,
     width,
     summaryLabel ? { label: summaryLabel, selected: selectedRowIndex === summaryIndex } : undefined,
-    rowSummariesWithSelection
+    rowSummariesWithSelection,
+    summaryModes,
+    summaryMode
   );
   const globalScriptsText = formatGlobalScripts(scriptsSplit.globalScripts, width);
   const footerText = formatFooter(controlsLine, width); // Always render as the last block.

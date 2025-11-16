@@ -6,6 +6,7 @@ export interface SummaryModeOption {
   label: string;
   type: 'ai' | 'git' | 'custom';
   summary?: PanelSummaryScriptResult;
+  hasData: boolean;
 }
 
 export const getLogChannels = (target: TargetPanelEntry | undefined): string[] => {
@@ -44,10 +45,14 @@ export const getSelectedChannel = (
 export const getSummaryModes = (snapshot: PanelSnapshot): SummaryModeOption[] => {
   const modes: SummaryModeOption[] = [];
   if (hasAiSummary(snapshot)) {
-    modes.push({ key: 'ai', label: 'Summary (AI)', type: 'ai' });
+    modes.push({ key: 'ai', label: 'Summary (AI)', type: 'ai', hasData: true });
+  } else {
+    modes.push({ key: 'ai', label: 'Summary (AI)', type: 'ai', hasData: false });
   }
   if (hasDirtySummary(snapshot)) {
-    modes.push({ key: 'git', label: 'Summary (Git)', type: 'git' });
+    modes.push({ key: 'git', label: 'Summary (Git)', type: 'git', hasData: true });
+  } else {
+    modes.push({ key: 'git', label: 'Summary (Git)', type: 'git', hasData: false });
   }
   for (const summary of getSummarySummaries(snapshot)) {
     modes.push({
@@ -55,6 +60,9 @@ export const getSummaryModes = (snapshot: PanelSnapshot): SummaryModeOption[] =>
       label: `Summary (${summary.label})`,
       type: 'custom',
       summary,
+      hasData:
+        (summary.lines ?? []).some((line) => line.trim().length > 0) ||
+        (summary.exitCode ?? 0) !== 0,
     });
   }
   return modes;
