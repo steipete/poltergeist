@@ -503,10 +503,10 @@ function formatSummary(snapshot: PanelSnapshot, mode: HeaderMode = 'full'): stri
   }`;
 
   if (mode === 'narrow') {
-    return `${colors.muted('B:')} ${buildingText} · ${colors.muted('F:')} ${failureText} · ${colors.muted('D:')} ${daemonText}`;
+    return `${buildingText} · ${failureText} · ${daemonText}`;
   }
 
-  return `${colors.muted('Builds:')} ${buildingText} · ${failureText} · ${daemonText}${daemonSuffix ? ` ${daemonSuffix}` : ''}`;
+  return `${buildingText} · ${failureText} · ${daemonText}${daemonSuffix ? ` ${daemonSuffix}` : ''}`;
 }
 
 function pad(text: string, width: number): string {
