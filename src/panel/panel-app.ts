@@ -408,7 +408,17 @@ const colors = {
   info: (value: string) => chalk.hex(palette.info)(value),
 };
 
+type HeaderMode = 'full' | 'compact' | 'narrow';
+
+function getHeaderMode(width?: number): HeaderMode {
+  if (!width) return 'full';
+  if (width < 70) return 'narrow';
+  if (width < 90) return 'compact';
+  return 'full';
+}
+
 function formatHeader(snapshot: PanelSnapshot, width?: number): string {
+  const mode = getHeaderMode(width);
   const branch = snapshot.git.branch ?? 'unknown';
   const dirtyFiles = snapshot.git.hasRepo ? snapshot.git.dirtyFiles : Number.NaN;
   const insertions = snapshot.git.hasRepo ? snapshot.git.insertions : Number.NaN;
@@ -419,28 +429,39 @@ function formatHeader(snapshot: PanelSnapshot, width?: number): string {
 
   const projectRoot = snapshot.projectRoot.replace(homedir(), '~');
   const projectLine = `${colors.text(snapshot.projectName)} — ${colors.muted(projectRoot)}`;
+  const branchLabel = mode === 'full' ? 'Branch:' : 'Br:';
+  const dirtyLabel = mode === 'full' ? 'Dirty files:' : 'Dirty:';
+  const deltaLabel = mode === 'full' ? 'ΔLOC:' : 'Δ:';
+  const separator = mode === 'narrow' ? colors.muted(' · ') : colors.muted(' | ');
   const branchLine = [
-    `${colors.muted('Branch:')} ${colors.text(branch)}`,
-    `${colors.muted('Dirty files:')} ${
+    `${colors.muted(branchLabel)} ${colors.text(branch)}`,
+    `${colors.muted(dirtyLabel)} ${
       snapshot.git.hasRepo ? dirtyColor(String(dirtyFiles)) : colors.info('n/a')
     }`,
-    `${colors.muted('ΔLOC:')} ${
+    `${colors.muted(deltaLabel)} ${
       snapshot.git.hasRepo
         ? `${insertColor(`+${insertions}`)} ${colors.muted('/')} ${deleteColor(`-${deletions}`)}`
         : colors.info('n/a')
     }`,
-  ].join(`  ${colors.muted('|')}  `);
+  ].join(`  ${separator}  `);
 
-  const summaryLine = formatSummary(snapshot);
+  const summaryLine = formatSummary(snapshot, mode);
 
   const lines = [projectLine, branchLine, summaryLine];
-  const centered = lines.map((line) => centerText(line, width ? width - 2 : undefined));
-  return boxLines(centered, width);
+  const mapLine =
+    mode === 'narrow'
+      ? (line: string) => line
+      : (line: string) => centerText(line, width ? width - 2 : undefined);
+  const mapped = lines.map(mapLine);
+  return boxLines(mapped, width);
 }
 
-function formatSummary(snapshot: PanelSnapshot): string {
-  const daemonLabel = snapshot.summary.running === 1 ? 'daemon running' : 'daemons running';
-  const daemonSuffix = formatDaemonSuffix(snapshot.summary.activeDaemons ?? []);
+function formatSummary(snapshot: PanelSnapshot, mode: HeaderMode = 'full'): string {
+  const daemonLabel = snapshot.summary.running === 1 ? 'daemon' : 'daemons';
+  const daemonSuffix =
+    mode === 'full' && snapshot.summary.running > 0
+      ? formatDaemonSuffix(snapshot.summary.activeDaemons ?? [])
+      : '';
   const buildingText =
     snapshot.summary.building > 0
       ? colors.warning(`${snapshot.summary.building} building`)
@@ -460,7 +481,15 @@ function formatSummary(snapshot: PanelSnapshot): string {
       ? colors.success('0 failed')
       : colors.failure(failureParts.join(' + '));
 
-  return `${colors.muted('Builds:')} ${buildingText} · ${failureText} · ${snapshot.summary.running} ${daemonLabel}${daemonSuffix} · total ${snapshot.summary.totalTargets}`;
+  const daemonText = `${snapshot.summary.running}/${snapshot.summary.totalTargets} ${daemonLabel}${
+    snapshot.summary.running === 1 ? '' : 's'
+  }`;
+
+  if (mode === 'narrow') {
+    return `${colors.muted('B:')} ${buildingText} · ${colors.muted('F:')} ${failureText} · ${colors.muted('D:')} ${daemonText}`;
+  }
+
+  return `${colors.muted('Builds:')} ${buildingText} · ${failureText} · ${daemonText}${daemonSuffix ? ` ${daemonSuffix}` : ''}`;
 }
 
 function pad(text: string, width: number): string {
