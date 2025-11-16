@@ -225,6 +225,7 @@ export class PanelApp {
       return;
     }
     this.selectedIndex = nextIndex;
+    this.logMode = 'build';
     this.updateView('selection');
     this.queueLogRefresh();
     this.updateLogPolling();
@@ -266,6 +267,7 @@ export class PanelApp {
       summarySelected: viewingSummary,
       summaryInfo,
       logLimit,
+      logMode: this.logMode,
     });
     if (this.started) {
       this.tui.requestRender();
@@ -401,6 +403,28 @@ export class PanelApp {
     return undefined;
   }
 
+  private flipLogMode(direction: 'next' | 'prev'): void {
+    // Only meaningful when logs are visible.
+    const summaryIndex = this.getSummaryIndex(this.snapshot);
+    const viewingSummary = summaryIndex !== null && this.selectedIndex === summaryIndex;
+    const entry =
+      viewingSummary || this.selectedIndex < 0
+        ? undefined
+        : this.snapshot.targets[this.selectedIndex];
+    if (!entry || !this.shouldShowLogs(entry)) {
+      return;
+    }
+
+    const modes: Array<'build' | 'test'> = ['build', 'test'];
+    const currentIdx = modes.indexOf(this.logMode);
+    const nextIdx =
+      direction === 'next'
+        ? (currentIdx + 1) % modes.length
+        : (currentIdx - 1 + modes.length) % modes.length;
+    this.logMode = modes[nextIdx];
+    this.updateView('log-mode');
+  }
+
   private hasAiSummary(snapshot: PanelSnapshot): boolean {
     return (snapshot.git.summary ?? []).some((line) => line.trim().length > 0);
   }
@@ -435,6 +459,7 @@ interface PanelViewState {
   summarySelected: boolean;
   summaryInfo: SummaryRenderInfo;
   logLimit: number;
+  logMode: 'build' | 'test';
 }
 
 interface SummaryRenderInfo {
@@ -503,7 +528,11 @@ class PanelView extends Container {
     }
     if (state.shouldShowLogs) {
       const entry = snapshot.targets[selectedIndex];
-      this.logs.setText(formatLogs(entry, state.logLines, state.width, state.logLimit));
+      const filteredLogs =
+        state.logMode === 'test' ? filterTestLogs(state.logLines) : state.logLines;
+      this.logs.setText(
+        formatLogs(entry, filteredLogs, state.width, state.logLimit, state.logMode)
+      );
     } else {
       this.logs.setText('');
     }
@@ -731,6 +760,12 @@ function countLines(text: string): number {
   return text.split('\n').length;
 }
 
+function filterTestLogs(lines: string[]): string[] {
+  const matcher = /(Test\s|Suite\s|tests?\s|passed|failed)/i;
+  const filtered = lines.filter((line) => matcher.test(line));
+  return filtered.length > 0 ? filtered : lines;
+}
+
 function formatTargets(
   entries: TargetPanelEntry[],
   selectedIndex: number,
@@ -901,13 +936,16 @@ function formatLogs(
   entry: TargetPanelEntry | undefined,
   lines: string[],
   width: number,
-  maxLines: number
+  maxLines: number,
+  mode: 'build' | 'test'
 ): string {
   if (!entry) {
     return '';
   }
   const header = colors.header(
-    `Logs — ${entry.name}${entry.status.lastBuild?.status ? ` (${entry.status.lastBuild.status})` : ''}`
+    `Logs — ${entry.name}${entry.status.lastBuild?.status ? ` (${entry.status.lastBuild.status})` : ''}${
+      mode === 'test' ? ' [tests]' : ''
+    }`
   );
   const divider = colors.line('─'.repeat(Math.max(4, width)));
   const wrapped: string[] = [];
