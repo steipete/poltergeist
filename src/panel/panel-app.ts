@@ -411,14 +411,14 @@ export class PanelApp {
       return undefined;
     }
     if (mode === 'ai' && hasAI) {
-      return 'AI Summary';
+      return 'Summary (AI)';
     }
     if (mode === 'git' && hasGit) {
-      return 'Git Status';
+      return 'Summary (Git)';
     }
     // Fallback to whichever exists.
-    if (hasAI) return 'AI Summary';
-    if (hasGit) return 'Git Status';
+    if (hasAI) return 'Summary (AI)';
+    if (hasGit) return 'Summary (Git)';
     return undefined;
   }
 
