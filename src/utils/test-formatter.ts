@@ -9,18 +9,30 @@ export function formatTestOutput(
   formatter: FormatterKind = 'auto',
   command?: string
 ): string[] {
+  const sanitized = sanitizeLines(lines);
   const effective = resolveFormatter(formatter, command);
   if (effective === 'none' || !effective) return lines;
 
   if (effective === 'swift') {
-    const summary = summarizeSwift(lines);
-    return summary ? [summary] : lines;
+    const summary = summarizeSwift(sanitized);
+    return summary ? [summary] : sanitized;
   }
   if (effective === 'ts') {
-    const summary = summarizeTs(lines);
-    return summary ? [summary] : lines;
+    const summary = summarizeTs(sanitized);
+    return summary ? [summary] : sanitized;
   }
   return lines;
+}
+
+function sanitizeLines(lines: string[]): string[] {
+  return lines.map((l) =>
+    l
+      // Drop ANSI escapes
+      .replace(/[\\u001b]\[[0-?]*[ -/]*[@-~]/g, '')
+      // Drop leading icons/bullets
+      .replace(/^[^\w]+/u, '')
+      .trim()
+  );
 }
 
 function resolveFormatter(formatter: FormatterKind, command?: string): FormatterKind | null {
