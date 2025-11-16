@@ -228,8 +228,19 @@ export class PanelApp {
         this.dispose();
         return;
       }
+      if (lower === 'p') {
+        void this.controller.pause();
+        i += 1;
+        continue;
+      }
       if (lower === 'r') {
-        void this.controller.forceRefresh();
+        if (this.snapshot.paused) {
+          void this.controller.resume();
+        } else {
+          void this.controller.forceRefresh();
+        }
+        i += 1;
+        continue;
       }
       if (lower === 'b') {
         this.setLogViewMode('all');

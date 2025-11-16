@@ -4,7 +4,7 @@
  */
 
 import { createHash } from 'crypto';
-import { existsSync, readFileSync, writeFileSync } from 'fs';
+import { existsSync, readFileSync, writeFileSync, unlinkSync } from 'fs';
 import { tmpdir } from 'os';
 import { dirname, join, resolve as resolvePath, sep } from 'path';
 import { DEFAULT_LOG_CHANNEL, sanitizeLogChannel } from './log-channels.js';
@@ -75,6 +75,38 @@ export class FileSystemUtils {
   ): string {
     const fileName = FileSystemUtils.generateLogFileName(projectRoot, targetName, channel);
     return join(FileSystemUtils.getStateDirectory(), fileName);
+  }
+
+  /**
+   * Pause flag lives alongside state/log files so panel/daemon/CLI can flip it quickly.
+   */
+  public static getPauseFilePath(projectRoot: string): string {
+    const fileName = `${projectRoot.split(/[/\\]/).pop() || 'project'}-${this.projectHash(
+      projectRoot
+    )}.paused`;
+    return join(FileSystemUtils.getStateDirectory(), fileName);
+  }
+
+  public static readPauseFlag(projectRoot: string): boolean {
+    const pauseFile = FileSystemUtils.getPauseFilePath(projectRoot);
+    return existsSync(pauseFile);
+  }
+
+  public static writePauseFlag(projectRoot: string, paused: boolean): void {
+    const pauseFile = FileSystemUtils.getPauseFilePath(projectRoot);
+    if (paused) {
+      writeFileSync(pauseFile, 'paused', 'utf-8');
+    } else {
+      try {
+        unlinkSync(pauseFile);
+      } catch {
+        // ignore if missing
+      }
+    }
+  }
+
+  private static projectHash(projectRoot: string): string {
+    return createHash('sha256').update(projectRoot).digest('hex').substring(0, 6);
   }
 
   /**

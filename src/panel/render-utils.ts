@@ -6,7 +6,8 @@ import type { TargetRow } from './target-tree.js';
 import { centerText, pad, truncateVisible, visibleWidth } from './text-utils.js';
 import type { PanelSnapshot, PanelStatusScriptResult, PanelSummaryScriptResult } from './types.js';
 
-export const CONTROLS_LINE = 'Controls: ↑/↓ move · ←/→ cycle logs · r refresh · q quit';
+export const CONTROLS_LINE =
+  'Controls: ↑/↓ move · ←/→ cycle logs · p pause · r resume/refresh · q quit';
 
 const mono = process.env.POLTERGEIST_MONOCHROME === '1';
 
@@ -81,7 +82,12 @@ export function formatHeader(snapshot: PanelSnapshot, width?: number): string {
 
   const summaryLine = formatSummary(snapshot, mode);
 
-  const lines = [projectLine, branchLine, summaryLine];
+  const pausedLine = snapshot.paused
+    ? colors.warning('⏸ Auto-builds paused — press r to resume or run `poltergeist resume`')
+    : undefined;
+  const lines = [projectLine, pausedLine, branchLine, summaryLine].filter(
+    (line): line is string => Boolean(line)
+  );
   const wrapped = wrapAnsi(lines.join('\n'), Math.max(1, width ?? 80), {
     hard: false,
     trim: false,

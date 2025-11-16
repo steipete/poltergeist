@@ -34,6 +34,7 @@ export interface PanelSnapshot {
   lastUpdated: number;
   statusScripts?: PanelStatusScriptResult[];
   summaryScripts?: PanelSummaryScriptResult[];
+  paused?: boolean;
 }
 
 export interface PanelStatusScriptResult {

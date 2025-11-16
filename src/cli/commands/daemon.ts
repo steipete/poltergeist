@@ -6,6 +6,7 @@ import { createPoltergeist } from '../../factories.js';
 import { createLogger } from '../../logger.js';
 import type { Target } from '../../types.js';
 import { ConfigurationManager } from '../../utils/config-manager.js';
+import { FileSystemUtils } from '../../utils/filesystem.js';
 import { ghost, poltergeistMessage } from '../../utils/ghost.js';
 import { validateTarget } from '../../utils/target-validator.js';
 import { createBuilderForTarget, instantiateStateManager, loadDaemonManager } from '../loaders.js';
@@ -263,6 +264,29 @@ export const registerDaemonCommands = (program: Command): void => {
   applyTargetOption(restartCmd);
   applyLogLevelOptions(restartCmd);
 
+  const pauseCmd = program
+    .command('pause')
+    .description('Pause automatic builds/watch triggers (manual builds still run)')
+    .action(async (options) => {
+      const { config, projectRoot } = await loadConfigOrExit(options.config);
+      FileSystemUtils.writePauseFlag(projectRoot, true);
+      console.log(chalk.yellow(`${ghost.warning()} Auto-builds paused for ${config.projectType} project.`));
+      console.log(chalk.gray('Manual builds still run; press r in the panel or run `poltergeist resume` to re-enable.'));
+    });
+
+  applyConfigOption(pauseCmd);
+
+  const resumeCmd = program
+    .command('resume')
+    .description('Resume automatic builds/watch triggers')
+    .action(async (options) => {
+      const { projectRoot } = await loadConfigOrExit(options.config);
+      FileSystemUtils.writePauseFlag(projectRoot, false);
+      console.log(chalk.green(`${ghost.success()} Auto-builds resumed.`));
+    });
+
+  applyConfigOption(resumeCmd);
+
   program
     .command('build [target]')
     .description('Manually trigger a build for a target')
@@ -306,6 +330,13 @@ export const registerDaemonCommands = (program: Command): void => {
         const target = targetToBuild as Target;
 
         console.log(chalk.cyan(`🔨 Building ${target.name}...`));
+        if (FileSystemUtils.readPauseFlag(projectRoot)) {
+          console.log(
+            chalk.yellow(
+              `${ghost.warning()} Auto-builds are paused; this manual build will run anyway.`
+            )
+          );
+        }
 
         const stateManager = await instantiateStateManager(projectRoot, logger);
         const builder = await createBuilderForTarget(target, projectRoot, logger, stateManager);

@@ -120,6 +120,7 @@ export class StatusPanelController {
       projectRoot: options.projectRoot,
       preferredIndex: options.config.targets.length, // default to summary row when available
       lastUpdated: Date.now(),
+      paused: FileSystemUtils.readPauseFlag(options.projectRoot),
       statusScripts: [],
       summaryScripts: [],
     };
@@ -165,6 +166,16 @@ export class StatusPanelController {
   public async forceRefresh(): Promise<void> {
     await this.refreshStatus({ refreshGit: true, forceGit: true });
     await this.refreshStatusScripts(true);
+  }
+
+  public async pause(): Promise<void> {
+    FileSystemUtils.writePauseFlag(this.options.projectRoot, true);
+    await this.refreshStatus({ refreshGit: false });
+  }
+
+  public async resume(): Promise<void> {
+    FileSystemUtils.writePauseFlag(this.options.projectRoot, false);
+    await this.refreshStatus({ refreshGit: false });
   }
 
   public async getLogLines(
@@ -373,6 +384,7 @@ export class StatusPanelController {
       }));
 
       const summary = this.computeSummary(targets);
+      const paused = Boolean((statusMap as any)._paused);
       let git = this.snapshot.git;
       let gitMs = 0;
       if (options?.refreshGit) {
@@ -392,6 +404,7 @@ export class StatusPanelController {
         lastUpdated: Date.now(),
         statusScripts: this.snapshot.statusScripts,
         summaryScripts: this.snapshot.summaryScripts,
+        paused,
       };
 
       this.emitter.emit('update', { snapshot: this.snapshot });

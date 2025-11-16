@@ -28,6 +28,7 @@ import type {
 } from './types.js';
 import type { ConfigChanges } from './utils/config-diff.js';
 import { ConfigurationManager } from './utils/config-manager.js';
+import { FileSystemUtils } from './utils/filesystem.js';
 import { ProcessManager } from './utils/process-manager.js';
 import { WatchmanClient } from './watchman.js';
 import { WatchmanConfigManager } from './watchman-config.js';
@@ -61,6 +62,9 @@ export class Poltergeist {
   private lifecycle: TargetLifecycleManager;
   private lifecycleHooks: LifecycleHooks;
   private configReload: ConfigReloadOrchestrator;
+  private paused = false;
+  private pausePoll?: NodeJS.Timeout;
+  private lastPausedLog?: number;
 
   constructor(
     config: PoltergeistConfig,
@@ -132,6 +136,7 @@ export class Poltergeist {
 
     this.lifecycleHooks = new LifecycleHooks({ logger: this.logger });
     this.configReload = new ConfigReloadOrchestrator({ configPath });
+    this.paused = FileSystemUtils.readPauseFlag(projectRoot);
   }
 
   /**
@@ -191,14 +196,20 @@ export class Poltergeist {
 
     this.lifecycleHooks.notifyReady();
 
-    const initialBuilds = this.buildCoordinator.performInitialBuilds(this.targetStates);
-    if (waitForInitialBuilds) {
-      await initialBuilds;
+    if (this.paused) {
+      this.logger.info('⏸ Auto-builds are paused; skipping initial builds.');
     } else {
-      initialBuilds.catch((error) => {
-        this.logger.error('Initial builds failed while running in background:', error);
-      });
+      const initialBuilds = this.buildCoordinator.performInitialBuilds(this.targetStates);
+      if (waitForInitialBuilds) {
+        await initialBuilds;
+      } else {
+        initialBuilds.catch((error) => {
+          this.logger.error('Initial builds failed while running in background:', error);
+        });
+      }
     }
+
+    this.startPausePoll();
 
     this.logger.info('👻 [Poltergeist] is now watching for changes...');
 
@@ -317,6 +328,26 @@ export class Poltergeist {
 
     this.logger.debug(`Files changed: ${changedFiles.join(', ')}`);
 
+    if (this.paused) {
+      for (const targetName of targetNames) {
+        const state = this.targetStates.get(targetName);
+        if (!state) continue;
+        for (const file of changedFiles) {
+          state.pendingFiles.add(file);
+        }
+        if (state.buildTimer) {
+          clearTimeout(state.buildTimer);
+          state.buildTimer = undefined;
+        }
+      }
+      const now = Date.now();
+      if (!this.lastPausedLog || now - this.lastPausedLog > 5000) {
+        this.logger.info('⏸ Auto-builds are paused; changes queued until resume.');
+        this.lastPausedLog = now;
+      }
+      return;
+    }
+
     // Use intelligent build queue if available
     if (this.buildQueue && this.buildSchedulingConfig.prioritization.enabled) {
       const affectedTargets = targetNames
@@ -364,6 +395,11 @@ export class Poltergeist {
       this.isRunning = false;
     }
 
+    if (this.pausePoll) {
+      clearInterval(this.pausePoll);
+      this.pausePoll = undefined;
+    }
+
     this.logger.info('👻 [Poltergeist] Poltergeist is now at rest');
   }
 
@@ -374,6 +410,7 @@ export class Poltergeist {
 
   public async getStatus(targetName?: string): Promise<Record<string, unknown>> {
     const status = await this.statusPresenter.getStatus(this.config, this.targetStates);
+    status._paused = this.paused;
 
     if (this.buildQueue && this.buildSchedulingConfig.prioritization.enabled) {
       status._buildQueue = {
@@ -416,6 +453,44 @@ export class Poltergeist {
         `❌ Failed to reload configuration: ${error instanceof Error ? error.message : error}`
       );
     }
+  }
+
+  private startPausePoll(): void {
+    const pollMs = 2000;
+    const refresh = () => {
+      const diskPaused = FileSystemUtils.readPauseFlag(this.projectRoot);
+      if (diskPaused !== this.paused) {
+        this.applyPausedState(diskPaused, 'file');
+      }
+    };
+    refresh();
+    this.pausePoll = setInterval(refresh, pollMs);
+  }
+
+  private applyPausedState(next: boolean, source: 'file' | 'api'): void {
+    if (next === this.paused) return;
+    this.paused = next;
+    if (next) {
+      for (const state of this.targetStates.values()) {
+        if (state.buildTimer) {
+          clearTimeout(state.buildTimer);
+          state.buildTimer = undefined;
+        }
+      }
+      this.logger.info(source === 'api' ? '⏸ Auto-builds paused.' : '⏸ Auto-builds paused (file).');
+    } else {
+      this.logger.info(source === 'api' ? '▶️ Auto-builds resumed.' : '▶️ Auto-builds resumed (file).');
+      for (const [name, state] of this.targetStates.entries()) {
+        if (state.pendingFiles.size > 0) {
+          void this.buildCoordinator?.buildTarget(name, this.targetStates);
+        }
+      }
+    }
+  }
+
+  public setPauseFlag(paused: boolean): void {
+    FileSystemUtils.writePauseFlag(this.projectRoot, paused);
+    this.applyPausedState(paused, 'api');
   }
 
   /**
