@@ -609,7 +609,9 @@ class PanelView extends Container {
     if (state.shouldShowLogs) {
       const entry = snapshot.targets[selectedIndex];
       const filteredLogs =
-        state.logMode === 'test' ? filterTestLogs(state.logLines) : state.logLines;
+        state.logMode === 'test'
+          ? filterTestLogs(state.logLines)
+          : filterBuildLogs(state.logLines);
       this.logs.setText(
         formatLogs(entry, filteredLogs, state.width, state.logLimit, state.logMode)
       );
@@ -847,9 +849,16 @@ function limitSummaryLines(text: string, maxLines: number): string {
   return lines.slice(0, maxLines).join('\n');
 }
 
+const TEST_LOG_PATTERN =
+  /(^(✔|✗|●|○|\*)?\s*(Suite|Test)\s)|(\btests?\b)|(\bpassed\b)|(\bfailed\b)/i;
+
 function filterTestLogs(lines: string[]): string[] {
-  const matcher = /(Test\s|Suite\s|tests?\s|passed|failed)/i;
-  const filtered = lines.filter((line) => matcher.test(line));
+  const filtered = lines.filter((line) => TEST_LOG_PATTERN.test(line));
+  return filtered.length > 0 ? filtered : lines;
+}
+
+function filterBuildLogs(lines: string[]): string[] {
+  const filtered = lines.filter((line) => !TEST_LOG_PATTERN.test(line));
   return filtered.length > 0 ? filtered : lines;
 }
 
