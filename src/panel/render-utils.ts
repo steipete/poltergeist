@@ -163,7 +163,8 @@ export function formatTargets(
   summaryRow?: { label: string; selected: boolean },
   rowSummaries: Array<PanelSummaryScriptResult & { selected?: boolean }> = [],
   summaryModes: SummaryModeOption[] = [],
-  activeSummaryKey?: string
+  activeSummaryKey?: string,
+  snapshot?: PanelSnapshot
 ): string {
   if (rows.length === 0) {
     return `${colors.header('No targets configured.')}\n${colors.muted('Hint: run poltergeist status to populate targets')}`;
@@ -248,9 +249,10 @@ export function formatTargets(
 
   lines.push(divider);
 
-  if (summaryRow && summaryModes.length > 0) {
-    const chipKey = summaryRow.selected ? activeSummaryKey : undefined;
-    const chips = formatSummaryChips(summaryModes, chipKey, width, { center: true });
+  if (summaryRow && summaryModes.length > 0 && snapshot) {
+    const chips = formatSummaryChips(summaryModes, activeSummaryKey, width, snapshot, {
+      center: true,
+    });
     if (chips) {
       lines.push(chips);
     }
@@ -263,51 +265,35 @@ export function formatSummaryChips(
   modes: SummaryModeOption[],
   activeSummaryKey: string | undefined,
   width: number,
+  snapshot: PanelSnapshot,
   options: { center?: boolean } = {}
 ): string {
   const center = options.center ?? true;
   if (modes.length === 0) return '';
 
-  // Build pill strings first, then re-wrap if the line overflows.
-  const pills = modes.map((mode) => {
-    const isActive = mode.key === activeSummaryKey;
-    const hasData = mode.hasData;
-    const bullet = hasData ? '●' : '○';
-    const label = summaryChipLabel(mode);
-    const body = `${bullet} ${label}`;
-    const content = ` ${body} `;
-    const pill = isActive ? colors.accent(`[${content}]`) : colors.muted(`[${content}]`);
-    return { pill, width: visibleWidth(content) + 2 }; // +2 for brackets
+  const parts = modes.map((mode) => {
+    const count = summaryCount(mode, snapshot);
+    const suffix = count > 0 ? ` (${count})` : '';
+    const label = mode.type === 'ai' ? 'AI Summary' : mode.label;
+    const body = `${label}${suffix}`;
+    return mode.key === activeSummaryKey ? colors.accent(body) : colors.muted(body);
   });
 
-  const totalWidth = pills.reduce((sum, p) => sum + p.width + 1, 0); // +1 spacer between pills
-  const allPills = pills.map((p) => p.pill).join(' ');
-  if (totalWidth <= width || width < 30) {
-    return center ? centerText(allPills, width) : allPills;
-  }
-
-  // Wrap to next line if too wide; simple greedy wrap.
-  const lines: string[] = [];
-  let current: string[] = [];
-  let remaining = width;
-  for (const pill of pills) {
-    const pillWidth = pill.width + 1;
-    if (pillWidth > remaining && current.length > 0) {
-      lines.push(current.join(' '));
-      current = [];
-      remaining = width;
-    }
-    current.push(pill.pill);
-    remaining -= pillWidth;
-  }
-  if (current.length) {
-    lines.push(current.join(' '));
-  }
-  return lines.map((line) => (center ? centerText(line, width) : line)).join('\n');
+  const line = parts.join(' | ');
+  return center ? centerText(line, width) : line;
 }
 
-function summaryChipLabel(mode: SummaryModeOption): string {
-  return mode.label;
+function summaryCount(mode: SummaryModeOption, snapshot: PanelSnapshot): number {
+  if (mode.type === 'ai') {
+    return (snapshot.git.summary ?? []).filter((line) => line.trim().length > 0).length;
+  }
+  if (mode.type === 'git') {
+    return snapshot.git.dirtyFileNames?.length ?? snapshot.git.dirtyFiles ?? 0;
+  }
+  if (mode.summary?.lines) {
+    return mode.summary.lines.filter((line) => line.trim().length > 0).length;
+  }
+  return 0;
 }
 
 function formatDaemonSuffix(activeDaemons: string[]): string {

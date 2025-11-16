@@ -533,7 +533,8 @@ class PanelView extends Container {
           : undefined,
         rowSummaries,
         state.summaryModes,
-        state.activeSummaryKey
+        state.activeSummaryKey,
+        snapshot
       )
     );
     this.globalScripts.setText(formatGlobalScripts(globalScripts, state.width));
