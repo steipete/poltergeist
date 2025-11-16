@@ -986,7 +986,7 @@ program
         const statusObj = status[targetName] as StatusObject;
         if (statusObj.lastBuild?.status !== 'building') {
           console.log(chalk.yellow(`Target '${targetName}' is not currently building`));
-          return;
+          exitWithError(`Target '${targetName}' is not currently building`, 0);
         }
         targetToWait = targetName;
         targetStatus = statusObj;
