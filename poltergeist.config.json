@@ -26,7 +26,7 @@
       "watchPaths": ["src/**/*.ts"]
     },
     {
-      "name": "Polgergeist.app",
+      "name": "Poltergeist.app",
       "type": "app-bundle",
       "enabled": true,
       "platform": "macos",

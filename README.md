@@ -51,7 +51,7 @@ Poltergeist offers both a **CLI tool** for universal development and a **native 
 - **Manual Build Command**: Trigger builds explicitly with `poltergeist build [target]`
 - **Automatic Recovery**: Recent build failures trigger automatic rebuild attempts
 - **Efficient File Watching**: Powered by Facebook's Watchman with smart exclusions and performance optimization
-- **Intelligent Build Prioritization**: Having multiple projects that share code? Polgergeist will compile the right one first, based on which files you edited in the past
+- **Intelligent Build Prioritization**: Having multiple projects that share code? Poltergeist will compile the right one first, based on which files you edited in the past
 - **Automatic Project Configuration**: Just type `poltergeist init` and it'll parse your folder and set up the config.
 - **Native Notifications**: System notifications with customizable sounds and icon for build status
 - **Concurrent Build Protection**: Intelligent locking prevents overlapping builds
