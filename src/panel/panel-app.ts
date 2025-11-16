@@ -432,7 +432,8 @@ function formatHeader(snapshot: PanelSnapshot, width?: number): string {
   const branchLabel = 'Branch:';
   const dirtyLabel = mode === 'full' ? 'dirty files:' : 'dirty:';
   const deltaLabel = mode === 'full' ? 'ΔLOC:' : 'Δ:';
-  const separator = mode === 'narrow' ? colors.muted(' · ') : colors.muted(' | ');
+  const separator =
+    mode === 'narrow' ? colors.muted('·') : mode === 'compact' ? colors.muted(' · ') : colors.muted(' | ');
   const upstreamBadge = formatUpstreamBadge(snapshot.git, mode);
   const branchSegments = [
     `${colors.muted(branchLabel)} ${colors.text(branch)}`,
@@ -446,7 +447,8 @@ function formatHeader(snapshot: PanelSnapshot, width?: number): string {
         : colors.info('n/a')
     }`,
   ].filter(Boolean);
-  const branchLine = branchSegments.join(`  ${separator}  `);
+  const spacer = mode === 'narrow' ? colors.muted(' ') : '  ';
+  const branchLine = branchSegments.join(spacer + separator + spacer);
 
   const summaryLine = formatSummary(snapshot, mode);
 
