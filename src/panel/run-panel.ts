@@ -28,6 +28,9 @@ export async function runStatusPanel(options: RunPanelOptions): Promise<void> {
     if (!useAltBuffer) return;
     process.stdout.write('\x1b[?1049h'); // Switch to alt buffer
     process.stdout.write('\x1b[?25l'); // Hide cursor
+  };
+
+  const clearScreen = () => {
     process.stdout.write('\x1b[2J\x1b[H');
   };
 
@@ -38,6 +41,7 @@ export async function runStatusPanel(options: RunPanelOptions): Promise<void> {
   };
 
   enterAlternateBuffer();
+  clearScreen();
 
   const poltergeist = createPoltergeist(
     options.config,
