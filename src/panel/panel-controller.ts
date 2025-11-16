@@ -89,6 +89,7 @@ export class StatusPanelController {
         status: { status: 'unknown' },
         targetType: target.type,
         enabled: target.enabled,
+        group: target.group,
         // Normalize upfront so downstream UI can safely index into channels without re-validating.
         logChannels: normalizeLogChannels(target.logChannels),
       })),

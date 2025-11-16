@@ -53,6 +53,8 @@ export interface BaseTarget {
   icon?: string; // Path to icon file for notifications
   postBuild?: PostBuildCommandConfig[];
   logChannels?: string[];
+  /** Optional logical group used for panel tree rendering. */
+  group?: string;
 }
 
 // Executable target (CLI tools, binaries)
@@ -363,6 +365,7 @@ export const BaseTargetSchema = z.object({
   backoffMultiplier: z.number().optional(),
   debounceInterval: z.number().optional(),
   icon: z.string().optional(),
+  group: z.string().optional(),
   logChannels: z.array(z.string()).optional(),
   postBuild: z
     .array(

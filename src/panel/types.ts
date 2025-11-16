@@ -9,6 +9,7 @@ export interface TargetPanelEntry {
   targetType?: string;
   enabled?: boolean;
   logChannels?: string[];
+  group?: string;
 }
 
 export interface PanelSummary {

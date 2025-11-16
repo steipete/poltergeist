@@ -19,6 +19,7 @@ import {
   normalizeLogChannels,
 } from '../utils/log-channels.js';
 import type { StatusPanelController } from './panel-controller.js';
+import { buildTargetRows, type TargetRow } from './target-tree.js';
 import type {
   PanelSnapshot,
   PanelStatusScriptResult,
@@ -62,7 +63,8 @@ export class PanelApp {
   // Left/right while on summary toggles AI vs Git summary.
   private summaryMode: string = 'ai';
   private snapshot: PanelSnapshot;
-  private selectedIndex: number;
+  // Index within the flattened target list (tree order); may point to summary/custom rows.
+  private selectedRowIndex: number;
   private logLines: string[] = [];
   private logChannelLabel: string = DEFAULT_LOG_CHANNEL;
   private readonly handleTerminalResize = () => {
@@ -75,20 +77,21 @@ export class PanelApp {
     this.controller = options.controller;
     this.logger = options.logger;
     this.snapshot = this.controller.getSnapshot();
-    const summaryIndex = this.getSummaryIndex(this.snapshot);
-    if (this.snapshot.preferredIndex !== undefined && this.snapshot.targets.length > 0) {
-      this.selectedIndex = Math.min(
-        this.snapshot.preferredIndex,
-        Math.max(0, this.snapshot.targets.length - 1)
-      );
-    } else if (summaryIndex !== null) {
-      this.selectedIndex = summaryIndex;
+    const initialRows = buildTargetRows(this.snapshot.targets);
+    if (this.snapshot.preferredIndex !== undefined && initialRows.length > 0) {
+      const preferredTarget = this.snapshot.targets[this.snapshot.preferredIndex];
+      const preferredName = preferredTarget?.name;
+      const preferredIdx =
+        preferredName !== undefined
+          ? initialRows.findIndex((t) => t.target.name === preferredName)
+          : -1;
+      this.selectedRowIndex = preferredIdx >= 0 ? preferredIdx : 0;
     } else {
-      this.selectedIndex = 0;
+      this.selectedRowIndex = initialRows.length > 0 ? 0 : 0;
     }
     this.summaryMode = this.getDefaultSummaryMode(this.snapshot);
     this.syncLogChannelState(this.snapshot.targets);
-    this.logChannelLabel = this.getSelectedChannel(this.snapshot.targets[this.selectedIndex]);
+    this.logChannelLabel = this.getSelectedChannel(initialRows[this.selectedRowIndex]?.target);
 
     this.tui.addChild(this.view);
     // Input bridge never renders anything but receives all keyboard input.
@@ -152,22 +155,28 @@ export class PanelApp {
   private handleSnapshot(next: PanelSnapshot): void {
     this.snapshot = next;
     this.syncLogChannelState(next.targets);
-    const selectableCount = this.getSelectableCount(next);
-    const maxIndex = Math.max(0, selectableCount - 1);
+    const ordered = buildTargetRows(next.targets);
+    const totalRows =
+      ordered.length + (this.hasSummaryRow(next) ? 1 : 0) + this.getRowSummaries(next).length;
+    const maxIndex = Math.max(0, totalRows - 1);
     if (!this.userNavigated) {
-      const summaryIndex = this.getSummaryIndex(next);
       if (next.preferredIndex !== undefined && next.targets.length > 0) {
-        this.selectedIndex = Math.min(next.preferredIndex, next.targets.length - 1);
-      } else if (summaryIndex !== null) {
-        this.selectedIndex = summaryIndex;
+        const preferred = next.targets[next.preferredIndex];
+        const preferredIdx = ordered.findIndex((t) => t.target.name === preferred?.name);
+        this.selectedRowIndex =
+          preferredIdx >= 0 ? preferredIdx : Math.min(this.selectedRowIndex, maxIndex);
       } else {
-        this.selectedIndex = Math.min(this.selectedIndex ?? 0, maxIndex);
+        this.selectedRowIndex = Math.min(this.selectedRowIndex, maxIndex);
       }
-    } else if (this.selectedIndex > maxIndex) {
-      this.selectedIndex = maxIndex;
+    } else if (this.selectedRowIndex > maxIndex) {
+      this.selectedRowIndex = maxIndex;
     }
-    this.logChannelLabel = this.getSelectedChannel(this.snapshot.targets[this.selectedIndex]);
-    this.summaryMode = this.resolveSummaryMode(this.getSummaryModes(this.snapshot), this.summaryMode);
+    const selectedEntry = ordered[this.selectedRowIndex]?.target;
+    this.logChannelLabel = this.getSelectedChannel(selectedEntry);
+    this.summaryMode = this.resolveSummaryMode(
+      this.getSummaryModes(this.snapshot),
+      this.summaryMode
+    );
     this.updateView('snapshot');
     this.queueLogRefresh();
     this.updateLogPolling();
@@ -255,19 +264,24 @@ export class PanelApp {
   }
 
   private moveSelection(delta: number): void {
-    const maxIndex = Math.max(0, this.getSelectableCount(this.snapshot) - 1);
-    if (maxIndex === 0 && this.selectedIndex === 0) {
+    const ordered = buildTargetRows(this.snapshot.targets);
+    const totalRows =
+      ordered.length +
+      (this.hasSummaryRow(this.snapshot) ? 1 : 0) +
+      this.getRowSummaries(this.snapshot).length;
+    const maxIndex = Math.max(0, totalRows - 1);
+    if (maxIndex === 0 && this.selectedRowIndex === 0) {
       return;
     }
     this.userNavigated = true;
-    const nextIndex = Math.min(Math.max(this.selectedIndex + delta, 0), maxIndex);
-    if (nextIndex === this.selectedIndex) {
+    const nextIndex = Math.min(Math.max(this.selectedRowIndex + delta, 0), maxIndex);
+    if (nextIndex === this.selectedRowIndex) {
       return;
     }
-    this.selectedIndex = nextIndex;
+    this.selectedRowIndex = nextIndex;
     this.logViewMode = 'all';
     this.summaryMode = this.getDefaultSummaryMode(this.snapshot);
-    this.logChannelLabel = this.getSelectedChannel(this.snapshot.targets[this.selectedIndex]);
+    this.logChannelLabel = this.getSelectedChannel(ordered[this.selectedRowIndex]);
     this.updateView('selection');
     this.queueLogRefresh();
     this.updateLogPolling();
@@ -307,17 +321,35 @@ export class PanelApp {
     return channels[Math.min(Math.max(index, 0), channels.length - 1)];
   }
 
+  private getCurrentRowTarget(): TargetPanelEntry | undefined {
+    const rows = buildTargetRows(this.snapshot.targets);
+    if (this.selectedRowIndex < 0 || this.selectedRowIndex >= rows.length) {
+      return undefined;
+    }
+    return rows[this.selectedRowIndex]?.target;
+  }
+
   private updateView(_reason: string = 'update'): void {
+    const rows = buildTargetRows(this.snapshot.targets);
     const summaryModes = this.getSummaryModes(this.snapshot);
     this.summaryMode = this.resolveSummaryMode(summaryModes, this.summaryMode);
 
-    const selection = this.identifySelection(this.snapshot, this.selectedIndex);
-    const viewingSummary = selection.kind === 'summary';
-    const viewingCustomRow = selection.kind === 'row' ? selection.summary : undefined;
-    const entry = selection.kind === 'target' ? selection.target : undefined;
-    const shouldShowLogs = selection.kind === 'target' ? this.shouldShowLogs(entry) : false;
+    const summaryIndex = this.hasSummaryRow(this.snapshot) ? rows.length : null;
+    const rowSummaries = this.getRowSummaries(this.snapshot);
+    const customStart = rows.length + (summaryIndex !== null ? 1 : 0);
+    const viewingSummary = summaryIndex !== null && this.selectedRowIndex === summaryIndex;
+    const viewingCustomRow =
+      this.selectedRowIndex >= customStart
+        ? rowSummaries[this.selectedRowIndex - customStart]
+        : undefined;
+    const entry =
+      !viewingSummary && !viewingCustomRow && this.selectedRowIndex < rows.length
+        ? rows[this.selectedRowIndex]?.target
+        : undefined;
+    const shouldShowLogs = entry ? this.shouldShowLogs(entry) : false;
     const width = this.terminal.columns || 80;
     const height = this.terminal.rows || 24;
+    const controlsLine = renderControlsLine(width);
     const summaryInfo = this.computeSummaryLines(
       this.snapshot,
       viewingSummary || Boolean(viewingCustomRow),
@@ -329,19 +361,21 @@ export class PanelApp {
       height,
       snapshot: this.snapshot,
       summaryInfo,
+      controlsLine,
     });
     const logLimit = Math.max(0, logDisplayLimit);
     this.view.update({
       snapshot: this.snapshot,
-      selectedIndex: this.selectedIndex,
+      rows,
+      selectedRowIndex: this.selectedRowIndex,
       logLines: shouldShowLogs && logLimit > 0 ? this.logLines.slice(-logLimit) : [],
       shouldShowLogs,
-      controlsLine: CONTROLS_LINE,
+      controlsLine,
       width,
       summaryRowLabel: this.getSummaryLabel(summaryModes, this.summaryMode),
       summarySelected: viewingSummary,
       customSummary: viewingCustomRow ?? this.findSummaryByMode(summaryModes, this.summaryMode),
-      rowSummaries: this.getRowSummaries(this.snapshot),
+      rowSummaries,
       summaryInfo,
       logLimit,
       logChannel: this.logChannelLabel,
@@ -367,7 +401,7 @@ export class PanelApp {
   }
 
   private async refreshLogs(): Promise<void> {
-    const entry = this.snapshot.targets[this.selectedIndex];
+    const entry = this.getCurrentRowTarget();
     if (!entry || !this.shouldShowLogs(entry)) {
       this.logLines = [];
       this.logChannelLabel = DEFAULT_LOG_CHANNEL;
@@ -389,7 +423,7 @@ export class PanelApp {
   }
 
   private updateLogPolling(): void {
-    const entry = this.snapshot.targets[this.selectedIndex];
+    const entry = this.getCurrentRowTarget();
     const active =
       entry?.status.lastBuild?.status === 'building' || entry?.status.status === 'building';
     if (active && !this.logTimer) {
@@ -409,34 +443,38 @@ export class PanelApp {
     height,
     snapshot,
     summaryInfo,
+    controlsLine,
   }: {
     width: number;
     height: number;
     snapshot: PanelSnapshot;
     summaryInfo: SummaryRenderInfo;
+    controlsLine: string;
   }): number {
+    const rows = buildTargetRows(snapshot.targets);
     const headerText = formatHeader(snapshot, width);
     const summaryLabel = this.getSummaryLabel(this.getSummaryModes(snapshot), this.summaryMode);
-    const rowStart = this.getRowStartIndex(snapshot);
+    const summaryIndex = this.hasSummaryRow(snapshot) ? rows.length : null;
+    const customStart = rows.length + (summaryIndex !== null ? 1 : 0);
     const rowSummaries = this.getRowSummaries(snapshot).map((row, idx) => ({
       ...row,
-      selected: this.selectedIndex === rowStart + idx,
+      selected: this.selectedRowIndex === customStart + idx,
     }));
+    const scriptsSplit = splitStatusScripts(snapshot.statusScripts ?? []);
     const targetsText = formatTargets(
-      snapshot.targets,
-      this.selectedIndex,
-      splitStatusScripts(snapshot.statusScripts ?? []).scriptsByTarget,
+      rows,
+      this.selectedRowIndex,
+      scriptsSplit.scriptsByTarget,
       width,
-      summaryLabel ? { label: summaryLabel, selected: false } : undefined,
+      summaryLabel
+        ? { label: summaryLabel, selected: this.selectedRowIndex === summaryIndex }
+        : undefined,
       rowSummaries
     );
-    const globalScriptsText = formatGlobalScripts(
-      splitStatusScripts(snapshot.statusScripts ?? []).globalScripts,
-      width
-    );
+    const globalScriptsText = formatGlobalScripts(scriptsSplit.globalScripts, width);
     const footerText = (() => {
       const divider = colors.line('─'.repeat(Math.max(4, width)));
-      return `${divider}\n${colors.header(CONTROLS_LINE)}`;
+      return `${divider}\n${colors.header(controlsLine)}`;
     })();
 
     const nonLogLines =
@@ -531,8 +569,9 @@ export class PanelApp {
   }
 
   private flipLogModeOrSummary(direction: 'next' | 'prev'): void {
-    const summaryIndex = this.getSummaryIndex(this.snapshot);
-    const viewingSummary = summaryIndex !== null && this.selectedIndex === summaryIndex;
+    const rows = buildTargetRows(this.snapshot.targets);
+    const summaryIndex = this.hasSummaryRow(this.snapshot) ? rows.length : null;
+    const viewingSummary = summaryIndex !== null && this.selectedRowIndex === summaryIndex;
     if (viewingSummary) {
       const modes = this.getSummaryModes(this.snapshot);
       if (modes.length === 0) {
@@ -550,7 +589,7 @@ export class PanelApp {
     }
 
     // Toggle logs when not on summary.
-    const entry = this.snapshot.targets[this.selectedIndex];
+    const entry = this.getCurrentRowTarget();
     if (!entry || !this.shouldShowLogs(entry)) {
       return;
     }
@@ -582,12 +621,6 @@ export class PanelApp {
     return dirtyCount > 0 || names.length > 0;
   }
 
-  private hasCustomSummary(snapshot: PanelSnapshot): boolean {
-    return (snapshot.summaryScripts ?? []).some(
-      (summary) => summary.placement === 'summary' && summary.lines.length > 0
-    );
-  }
-
   private resolveSummaryMode(modes: SummaryModeOption[], desired: string): string {
     if (modes.length === 0) {
       return desired;
@@ -598,45 +631,12 @@ export class PanelApp {
   private hasSummaryRow(snapshot: PanelSnapshot): boolean {
     return this.getSummaryModes(snapshot).length > 0;
   }
-
-  private getSummaryIndex(snapshot: PanelSnapshot): number | null {
-    return this.hasSummaryRow(snapshot) ? snapshot.targets.length : null;
-  }
-
-  private getRowStartIndex(snapshot: PanelSnapshot): number {
-    const summaryIndex = this.getSummaryIndex(snapshot);
-    return summaryIndex !== null ? summaryIndex + 1 : snapshot.targets.length;
-  }
-
-  private getSelectableCount(snapshot: PanelSnapshot): number {
-    const summaryCount = this.hasSummaryRow(snapshot) ? 1 : 0;
-    return snapshot.targets.length + summaryCount + this.getRowSummaries(snapshot).length;
-  }
-
-  private identifySelection(
-    snapshot: PanelSnapshot,
-    index: number
-  ):
-    | { kind: 'target'; target: TargetPanelEntry }
-    | { kind: 'summary' }
-    | { kind: 'row'; summary: PanelSummaryScriptResult } {
-    const summaryIndex = this.getSummaryIndex(snapshot);
-    if (summaryIndex !== null && index === summaryIndex) {
-      return { kind: 'summary' };
-    }
-    const rowStart = this.getRowStartIndex(snapshot);
-    const rows = this.getRowSummaries(snapshot);
-    if (index >= rowStart && index < rowStart + rows.length) {
-      return { kind: 'row', summary: rows[index - rowStart] };
-    }
-    const target = snapshot.targets[index];
-    return { kind: 'target', target };
-  }
 }
 
 interface PanelViewState {
   snapshot: PanelSnapshot;
-  selectedIndex: number;
+  rows: TargetRow[];
+  selectedRowIndex: number;
   logLines: string[];
   shouldShowLogs: boolean;
   controlsLine: string;
@@ -690,19 +690,19 @@ class PanelView extends Container {
   }
 
   public update(state: PanelViewState): void {
-    const { snapshot, selectedIndex } = state;
+    const { snapshot } = state;
     const { scriptsByTarget, globalScripts } = splitStatusScripts(snapshot.statusScripts ?? []);
-    const summaryIndex = state.summaryRowLabel ? snapshot.targets.length : null;
-    const rowStart = summaryIndex !== null ? summaryIndex + 1 : snapshot.targets.length;
+    const summaryIndex = state.summaryRowLabel ? state.rows.length : null;
+    const rowStart = summaryIndex !== null ? summaryIndex + 1 : state.rows.length;
     const rowSummaries = state.rowSummaries.map((row, idx) => ({
       ...row,
-      selected: selectedIndex === rowStart + idx,
+      selected: state.selectedRowIndex === rowStart + idx,
     }));
     this.header.setText(formatHeader(snapshot, state.width));
     this.targets.setText(
       formatTargets(
-        snapshot.targets,
-        selectedIndex,
+        state.rows,
+        state.selectedRowIndex,
         scriptsByTarget,
         state.width,
         state.summaryRowLabel
@@ -762,7 +762,7 @@ class PanelView extends Container {
       this.aiMarkdown.setText('');
     }
     if (state.shouldShowLogs) {
-      const entry = snapshot.targets[selectedIndex];
+      const entry = state.rows[state.selectedRowIndex]?.target;
       const filteredLogs =
         state.logViewMode === 'tests'
           ? filterTestLogs(state.logLines)
@@ -974,6 +974,14 @@ function pad(text: string, width: number): string {
   return `${text}${' '.repeat(width - length)}`;
 }
 
+function renderControlsLine(width: number): string {
+  // Drop the leading label on narrow terminals to save space.
+  if (width < 60) {
+    return '↑/↓ move · ←/→ cycle · r refresh · q quit';
+  }
+  return CONTROLS_LINE;
+}
+
 function centerText(text: string, width?: number): string {
   if (!width) return text;
   const length = visibleWidth(text);
@@ -1024,14 +1032,14 @@ function filterBuildLogs(lines: string[]): string[] {
 }
 
 function formatTargets(
-  entries: TargetPanelEntry[],
+  rows: TargetRow[],
   selectedIndex: number,
   scriptsByTarget: Map<string, PanelStatusScriptResult[]>,
   width: number,
   summaryRow?: { label: string; selected: boolean },
   rowSummaries: Array<PanelSummaryScriptResult & { selected?: boolean }> = []
 ): string {
-  if (entries.length === 0) {
+  if (rows.length === 0) {
     return colors.header('No targets configured.');
   }
 
@@ -1045,11 +1053,21 @@ function formatTargets(
   lines.push(headerLine);
   lines.push(divider);
 
-  entries.forEach((entry, index) => {
+  rows.forEach((rowEntry, index) => {
+    const entry = rowEntry.target;
     const status = entry.status.lastBuild?.status || entry.status.status || 'unknown';
     const { color, label } = statusColor(status);
     const pending = entry.status.pendingFiles ?? 0;
-    const targetName = index === selectedIndex ? colors.accent(entry.name) : entry.name;
+    const prefixDepth = Math.max(0, rowEntry.depth - 1);
+    const connector =
+      rowEntry.depth === 0
+        ? ''
+        : rowEntry.connector === 'last' || rowEntry.connector === 'single'
+          ? '└─ '
+          : '├─ ';
+    const indent = rowEntry.depth > 0 ? '  '.repeat(prefixDepth) : '';
+    const displayName = `${indent}${connector}${entry.name}`;
+    const targetName = index === selectedIndex ? colors.accent(displayName) : displayName;
     const enabledLabel = entry.enabled ? '' : colors.header(' (disabled)');
     const statusLabel = pending > 0 ? `${label} · +${pending} queued` : label;
     const lastBuild = formatRelativeTime(entry.status.lastBuild?.timestamp);
@@ -1067,8 +1085,8 @@ function formatTargets(
       statusDetails += ` · ${durationPart}`;
     }
 
-    const row = `${pad(`${targetName}${enabledLabel}`, targetCol)}${pad(statusDetails, statusCol)}`;
-    lines.push(row);
+    const rowLine = `${pad(`${targetName}${enabledLabel}`, targetCol)}${pad(statusDetails, statusCol)}`;
+    lines.push(rowLine);
 
     const scriptLines =
       scriptsByTarget
@@ -1109,7 +1127,8 @@ function formatTargets(
 
   rowSummaries.forEach((row) => {
     const name = row.selected ? colors.accent(row.label) : row.label;
-    const status = row.exitCode && row.exitCode !== 0 ? colors.failure('needs attention') : colors.muted('view');
+    const status =
+      row.exitCode && row.exitCode !== 0 ? colors.failure('needs attention') : colors.muted('view');
     lines.push(`${pad(name, targetCol)}${pad(status, statusCol)}`);
   });
 
