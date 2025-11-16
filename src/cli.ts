@@ -261,9 +261,8 @@ program
         console.log(chalk.gray('Use "poltergeist stop" to stop watching'));
         flushLoggerIfPossible();
       } catch (error) {
-        console.error(chalk.red(poltergeistMessage('error', `Failed to start daemon: ${error}`)));
+        exitWithError(poltergeistMessage('error', `Failed to start daemon: ${error}`));
         flushLoggerIfPossible();
-        process.exit(1);
       }
     } else {
       // Foreground mode (traditional blocking behavior)
@@ -284,11 +283,8 @@ program
         const poltergeist = createPoltergeist(config, projectRoot, logger, configPath);
         await poltergeist.start(options.target);
       } catch (error) {
-        console.error(
-          chalk.red(poltergeistMessage('error', `Failed to start Poltergeist: ${error}`))
-        );
+        exitWithError(poltergeistMessage('error', `Failed to start Poltergeist: ${error}`));
         flushLoggerIfPossible();
-        process.exit(1);
       }
 
       flushLoggerIfPossible();
