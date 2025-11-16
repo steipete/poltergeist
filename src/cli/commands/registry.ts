@@ -56,7 +56,17 @@ export const COMMAND_DESCRIPTORS: CommandDescriptor[] = [
   {
     name: 'polter',
     register: registerPolterCommand,
-    options: [],
+    options: [
+      { flags: '-f, --force', description: 'Run even if build failed' },
+      { flags: '-w, --watch', description: 'Watch mode for polter' },
+      { flags: '--no-logs', description: 'Skip log tailing' },
+      { flags: '--log-lines <number>', description: 'Number of log lines to show' },
+      { flags: '-n, --no-wait', description: 'Do not wait for build completion' },
+      { flags: '-t, --timeout <ms>', description: 'Set build wait timeout in ms' },
+      { flags: '--restart-signal <signal>', description: 'Signal used for restarts' },
+      { flags: '--restart-delay <ms>', description: 'Delay before restart (ms)' },
+      { flags: '--verbose', description: 'Verbose output' },
+    ],
   },
   {
     name: 'version',
