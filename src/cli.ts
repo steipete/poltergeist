@@ -512,7 +512,13 @@ program
   .action(async (options) => {
     const { config, projectRoot, configPath } = await loadConfigurationOrExit(options.config);
     const logger = createLogger(options.verbose ? 'debug' : config.logging?.level || 'info');
-    const gitSummaryMode = parseGitSummaryModeOption(options.gitMode);
+    let gitSummaryMode: 'ai' | 'list' | undefined;
+    try {
+      gitSummaryMode = parseGitSummaryModeOption(options.gitMode);
+    } catch (error) {
+      console.error(chalk.red((error as Error).message));
+      process.exit(1);
+    }
     await runStatusPanel({
       config,
       projectRoot,
@@ -541,7 +547,13 @@ program
           console.error(chalk.red('--json is not compatible with the panel view.'));
           process.exit(1);
         }
-        const gitSummaryMode = parseGitSummaryModeOption(options.gitMode);
+        let gitSummaryMode: 'ai' | 'list' | undefined;
+        try {
+          gitSummaryMode = parseGitSummaryModeOption(options.gitMode);
+        } catch (error) {
+          console.error(chalk.red((error as Error).message));
+          process.exit(1);
+        }
 
         await runStatusPanel({
           config,

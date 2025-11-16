@@ -42,6 +42,5 @@ export function parseGitSummaryModeOption(value?: string): GitSummaryMode {
   if (normalized === 'ai' || normalized === 'list') {
     return normalized;
   }
-  console.error(chalk.red(`Invalid git mode "${value}". Use "ai" or "list".`));
-  process.exit(1);
+  throw new Error(`Invalid git mode "${value}". Use "ai" or "list".`);
 }
