@@ -18,16 +18,15 @@ Context: `src/cli.ts` was split into helper modules, but the entrypoint still mi
 3. **Config detection controls** ✅  
    - `augmentConfigWithDetectedTargets` takes `allowAutoAdd` and returns summaries; `init` prints what was auto-added; tests cover makefile + skip.
 
-4. **Error handling surface**  
-   - Replace scattered `process.exit(1)` in helpers with typed errors; top-level command actions should own exit decisions.  
-   - Add minimal integration tests to ensure messages stay identical while exits move to the boundary.  
-   - _Status_: **Deferred** — needs per-command treatment to avoid widening the CLI exit surface; tackle in small, command-scoped increments.
+4. **Error handling surface** ✅  
+   - All CLI codepaths now route through `exitWithError`; remaining direct exits are limited to the helper itself.
+   - Further integration tests still welcome to lock messaging, but exit surface is centralized.
 
 5. **Version sourcing** ✅  
    - `cli/version.ts` now holds the constant imported by the entrypoint.
 
-6. **Coverage gaps**  
-   - Add focused tests for: `displayLogs` JSON output, `followLogs` tail-first behavior, init summary printing, and error-path messaging (build lock hints).
+6. **Coverage gaps** ⏳  
+   - Added tests for `parseLogLine` and `displayLogs` JSON/empty cases plus init auto-detection; still room to cover `wait`/`build` error messaging and lock-hint paths.
 
 ## Next Steps
 - Implement items 1–3 in small PR-sized batches, keeping behavior stable and tests green.
