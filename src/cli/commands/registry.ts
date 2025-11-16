@@ -40,6 +40,7 @@ export const COMMAND_DESCRIPTORS: CommandDescriptor[] = [
       { flags: '-t, --target <name>', description: 'Target to filter status/logs' },
       { flags: '--verbose', description: 'Show detailed status information' },
       { flags: '--json', description: 'Output status/logs/wait as JSON where supported' },
+      { flags: '--git-mode <mode>', description: 'Git summary mode (ai | list)' },
     ],
     aliases: ['panel', 'logs', 'wait'],
   },
@@ -71,6 +72,7 @@ export const COMMAND_DESCRIPTORS: CommandDescriptor[] = [
   {
     name: 'version',
     register: registerVersionCommand,
+    options: [{ flags: '-v, --version', description: 'Show version' }],
   },
 ];
 
