@@ -433,7 +433,11 @@ function formatHeader(snapshot: PanelSnapshot, width?: number): string {
   const dirtyLabel = mode === 'full' ? 'dirty files:' : 'dirty:';
   const deltaLabel = mode === 'full' ? 'ΔLOC:' : 'Δ:';
   const separator =
-    mode === 'narrow' ? colors.muted('·') : mode === 'compact' ? colors.muted(' · ') : colors.muted(' | ');
+    mode === 'narrow'
+      ? colors.muted('·')
+      : mode === 'compact'
+        ? colors.muted(' · ')
+        : colors.muted(' | ');
   const upstreamBadge = formatUpstreamBadge(snapshot.git, mode);
   const branchSegments = [
     `${colors.muted(branchLabel)} ${colors.text(branch)}`,
@@ -842,9 +846,14 @@ function formatScriptLines(script: PanelStatusScriptResult, prefix = '', width =
   const selectedLines = script.lines.slice(0, limit).map(stripAnsiCodes);
   const durationTag = ` · ${formatDurationShort(script.durationMs ?? 0)}`;
   const coloredDuration = colors.muted(durationTag);
+  const hideLabel =
+    (script.targets?.length === 1 &&
+      script.label.toLowerCase().startsWith('tests') &&
+      script.lines.length > 0) ||
+    script.label.toLowerCase() === 'tests';
 
   if (selectedLines.length === 0) {
-    const line = `${scriptColor(`${prefix}${script.label}: (no output)`)}${coloredDuration}`;
+    const line = `${scriptColor(`${prefix}${hideLabel ? '' : `${script.label}: `}(no output)`)}${coloredDuration}`;
     return wrapAnsi(line, Math.max(1, width), {
       hard: false,
       trim: false,
@@ -853,7 +862,7 @@ function formatScriptLines(script: PanelStatusScriptResult, prefix = '', width =
   const block = selectedLines
     .map((line, index) =>
       index === 0
-        ? `${scriptColor(`${prefix}${script.label}: ${line}`)}${coloredDuration}`
+        ? `${scriptColor(`${prefix}${hideLabel ? '' : `${script.label}: `}${line}`)}${coloredDuration}`
         : `${scriptColor(`${prefix}  ${line}`)}`
     )
     .join('\n');

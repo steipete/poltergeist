@@ -30,6 +30,10 @@ Accepted values:
 - `"ts"`: force Vitest/Jest formatter.
 - `"none"`: disable formatting; show raw lines.
 
+## Defaults
+- Targets of type `"test"` and status scripts with `formatter` omitted use `"auto"`.
+- `formatter` is opt-out: set `"none"` if you want raw output.
+
 ## Notes
 - Formatting is applied to status script output only (build and post-build logs are untouched).
 - If the formatter cannot parse the output, Poltergeist falls back to the original lines.
