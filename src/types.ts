@@ -306,6 +306,7 @@ export interface StatusScriptConfig {
   cooldownSeconds?: number;
   timeoutSeconds?: number;
   maxLines?: number;
+  formatter?: 'auto' | 'none' | 'swift' | 'ts';
 }
 
 // Zod schemas for validation
@@ -509,6 +510,7 @@ export const StatusScriptConfigSchema = z.object({
   cooldownSeconds: z.number().min(1).default(60),
   timeoutSeconds: z.number().min(1).default(30),
   maxLines: z.number().min(1).max(10).default(1),
+  formatter: z.enum(['auto', 'none', 'swift', 'ts']).optional().default('auto'),
 });
 
 export const PoltergeistConfigSchema = z.object({

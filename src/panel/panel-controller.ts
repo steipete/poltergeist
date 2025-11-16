@@ -5,6 +5,7 @@ import { promisify } from 'util';
 import type { StatusObject } from '../status/types.js';
 import type { StatusScriptConfig } from '../types.js';
 import { FileSystemUtils } from '../utils/filesystem.js';
+import { formatTestOutput } from '../utils/test-formatter.js';
 import { GitMetricsCollector } from './git-metrics.js';
 import { LogTailReader } from './log-reader.js';
 import type {
@@ -406,9 +407,10 @@ export class StatusPanelController {
       const { stdout, stderr } = await execAsync(script.command, options);
       const durationMs = Date.now() - start;
       const lines = this.extractLines(stdout, stderr, maxLines);
+      const formatted = formatTestOutput(lines, script.formatter ?? 'auto', script.command);
       return {
         label: script.label,
-        lines,
+        lines: formatted,
         targets: script.targets,
         lastRun: now,
         exitCode: 0,
@@ -422,9 +424,10 @@ export class StatusPanelController {
       if (output.length === 0) {
         output.push(`Error: ${execError.message}`);
       }
+      const formatted = formatTestOutput(output, script.formatter ?? 'auto', script.command);
       return {
         label: script.label,
-        lines: output,
+        lines: formatted,
         targets: script.targets,
         lastRun: now,
         exitCode:
