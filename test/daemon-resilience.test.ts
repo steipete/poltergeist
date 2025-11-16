@@ -22,9 +22,10 @@ vi.mock('../src/utils/process-manager.js', () => ({
 import { fork } from 'child_process';
 import { ProcessManager } from '../src/utils/process-manager.js';
 
-const mockFork: ReturnType<typeof vi.fn> = fork as unknown as ReturnType<typeof vi.fn>;
-const mockIsProcessAlive: ReturnType<typeof vi.fn> =
-  ProcessManager.isProcessAlive as unknown as ReturnType<typeof vi.fn>;
+const mockFork: ReturnType<typeof vi.fn> = fork as ReturnType<typeof vi.fn>;
+const mockIsProcessAlive: ReturnType<typeof vi.fn> = ProcessManager.isProcessAlive as ReturnType<
+  typeof vi.fn
+>;
 
 const skipLongRuns = process.env.CI === 'true' || process.env.POLTERGEIST_COVERAGE_MODE === 'true';
 
