@@ -26,7 +26,7 @@ Context: `src/cli.ts` was split into helper modules, but the entrypoint still mi
    - `cli/version.ts` now holds the constant imported by the entrypoint.
 
 6. **Coverage gaps** ⏳  
-   - Added tests for `parseLogLine` and `displayLogs` JSON/empty cases plus init auto-detection; still room to cover `wait`/`build` error messaging and lock-hint paths.
+   - Added tests for `parseLogLine`, `displayLogs` JSON/empty cases, and init auto-detection; still room to cover remaining wait/build messaging and lock-hint paths.
 
 ## Next Steps
 - Implement items 1–3 in small PR-sized batches, keeping behavior stable and tests green.
