@@ -1,6 +1,7 @@
 import { IntelligentBuildQueue } from './build-queue.js';
 import { BuildCoordinator } from './core/build-coordinator.js';
 import { DebouncedBuildScheduler } from './core/debounced-build-scheduler.js';
+import { LifecycleHooks } from './core/lifecycle-hooks.js';
 import { StatusPresenter } from './core/status-presenter.js';
 import { TargetLifecycleManager } from './core/target-lifecycle.js';
 import type { TargetState } from './core/target-state.js';
@@ -52,13 +53,12 @@ export class Poltergeist {
   private buildQueue?: IntelligentBuildQueue;
   private priorityEngine?: PriorityEngine;
   private buildSchedulingConfig: BuildSchedulingConfig;
-  private readyHandlers: Array<() => void> = [];
-  private isReady = false;
   private watchService?: WatchService;
   private buildCoordinator?: BuildCoordinator;
   private statusPresenter: StatusPresenter;
   private debouncedScheduler: DebouncedBuildScheduler;
   private lifecycle: TargetLifecycleManager;
+  private lifecycleHooks: LifecycleHooks;
 
   constructor(
     config: PoltergeistConfig,
@@ -127,6 +127,8 @@ export class Poltergeist {
       stateManager: this.stateManager,
       builderFactory: this.builderFactory,
     });
+
+    this.lifecycleHooks = new LifecycleHooks({ logger: this.logger });
   }
 
   /**
@@ -137,15 +139,7 @@ export class Poltergeist {
   }
 
   public onReady(handler: () => void): void {
-    if (this.isReady) {
-      try {
-        handler();
-      } catch (error) {
-        this.logger.error('Ready handler failed:', error);
-      }
-      return;
-    }
-    this.readyHandlers.push(handler);
+    this.lifecycleHooks.onReady(handler);
   }
 
   public async start(targetName?: string, options?: PoltergeistStartOptions): Promise<void> {
@@ -192,7 +186,7 @@ export class Poltergeist {
       buildSchedulingConfig: this.buildSchedulingConfig,
     });
 
-    this.notifyReady();
+    this.lifecycleHooks.notifyReady();
 
     const initialBuilds = this.buildCoordinator.performInitialBuilds(this.targetStates);
     if (waitForInitialBuilds) {
@@ -209,22 +203,6 @@ export class Poltergeist {
       await this.stop();
       await this.cleanup();
     });
-  }
-
-  private notifyReady(): void {
-    if (this.isReady) {
-      return;
-    }
-    this.isReady = true;
-    const handlers = this.readyHandlers.slice();
-    this.readyHandlers = [];
-    for (const handler of handlers) {
-      try {
-        handler();
-      } catch (error) {
-        this.logger.error('Ready handler failed:', error);
-      }
-    }
   }
 
   private getTargetsToWatch(targetName?: string): Target[] {
