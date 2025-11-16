@@ -14,7 +14,7 @@ import { isMainModule } from './utils/paths.js';
 // This ensures the binary always reports its compiled version
 const packageJson = { version: '2.0.0', name: '@steipete/poltergeist' };
 
-import { loadConfigurationOrExit, parseGitSummaryModeOption } from './cli/configuration.js';
+import { loadConfiguration, parseGitSummaryModeOption } from './cli/configuration.js';
 import {
   augmentConfigWithDetectedTargets,
   findXcodeProjects,
@@ -46,6 +46,15 @@ import { WatchmanConfigManager } from './watchman-config.js';
 const { version } = packageJson;
 
 const program = new Command();
+
+const loadConfigOrExit = async (configPath?: string) => {
+  try {
+    return await loadConfiguration(configPath);
+  } catch (error) {
+    console.error(chalk.red((error as Error).message));
+    process.exit(1);
+  }
+};
 
 program
   .name('poltergeist')
@@ -117,7 +126,7 @@ program
   .option('--log-level <level>', 'Set log level (debug, info, warn, error)')
   .option('-f, --foreground', 'Run in foreground (blocking mode)')
   .action(async (options) => {
-    const { config, projectRoot, configPath } = await loadConfigurationOrExit(options.config);
+    const { config, projectRoot, configPath } = await loadConfigOrExit(options.config);
 
     // Validate target if specified
     let noEnabledTargets = false;
@@ -281,7 +290,7 @@ program
   .description('Stop Poltergeist daemon')
   .option('-c, --config <path>', 'Path to config file')
   .action(async (options) => {
-    const { config, projectRoot } = await loadConfigurationOrExit(options.config);
+    const { config, projectRoot } = await loadConfigOrExit(options.config);
     const logger = createLogger(config.logging?.level || 'info');
     const isTestMode = process.env.POLTERGEIST_TEST_MODE === 'true';
     if (isTestMode) {
@@ -336,7 +345,7 @@ program
   .action(async (options) => {
     console.log(chalk.gray(poltergeistMessage('info', 'Restarting...')));
 
-    const { config, projectRoot, configPath } = await loadConfigurationOrExit(options.config);
+    const { config, projectRoot, configPath } = await loadConfigOrExit(options.config);
     const logger = createLogger(config.logging?.level || 'info');
 
     try {
@@ -384,7 +393,7 @@ program
   .option('-f, --force', 'Force rebuild even if another build is running')
   .option('--json', 'Output result as JSON')
   .action(async (targetName, options) => {
-    const { config, projectRoot } = await loadConfigurationOrExit(options.config);
+    const { config, projectRoot } = await loadConfigOrExit(options.config);
     const logger = createLogger(options.verbose ? 'debug' : config.logging?.level || 'info');
 
     try {
@@ -510,7 +519,7 @@ program
   .option('--verbose', 'Enable verbose logging (same as --log-level debug)')
   .option('--git-mode <mode>', 'Git summary mode (ai | list)', 'ai')
   .action(async (options) => {
-    const { config, projectRoot, configPath } = await loadConfigurationOrExit(options.config);
+    const { config, projectRoot, configPath } = await loadConfigOrExit(options.config);
     const logger = createLogger(options.verbose ? 'debug' : config.logging?.level || 'info');
     let gitSummaryMode: 'ai' | 'list' | undefined;
     try {
@@ -537,7 +546,7 @@ program
   .option('--json', 'Output status as JSON')
   .option('--git-mode <mode>', 'Git summary mode (ai | list)', 'ai')
   .action(async (view: string | undefined, options) => {
-    const { config, projectRoot, configPath } = await loadConfigurationOrExit(options.config);
+    const { config, projectRoot, configPath } = await loadConfigOrExit(options.config);
 
     try {
       const logger = createLogger(config.logging?.level || 'info');
@@ -813,7 +822,7 @@ program
   .option('-C, --channel <name>', 'Log channel to display (default: build)')
   .option('--json', 'Output logs in JSON format')
   .action(async (targetName, options) => {
-    const { config, projectRoot } = await loadConfigurationOrExit(options.config);
+    const { config, projectRoot } = await loadConfigOrExit(options.config);
     const logChannel = sanitizeLogChannel(options.channel ?? DEFAULT_LOG_CHANNEL);
 
     // Handle smart defaults for log display
@@ -921,7 +930,7 @@ program
   .description('List all configured targets')
   .option('-c, --config <path>', 'Path to config file')
   .action(async (options) => {
-    const { config } = await loadConfigurationOrExit(options.config);
+    const { config } = await loadConfigOrExit(options.config);
 
     console.log(chalk.cyan(`${ghost.brand()} Configured Targets`));
     console.log(chalk.gray('═'.repeat(50)));
@@ -954,7 +963,7 @@ program
   .option('-t, --timeout <seconds>', 'Maximum time to wait in seconds', '300')
   .option('-c, --config <path>', 'Path to config file')
   .action(async (targetName, options) => {
-    const { config, projectRoot } = await loadConfigurationOrExit(options.config);
+    const { config, projectRoot } = await loadConfigOrExit(options.config);
     const logger = createLogger(config.logging?.level || 'info');
     const poltergeist = createPoltergeist(config, projectRoot, logger, options.config || '');
 
