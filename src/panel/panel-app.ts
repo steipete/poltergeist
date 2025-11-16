@@ -851,6 +851,8 @@ function formatScriptLines(script: PanelStatusScriptResult, prefix = '', width =
       script.label.toLowerCase().startsWith('tests') &&
       script.lines.length > 0) ||
     script.label.toLowerCase() === 'tests';
+  const shouldAppendDuration =
+    !selectedLines[0]?.match(/\b\d+(?:\.\d+)?s\b/) && script.durationMs !== undefined;
 
   if (selectedLines.length === 0) {
     const line = `${scriptColor(`${prefix}${hideLabel ? '' : `${script.label}: `}(no output)`)}${coloredDuration}`;
@@ -862,7 +864,9 @@ function formatScriptLines(script: PanelStatusScriptResult, prefix = '', width =
   const block = selectedLines
     .map((line, index) =>
       index === 0
-        ? `${scriptColor(`${prefix}${hideLabel ? '' : `${script.label}: `}${line}`)}${coloredDuration}`
+        ? `${scriptColor(`${prefix}${hideLabel ? '' : `${script.label}: `}${line}`)}${
+            shouldAppendDuration ? coloredDuration : ''
+          }`
         : `${scriptColor(`${prefix}  ${line}`)}`
     )
     .join('\n');
