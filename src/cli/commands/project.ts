@@ -247,6 +247,7 @@ export const registerProjectCommands = (program: Command): void => {
     .option('-a, --all', 'Remove all state files, not just stale ones')
     .option('-d, --days <number>', 'Remove state files older than N days', '7')
     .option('--dry-run', 'Show what would be removed without actually removing')
+    .option('--json', 'Output a JSON summary (non-dry-run only removes files)')
     .action(async (options) => {
       try {
         console.log(chalk.gray(poltergeistMessage('info', 'Cleaning up state files...')));
@@ -266,6 +267,7 @@ export const registerProjectCommands = (program: Command): void => {
         const fallbackProjectRoot = FileSystemUtils.findProjectRoot(process.cwd()) || process.cwd();
         let removedCount = 0;
         let candidateCount = 0;
+        const jsonReport: Array<Record<string, unknown>> = [];
 
         if (process.env.POLTERGEIST_DEBUG_CLEAN === 'true') {
           console.log('CLEAN files', JSON.stringify(stateFiles));
@@ -280,11 +282,7 @@ export const registerProjectCommands = (program: Command): void => {
           return fileName.replace(/\.state$/i, '');
         };
 
-        const readStateForFile = async (
-          manager: any,
-          file: string,
-          targetName: string
-        ): Promise<any> => {
+        const readStateForFile = async (manager: any, file: string, targetName: string): Promise<any> => {
           let state = await manager.readState(targetName);
           if (!state) {
             const fallbackName = file.replace(/\.state$/i, '');
@@ -295,8 +293,9 @@ export const registerProjectCommands = (program: Command): void => {
           return state;
         };
 
+        const stateManager = await instantiateStateManager(fallbackProjectRoot, logger);
+
         for (const file of stateFiles) {
-          const stateManager = await instantiateStateManager(fallbackProjectRoot, logger);
           const targetName = deriveTargetName(file);
           const state = await readStateForFile(stateManager, file, targetName);
 
@@ -364,6 +363,13 @@ export const registerProjectCommands = (program: Command): void => {
             await stateManager.removeState(removalKey);
             removedCount++;
           }
+
+          jsonReport.push({
+            file,
+            project: state.projectName || 'unknown',
+            target: state.target || targetName,
+            reason,
+          });
         }
 
         if (options.dryRun) {
@@ -372,6 +378,15 @@ export const registerProjectCommands = (program: Command): void => {
           console.log(
             chalk.green(poltergeistMessage('success', `Removed ${removedCount} state file(s)`))
           );
+          if (options.json) {
+            console.log(
+              JSON.stringify(
+                { removed: removedCount, candidates: candidateCount, files: jsonReport },
+                null,
+                2
+              )
+            );
+          }
         }
       } catch (error) {
         if (process.env.POLTERGEIST_DEBUG_CLEAN === 'true') {
