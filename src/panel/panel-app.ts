@@ -850,8 +850,7 @@ function limitSummaryLines(text: string, maxLines: number): string {
   return lines.slice(0, maxLines).join('\n');
 }
 
-const TEST_LOG_PATTERN =
-  /(^(✔|✗|●|○|\*)?\s*(Suite|Test)\s)|(\btests?\b)|(\bpassed\b)|(\bfailed\b)/i;
+const TEST_LOG_PATTERN = /\b(test(ing)?|tests|suite|spec|describe|it|passed|failed)\b/i;
 
 function filterTestLogs(lines: string[]): string[] {
   const filtered = lines.filter((line) => TEST_LOG_PATTERN.test(line));
