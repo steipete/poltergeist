@@ -63,4 +63,36 @@ describe('WatchService', () => {
     const secondSubName = watchman.subscribe.mock.calls[1]?.[1];
     expect(secondSubName).toContain('lib');
   });
+
+  it('unsubscribes only empty subscriptions for removed targets', async () => {
+    const config = createTestConfig();
+    const watchman = makeMockWatchman();
+    const service = new WatchService({
+      projectRoot: '/project',
+      config,
+      logger: noopLogger,
+      watchman,
+      watchmanConfigManager: mockWatchmanConfigManager,
+      onFilesChanged: vi.fn(),
+    });
+
+    const state1 = makeTargetState(config, 'src.ts');
+    state1.target.name = 't1';
+    const state2 = makeTargetState(config, 'lib.ts');
+    state2.target.name = 't2';
+
+    await service.subscribeTargets(
+      new Map([
+        ['t1', state1],
+        ['t2', state2],
+      ])
+    );
+
+    await service.unsubscribeTargets(['t1']);
+    expect(watchman.unsubscribe).toHaveBeenCalledWith('poltergeist_src_ts');
+    expect(watchman.unsubscribe).not.toHaveBeenCalledWith('poltergeist_lib_ts');
+
+    await service.unsubscribeTargets(['t2']);
+    expect(watchman.unsubscribe).toHaveBeenCalledWith('poltergeist_lib_ts');
+  });
 });
