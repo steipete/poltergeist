@@ -16,7 +16,7 @@ import type { Logger } from '../logger.js';
 import type { StatusPanelController } from './panel-controller.js';
 import type { PanelSnapshot, PanelStatusScriptResult, TargetPanelEntry } from './types.js';
 
-const CONTROLS_LINE = 'Controls: ↑/↓ move · r refresh · q quit';
+const CONTROLS_LINE = 'Controls: ↑/↓ move · ←/→ toggle · r refresh · q quit';
 const LOG_FETCH_LIMIT = 40;
 const LOG_OVERHEAD_LINES = 3; // blank spacer + header + divider inside formatLogs
 const SUMMARY_FRACTION = 0.5; // summary gets half of remaining lines when selected
