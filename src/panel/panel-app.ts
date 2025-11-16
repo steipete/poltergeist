@@ -494,7 +494,7 @@ function formatTargets(
     const duration = formatDuration(entry.status.lastBuild?.duration);
 
     const badge = formatStatusBadge(status, statusLabel, color);
-    const timePart = lastBuild && lastBuild !== '—' ? colors.muted(lastBuild) : '';
+    const timePart = lastBuild && lastBuild !== '—' ? color(lastBuild) : '';
     const durationPart = duration && duration !== '—' ? colors.muted(duration) : '';
 
     let statusDetails = badge;
