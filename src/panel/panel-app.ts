@@ -284,7 +284,7 @@ export class PanelApp {
     }
     try {
       const lines = await this.controller.getLogLines(entry.name, LOG_FETCH_LIMIT);
-      this.logLines = lines.slice(-LOG_DISPLAY_LIMIT);
+      this.logLines = lines;
     } catch (error) {
       const message = error instanceof Error ? error.message : String(error);
       this.logLines = [`Failed to read log: ${message}`];
