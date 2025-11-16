@@ -16,7 +16,7 @@ Scope: poltergeist CLI (src/cli.ts and children)
 - Improve `daemon-no-targets` test latency further (now under 5s); consider polling for state creation instead of fixed waits.
 - Add registration snapshot test that verifies command/alias/options match help formatter groups to prevent help drift.
 
-- 🔸 Move command registration to declarative descriptors (name, description, options, handler factory) consumed by both Commander wiring and help formatter.
+- 🔸 Move command registration to declarative descriptors (name, description, options, handler factory) consumed by both Commander wiring and help formatter. (Registry + help now share descriptors; Commander wiring still manual to avoid flag conflicts—needs safer per-command adoption.)
 - ✅ Introduce shared option schemas for common flags (config, target, log-level) to keep descriptions/aliases aligned and auto-generate help.
 - ✅ Streamline `clean` command: instantiate `StateManager` once, add `--json` summary.
 - 🔸 Consider lazy-loading heavy deps behind static import fences (e.g., panel, builders) using top-level `import` with narrow modules to stay Bun-compile safe while trimming startup cost.
