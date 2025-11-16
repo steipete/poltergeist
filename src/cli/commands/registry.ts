@@ -29,6 +29,8 @@ export const COMMAND_DESCRIPTORS: CommandDescriptor[] = [
       { flags: '--verbose', description: 'Enable verbose logging (same as --log-level debug)' },
       { flags: '--log-level <level>', description: 'Set log level (debug, info, warn, error)' },
       { flags: '-f, --foreground', description: 'Run in foreground (blocking mode)' },
+      { flags: '--json', description: 'Output build result as JSON (build)' },
+      { flags: '-f, --force', description: 'Force rebuild even if another build is running (build)' },
     ],
     aliases: ['start', 'haunt', 'stop', 'rest', 'restart'],
   },
