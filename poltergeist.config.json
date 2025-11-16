@@ -48,7 +48,7 @@
       "command": "./scripts/status-biome.sh",
       "cooldownSeconds": 60,
       "timeoutSeconds": 120,
-      "maxLines": 6
+      "maxLines": 3
     }
   ]
 }
