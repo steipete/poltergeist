@@ -251,7 +251,7 @@ export function formatTargets(
   if (globalScripts.length > 0) {
     globalScripts.forEach((script) => {
       const isFail = (script.exitCode ?? 0) !== 0;
-      const name = colors.header(script.label);
+      const name = colors.muted(script.label);
       const primaryLine = script.lines?.[0]?.trim() || (isFail ? 'failed' : 'ok');
       const statusText = isFail ? colors.failure(primaryLine) : colors.muted(primaryLine);
       lines.push(`${pad(name, targetCol)}${pad(statusText, statusCol)}`);
