@@ -99,7 +99,7 @@ export class StatusPanelController {
       },
       projectName: options.projectRoot.split(/[\\/]/).pop() || options.projectRoot,
       projectRoot: options.projectRoot,
-      preferredIndex: 0,
+      preferredIndex: options.config.targets.length, // default to summary row when available
       lastUpdated: Date.now(),
       statusScripts: [],
     };
