@@ -3,27 +3,7 @@
 import { beforeEach, describe, expect, test, vi } from 'vitest';
 import { createTestHarness } from '../src/factories.js';
 import type { PoltergeistConfig } from '../src/types.js';
-
-// Type to access private methods for testing
-interface PoltergeistWithPrivate {
-  detectConfigChanges: (
-    oldConfig: PoltergeistConfig,
-    newConfig: PoltergeistConfig
-  ) => {
-    added: string[];
-    removed: string[];
-    modified: string[];
-  };
-  handleConfigChange: (changes: Array<{ name: string; exists: boolean }>) => Promise<void>;
-  applyConfigChanges: (
-    newConfig: PoltergeistConfig,
-    changes: {
-      added: string[];
-      removed: string[];
-      modified: string[];
-    }
-  ) => Promise<void>;
-}
+import { detectConfigChanges } from '../src/utils/config-diff.js';
 
 describe('Configuration Reloading', () => {
   const baseConfig: PoltergeistConfig = {
@@ -65,20 +45,6 @@ describe('Configuration Reloading', () => {
   });
 
   test('should detect target addition', async () => {
-    const configPath = '/test/poltergeist.config.json';
-    const poltergeist = new (await import('../src/poltergeist.js')).Poltergeist(
-      baseConfig,
-      '/test/project',
-      harness.logger,
-      harness.mocks,
-      configPath
-    );
-
-    // Use reflection to access private method for testing
-    const detectChanges = (
-      poltergeist as unknown as PoltergeistWithPrivate
-    ).detectConfigChanges.bind(poltergeist);
-
     const newConfig = {
       ...baseConfig,
       targets: [
@@ -95,7 +61,7 @@ describe('Configuration Reloading', () => {
       ],
     };
 
-    const changes = detectChanges(baseConfig, newConfig);
+    const changes = detectConfigChanges(baseConfig, newConfig);
 
     expect(changes.targetsAdded).toHaveLength(1);
     expect(changes.targetsAdded[0].name).toBe('new-target');
@@ -104,25 +70,12 @@ describe('Configuration Reloading', () => {
   });
 
   test('should detect target removal', async () => {
-    const configPath = '/test/poltergeist.config.json';
-    const poltergeist = new (await import('../src/poltergeist.js')).Poltergeist(
-      baseConfig,
-      '/test/project',
-      harness.logger,
-      harness.mocks,
-      configPath
-    );
-
-    const detectChanges = (
-      poltergeist as unknown as PoltergeistWithPrivate
-    ).detectConfigChanges.bind(poltergeist);
-
     const newConfig = {
       ...baseConfig,
       targets: [], // Remove all targets
     };
 
-    const changes = detectChanges(baseConfig, newConfig);
+    const changes = detectConfigChanges(baseConfig, newConfig);
 
     expect(changes.targetsAdded).toHaveLength(0);
     expect(changes.targetsRemoved).toHaveLength(1);
@@ -131,19 +84,6 @@ describe('Configuration Reloading', () => {
   });
 
   test('should detect target modification', async () => {
-    const configPath = '/test/poltergeist.config.json';
-    const poltergeist = new (await import('../src/poltergeist.js')).Poltergeist(
-      baseConfig,
-      '/test/project',
-      harness.logger,
-      harness.mocks,
-      configPath
-    );
-
-    const detectChanges = (
-      poltergeist as unknown as PoltergeistWithPrivate
-    ).detectConfigChanges.bind(poltergeist);
-
     const newConfig = {
       ...baseConfig,
       targets: [
@@ -154,7 +94,7 @@ describe('Configuration Reloading', () => {
       ],
     };
 
-    const changes = detectChanges(baseConfig, newConfig);
+    const changes = detectConfigChanges(baseConfig, newConfig);
 
     expect(changes.targetsAdded).toHaveLength(0);
     expect(changes.targetsRemoved).toHaveLength(0);
