@@ -2,7 +2,7 @@ import { mkdtempSync, rmSync, writeFileSync } from 'fs';
 import { tmpdir } from 'os';
 import path from 'path';
 import { describe, expect, it } from 'vitest';
-import { readLogEntries } from '../../src/cli/logging.js';
+import { parseLogLine, readLogEntries } from '../../src/cli/logging.js';
 
 const createTempLogFile = (content: string): string => {
   const dir = mkdtempSync(path.join(tmpdir(), 'poltergeist-log-'));
@@ -34,6 +34,21 @@ describe('readLogEntries', () => {
       target: 'demo',
       message: 'Build started',
     });
+  });
+
+  it('parses plain text and JSON via parseLogLine helper', () => {
+    const plain = parseLogLine('2024-01-01T00:00:00Z INFO : [demo] Build started', 'demo').entry;
+    expect(plain).toMatchObject({
+      level: 'info',
+      message: 'Build started',
+      target: 'demo',
+    });
+
+    const json = parseLogLine(
+      '{"timestamp":"t","level":"error","message":"nope","target":"demo"}',
+      'demo'
+    ).entry;
+    expect(json).toMatchObject({ level: 'error', message: 'nope', target: 'demo' });
   });
 
   it('supports legacy JSON lines and respects maxLines', async () => {
