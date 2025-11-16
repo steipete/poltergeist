@@ -79,4 +79,24 @@ describe('augmentConfigWithDetectedTargets', () => {
     expect(config.targets).toHaveLength(0);
     expect(summaries).toEqual([]);
   });
+
+  it('detects python targets when enabled', async () => {
+    const tmpDir = mkdtempSync(path.join(tmpdir(), 'poltergeist-py-'));
+    writeFileSync(path.join(tmpDir, 'pyproject.toml'), '[build-system]\n', 'utf-8');
+    writeFileSync(path.join(tmpDir, 'main.py'), 'print(\"hi\")', 'utf-8');
+
+    const config: PoltergeistConfig = {
+      version: '1.0',
+      projectType: 'python',
+      targets: [],
+    };
+
+    const summaries = await augmentConfigWithDetectedTargets(tmpDir, config);
+
+    rmSync(tmpDir, { recursive: true, force: true });
+
+    expect(config.targets).toHaveLength(1);
+    expect(config.targets[0]).toMatchObject({ name: 'tests', type: 'executable' });
+    expect(summaries).toEqual([{ name: 'tests', type: 'executable', reason: 'python' }]);
+  });
 });
