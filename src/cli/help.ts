@@ -1,39 +1,10 @@
 import { Command } from 'commander';
 import { CLIFormatter, type CommandGroup, type OptionInfo } from '../utils/cli-formatter.js';
+import { HELP_GROUPS } from './commands/registry.js';
 
 export const configureProgramHelp = (program: Command): void => {
   program.configureHelp({
     formatHelp: () => {
-      const commandGroups: CommandGroup[] = [
-        {
-          title: 'Daemon Control',
-          commands: [
-            { name: 'start', aliases: ['haunt'], description: 'Start watching and auto-building' },
-            { name: 'stop', aliases: ['rest'], description: 'Stop Poltergeist daemon' },
-            { name: 'restart', description: 'Restart Poltergeist daemon' },
-            { name: 'status', description: 'Check build and daemon status' },
-          ],
-        },
-        {
-          title: 'Project Management',
-          commands: [
-            { name: 'init', description: 'Initialize configuration' },
-            { name: 'list', description: 'List all configured targets' },
-            { name: 'clean', description: 'Clean up stale state files' },
-          ],
-        },
-        {
-          title: 'Development',
-          commands: [
-            { name: 'logs', args: '[target]', description: 'Show build logs' },
-            { name: 'wait', args: '[target]', description: 'Wait for build to complete' },
-            { name: 'polter', args: '<target> [args...]', description: 'Execute fresh binaries' },
-            { name: 'panel', description: 'Interactive status dashboard' },
-            { name: 'version', description: 'Show Poltergeist version' },
-          ],
-        },
-      ];
-
       const options: OptionInfo[] = [
         { flags: '-v, --version', description: 'Show version' },
         { flags: '-h, --help', description: 'Show help' },
@@ -44,7 +15,7 @@ export const configureProgramHelp = (program: Command): void => {
         tagline: 'The ghost that keeps your projects fresh',
         programName: 'poltergeist',
         usage: '<command> [options]',
-        commandGroups,
+        commandGroups: HELP_GROUPS as CommandGroup[],
         options,
         examples: [
           { command: 'start', description: 'Start watching all enabled targets' },
