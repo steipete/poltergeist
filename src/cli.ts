@@ -783,6 +783,15 @@ program
       console.log(chalk.yellow('\n--dry-run mode, would create:'));
       console.log(chalk.gray('poltergeist.config.json:'));
       console.log(configJson);
+      if (detectedTargets.length > 0) {
+        console.log(
+          chalk.gray(
+            `Auto-detected targets (not written): ${detectedTargets
+              .map((t) => `${t.name} (${t.reason})`)
+              .join(', ')}`
+          )
+        );
+      }
     } else {
       writeFileSync(configPath, configJson, 'utf-8');
       console.log(chalk.green('✅ Created poltergeist.config.json'));
