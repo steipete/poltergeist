@@ -312,10 +312,7 @@ program
       console.log(chalk.gray(poltergeistMessage('info', 'Stopping daemon...')));
       const simulatedError = process.env.POLTERGEIST_TEST_STOP_ERROR;
       if (simulatedError) {
-        console.error(
-          chalk.red(poltergeistMessage('error', `Failed to stop daemon: ${simulatedError}`))
-        );
-        process.exit(1);
+        exitWithError(poltergeistMessage('error', `Failed to stop daemon: ${simulatedError}`));
       }
       console.log(chalk.green(poltergeistMessage('success', 'Daemon stopped successfully')));
       return;
@@ -330,15 +327,14 @@ program
         console.log(
           chalk.yellow(`${ghost.warning()} No Poltergeist daemon running for this project`)
         );
-        process.exit(1);
+        exitWithError('No daemon running');
       }
 
       console.log(chalk.gray(poltergeistMessage('info', 'Stopping daemon...')));
       await daemon.stopDaemon(projectRoot);
       console.log(chalk.green(poltergeistMessage('success', 'Daemon stopped successfully')));
     } catch (error) {
-      console.error(chalk.red(poltergeistMessage('error', `Failed to stop daemon: ${error}`)));
-      process.exit(1);
+      exitWithError(poltergeistMessage('error', `Failed to stop daemon: ${error}`));
     }
   });
 
