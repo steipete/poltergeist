@@ -49,11 +49,6 @@ export const getSummaryModes = (snapshot: PanelSnapshot): SummaryModeOption[] =>
   } else {
     modes.push({ key: 'ai', label: 'Summary (AI)', type: 'ai', hasData: false });
   }
-  if (hasDirtySummary(snapshot)) {
-    modes.push({ key: 'git', label: 'Summary (Git)', type: 'git', hasData: true });
-  } else {
-    modes.push({ key: 'git', label: 'Summary (Git)', type: 'git', hasData: false });
-  }
   for (const summary of getSummarySummaries(snapshot)) {
     modes.push({
       key: `custom:${summary.label}`,

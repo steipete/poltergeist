@@ -282,8 +282,9 @@ function formatSummaryChips(
   });
 
   const totalWidth = pills.reduce((sum, p) => sum + p.width + 1, 0); // +1 spacer between pills
+  const allPills = pills.map((p) => p.pill).join(' ');
   if (totalWidth <= width || width < 30) {
-    return pills.map((p) => p.pill).join(' ');
+    return centerText(allPills, width);
   }
 
   // Wrap to next line if too wide; simple greedy wrap.
@@ -303,7 +304,7 @@ function formatSummaryChips(
   if (current.length) {
     lines.push(current.join(' '));
   }
-  return lines.join('\n');
+  return lines.map((line) => centerText(line, width)).join('\n');
 }
 
 function summaryChipLabel(mode: SummaryModeOption): string {
