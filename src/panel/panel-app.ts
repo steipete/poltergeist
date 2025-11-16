@@ -762,23 +762,23 @@ function formatScriptLines(script: PanelStatusScriptResult, prefix = '', width =
   const limit = Math.max(1, script.maxLines ?? script.lines.length);
   const selectedLines = script.lines.slice(0, limit).map(stripAnsiCodes);
   const durationTag = ` · ${formatDurationShort(script.durationMs ?? 0)}`;
+  const coloredDuration = colors.muted(durationTag);
+
   if (selectedLines.length === 0) {
-    return wrapAnsi(
-      scriptColor(`${prefix}${script.label}: (no output)${durationTag}`),
-      Math.max(1, width),
-      {
-        hard: false,
-        trim: false,
-      }
-    ).split('\n');
+    const line = `${scriptColor(`${prefix}${script.label}: (no output)`)}${coloredDuration}`;
+    return wrapAnsi(line, Math.max(1, width), {
+      hard: false,
+      trim: false,
+    }).split('\n');
   }
   const block = selectedLines
     .map((line, index) =>
-      index === 0 ? `${prefix}${script.label}: ${line}${durationTag}` : `${prefix}  ${line}`
+      index === 0
+        ? `${scriptColor(`${prefix}${script.label}: ${line}`)}${coloredDuration}`
+        : `${scriptColor(`${prefix}  ${line}`)}`
     )
     .join('\n');
-  const colored = scriptColor(block);
-  return wrapAnsi(colored, Math.max(1, width), { hard: false, trim: false }).split('\n');
+  return wrapAnsi(block, Math.max(1, width), { hard: false, trim: false }).split('\n');
 }
 const ansiRegexPattern = '\\x1B\\[[0-?]*[ -/]*[@-~]';
 const ansiRegex = new RegExp(ansiRegexPattern, 'g');
