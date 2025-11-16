@@ -1,8 +1,8 @@
 import { mkdtempSync, rmSync, writeFileSync } from 'fs';
 import { tmpdir } from 'os';
 import path from 'path';
-import { describe, expect, it } from 'vitest';
-import { parseLogLine, readLogEntries } from '../../src/cli/logging.js';
+import { afterEach, describe, expect, it, vi } from 'vitest';
+import { displayLogs, parseLogLine, readLogEntries } from '../../src/cli/logging.js';
 
 const createTempLogFile = (content: string): string => {
   const dir = mkdtempSync(path.join(tmpdir(), 'poltergeist-log-'));
@@ -15,6 +15,14 @@ const cleanup = (filePath: string) => {
   const dir = path.dirname(filePath);
   rmSync(dir, { recursive: true, force: true });
 };
+
+const logSpy = vi.spyOn(console, 'log').mockImplementation(() => undefined);
+const errorSpy = vi.spyOn(console, 'error').mockImplementation(() => undefined);
+
+afterEach(() => {
+  logSpy.mockClear();
+  errorSpy.mockClear();
+});
 
 describe('readLogEntries', () => {
   it('parses plain text log lines', async () => {
@@ -80,5 +88,27 @@ describe('readLogEntries', () => {
     const entries = await readLogEntries(file, 'demo');
     cleanup(file);
     expect(entries).toHaveLength(0);
+  });
+});
+
+describe('displayLogs', () => {
+  it('prints JSON array when json flag is set', async () => {
+    const file = createTempLogFile('2024-01-01T00:00:00Z INFO : [demo] Build started');
+
+    await displayLogs(file, { target: 'demo', lines: '10', json: true });
+    cleanup(file);
+
+    expect(logSpy).toHaveBeenCalled();
+    const payload = JSON.parse(logSpy.mock.calls[0][0] as string);
+    expect(payload[0]).toMatchObject({ target: 'demo', message: 'Build started' });
+  });
+
+  it('warns when no logs are found', async () => {
+    const file = createTempLogFile('');
+    await displayLogs(file, { target: 'demo', lines: '10' });
+    cleanup(file);
+
+    const combined = logSpy.mock.calls.map((c) => c[0]).join('\n');
+    expect(combined).toContain('No logs found');
   });
 });
