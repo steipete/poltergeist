@@ -19,7 +19,12 @@ import {
   normalizeLogChannels,
 } from '../utils/log-channels.js';
 import type { StatusPanelController } from './panel-controller.js';
-import type { PanelSnapshot, PanelStatusScriptResult, TargetPanelEntry } from './types.js';
+import type {
+  PanelSnapshot,
+  PanelStatusScriptResult,
+  PanelSummaryScriptResult,
+  TargetPanelEntry,
+} from './types.js';
 
 const CONTROLS_LINE = 'Controls: ↑/↓ move · ←/→ cycle logs · r refresh · q quit';
 const LOG_FETCH_LIMIT = 40;
@@ -55,7 +60,7 @@ export class PanelApp {
   // If only a single channel exists, left/right toggles between all/test-filtered logs.
   private logViewMode: 'all' | 'tests' = 'all';
   // Left/right while on summary toggles AI vs Git summary.
-  private summaryMode: 'ai' | 'git' = 'ai';
+  private summaryMode: string = 'ai';
   private snapshot: PanelSnapshot;
   private selectedIndex: number;
   private logLines: string[] = [];
@@ -81,6 +86,7 @@ export class PanelApp {
     } else {
       this.selectedIndex = 0;
     }
+    this.summaryMode = this.getDefaultSummaryMode(this.snapshot);
     this.syncLogChannelState(this.snapshot.targets);
     this.logChannelLabel = this.getSelectedChannel(this.snapshot.targets[this.selectedIndex]);
 
@@ -161,6 +167,7 @@ export class PanelApp {
       this.selectedIndex = maxIndex;
     }
     this.logChannelLabel = this.getSelectedChannel(this.snapshot.targets[this.selectedIndex]);
+    this.summaryMode = this.resolveSummaryMode(this.getSummaryModes(this.snapshot), this.summaryMode);
     this.updateView('snapshot');
     this.queueLogRefresh();
     this.updateLogPolling();
@@ -259,7 +266,7 @@ export class PanelApp {
     }
     this.selectedIndex = nextIndex;
     this.logViewMode = 'all';
-    this.summaryMode = 'ai';
+    this.summaryMode = this.getDefaultSummaryMode(this.snapshot);
     this.logChannelLabel = this.getSelectedChannel(this.snapshot.targets[this.selectedIndex]);
     this.updateView('selection');
     this.queueLogRefresh();
@@ -301,25 +308,28 @@ export class PanelApp {
   }
 
   private updateView(_reason: string = 'update'): void {
-    const summaryIndex = this.getSummaryIndex(this.snapshot);
-    const viewingSummary = summaryIndex !== null && this.selectedIndex === summaryIndex;
-    this.summaryMode = this.resolveSummaryMode(this.snapshot, this.summaryMode);
-    const entry =
-      viewingSummary || this.selectedIndex < 0
-        ? undefined
-        : this.snapshot.targets[this.selectedIndex];
-    const shouldShowLogs = entry ? this.shouldShowLogs(entry) : false;
+    const summaryModes = this.getSummaryModes(this.snapshot);
+    this.summaryMode = this.resolveSummaryMode(summaryModes, this.summaryMode);
+
+    const selection = this.identifySelection(this.snapshot, this.selectedIndex);
+    const viewingSummary = selection.kind === 'summary';
+    const viewingCustomRow = selection.kind === 'row' ? selection.summary : undefined;
+    const entry = selection.kind === 'target' ? selection.target : undefined;
+    const shouldShowLogs = selection.kind === 'target' ? this.shouldShowLogs(entry) : false;
     const width = this.terminal.columns || 80;
     const height = this.terminal.rows || 24;
-    const summaryInfo = this.computeSummaryLines(this.snapshot, viewingSummary, this.summaryMode);
-    const logDisplayLimit = shouldShowLogs
-      ? this.computeLogDisplayLimit({
-          width,
-          height,
-          snapshot: this.snapshot,
-          summaryInfo,
-        })
-      : 0;
+    const summaryInfo = this.computeSummaryLines(
+      this.snapshot,
+      viewingSummary || Boolean(viewingCustomRow),
+      this.summaryMode,
+      viewingCustomRow ?? this.findSummaryByMode(summaryModes, this.summaryMode)
+    );
+    const logDisplayLimit = this.computeLogDisplayLimit({
+      width,
+      height,
+      snapshot: this.snapshot,
+      summaryInfo,
+    });
     const logLimit = Math.max(0, logDisplayLimit);
     this.view.update({
       snapshot: this.snapshot,
@@ -328,8 +338,10 @@ export class PanelApp {
       shouldShowLogs,
       controlsLine: CONTROLS_LINE,
       width,
-      summaryRowLabel: this.getSummaryLabel(this.snapshot, this.summaryMode),
+      summaryRowLabel: this.getSummaryLabel(summaryModes, this.summaryMode),
       summarySelected: viewingSummary,
+      customSummary: viewingCustomRow ?? this.findSummaryByMode(summaryModes, this.summaryMode),
+      rowSummaries: this.getRowSummaries(this.snapshot),
       summaryInfo,
       logLimit,
       logChannel: this.logChannelLabel,
@@ -404,13 +416,19 @@ export class PanelApp {
     summaryInfo: SummaryRenderInfo;
   }): number {
     const headerText = formatHeader(snapshot, width);
-    const summaryLabel = this.getSummaryLabel(snapshot, this.summaryMode);
+    const summaryLabel = this.getSummaryLabel(this.getSummaryModes(snapshot), this.summaryMode);
+    const rowStart = this.getRowStartIndex(snapshot);
+    const rowSummaries = this.getRowSummaries(snapshot).map((row, idx) => ({
+      ...row,
+      selected: this.selectedIndex === rowStart + idx,
+    }));
     const targetsText = formatTargets(
       snapshot.targets,
       this.selectedIndex,
       splitStatusScripts(snapshot.statusScripts ?? []).scriptsByTarget,
       width,
-      summaryLabel ? { label: summaryLabel, selected: false } : undefined
+      summaryLabel ? { label: summaryLabel, selected: false } : undefined,
+      rowSummaries
     );
     const globalScriptsText = formatGlobalScripts(
       splitStatusScripts(snapshot.statusScripts ?? []).globalScripts,
@@ -439,66 +457,94 @@ export class PanelApp {
   private computeSummaryLines(
     snapshot: PanelSnapshot,
     viewingSummary: boolean,
-    summaryMode: 'ai' | 'git'
+    summaryMode: string,
+    customSummary?: PanelSummaryScriptResult | null
   ): SummaryRenderInfo {
     if (!viewingSummary) {
-      return { aiHeaderLines: 0, aiMarkdownLines: 0, dirtyLines: 0, totalLines: 0 };
+      return { headerLines: 0, bodyLines: 0, totalLines: 0 };
+    }
+
+    if (customSummary) {
+      const body = customSummary.lines.join('\n').trim();
+      const headerLines = body ? countLines(`\n${customSummary.label}:`) : 0;
+      const bodyLines = body ? countLines(body) : 0;
+      return { headerLines, bodyLines, totalLines: headerLines + bodyLines };
     }
 
     if (summaryMode === 'ai') {
       const aiSummary = formatAiSummary(snapshot.git.summary ?? []);
       if (aiSummary && aiSummary.body.trim().length > 0) {
         const headerText = aiSummary.header ?? colors.header('AI Summary of changed files:');
-        const aiHeaderLines = countLines(`\n${headerText}`);
-        const aiMarkdownLines = countLines(aiSummary.body.trim());
-        return {
-          aiHeaderLines,
-          aiMarkdownLines,
-          dirtyLines: 0,
-          totalLines: aiHeaderLines + aiMarkdownLines,
-        };
+        const headerLines = countLines(`\n${headerText}`);
+        const bodyLines = countLines(aiSummary.body.trim());
+        return { headerLines, bodyLines, totalLines: headerLines + bodyLines };
       }
     }
 
     const dirtyText = formatDirtyFiles(snapshot);
-    const dirtyLines = countLines(dirtyText);
-    return {
-      aiHeaderLines: 0,
-      aiMarkdownLines: 0,
-      dirtyLines,
-      totalLines: dirtyLines,
-    };
+    const bodyLines = countLines(dirtyText);
+    return { headerLines: 0, bodyLines, totalLines: bodyLines };
   }
 
-  private getSummaryLabel(snapshot: PanelSnapshot, mode: 'ai' | 'git'): string | undefined {
-    const hasAI = this.hasAiSummary(snapshot);
-    const hasGit = this.hasDirtySummary(snapshot);
-    if (!hasAI && !hasGit) {
-      return undefined;
+  private getSummaryModes(snapshot: PanelSnapshot): SummaryModeOption[] {
+    const modes: SummaryModeOption[] = [];
+    if (this.hasAiSummary(snapshot)) {
+      modes.push({ key: 'ai', label: 'Summary (AI)', type: 'ai' });
     }
-    if (mode === 'ai' && hasAI) {
-      return 'Summary (AI)';
+    if (this.hasDirtySummary(snapshot)) {
+      modes.push({ key: 'git', label: 'Summary (Git)', type: 'git' });
     }
-    if (mode === 'git' && hasGit) {
-      return 'Summary (Git)';
+    for (const summary of this.getSummarySummaries(snapshot)) {
+      modes.push({
+        key: `custom:${summary.label}`,
+        label: `Summary (${summary.label})`,
+        type: 'custom',
+        summary,
+      });
     }
-    // Fallback to whichever exists.
-    if (hasAI) return 'Summary (AI)';
-    if (hasGit) return 'Summary (Git)';
-    return undefined;
+    return modes;
+  }
+
+  private getRowSummaries(snapshot: PanelSnapshot): PanelSummaryScriptResult[] {
+    return (snapshot.summaryScripts ?? []).filter((summary) => summary.placement === 'row');
+  }
+
+  private getSummarySummaries(snapshot: PanelSnapshot): PanelSummaryScriptResult[] {
+    return (snapshot.summaryScripts ?? []).filter((summary) => summary.placement === 'summary');
+  }
+
+  private getDefaultSummaryMode(snapshot: PanelSnapshot): string {
+    const modes = this.getSummaryModes(snapshot);
+    return modes[0]?.key ?? 'ai';
+  }
+
+  private findSummaryByMode(
+    modes: SummaryModeOption[],
+    key: string
+  ): PanelSummaryScriptResult | null {
+    const match = modes.find((mode) => mode.key === key && mode.type === 'custom');
+    return match?.summary ?? null;
+  }
+
+  private getSummaryLabel(modes: SummaryModeOption[], mode: string): string | undefined {
+    return modes.find((m) => m.key === mode)?.label ?? modes[0]?.label;
   }
 
   private flipLogModeOrSummary(direction: 'next' | 'prev'): void {
     const summaryIndex = this.getSummaryIndex(this.snapshot);
     const viewingSummary = summaryIndex !== null && this.selectedIndex === summaryIndex;
     if (viewingSummary) {
-      const modes: Array<'ai' | 'git'> = ['ai', 'git'];
-      const currentIdx = modes.indexOf(this.summaryMode);
+      const modes = this.getSummaryModes(this.snapshot);
+      if (modes.length === 0) {
+        return;
+      }
+      const currentIdx = modes.findIndex((mode) => mode.key === this.summaryMode);
+      const safeIdx = currentIdx === -1 ? 0 : currentIdx;
       const nextIdx =
         direction === 'next'
-          ? (currentIdx + 1) % modes.length
-          : (currentIdx - 1 + modes.length) % modes.length;
-      this.summaryMode = modes[nextIdx];
+          ? (safeIdx + 1) % modes.length
+          : (safeIdx - 1 + modes.length) % modes.length;
+      this.summaryMode = modes[nextIdx]?.key ?? modes[0].key;
       this.updateView('summary-mode');
       return;
     }
@@ -536,26 +582,55 @@ export class PanelApp {
     return dirtyCount > 0 || names.length > 0;
   }
 
-  private resolveSummaryMode(snapshot: PanelSnapshot, desired: 'ai' | 'git'): 'ai' | 'git' {
-    const hasAI = this.hasAiSummary(snapshot);
-    const hasGit = this.hasDirtySummary(snapshot);
-    if (desired === 'ai' && hasAI) return 'ai';
-    if (desired === 'git' && hasGit) return 'git';
-    if (hasAI) return 'ai';
-    if (hasGit) return 'git';
-    return desired;
+  private hasCustomSummary(snapshot: PanelSnapshot): boolean {
+    return (snapshot.summaryScripts ?? []).some(
+      (summary) => summary.placement === 'summary' && summary.lines.length > 0
+    );
+  }
+
+  private resolveSummaryMode(modes: SummaryModeOption[], desired: string): string {
+    if (modes.length === 0) {
+      return desired;
+    }
+    return modes.find((mode) => mode.key === desired)?.key ?? modes[0].key;
   }
 
   private hasSummaryRow(snapshot: PanelSnapshot): boolean {
-    return this.hasAiSummary(snapshot) || this.hasDirtySummary(snapshot);
+    return this.getSummaryModes(snapshot).length > 0;
   }
 
   private getSummaryIndex(snapshot: PanelSnapshot): number | null {
     return this.hasSummaryRow(snapshot) ? snapshot.targets.length : null;
   }
 
+  private getRowStartIndex(snapshot: PanelSnapshot): number {
+    const summaryIndex = this.getSummaryIndex(snapshot);
+    return summaryIndex !== null ? summaryIndex + 1 : snapshot.targets.length;
+  }
+
   private getSelectableCount(snapshot: PanelSnapshot): number {
-    return snapshot.targets.length + (this.hasSummaryRow(snapshot) ? 1 : 0);
+    const summaryCount = this.hasSummaryRow(snapshot) ? 1 : 0;
+    return snapshot.targets.length + summaryCount + this.getRowSummaries(snapshot).length;
+  }
+
+  private identifySelection(
+    snapshot: PanelSnapshot,
+    index: number
+  ):
+    | { kind: 'target'; target: TargetPanelEntry }
+    | { kind: 'summary' }
+    | { kind: 'row'; summary: PanelSummaryScriptResult } {
+    const summaryIndex = this.getSummaryIndex(snapshot);
+    if (summaryIndex !== null && index === summaryIndex) {
+      return { kind: 'summary' };
+    }
+    const rowStart = this.getRowStartIndex(snapshot);
+    const rows = this.getRowSummaries(snapshot);
+    if (index >= rowStart && index < rowStart + rows.length) {
+      return { kind: 'row', summary: rows[index - rowStart] };
+    }
+    const target = snapshot.targets[index];
+    return { kind: 'target', target };
   }
 }
 
@@ -568,18 +643,26 @@ interface PanelViewState {
   width: number;
   summaryRowLabel?: string;
   summarySelected: boolean;
+  customSummary?: PanelSummaryScriptResult;
+  rowSummaries: PanelSummaryScriptResult[];
   summaryInfo: SummaryRenderInfo;
   logLimit: number;
   logChannel: string;
   logViewMode: 'all' | 'tests';
-  summaryMode: 'ai' | 'git';
+  summaryMode: string;
 }
 
 interface SummaryRenderInfo {
-  aiHeaderLines: number;
-  aiMarkdownLines: number;
-  dirtyLines: number;
+  headerLines: number;
+  bodyLines: number;
   totalLines: number;
+}
+
+interface SummaryModeOption {
+  key: string;
+  label: string;
+  type: 'ai' | 'git' | 'custom';
+  summary?: PanelSummaryScriptResult;
 }
 
 class PanelView extends Container {
@@ -609,6 +692,12 @@ class PanelView extends Container {
   public update(state: PanelViewState): void {
     const { snapshot, selectedIndex } = state;
     const { scriptsByTarget, globalScripts } = splitStatusScripts(snapshot.statusScripts ?? []);
+    const summaryIndex = state.summaryRowLabel ? snapshot.targets.length : null;
+    const rowStart = summaryIndex !== null ? summaryIndex + 1 : snapshot.targets.length;
+    const rowSummaries = state.rowSummaries.map((row, idx) => ({
+      ...row,
+      selected: selectedIndex === rowStart + idx,
+    }));
     this.header.setText(formatHeader(snapshot, state.width));
     this.targets.setText(
       formatTargets(
@@ -618,13 +707,25 @@ class PanelView extends Container {
         state.width,
         state.summaryRowLabel
           ? { label: state.summaryRowLabel, selected: state.summarySelected }
-          : undefined
+          : undefined,
+        rowSummaries
       )
     );
     this.globalScripts.setText(formatGlobalScripts(globalScripts, state.width));
-    if (state.summarySelected) {
+    const showSummary = state.summarySelected || Boolean(state.customSummary);
+    if (showSummary) {
       const summaryDivider = colors.line('─'.repeat(Math.max(4, state.width)));
-      if (state.summaryMode === 'ai') {
+      if (state.customSummary) {
+        const headerText = colors.header(`\n${state.customSummary.label}:`);
+        this.aiHeader.setText(`${headerText}\n${summaryDivider}`);
+        const body = state.customSummary.lines.join('\n').trim();
+        const limitedBody = limitSummaryLines(
+          body || colors.muted('No output'),
+          Math.max(1, Math.floor(state.logLimit * SUMMARY_FRACTION))
+        );
+        this.dirtyFiles.setText('');
+        this.aiMarkdown.setText(limitedBody);
+      } else if (state.summaryMode === 'ai') {
         const aiSummary = formatAiSummary(snapshot.git.summary ?? []);
         if (aiSummary && aiSummary.body.trim().length > 0) {
           this.dirtyFiles.setText('');
@@ -927,7 +1028,8 @@ function formatTargets(
   selectedIndex: number,
   scriptsByTarget: Map<string, PanelStatusScriptResult[]>,
   width: number,
-  summaryRow?: { label: string; selected: boolean }
+  summaryRow?: { label: string; selected: boolean },
+  rowSummaries: Array<PanelSummaryScriptResult & { selected?: boolean }> = []
 ): string {
   if (entries.length === 0) {
     return colors.header('No targets configured.');
@@ -1004,6 +1106,12 @@ function formatTargets(
     const summaryStatus = colors.muted('view');
     lines.push(`${pad(summaryName, targetCol)}${pad(summaryStatus, statusCol)}`);
   }
+
+  rowSummaries.forEach((row) => {
+    const name = row.selected ? colors.accent(row.label) : row.label;
+    const status = row.exitCode && row.exitCode !== 0 ? colors.failure('needs attention') : colors.muted('view');
+    lines.push(`${pad(name, targetCol)}${pad(status, statusCol)}`);
+  });
 
   lines.push(divider);
 

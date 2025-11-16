@@ -3,7 +3,7 @@ import { EventEmitter } from 'events';
 import { existsSync, type FSWatcher, mkdirSync, watch } from 'fs';
 import { promisify } from 'util';
 import type { StatusObject } from '../status/types.js';
-import type { StatusScriptConfig } from '../types.js';
+import type { StatusScriptConfig, SummaryScriptConfig } from '../types.js';
 import { FileSystemUtils } from '../utils/filesystem.js';
 import { formatTestOutput } from '../utils/test-formatter.js';
 import { GitMetricsCollector } from './git-metrics.js';
@@ -13,6 +13,7 @@ import type {
   PanelControllerOptions,
   PanelSnapshot,
   PanelStatusScriptResult,
+  PanelSummaryScriptResult,
   TargetPanelEntry,
 } from './types.js';
 
@@ -36,10 +37,12 @@ export class StatusPanelController {
   private gitInterval?: NodeJS.Timeout;
   private refreshing?: Promise<void>;
   private scriptRefreshing?: Promise<void>;
+  private summaryRefreshing?: Promise<void>;
   private disposed = false;
   private readonly gitPollMs: number;
   private readonly statusPollMs: number;
   private scriptCache: Map<string, CachedStatusScript>;
+  private summaryScriptCache: Map<string, CachedSummaryScript>;
   private readonly gitSummaryMode: 'list' | 'ai';
   private readonly profileEnabled: boolean;
 
@@ -63,6 +66,7 @@ export class StatusPanelController {
     this.gitPollMs = options.gitPollIntervalMs ?? 5000;
     this.statusPollMs = options.statusPollIntervalMs ?? 2000;
     this.scriptCache = new Map();
+    this.summaryScriptCache = new Map();
     this.profileEnabled = process.env.POLTERGEIST_PANEL_PROFILE === '1';
     if (options.config.statusScripts?.length) {
       this.options.logger.debug(
@@ -70,6 +74,13 @@ export class StatusPanelController {
       );
     } else {
       this.options.logger.debug('[Panel] No status scripts configured');
+    }
+    if (options.config.summaryScripts?.length) {
+      this.options.logger.debug(
+        `[Panel] Loaded ${options.config.summaryScripts.length} summary script(s)`
+      );
+    } else {
+      this.options.logger.debug('[Panel] No summary scripts configured');
     }
 
     this.snapshot = {
@@ -105,6 +116,7 @@ export class StatusPanelController {
       preferredIndex: options.config.targets.length, // default to summary row when available
       lastUpdated: Date.now(),
       statusScripts: [],
+      summaryScripts: [],
     };
   }
 
@@ -120,6 +132,7 @@ export class StatusPanelController {
     await this.refreshStatus({ refreshGit: true, forceGit: true });
     // Kick scripts asynchronously so the panel can render immediately.
     void this.refreshStatusScripts(true);
+    void this.refreshSummaryScripts(true);
     this.setupWatchers();
     this.statusInterval = setInterval(() => {
       void this.refreshStatus();
@@ -287,6 +300,7 @@ export class StatusPanelController {
         preferredIndex: this.computePreferredIndex(targets),
         lastUpdated: Date.now(),
         statusScripts: this.snapshot.statusScripts,
+        summaryScripts: this.snapshot.summaryScripts,
       };
 
       this.emitter.emit('update', { snapshot: this.snapshot });
@@ -300,6 +314,7 @@ export class StatusPanelController {
       }
 
       void this.refreshStatusScripts();
+      void this.refreshSummaryScripts();
     })().finally(() => {
       this.refreshing = undefined;
     });
@@ -405,14 +420,99 @@ export class StatusPanelController {
     await this.scriptRefreshing;
   }
 
+  private async refreshSummaryScripts(force?: boolean): Promise<void> {
+    if (this.disposed || !this.options.config.summaryScripts?.length) {
+      return;
+    }
+
+    if (this.summaryRefreshing) {
+      return this.summaryRefreshing;
+    }
+
+    this.summaryRefreshing = (async () => {
+      const totalStart = Date.now();
+      const configs = this.options.config.summaryScripts ?? [];
+      const now = Date.now();
+
+      const cached: PanelSummaryScriptResult[] = [];
+      for (const scriptConfig of configs) {
+        const cacheKey = this.getSummaryCacheKey(scriptConfig);
+        const cache = this.summaryScriptCache.get(cacheKey);
+        const refreshMs = (scriptConfig.refreshSeconds ?? 1800) * 1000;
+        if (!force && cache && now - cache.lastRun < refreshMs) {
+          cached.push(cache.result);
+        }
+      }
+
+      if (cached.length > 0) {
+        this.snapshot = {
+          ...this.snapshot,
+          summaryScripts: cached,
+          lastUpdated: Date.now(),
+        };
+        this.emitter.emit('update', { snapshot: this.snapshot });
+      }
+
+      const jobs = configs.map(async (scriptConfig) => {
+        const cacheKey = this.getSummaryCacheKey(scriptConfig);
+        const cache = this.summaryScriptCache.get(cacheKey);
+        const refreshMs = (scriptConfig.refreshSeconds ?? 1800) * 1000;
+        if (!force && cache && now - cache.lastRun < refreshMs) {
+          return cache.result;
+        }
+
+        const scriptStart = Date.now();
+        const result = await this.runSummaryScript(scriptConfig);
+        const scriptMs = Date.now() - scriptStart;
+        if (this.profileEnabled) {
+          this.options.logger.info(
+            `[PanelProfile] summary ${scriptConfig.label} ran in ${scriptMs}ms (exit ${result.exitCode ?? 0})`
+          );
+        }
+
+        this.summaryScriptCache.set(cacheKey, { lastRun: result.lastRun, result });
+        const merged = this.mergeSummaryResult(result);
+        this.snapshot = {
+          ...this.snapshot,
+          summaryScripts: merged,
+          lastUpdated: Date.now(),
+        };
+        this.emitter.emit('update', { snapshot: this.snapshot });
+        return result;
+      });
+
+      await Promise.allSettled(jobs);
+
+      if (this.profileEnabled) {
+        this.options.logger.info(
+          `[PanelProfile] refreshSummaryScripts total=${Date.now() - totalStart}ms scripts=${configs.length}`
+        );
+      }
+    })().finally(() => {
+      this.summaryRefreshing = undefined;
+    });
+
+    await this.summaryRefreshing;
+  }
+
   private getScriptCacheKey(script: StatusScriptConfig): string {
     const targetsKey = script.targets?.slice().sort().join(',') ?? '';
     return `${script.label}::${script.command}::${targetsKey}`;
   }
 
+  private getSummaryCacheKey(script: SummaryScriptConfig): string {
+    return `${script.label}::${script.command}::${script.placement ?? 'summary'}`;
+  }
+
   private mergeScriptResult(result: PanelStatusScriptResult): PanelStatusScriptResult[] {
     const current = this.snapshot.statusScripts ?? [];
     const filtered = current.filter((r) => r.label !== result.label);
+    return [...filtered, result];
+  }
+
+  private mergeSummaryResult(result: PanelSummaryScriptResult): PanelSummaryScriptResult[] {
+    const current = this.snapshot.summaryScripts ?? [];
+    const filtered = current.filter((r) => !(r.label === result.label && r.placement === result.placement));
     return [...filtered, result];
   }
 
@@ -469,6 +569,60 @@ export class StatusPanelController {
     }
   }
 
+  private async runSummaryScript(script: SummaryScriptConfig): Promise<PanelSummaryScriptResult> {
+    const now = Date.now();
+    const maxLines = script.maxLines ?? 10;
+    const options = {
+      cwd: this.options.projectRoot,
+      timeout: (script.timeoutSeconds ?? 30) * 1000,
+      maxBuffer: 1024 * 1024,
+      env: { ...process.env, FORCE_COLOR: '0' },
+    } as const;
+
+    const start = Date.now();
+    try {
+      const { stdout, stderr } = await execAsync(script.command, options);
+      const durationMs = Date.now() - start;
+      const fullLines = this.extractLines(stdout, stderr, 1000);
+      const formatted = formatTestOutput(fullLines, script.formatter ?? 'auto', script.command);
+      const lines = formatted.slice(0, maxLines);
+      return {
+        label: script.label,
+        lines,
+        lastRun: now,
+        exitCode: 0,
+        durationMs,
+        placement: script.placement ?? 'summary',
+        maxLines,
+        formatter: script.formatter,
+      };
+    } catch (error) {
+      const durationMs = Date.now() - start;
+      const execError = error as NodeJS.ErrnoException & { stdout?: string; stderr?: string };
+      const fullLines = this.extractLines(execError.stdout, execError.stderr, 1000);
+      if (fullLines.length === 0) {
+        fullLines.push(`Error: ${execError.message}`);
+      }
+      const formatted = formatTestOutput(fullLines, script.formatter ?? 'auto', script.command);
+      const lines = formatted.slice(0, maxLines);
+      return {
+        label: script.label,
+        lines,
+        lastRun: now,
+        exitCode:
+          typeof execError.code === 'number'
+            ? execError.code
+            : typeof execError.code === 'string'
+              ? Number.parseInt(execError.code, 10)
+              : null,
+        durationMs,
+        placement: script.placement ?? 'summary',
+        maxLines,
+        formatter: script.formatter,
+      };
+    }
+  }
+
   private extractLines(stdout?: string, stderr?: string, maxLines: number = 1): string[] {
     const combined = `${stdout ?? ''}\n${stderr ?? ''}`.trim();
     if (!combined) {
@@ -485,4 +639,9 @@ export class StatusPanelController {
 interface CachedStatusScript {
   lastRun: number;
   result: PanelStatusScriptResult;
+}
+
+interface CachedSummaryScript {
+  lastRun: number;
+  result: PanelSummaryScriptResult;
 }

@@ -32,6 +32,7 @@ export interface PanelSnapshot {
   preferredIndex: number;
   lastUpdated: number;
   statusScripts?: PanelStatusScriptResult[];
+  summaryScripts?: PanelSummaryScriptResult[];
 }
 
 export interface PanelStatusScriptResult {
@@ -42,6 +43,17 @@ export interface PanelStatusScriptResult {
   exitCode: number | null;
   durationMs: number;
   maxLines?: number;
+}
+
+export interface PanelSummaryScriptResult {
+  label: string;
+  lines: string[];
+  lastRun: number;
+  exitCode: number | null;
+  durationMs: number;
+  placement: 'summary' | 'row';
+  maxLines?: number;
+  formatter?: 'auto' | 'none' | 'swift' | 'ts';
 }
 
 export interface PanelControllerOptions {

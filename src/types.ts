@@ -281,6 +281,8 @@ export interface PoltergeistConfig {
   targets: Target[];
   /** Optional status scripts to surface in the panel */
   statusScripts?: StatusScriptConfig[];
+  /** Optional custom summaries to surface alongside AI/Git */
+  summaryScripts?: SummaryScriptConfig[];
   /** Watchman file watching configuration */
   watchman?: WatchmanConfig;
   /** Performance optimization settings */
@@ -305,6 +307,32 @@ export interface StatusScriptConfig {
   command: string;
   targets?: string[];
   cooldownSeconds?: number;
+  timeoutSeconds?: number;
+  maxLines?: number;
+  formatter?: 'auto' | 'none' | 'swift' | 'ts';
+}
+
+export type SummaryPlacement = 'summary' | 'row';
+
+export interface SummaryScriptConfig {
+  /**
+   * Display label for the summary tab/row.
+   */
+  label: string;
+  /**
+   * Command to run. Should print one summary item per line.
+   */
+  command: string;
+  /**
+   * Where to surface this summary:
+   *  - 'summary' (default) adds a tab next to AI/Git in the Summary row
+   *  - 'row' adds a dedicated row immediately below the Summary row
+   */
+  placement?: SummaryPlacement;
+  /**
+   * Minimum seconds between reruns (default: 1800 = 30 minutes).
+   */
+  refreshSeconds?: number;
   timeoutSeconds?: number;
   maxLines?: number;
   formatter?: 'auto' | 'none' | 'swift' | 'ts';
@@ -515,11 +543,22 @@ export const StatusScriptConfigSchema = z.object({
   formatter: z.enum(['auto', 'none', 'swift', 'ts']).optional().default('auto'),
 });
 
+export const SummaryScriptConfigSchema = z.object({
+  label: z.string().min(1),
+  command: z.string().min(1),
+  placement: z.enum(['summary', 'row']).optional().default('summary'),
+  refreshSeconds: z.number().min(30).default(1800),
+  timeoutSeconds: z.number().min(1).default(30),
+  maxLines: z.number().min(1).max(50).default(10),
+  formatter: z.enum(['auto', 'none', 'swift', 'ts']).optional().default('auto'),
+});
+
 export const PoltergeistConfigSchema = z.object({
   version: z.literal('1.0'),
   projectType: z.enum(['swift', 'node', 'rust', 'python', 'cmake', 'mixed']),
   targets: z.array(TargetSchema),
   statusScripts: z.array(StatusScriptConfigSchema).optional(),
+  summaryScripts: z.array(SummaryScriptConfigSchema).optional(),
   watchman: WatchmanConfigSchema.optional(),
   performance: PerformanceConfigSchema.optional(),
   buildScheduling: BuildSchedulingConfigSchema.optional(),
