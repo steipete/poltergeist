@@ -250,7 +250,8 @@ export function formatTargets(
   lines.push(divider);
 
   if (summaryRow && summaryModes.length > 0) {
-    const chips = formatSummaryChips(summaryModes, activeSummaryKey, width);
+    const chipKey = summaryRow.selected ? activeSummaryKey : undefined;
+    const chips = formatSummaryChips(summaryModes, chipKey, width, { center: false });
     if (chips) {
       lines.push(chips);
     }
