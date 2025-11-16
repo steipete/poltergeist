@@ -559,7 +559,9 @@ class PanelView extends Container {
         state.summaryRowLabel
           ? { label: state.summaryRowLabel, selected: state.summarySelected }
           : undefined,
-        rowSummaries
+        rowSummaries,
+        state.summaryModes,
+        state.activeSummaryKey
       )
     );
     this.globalScripts.setText(formatGlobalScripts(globalScripts, state.width));
