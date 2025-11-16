@@ -182,6 +182,16 @@ export class PanelApp {
       if (lower === 'r') {
         void this.controller.forceRefresh();
       }
+      if (lower === 'b') {
+        this.setLogMode('build');
+        i += 1;
+        continue;
+      }
+      if (lower === 't') {
+        this.setLogMode('test');
+        i += 1;
+        continue;
+      }
       if (char === '\u0003') {
         if (this.debugInput) {
           appendFileSync('/tmp/poltergeist-panel-input.log', '[PanelInputDebug] exit via Ctrl+C\n');
@@ -215,6 +225,12 @@ export class PanelApp {
 
       i += 1;
     }
+  }
+
+  private setLogMode(mode: 'build' | 'test'): void {
+    if (this.logMode === mode) return;
+    this.logMode = mode;
+    this.updateView('log-mode-key');
   }
 
   private moveSelection(delta: number): void {
