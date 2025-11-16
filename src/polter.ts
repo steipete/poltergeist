@@ -138,6 +138,40 @@ export async function isBinaryFresh(
   }
 }
 
+function warnIfBuildStaleByAge(
+  projectRoot: string,
+  targetName: string,
+  maxAgeMinutes = 10
+): void {
+  const statePath = getStateFile(projectRoot, targetName);
+  if (!statePath || !existsSync(statePath)) return;
+
+  try {
+    const state = FileSystemUtils.readJsonFileStrict<PoltergeistState>(statePath);
+    const ts = state.lastBuild?.timestamp;
+    if (!ts) return;
+
+    const ageMs = Date.now() - new Date(ts).getTime();
+    if (Number.isNaN(ageMs)) return;
+
+    const threshold = maxAgeMinutes * 60_000;
+    if (ageMs > threshold) {
+      const ageMinutes = Math.floor(ageMs / 60_000);
+      const formatted = new Date(ts).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+      console.warn(
+        chalk.yellow(
+          poltergeistMessage(
+            'warning',
+            `Build is ${ageMinutes}m old (last build ${formatted}); consider rebuilding.`
+          )
+        )
+      );
+    }
+  } catch {
+    // If stale warning fails, continue without blocking execution
+  }
+}
+
 interface LogOptions {
   showLogs: boolean;
   logLines: number;
@@ -1381,6 +1415,11 @@ export async function runWrapper(targetName: string, args: string[], options: Pa
           console.warn(chalk.yellow('👻 [Poltergeist] ⚠ Build status unknown, proceeding...'));
         }
         break;
+    }
+
+    // Emit a concise warning when the last successful build is older than 10 minutes.
+    if (status === 'success' || status === 'poltergeist-not-running') {
+      warnIfBuildStaleByAge(projectRoot, target.name, 10);
     }
 
     if (options.watch) {
