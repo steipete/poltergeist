@@ -454,11 +454,12 @@ function formatProgress(
   return truncateVisible(text, maxWidth);
 }
 
-function progressBar(percent: number, width: number): string {
+export function progressBar(percent: number, width: number): string {
   const filled = Math.round((percent / 100) * width);
   const clamped = Math.max(0, Math.min(width, filled));
   const empty = Math.max(0, width - clamped);
-  const body = colors.accent('█'.repeat(clamped)) + colors.muted('░'.repeat(empty));
+  // ASCII-only bar so it renders in every terminal/font.
+  const body = colors.accent('='.repeat(clamped)) + colors.muted('.'.repeat(empty));
   return colors.muted('[') + body + colors.muted(']');
 }
 
