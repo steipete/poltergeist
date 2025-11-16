@@ -454,12 +454,12 @@ function formatTargets(
     return colors.header('No targets configured.');
   }
 
+  // Dynamically size columns so narrow terminals stay readable.
+  const targetCol = Math.max(18, Math.min(36, Math.floor(width * 0.5)));
+  const statusCol = Math.max(16, width - targetCol);
+
   const lines: string[] = [];
-  const headerLine =
-    `${pad(colors.header('Target'), 34)}` +
-    `${pad(colors.header('Status'), 20)}` +
-    `${pad(colors.header('Last Build'), 20)}` +
-    `${colors.header('Duration')}`;
+  const headerLine = `${pad(colors.header('Target'), targetCol)}${pad(colors.header('Status'), statusCol)}`;
   const divider = colors.line('─'.repeat(Math.max(4, width)));
   lines.push(headerLine);
   lines.push(divider);
@@ -474,11 +474,16 @@ function formatTargets(
     const lastBuild = formatRelativeTime(entry.status.lastBuild?.timestamp);
     const duration = formatDuration(entry.status.lastBuild?.duration);
 
-    const row =
-      `${pad(`${targetName}${enabledLabel}`, 34)}` +
-      `${pad(color(statusLabel), 20)}` +
-      `${pad(lastBuild, 20)}` +
-      `${duration}`;
+    const parts = [color(statusLabel)];
+    if (lastBuild && lastBuild !== '—') {
+      parts.push(lastBuild);
+    }
+    if (duration && duration !== '—') {
+      parts.push(duration);
+    }
+    const statusDetails = parts.join(' · ');
+
+    const row = `${pad(`${targetName}${enabledLabel}`, targetCol)}${pad(statusDetails, statusCol)}`;
     lines.push(row);
 
     const scriptLines =
