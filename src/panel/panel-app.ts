@@ -256,6 +256,7 @@ export class PanelApp {
       summaryRowLabel: this.getSummaryLabel(this.snapshot),
       summarySelected: viewingSummary,
       summaryInfo,
+      logLimit,
     });
     if (this.started) {
       this.tui.requestRender();
@@ -424,6 +425,7 @@ interface PanelViewState {
   summaryRowLabel?: string;
   summarySelected: boolean;
   summaryInfo: SummaryRenderInfo;
+  logLimit: number;
 }
 
 interface SummaryRenderInfo {
@@ -492,7 +494,7 @@ class PanelView extends Container {
     }
     if (state.shouldShowLogs) {
       const entry = snapshot.targets[selectedIndex];
-      this.logs.setText(formatLogs(entry, state.logLines, state.width));
+      this.logs.setText(formatLogs(entry, state.logLines, state.width, state.logLimit));
     } else {
       this.logs.setText('');
     }
@@ -886,7 +888,12 @@ function formatAiSummary(lines: string[]): { header?: string; body: string } | n
   return { body: filtered.join('\n') };
 }
 
-function formatLogs(entry: TargetPanelEntry | undefined, lines: string[], width: number): string {
+function formatLogs(
+  entry: TargetPanelEntry | undefined,
+  lines: string[],
+  width: number,
+  maxLines: number
+): string {
   if (!entry) {
     return '';
   }
@@ -894,9 +901,17 @@ function formatLogs(entry: TargetPanelEntry | undefined, lines: string[], width:
     `Logs — ${entry.name}${entry.status.lastBuild?.status ? ` (${entry.status.lastBuild.status})` : ''}`
   );
   const divider = colors.line('─'.repeat(Math.max(4, width)));
+  const wrapped: string[] = [];
+  const wrapWidth = Math.max(1, width - 2);
+  for (const line of lines) {
+    const segments = wrapAnsi(line, wrapWidth, { hard: false, trim: false }).split('\n');
+    wrapped.push(...segments);
+  }
+  const limited =
+    maxLines > 0 && wrapped.length > maxLines ? wrapped.slice(wrapped.length - maxLines) : wrapped;
   const content =
-    lines.length > 0
-      ? lines.map((line) => colors.accent(line)).join('\n')
+    limited.length > 0
+      ? limited.map((line) => colors.accent(line)).join('\n')
       : colors.muted('  (no logs)');
   return `\n${header}\n${divider}\n${content}`;
 }
