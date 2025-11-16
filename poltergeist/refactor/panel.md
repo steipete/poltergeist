@@ -18,4 +18,7 @@
 - ✅ Visually separate global scripts (label/divider) to distinguish them from target rows in dense outputs.
 - ✅ Better empty states: when no targets exist, show a short hint on how to populate panel/status data.
 - ✅ Provide a monochrome/no-color mode by shimming the `colors` palette (POLTERGEIST_MONOCHROME=1).
-- Remaining: event-triggered log refresh hooks beyond status polling (emit on builder/log writes), cache `buildTargetRows` within a render pass, add extra tests for `formatLogs` wrap/multiline and `formatHeader` narrow/compact widths, consider badge-width elision tuning and clearer doc for new flags.
+- ✅ Event-triggered log refresh: panel now listens to `log-update` events and refreshes logs immediately when status/summary data change.
+- ✅ Cache `buildTargetRows` within a render pass using snapshot versioning.
+- ✅ Added extra tests: truncation, header compact/narrow separators, log wrapping.
+- Remaining: fine-tune badge-width elision & document new flags (monochrome), consider additional `formatLogs` multiline cases if needed.
