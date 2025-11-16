@@ -54,6 +54,15 @@ const loadConfigOrExit = async (configPath?: string) => {
   }
 };
 
+const parseGitModeOrExit = (value?: string) => {
+  try {
+    return parseGitSummaryModeOption(value);
+  } catch (error) {
+    console.error(chalk.red((error as Error).message));
+    process.exit(1);
+  }
+};
+
 program
   .name('poltergeist')
   .description(`👻 ${chalk.cyan('Poltergeist - The ghost that keeps your projects fresh')}`)
@@ -519,13 +528,7 @@ program
   .action(async (options) => {
     const { config, projectRoot, configPath } = await loadConfigOrExit(options.config);
     const logger = createLogger(options.verbose ? 'debug' : config.logging?.level || 'info');
-    let gitSummaryMode: 'ai' | 'list' | undefined;
-    try {
-      gitSummaryMode = parseGitSummaryModeOption(options.gitMode);
-    } catch (error) {
-      console.error(chalk.red((error as Error).message));
-      process.exit(1);
-    }
+    const gitSummaryMode = parseGitModeOrExit(options.gitMode);
     await runStatusPanel({
       config,
       projectRoot,
@@ -554,13 +557,7 @@ program
           console.error(chalk.red('--json is not compatible with the panel view.'));
           process.exit(1);
         }
-        let gitSummaryMode: 'ai' | 'list' | undefined;
-        try {
-          gitSummaryMode = parseGitSummaryModeOption(options.gitMode);
-        } catch (error) {
-          console.error(chalk.red((error as Error).message));
-          process.exit(1);
-        }
+        const gitSummaryMode = parseGitModeOrExit(options.gitMode);
 
         await runStatusPanel({
           config,
