@@ -81,6 +81,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     nonisolated func applicationWillTerminate(_ notification: Notification) {
         Task { @MainActor in
             logger.info("🛑 Poltergeist Monitor shutting down...")
+            ProjectMonitor.shared.stopMonitoring()
             statusBarController = nil
         }
     }

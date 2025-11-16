@@ -14,14 +14,18 @@ import os.log
 final class FileWatcher: @unchecked Sendable {
     private let logger = Logger(subsystem: "com.poltergeist.monitor", category: "FileWatcher")
     private let path: String
-    private let callback: @MainActor @Sendable () -> Void
+    private let callback: @Sendable () -> Void
+    private let eventQueue = DispatchQueue(
+        label: "com.poltergeist.monitor.filewatcher",
+        qos: .utility
+    )
 
     private var directoryFileDescriptor: CInt = -1
     private var directorySource: DispatchSourceFileSystemObject?
     private let lock = NSLock()
 
     /// - Parameter callback: Called on main queue when file system changes are detected
-    init(path: String, callback: @escaping @MainActor @Sendable () -> Void) {
+    init(path: String, callback: @escaping @Sendable () -> Void) {
         self.path = path
         self.callback = callback
     }
@@ -45,14 +49,14 @@ final class FileWatcher: @unchecked Sendable {
         let source = DispatchSource.makeFileSystemObjectSource(
             fileDescriptor: directoryFileDescriptor,
             eventMask: [.write, .delete],
-            queue: DispatchQueue.main
+            queue: eventQueue
         )
 
         source.setEventHandler { [weak self] in
-            guard let self = self else { return }
-            // Call @MainActor callback using Task with @MainActor context
-            Task { @MainActor in
-                self.callback()
+            guard let callback = self?.callback else { return }
+            // Forward to the main queue explicitly to satisfy @MainActor callers
+            DispatchQueue.main.async {
+                callback()
             }
         }
 

@@ -47,6 +47,12 @@ final class ProjectMonitor {
     static let shared = ProjectMonitor()
     static let projectsDidUpdateNotification = Notification.Name("ProjectsDidUpdate")
 
+    private static let iso8601Formatter: ISO8601DateFormatter = {
+        let formatter = ISO8601DateFormatter()
+        formatter.formatOptions = [.withInternetDateTime, .withFractionalSeconds]
+        return formatter
+    }()
+
     private let logger = Logger(subsystem: "com.poltergeist.monitor", category: "ProjectMonitor")
     private let poltergeistDirectory: String = {
         if let customDir = ProcessInfo.processInfo.environment["POLTERGEIST_STATE_DIR"] {
@@ -65,6 +71,7 @@ final class ProjectMonitor {
     private var fileWatcher: FileWatcher?
     private var updateTimer: Timer?
     private var debounceTimer: Timer?
+    private var isMonitoring = false
 
     // Track build history for enhanced features
     private var buildHistory: [CompletedBuild] = []
@@ -84,6 +91,11 @@ final class ProjectMonitor {
     private init() {}
 
     func startMonitoring() {
+        guard !isMonitoring else {
+            logger.debug("Project monitoring already active")
+            return
+        }
+        isMonitoring = true
         logger.info("Starting project monitoring...")
 
         // Create directory if it doesn't exist
@@ -98,9 +110,22 @@ final class ProjectMonitor {
         // Set up periodic updates for heartbeat checks
         updateTimer = Timer.scheduledTimer(withTimeInterval: 5.0, repeats: true) { _ in
             Task { @MainActor in
+                guard self.isMonitoring else { return }
                 self.scanForProjects()
             }
         }
+    }
+
+    func stopMonitoring() {
+        guard isMonitoring else { return }
+        logger.info("Stopping project monitoring...")
+        debounceTimer?.invalidate()
+        debounceTimer = nil
+        updateTimer?.invalidate()
+        updateTimer = nil
+        fileWatcher?.stop()
+        fileWatcher = nil
+        isMonitoring = false
     }
 
     private func createPoltergeistDirectory() {
@@ -262,7 +287,7 @@ final class ProjectMonitor {
     }
 
     private func createTargetState(from state: PoltergeistState) -> TargetState {
-        let heartbeat = ISO8601DateFormatter().date(from: state.process.lastHeartbeat)
+        let heartbeat = Self.iso8601Formatter.date(from: state.process.lastHeartbeat)
         let isStale = isProcessStale(heartbeat: heartbeat)
         if isStale {
             logger.warning("⚠️ Process is stale for \(state.projectName):\(state.target)")
@@ -275,9 +300,9 @@ final class ProjectMonitor {
             isActive: state.process.isActive && !isProcessStale(heartbeat: heartbeat),
             lastHeartbeat: heartbeat,
             lastBuild: state.lastBuild.map { build in
-                let buildTimestamp = ISO8601DateFormatter().date(from: build.timestamp)
+                let buildTimestamp = Self.iso8601Formatter.date(from: build.timestamp)
                 let buildStartTime = build.startTime.flatMap {
-                    ISO8601DateFormatter().date(from: $0)
+                    Self.iso8601Formatter.date(from: $0)
                 }
 
                 return BuildInfo(
@@ -652,6 +677,10 @@ final class ProjectMonitor {
             currentActiveBuilds: buildQueue.activeBuilds.count,
             queueLength: buildQueue.totalQueueLength
         )
+    }
+
+    deinit {
+        stopMonitoring()
     }
 }
 
