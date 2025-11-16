@@ -20,7 +20,6 @@ import {
   getSummaryModes,
   hasSummaryRow,
   resolveSummaryMode,
-  type SummaryModeOption,
   getLogChannels as stateLogChannels,
   getSelectedChannel as stateSelectedChannel,
   syncLogChannelState,
@@ -37,7 +36,7 @@ import {
 } from './render-utils.js';
 import { buildTargetRows, type TargetRow } from './target-tree.js';
 import { limitSummaryLines } from './text-utils.js';
-import type { PanelSnapshot, PanelSummaryScriptResult, TargetPanelEntry } from './types.js';
+import type { PanelSnapshot, TargetPanelEntry } from './types.js';
 import { buildPanelViewState } from './view-state.js';
 
 const LOG_FETCH_LIMIT = 40;
@@ -487,33 +486,6 @@ export class PanelApp {
     this.queueLogRefresh();
     this.updateLogPolling();
   }
-}
-
-interface PanelViewState {
-  snapshot: PanelSnapshot;
-  rows: TargetRow[];
-  selectedRowIndex: number;
-  logLines: string[];
-  shouldShowLogs: boolean;
-  controlsLine: string;
-  width: number;
-  summaryRowLabel?: string;
-  summarySelected: boolean;
-  summaryModes: SummaryModeOption[];
-  activeSummaryKey: string;
-  customSummary?: PanelSummaryScriptResult;
-  rowSummaries: PanelSummaryScriptResult[];
-  summaryInfo: SummaryRenderInfo;
-  logLimit: number;
-  logChannel: string;
-  logViewMode: 'all' | 'tests';
-  summaryMode: string;
-}
-
-interface SummaryRenderInfo {
-  headerLines: number;
-  bodyLines: number;
-  totalLines: number;
 }
 
 class PanelView extends Container {

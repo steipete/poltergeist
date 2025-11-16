@@ -3,7 +3,7 @@ import chalk from 'chalk';
 import wrapAnsi from 'wrap-ansi';
 import type { SummaryModeOption } from './panel-state.js';
 import type { TargetRow } from './target-tree.js';
-import { boxLines, centerText, pad, truncateVisible } from './text-utils.js';
+import { boxLines, centerText, pad, truncateVisible, visibleWidth } from './text-utils.js';
 import type { PanelSnapshot, PanelStatusScriptResult, PanelSummaryScriptResult } from './types.js';
 
 export const CONTROLS_LINE = 'Controls: ↑/↓ move · ←/→ cycle logs · r refresh · q quit';
@@ -245,7 +245,7 @@ export function formatTargets(
 
   if (summaryRow && summaryModes.length > 0) {
     const summaryName = summaryRow.selected ? colors.accent(summaryRow.label) : summaryRow.label;
-    const chips = formatSummaryChips(summaryModes, activeSummaryKey);
+    const chips = formatSummaryChips(summaryModes, activeSummaryKey, statusCol);
     const summaryStatus = chips || colors.muted('no summary data');
     lines.push(`${pad(summaryName, targetCol)}${pad(summaryStatus, statusCol)}`);
   }
@@ -262,18 +262,48 @@ export function formatTargets(
   return lines.join('\n');
 }
 
-function formatSummaryChips(modes: SummaryModeOption[], activeSummaryKey?: string): string {
+function formatSummaryChips(
+  modes: SummaryModeOption[],
+  activeSummaryKey: string | undefined,
+  width: number
+): string {
   if (modes.length === 0) return '';
-  return modes
-    .map((mode) => {
-      const isActive = mode.key === activeSummaryKey;
-      const hasData = mode.hasData;
-      const symbol = isActive ? '⦿' : hasData ? '●' : '○';
-      const label = summaryChipLabel(mode);
-      const color = isActive ? colors.accent : hasData ? colors.text : colors.muted;
-      return color(`${symbol} ${label}`);
-    })
-    .join('  ');
+
+  // Build pill strings first, then re-wrap if the line overflows.
+  const pills = modes.map((mode) => {
+    const isActive = mode.key === activeSummaryKey;
+    const hasData = mode.hasData;
+    const bullet = hasData ? '●' : '○';
+    const label = summaryChipLabel(mode);
+    const body = `${bullet} ${label}`;
+    const content = ` ${body} `;
+    const pill = isActive ? colors.accent(`[${content}]`) : colors.muted(`[${content}]`);
+    return { pill, width: visibleWidth(content) + 2 }; // +2 for brackets
+  });
+
+  const totalWidth = pills.reduce((sum, p) => sum + p.width + 1, 0); // +1 spacer between pills
+  if (totalWidth <= width || width < 30) {
+    return pills.map((p) => p.pill).join(' ');
+  }
+
+  // Wrap to next line if too wide; simple greedy wrap.
+  const lines: string[] = [];
+  let current: string[] = [];
+  let remaining = width;
+  for (const pill of pills) {
+    const pillWidth = pill.width + 1;
+    if (pillWidth > remaining && current.length > 0) {
+      lines.push(current.join(' '));
+      current = [];
+      remaining = width;
+    }
+    current.push(pill.pill);
+    remaining -= pillWidth;
+  }
+  if (current.length) {
+    lines.push(current.join(' '));
+  }
+  return lines.join('\n');
 }
 
 function summaryChipLabel(mode: SummaryModeOption): string {
