@@ -406,11 +406,12 @@ export class StatusPanelController {
     try {
       const { stdout, stderr } = await execAsync(script.command, options);
       const durationMs = Date.now() - start;
-      const lines = this.extractLines(stdout, stderr, maxLines);
-      const formatted = formatTestOutput(lines, script.formatter ?? 'auto', script.command);
+      const fullLines = this.extractLines(stdout, stderr, 1000);
+      const formatted = formatTestOutput(fullLines, script.formatter ?? 'auto', script.command);
+      const lines = formatted.slice(0, maxLines);
       return {
         label: script.label,
-        lines: formatted,
+        lines,
         targets: script.targets,
         lastRun: now,
         exitCode: 0,
@@ -420,14 +421,15 @@ export class StatusPanelController {
     } catch (error) {
       const durationMs = Date.now() - start;
       const execError = error as NodeJS.ErrnoException & { stdout?: string; stderr?: string };
-      const output = this.extractLines(execError.stdout, execError.stderr, maxLines);
-      if (output.length === 0) {
-        output.push(`Error: ${execError.message}`);
+      const fullLines = this.extractLines(execError.stdout, execError.stderr, 1000);
+      if (fullLines.length === 0) {
+        fullLines.push(`Error: ${execError.message}`);
       }
-      const formatted = formatTestOutput(output, script.formatter ?? 'auto', script.command);
+      const formatted = formatTestOutput(fullLines, script.formatter ?? 'auto', script.command);
+      const lines = formatted.slice(0, maxLines);
       return {
         label: script.label,
-        lines: formatted,
+        lines,
         targets: script.targets,
         lastRun: now,
         exitCode:
