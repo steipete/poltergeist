@@ -218,12 +218,9 @@ export class PanelApp {
     this.updateLogPolling();
   }
 
-  private shouldShowLogs(entry?: TargetPanelEntry): boolean {
-    const status = entry?.status.lastBuild?.status;
-    if (entry?.targetType === 'test') {
-      return true;
-    }
-    return status === 'building' || status === 'failure';
+  private shouldShowLogs(_entry?: TargetPanelEntry): boolean {
+    // Always show the log section; tests benefit and idle targets show an explicit "(no logs)" message.
+    return true;
   }
 
   private updateView(_reason: string = 'update'): void {
