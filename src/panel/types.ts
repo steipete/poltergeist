@@ -62,6 +62,7 @@ export interface PanelControllerOptions {
   projectRoot: string;
   fetchStatus: () => Promise<Record<string, unknown>>;
   logger: Logger;
+  configPath?: string;
   gitPollIntervalMs?: number;
   statusPollIntervalMs?: number;
   gitSummaryMode?: 'ai' | 'list';

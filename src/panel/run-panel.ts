@@ -51,6 +51,7 @@ export async function runStatusPanel(options: RunPanelOptions): Promise<void> {
   );
   const controller = new StatusPanelController({
     config: options.config,
+    configPath: options.configPath,
     projectRoot: options.projectRoot,
     logger: options.logger,
     fetchStatus: () => poltergeist.getStatus(),

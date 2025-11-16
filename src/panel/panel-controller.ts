@@ -4,6 +4,7 @@ import { existsSync, type FSWatcher, mkdirSync, watch } from 'fs';
 import { promisify } from 'util';
 import type { StatusObject } from '../status/types.js';
 import type { StatusScriptConfig, SummaryScriptConfig } from '../types.js';
+import { ConfigurationManager } from '../utils/config-manager.js';
 import { FileSystemUtils } from '../utils/filesystem.js';
 import { normalizeLogChannels } from '../utils/log-channels.js';
 import { formatTestOutput } from '../utils/test-formatter.js';
@@ -32,13 +33,15 @@ export class StatusPanelController {
   private readonly gitCollector: GitMetricsCollector;
   private readonly logReader: LogTailReader;
   private readonly stateDir: string;
-  private readonly stateFileMap: Map<string, string>;
+  private stateFileMap: Map<string, string>;
+  private configWatcher?: FSWatcher;
   private watcher?: FSWatcher;
   private statusInterval?: NodeJS.Timeout;
   private gitInterval?: NodeJS.Timeout;
   private refreshing?: Promise<void>;
   private scriptRefreshing?: Promise<void>;
   private summaryRefreshing?: Promise<void>;
+  private configReloading?: Promise<void>;
   private disposed = false;
   private readonly gitPollMs: number;
   private readonly statusPollMs: number;
@@ -178,6 +181,10 @@ export class StatusPanelController {
       this.watcher.close();
       this.watcher = undefined;
     }
+    if (this.configWatcher) {
+      this.configWatcher.close();
+      this.configWatcher = undefined;
+    }
     if (this.statusInterval) {
       clearInterval(this.statusInterval);
       this.statusInterval = undefined;
@@ -207,6 +214,74 @@ export class StatusPanelController {
     } catch (error) {
       this.options.logger.warn(`State watcher disabled: ${error}`);
     }
+
+    if (this.options.configPath) {
+      try {
+        this.configWatcher = watch(this.options.configPath, () => {
+          void this.reloadConfig();
+        });
+      } catch (error) {
+        this.options.logger.warn(`Config watcher disabled: ${error}`);
+      }
+    }
+  }
+
+  private async reloadConfig(): Promise<void> {
+    if (this.disposed || !this.options.configPath) {
+      return;
+    }
+
+    if (this.configReloading) {
+      return this.configReloading;
+    }
+
+    const { configPath } = this.options;
+    this.configReloading = (async () => {
+      try {
+        const nextConfig = await ConfigurationManager.loadConfigFromPath(configPath);
+        this.options.config = nextConfig;
+        this.stateFileMap = new Map(
+          nextConfig.targets.map((target) => [
+            FileSystemUtils.generateStateFileName(this.options.projectRoot, target.name),
+            target.name,
+          ])
+        );
+        this.scriptCache.clear();
+        this.summaryScriptCache.clear();
+
+        const targets = nextConfig.targets.map((target) => ({
+          name: target.name,
+          status: { status: 'unknown' },
+          targetType: target.type,
+          enabled: target.enabled,
+          group: target.group,
+          logChannels: normalizeLogChannels(target.logChannels),
+        }));
+
+        this.snapshot = {
+          ...this.snapshot,
+          targets,
+          summary: this.computeSummary(targets),
+          preferredIndex: this.computePreferredIndex(targets),
+          statusScripts: [],
+          summaryScripts: [],
+          lastUpdated: Date.now(),
+        };
+
+        this.emitter.emit('update', { snapshot: this.snapshot });
+        await this.refreshStatus({ refreshGit: true, forceGit: true });
+        await this.refreshStatusScripts(true);
+        await this.refreshSummaryScripts(true);
+      } catch (error) {
+        this.options.logger.warn(
+          `[Panel] Failed to reload config: ${error instanceof Error ? error.message : error}`
+        );
+      } finally {
+        this.configReloading = undefined;
+      }
+    })();
+
+    await this.configReloading;
   }
 
   private computeSummary(
