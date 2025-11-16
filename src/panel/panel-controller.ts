@@ -330,26 +330,38 @@ export class StatusPanelController {
     this.scriptRefreshing = (async () => {
       const totalStart = Date.now();
       const configs = this.options.config.statusScripts ?? [];
-      const results: PanelStatusScriptResult[] = [];
-      let scriptFailures = 0;
       const now = Date.now();
 
+      // Emit cached results immediately so the panel shows something while scripts rerun.
+      const cachedResults: PanelStatusScriptResult[] = [];
       for (const scriptConfig of configs) {
         const cacheKey = this.getScriptCacheKey(scriptConfig);
         const cache = this.scriptCache.get(cacheKey);
         const cooldownMs = (scriptConfig.cooldownSeconds ?? 60) * 1000;
-
         if (!force && cache && now - cache.lastRun < cooldownMs) {
-          results.push(cache.result);
+          cachedResults.push(cache.result);
+        }
+      }
+      if (cachedResults.length > 0) {
+        this.snapshot = {
+          ...this.snapshot,
+          statusScripts: cachedResults,
+          lastUpdated: Date.now(),
+        };
+        this.emitter.emit('update', { snapshot: this.snapshot });
+      }
+
+      // Run scripts in parallel and update incrementally.
+      let scriptFailures = 0;
+      const jobs = configs.map(async (scriptConfig) => {
+        const cacheKey = this.getScriptCacheKey(scriptConfig);
+        const cache = this.scriptCache.get(cacheKey);
+        const cooldownMs = (scriptConfig.cooldownSeconds ?? 60) * 1000;
+        if (!force && cache && now - cache.lastRun < cooldownMs) {
           if ((cache.result.exitCode ?? 0) !== 0) {
             scriptFailures += 1;
           }
-          if (this.profileEnabled) {
-            this.options.logger.info(
-              `[PanelProfile] script ${scriptConfig.label ?? scriptConfig.command} skipped (cache hit)`
-            );
-          }
-          continue;
+          return cache.result;
         }
 
         const scriptStart = Date.now();
@@ -364,19 +376,23 @@ export class StatusPanelController {
           );
         }
         this.scriptCache.set(cacheKey, { lastRun: result.lastRun, result });
-        results.push(result);
-      }
 
-      this.snapshot = {
-        ...this.snapshot,
-        summary: this.computeSummary(this.snapshot.targets, scriptFailures),
-        statusScripts: results,
-        lastUpdated: Date.now(),
-      };
-      this.emitter.emit('update', { snapshot: this.snapshot });
+        const merged = this.mergeScriptResult(result);
+        this.snapshot = {
+          ...this.snapshot,
+          summary: this.computeSummary(this.snapshot.targets, scriptFailures),
+          statusScripts: merged,
+          lastUpdated: Date.now(),
+        };
+        this.emitter.emit('update', { snapshot: this.snapshot });
+        return result;
+      });
+
+      await Promise.allSettled(jobs);
+
       if (this.profileEnabled) {
         this.options.logger.info(
-          `[PanelProfile] refreshStatusScripts total=${Date.now() - totalStart}ms scripts=${results.length}`
+          `[PanelProfile] refreshStatusScripts total=${Date.now() - totalStart}ms scripts=${configs.length}`
         );
       }
     })().finally(() => {
@@ -389,6 +405,12 @@ export class StatusPanelController {
   private getScriptCacheKey(script: StatusScriptConfig): string {
     const targetsKey = script.targets?.slice().sort().join(',') ?? '';
     return `${script.label}::${script.command}::${targetsKey}`;
+  }
+
+  private mergeScriptResult(result: PanelStatusScriptResult): PanelStatusScriptResult[] {
+    const current = this.snapshot.statusScripts ?? [];
+    const filtered = current.filter((r) => r.label !== result.label);
+    return [...filtered, result];
   }
 
   private async runStatusScript(script: StatusScriptConfig): Promise<PanelStatusScriptResult> {

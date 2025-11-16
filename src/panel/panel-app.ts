@@ -243,6 +243,7 @@ export class PanelApp {
   private updateView(_reason: string = 'update'): void {
     const summaryIndex = this.getSummaryIndex(this.snapshot);
     const viewingSummary = summaryIndex !== null && this.selectedIndex === summaryIndex;
+    this.summaryMode = this.resolveSummaryMode(this.snapshot, this.summaryMode);
     const entry =
       viewingSummary || this.selectedIndex < 0
         ? undefined
@@ -267,12 +268,12 @@ export class PanelApp {
       shouldShowLogs,
       controlsLine: CONTROLS_LINE,
       width,
-      summaryRowLabel: this.getSummaryLabel(this.snapshot),
+      summaryRowLabel: this.getSummaryLabel(this.snapshot, this.summaryMode),
       summarySelected: viewingSummary,
-        summaryInfo,
-        logLimit,
-        logMode: this.logMode,
-        summaryMode: this.summaryMode,
+      summaryInfo,
+      logLimit,
+      logMode: this.logMode,
+      summaryMode: this.summaryMode,
       });
     if (this.started) {
       this.tui.requestRender();
@@ -337,14 +338,13 @@ export class PanelApp {
     summaryInfo: SummaryRenderInfo;
   }): number {
     const headerText = formatHeader(snapshot, width);
+    const summaryLabel = this.getSummaryLabel(snapshot, this.summaryMode);
     const targetsText = formatTargets(
       snapshot.targets,
       this.selectedIndex,
       splitStatusScripts(snapshot.statusScripts ?? []).scriptsByTarget,
       width,
-      this.getSummaryLabel(snapshot)
-        ? { label: this.getSummaryLabel(snapshot)!, selected: false }
-        : undefined
+      summaryLabel ? { label: summaryLabel, selected: false } : undefined
     );
     const globalScriptsText = formatGlobalScripts(
       splitStatusScripts(snapshot.statusScripts ?? []).globalScripts,
@@ -404,13 +404,21 @@ export class PanelApp {
     };
   }
 
-  private getSummaryLabel(snapshot: PanelSnapshot): string | undefined {
-    if (this.hasAiSummary(snapshot)) {
+  private getSummaryLabel(snapshot: PanelSnapshot, mode: 'ai' | 'git'): string | undefined {
+    const hasAI = this.hasAiSummary(snapshot);
+    const hasGit = this.hasDirtySummary(snapshot);
+    if (!hasAI && !hasGit) {
+      return undefined;
+    }
+    if (mode === 'ai' && hasAI) {
       return 'AI Summary';
     }
-    if (this.hasDirtySummary(snapshot)) {
+    if (mode === 'git' && hasGit) {
       return 'Git Status';
     }
+    // Fallback to whichever exists.
+    if (hasAI) return 'AI Summary';
+    if (hasGit) return 'Git Status';
     return undefined;
   }
 
@@ -453,6 +461,16 @@ export class PanelApp {
     const dirtyCount = snapshot.git.dirtyFiles ?? 0;
     const names = snapshot.git.dirtyFileNames ?? [];
     return dirtyCount > 0 || names.length > 0;
+  }
+
+  private resolveSummaryMode(snapshot: PanelSnapshot, desired: 'ai' | 'git'): 'ai' | 'git' {
+    const hasAI = this.hasAiSummary(snapshot);
+    const hasGit = this.hasDirtySummary(snapshot);
+    if (desired === 'ai' && hasAI) return 'ai';
+    if (desired === 'git' && hasGit) return 'git';
+    if (hasAI) return 'ai';
+    if (hasGit) return 'git';
+    return desired;
   }
 
   private hasSummaryRow(snapshot: PanelSnapshot): boolean {
