@@ -945,7 +945,8 @@ function formatGlobalScripts(scripts: PanelStatusScriptResult[], width: number):
 
 function formatDirtyFiles(snapshot: PanelSnapshot): string {
   const dirtyFiles = snapshot.git.dirtyFileNames ?? [];
-  if ((snapshot.git.dirtyFiles ?? 0) === 0 && dirtyFiles.length === 0) {
+  const totalDirty = snapshot.git.dirtyFiles ?? dirtyFiles.length;
+  if (totalDirty === 0 && dirtyFiles.length === 0) {
     return '';
   }
   const groups = groupDirtyFiles(dirtyFiles);
@@ -954,8 +955,8 @@ function formatDirtyFiles(snapshot: PanelSnapshot): string {
   lines.push(
     colors.header(
       `Dirty Files (${visibleCount}${
-        (snapshot.git.dirtyFiles ?? dirtyFiles.length) > visibleCount
-          ? ` of ${snapshot.git.dirtyFiles}`
+        totalDirty > visibleCount
+          ? ` of ${totalDirty}`
           : ''
       }):`
     )
@@ -970,9 +971,11 @@ function formatDirtyFiles(snapshot: PanelSnapshot): string {
         : `${dir}: ${group.files.join(', ')}`;
     lines.push(colors.muted(`• ${label}`));
   });
-  const remaining = (snapshot.git.dirtyFiles ?? dirtyFiles.length) - visibleCount;
+  const remaining = totalDirty - visibleCount;
   if (remaining > 0) {
     lines.push(colors.muted(`…and ${remaining} more`));
+  } else if (visibleCount === 0 && totalDirty > 0) {
+    lines.push(colors.muted(`• (${totalDirty} dirty file(s); paths unavailable)`));
   }
   return `\n${lines.join('\n')}`;
 }
