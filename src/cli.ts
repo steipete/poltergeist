@@ -4,19 +4,8 @@
 import chalk from 'chalk';
 // Updated CLI for generic target system
 import { Command } from 'commander';
-import {
-  appendFileSync,
-  createReadStream,
-  existsSync,
-  readFileSync,
-  statSync,
-  unlinkSync,
-  watchFile,
-  writeFileSync,
-} from 'fs';
-import { readdir, readFile } from 'fs/promises';
+import { appendFileSync, existsSync, readFileSync, unlinkSync, writeFileSync } from 'fs';
 import path, { join } from 'path';
-import { createInterface } from 'readline';
 import { FileSystemUtils } from './utils/filesystem.js';
 import { DEFAULT_LOG_CHANNEL, sanitizeLogChannel } from './utils/log-channels.js';
 import { isMainModule } from './utils/paths.js';
@@ -25,13 +14,21 @@ import { isMainModule } from './utils/paths.js';
 // This ensures the binary always reports its compiled version
 const packageJson = { version: '2.0.0', name: '@steipete/poltergeist' };
 
+import { loadConfigurationOrExit, parseGitSummaryModeOption } from './cli/configuration.js';
+import {
+  augmentConfigWithDetectedTargets,
+  findXcodeProjects,
+  generateDefaultConfig,
+  guessBundleId,
+} from './cli/init-helpers.js';
+import { displayLogs } from './cli/logging.js';
+import { formatTargetStatus, printBuildLockHints } from './cli/status-formatters.js';
 import {
   configurePolterCommand,
   getPolterDescription,
   parsePolterOptions,
 } from './cli-shared/polter-command.js';
 // import { Poltergeist } from './poltergeist.js';
-import { ConfigurationError } from './config.js';
 // Static import for daemon-worker to ensure it's included in Bun binary
 import { runDaemon } from './daemon/daemon-worker.js';
 import { createPoltergeist } from './factories.js';
@@ -108,40 +105,6 @@ program
     },
   });
 
-// Helper function to load config and handle errors
-async function loadConfiguration(
-  configPath?: string
-): Promise<{ config: PoltergeistConfig; projectRoot: string; configPath: string }> {
-  try {
-    const result = await ConfigurationManager.getConfig(configPath);
-    return {
-      config: result.config,
-      projectRoot: result.projectRoot,
-      configPath: result.configPath,
-    };
-  } catch (error) {
-    if (error instanceof ConfigurationError) {
-      console.error(chalk.red(error.message));
-    } else {
-      console.error(chalk.red(`Failed to load configuration: ${error}`));
-    }
-    process.exit(1);
-  }
-}
-
-function parseGitSummaryModeOption(value?: string): 'ai' | 'list' | undefined {
-  if (!value) {
-    return undefined;
-  }
-  const normalized = value.toLowerCase();
-  if (normalized === 'ai' || normalized === 'list') {
-    return normalized;
-  }
-  console.error(chalk.red(`Invalid git mode "${value}". Use "ai" or "list".`));
-  process.exit(1);
-  return undefined;
-}
-
 program
   .command('haunt')
   .alias('start')
@@ -154,7 +117,7 @@ program
   .option('--log-level <level>', 'Set log level (debug, info, warn, error)')
   .option('-f, --foreground', 'Run in foreground (blocking mode)')
   .action(async (options) => {
-    const { config, projectRoot, configPath } = await loadConfiguration(options.config);
+    const { config, projectRoot, configPath } = await loadConfigurationOrExit(options.config);
 
     // Validate target if specified
     let noEnabledTargets = false;
@@ -318,7 +281,7 @@ program
   .description('Stop Poltergeist daemon')
   .option('-c, --config <path>', 'Path to config file')
   .action(async (options) => {
-    const { config, projectRoot } = await loadConfiguration(options.config);
+    const { config, projectRoot } = await loadConfigurationOrExit(options.config);
     const logger = createLogger(config.logging?.level || 'info');
     const isTestMode = process.env.POLTERGEIST_TEST_MODE === 'true';
     if (isTestMode) {
@@ -373,7 +336,7 @@ program
   .action(async (options) => {
     console.log(chalk.gray(poltergeistMessage('info', 'Restarting...')));
 
-    const { config, projectRoot, configPath } = await loadConfiguration(options.config);
+    const { config, projectRoot, configPath } = await loadConfigurationOrExit(options.config);
     const logger = createLogger(config.logging?.level || 'info');
 
     try {
@@ -421,7 +384,7 @@ program
   .option('-f, --force', 'Force rebuild even if another build is running')
   .option('--json', 'Output result as JSON')
   .action(async (targetName, options) => {
-    const { config, projectRoot } = await loadConfiguration(options.config);
+    const { config, projectRoot } = await loadConfigurationOrExit(options.config);
     const logger = createLogger(options.verbose ? 'debug' : config.logging?.level || 'info');
 
     try {
@@ -547,7 +510,7 @@ program
   .option('--verbose', 'Enable verbose logging (same as --log-level debug)')
   .option('--git-mode <mode>', 'Git summary mode (ai | list)', 'ai')
   .action(async (options) => {
-    const { config, projectRoot, configPath } = await loadConfiguration(options.config);
+    const { config, projectRoot, configPath } = await loadConfigurationOrExit(options.config);
     const logger = createLogger(options.verbose ? 'debug' : config.logging?.level || 'info');
     const gitSummaryMode = parseGitSummaryModeOption(options.gitMode);
     await runStatusPanel({
@@ -568,7 +531,7 @@ program
   .option('--json', 'Output status as JSON')
   .option('--git-mode <mode>', 'Git summary mode (ai | list)', 'ai')
   .action(async (view: string | undefined, options) => {
-    const { config, projectRoot, configPath } = await loadConfiguration(options.config);
+    const { config, projectRoot, configPath } = await loadConfigurationOrExit(options.config);
 
     try {
       const logger = createLogger(config.logging?.level || 'info');
@@ -630,441 +593,6 @@ program
       process.exit(1);
     }
   });
-
-function formatTargetStatus(name: string, status: unknown, verbose?: boolean): void {
-  const statusObj = status as StatusObject;
-  console.log(chalk.cyan(`Target: ${name}`));
-  console.log(`  Status: ${formatStatus(statusObj.status || 'unknown')}`);
-
-  const formatShortDuration = (ms?: number): string | undefined => {
-    if (!ms || ms <= 0) {
-      return undefined;
-    }
-    if (ms < 1000) {
-      return `${ms}ms`;
-    }
-    const totalSeconds = Math.round(ms / 1000);
-    if (totalSeconds < 60) {
-      return `${totalSeconds}s`;
-    }
-    const minutes = Math.floor(totalSeconds / 60);
-    const seconds = totalSeconds % 60;
-    if (seconds === 0) {
-      return `${minutes}m`;
-    }
-    return `${minutes}m ${seconds}s`;
-  };
-
-  // Process information
-  if (statusObj.process) {
-    const { pid, hostname, isActive, lastHeartbeat } = statusObj.process;
-    if (isActive) {
-      console.log(`  Process: ${chalk.green(`Running (PID: ${pid} on ${hostname})`)}`);
-      const heartbeatAge = lastHeartbeat ? Date.now() - new Date(lastHeartbeat).getTime() : 0;
-      const heartbeatStatus =
-        heartbeatAge < 30000 ? chalk.green('✓ Active') : chalk.yellow('⚠ Stale');
-      console.log(`  Heartbeat: ${heartbeatStatus} (${Math.round(heartbeatAge / 1000)}s ago)`);
-
-      // Show uptime in verbose mode
-      if (verbose && statusObj.process.startTime) {
-        const uptime = Date.now() - new Date(statusObj.process.startTime).getTime();
-        const uptimeMinutes = Math.floor(uptime / 60000);
-        const uptimeSeconds = Math.floor((uptime % 60000) / 1000);
-        console.log(`  Uptime: ${uptimeMinutes}m ${uptimeSeconds}s`);
-      }
-    } else {
-      console.log(`  Process: ${chalk.gray('Not running')}`);
-    }
-  } else if (statusObj.pid) {
-    // Legacy format
-    console.log(`  Process: ${chalk.green(`Running (PID: ${statusObj.pid})`)}`);
-  } else {
-    console.log(`  Process: ${chalk.gray('Not running')}`);
-  }
-
-  // Build information
-  if (statusObj.lastBuild) {
-    console.log(`  Last Build: ${new Date(statusObj.lastBuild.timestamp).toLocaleString()}`);
-    console.log(`  Build Status: ${formatStatus(statusObj.lastBuild.status)}`);
-
-    // Show build command if building
-    if (statusObj.lastBuild.status === 'building' && statusObj.buildCommand) {
-      console.log(`  Command: ${statusObj.buildCommand}`);
-    }
-
-    if (statusObj.lastBuild.duration) {
-      console.log(`  Build Time: ${statusObj.lastBuild.duration}ms`);
-    }
-
-    // Show elapsed time and estimate if building
-    if (statusObj.lastBuild.status === 'building') {
-      const elapsed = Date.now() - new Date(statusObj.lastBuild.timestamp).getTime();
-      const elapsedSec = Math.round(elapsed / 1000);
-      let timeInfo = `  Elapsed: ${elapsedSec}s`;
-
-      // Add estimate if we have build statistics
-      if (statusObj.buildStats?.averageDuration) {
-        const avgSec = Math.round(statusObj.buildStats.averageDuration / 1000);
-        const remainingSec = Math.max(0, avgSec - elapsedSec);
-        timeInfo += ` / ~${avgSec}s (${remainingSec}s remaining)`;
-      }
-
-      console.log(timeInfo);
-    }
-
-    if (statusObj.lastBuild.gitHash) {
-      console.log(`  Git Hash: ${statusObj.lastBuild.gitHash}`);
-    }
-    if (statusObj.lastBuild.builder) {
-      console.log(`  Builder: ${statusObj.lastBuild.builder}`);
-    }
-    if (statusObj.lastBuild.errorSummary) {
-      console.log(`  Error: ${chalk.red(statusObj.lastBuild.errorSummary)}`);
-    } else if (statusObj.lastBuild.error) {
-      console.log(`  Error: ${chalk.red(statusObj.lastBuild.error)}`);
-    }
-
-    // Show verbose build details
-    if (verbose) {
-      if (statusObj.lastBuild.exitCode !== undefined) {
-        console.log(`  Exit Code: ${statusObj.lastBuild.exitCode}`);
-      }
-      if (statusObj.buildCommand) {
-        console.log(`  Build Command: ${chalk.gray(statusObj.buildCommand)}`);
-      }
-    }
-  }
-
-  // App information
-  if (statusObj.appInfo) {
-    if (statusObj.appInfo.bundleId) {
-      console.log(`  Bundle ID: ${statusObj.appInfo.bundleId}`);
-    }
-    if (statusObj.appInfo.outputPath) {
-      console.log(`  Output: ${statusObj.appInfo.outputPath}`);
-    }
-    if (statusObj.appInfo.iconPath) {
-      console.log(`  Icon: ${statusObj.appInfo.iconPath}`);
-    }
-  }
-
-  // Build statistics (verbose mode)
-  if (verbose && statusObj.buildStats) {
-    console.log(chalk.gray('  Build Statistics:'));
-    if (statusObj.buildStats.averageDuration) {
-      console.log(
-        `    Average Duration: ${Math.round(statusObj.buildStats.averageDuration / 1000)}s`
-      );
-    }
-    if (statusObj.buildStats.minDuration !== undefined) {
-      console.log(`    Min Duration: ${Math.round(statusObj.buildStats.minDuration / 1000)}s`);
-    }
-    if (statusObj.buildStats.maxDuration !== undefined) {
-      console.log(`    Max Duration: ${Math.round(statusObj.buildStats.maxDuration / 1000)}s`);
-    }
-    if (statusObj.buildStats.successfulBuilds && statusObj.buildStats.successfulBuilds.length > 0) {
-      console.log(`    Recent Successful Builds:`);
-      statusObj.buildStats.successfulBuilds.slice(0, 3).forEach((build) => {
-        const timestamp = new Date(build.timestamp).toLocaleTimeString();
-        const duration = Math.round(build.duration / 1000);
-        console.log(`      - ${timestamp}: ${duration}s`);
-      });
-    }
-  }
-
-  if (statusObj.postBuild?.length) {
-    console.log('  Post-build tasks:');
-    statusObj.postBuild.forEach((result) => {
-      const summary =
-        result.summary || `${result.name}: ${result.status ?? 'pending'}`.replace(/\s+/g, ' ');
-      const duration = formatShortDuration(result.durationMs);
-      const exitInfo = result.exitCode !== undefined ? chalk.dim(` (exit ${result.exitCode})`) : '';
-      console.log(`    - ${summary}${duration ? chalk.dim(` [${duration}]`) : ''}${exitInfo}`);
-      result.lines?.slice(0, 3).forEach((line) => {
-        console.log(chalk.gray(`      ${line}`));
-      });
-    });
-  }
-
-  // Pending files
-  if (statusObj.pendingFiles !== undefined && statusObj.pendingFiles > 0) {
-    console.log(`  Pending Files: ${chalk.yellow(statusObj.pendingFiles)}`);
-  }
-
-  // Show agent instructions if not in TTY and building
-  if (!process.stdout.isTTY && statusObj.lastBuild?.status === 'building') {
-    console.log();
-    if (statusObj.buildStats?.averageDuration) {
-      const avgSec = Math.round(statusObj.buildStats.averageDuration / 1000);
-      const recommendedTimeout = avgSec + 30; // Add 30s buffer
-      console.log(`Use 'poltergeist wait ${name}' (timeout: ${recommendedTimeout}s recommended)`);
-    } else {
-      console.log(`Use 'poltergeist wait ${name}'`);
-    }
-    console.log(`Or 'poltergeist logs ${name} -f' for detailed output.`);
-    console.log(`DO NOT run build commands manually unless build fails.`);
-  }
-}
-
-function formatStatus(status: string): string {
-  switch (status) {
-    case 'success':
-      return chalk.green('✅ Success');
-    case 'failure':
-      return chalk.red('❌ Failed');
-    case 'building':
-      return chalk.yellow('🔨 Building');
-    case 'watching':
-      return chalk.blue('👀 Watching');
-    default:
-      return chalk.gray(status);
-  }
-}
-
-function printBuildLockHints(targetName: string): void {
-  const writer = process.stdout.isTTY ? console.error : console.log;
-  writer(chalk.yellow(`⚠️  Build already running for '${targetName}'.`));
-  writer(`   Attach logs: poltergeist logs ${targetName} -f`);
-  writer(`   Wait for result: poltergeist wait ${targetName}`);
-  writer(`   Force rebuild: poltergeist build ${targetName} --force`);
-}
-
-// Log entry interface
-interface LogEntry {
-  timestamp: string;
-  level: string;
-  message: string;
-  target?: string;
-  [key: string]: unknown;
-}
-
-// Display logs with formatting and filtering
-async function displayLogs(
-  logFile: string,
-  options: {
-    target?: string;
-    lines: string;
-    follow?: boolean;
-    json?: boolean;
-  }
-): Promise<void> {
-  const maxLines = Number.parseInt(options.lines, 10);
-
-  if (options.follow) {
-    await followLogs(logFile, options.target, options.json);
-    return;
-  }
-
-  // Read and parse log entries
-  const logEntries = await readLogEntries(logFile, options.target, maxLines);
-
-  if (logEntries.length === 0) {
-    if (options.target) {
-      console.log(chalk.yellow(`No logs found for target: ${options.target}`));
-    } else {
-      console.log(chalk.yellow('No logs found'));
-    }
-    return;
-  }
-
-  // Display logs
-  if (options.json) {
-    console.log(JSON.stringify(logEntries, null, 2));
-  } else {
-    console.log(chalk.cyan(`${ghost.brand()} Poltergeist Logs`));
-    console.log(chalk.gray('═'.repeat(50)));
-    logEntries.forEach(formatLogEntry);
-  }
-}
-
-// Read and parse log entries from file
-async function readLogEntries(
-  logFile: string,
-  targetFilter?: string,
-  maxLines?: number
-): Promise<LogEntry[]> {
-  const content = readFileSync(logFile, 'utf-8');
-  const lines = content
-    .trim()
-    .split('\n')
-    .filter((line) => line.trim());
-
-  const entries: LogEntry[] = [];
-
-  for (const line of lines) {
-    // Parse plain text format: timestamp LEVEL: [target] message
-    // Example: 2024-01-01T12:00:00.000Z INFO : [my-target] Build started
-    const plainTextMatch = line.match(/^(\S+)\s+(\w+)\s*:\s*(?:\[([^\]]+)\]\s*)?(.*)$/);
-
-    if (plainTextMatch) {
-      const [, timestamp, level, target, message] = plainTextMatch;
-
-      // Since we're reading from target-specific files now, the target is inherent
-      // But we keep it for compatibility
-      const entry: LogEntry = {
-        timestamp,
-        level: level.toLowerCase(),
-        message: message.trim(),
-        target: target || targetFilter,
-      };
-
-      entries.push(entry);
-    } else {
-      // Try to parse as JSON for backward compatibility with old logs
-      try {
-        const entry = JSON.parse(line) as LogEntry;
-        // Filter by target if specified (only for old JSON format)
-        if (targetFilter && entry.target !== targetFilter) {
-          continue;
-        }
-        entries.push(entry);
-      } catch (_error) {
-        // Not JSON and not matching plain text format - skip
-      }
-    }
-  }
-
-  // Return last N lines if maxLines specified
-  if (maxLines && entries.length > maxLines) {
-    return entries.slice(-maxLines);
-  }
-
-  return entries;
-}
-
-// Format a single log entry for display
-function formatLogEntry(entry: LogEntry): void {
-  // Handle timestamp - Pino gives us HH:mm:ss format, so use it directly
-  const timestamp = entry.timestamp.includes(':')
-    ? entry.timestamp
-    : new Date(entry.timestamp).toLocaleString();
-  const level = formatLogLevel(entry.level);
-  const target = entry.target ? chalk.blue(`[${entry.target}]`) : '';
-  const message = entry.message;
-
-  console.log(`${chalk.gray(timestamp)} ${level} ${target} ${message}`);
-
-  // Show additional metadata if present
-  const metadata: Record<string, unknown> = { ...entry };
-  delete metadata.timestamp;
-  delete metadata.level;
-  delete metadata.message;
-  delete metadata.target;
-
-  const metadataKeys = Object.keys(metadata);
-  if (metadataKeys.length > 0 && metadataKeys.some((key) => metadata[key] !== undefined)) {
-    console.log(chalk.gray(`  ${JSON.stringify(metadata)}`));
-  }
-}
-
-// Format log level with colors
-function formatLogLevel(level: string): string {
-  switch (level.toLowerCase()) {
-    case 'error':
-      return chalk.red('ERROR');
-    case 'warn':
-      return chalk.yellow('WARN ');
-    case 'info':
-      return chalk.cyan('INFO ');
-    case 'debug':
-      return chalk.gray('DEBUG');
-    case 'success':
-      return chalk.green('SUCCESS');
-    default:
-      return chalk.white(level.padEnd(5).toUpperCase());
-  }
-}
-
-// Follow logs in real-time
-async function followLogs(
-  logFile: string,
-  targetFilter?: string,
-  jsonOutput?: boolean
-): Promise<void> {
-  let fileSize = statSync(logFile).size;
-
-  console.log(chalk.cyan(`${ghost.brand()} Following Poltergeist logs... (Press Ctrl+C to exit)`));
-  if (targetFilter) {
-    console.log(chalk.gray(`Target: ${targetFilter}`));
-  }
-  console.log(chalk.gray('═'.repeat(50)));
-
-  // Display existing logs first
-  const existingEntries = await readLogEntries(logFile, targetFilter, 20);
-  if (jsonOutput) {
-    for (const entry of existingEntries) {
-      console.log(JSON.stringify(entry));
-    }
-  } else {
-    for (const entry of existingEntries) {
-      formatLogEntry(entry);
-    }
-  }
-
-  // Watch for new log entries
-  watchFile(logFile, { interval: 500 }, (curr) => {
-    if (curr.size > fileSize) {
-      const stream = createReadStream(logFile, {
-        start: fileSize,
-        encoding: 'utf-8',
-      });
-
-      const rl = createInterface({
-        input: stream,
-        crlfDelay: Number.POSITIVE_INFINITY,
-      });
-
-      rl.on('line', (line) => {
-        if (!line.trim()) return;
-
-        // Check if this is JSON or plain text format
-        if (line.startsWith('{')) {
-          // Legacy JSON format
-          try {
-            const entry = JSON.parse(line) as LogEntry;
-            // Filter by target if specified
-            if (targetFilter && entry.target !== targetFilter) {
-              return;
-            }
-            if (jsonOutput) {
-              console.log(JSON.stringify(entry));
-            } else {
-              formatLogEntry(entry);
-            }
-          } catch (_error) {
-            // Skip malformed lines
-          }
-        } else {
-          // New plain text format: timestamp LEVEL: [target] message
-          const plainTextMatch = line.match(/^(\S+)\s+(\w+)\s*:\s*(?:\[([^\]]+)\]\s*)?(.*)$/);
-          if (plainTextMatch) {
-            const [, timestamp, level, target, message] = plainTextMatch;
-            // Since we're reading from target-specific files, target is inherent
-            const entry: LogEntry = {
-              timestamp,
-              level: level.toLowerCase().trim(),
-              message: message.trim(),
-              target: target || targetFilter,
-            };
-            if (jsonOutput) {
-              console.log(JSON.stringify(entry));
-            } else {
-              formatLogEntry(entry);
-            }
-          }
-        }
-      });
-
-      fileSize = curr.size;
-    }
-  });
-
-  // Keep process alive
-  return new Promise(() => {
-    // This promise never resolves to keep the follow active
-    // User exits with Ctrl+C
-  });
-}
 
 program
   .command('init')
@@ -1255,244 +783,6 @@ program
   });
 
 // Helper function to find Xcode projects in directory
-async function findXcodeProjects(
-  rootPath: string,
-  maxDepth: number = 2
-): Promise<Array<{ path: string; type: 'xcodeproj' | 'xcworkspace'; scheme?: string }>> {
-  const projects: Array<{ path: string; type: 'xcodeproj' | 'xcworkspace'; scheme?: string }> = [];
-
-  async function scan(dir: string, depth: number) {
-    if (depth > maxDepth) return;
-
-    try {
-      const entries = await readdir(dir, { withFileTypes: true });
-
-      for (const entry of entries) {
-        const fullPath = join(dir, entry.name);
-
-        if (entry.isDirectory()) {
-          if (entry.name.endsWith('.xcworkspace')) {
-            projects.push({ path: fullPath, type: 'xcworkspace' });
-          } else if (entry.name.endsWith('.xcodeproj')) {
-            const scheme = entry.name.replace('.xcodeproj', '');
-            projects.push({ path: fullPath, type: 'xcodeproj', scheme });
-          } else if (!entry.name.startsWith('.') && entry.name !== 'node_modules') {
-            await scan(fullPath, depth + 1);
-          }
-        }
-      }
-    } catch (_error) {
-      // Ignore permission errors
-    }
-  }
-
-  await scan(rootPath, 0);
-  return projects;
-}
-
-// Helper to guess bundle ID from project
-function guessBundleId(projectName: string, projectPath: string): string {
-  // Common patterns
-  const cleanName = projectName
-    .toLowerCase()
-    .replace(/[^a-z0-9]/g, '')
-    .replace(/ios$/, '');
-
-  const isIOS =
-    projectName.toLowerCase().includes('ios') || projectPath.toLowerCase().includes('/ios/');
-
-  // Try to extract from common patterns
-  if (projectPath.includes('vibetunnel')) {
-    return projectPath.includes('ios')
-      ? 'sh.vibetunnel.vibetunnel.ios'
-      : 'sh.vibetunnel.vibetunnel';
-  }
-
-  return isIOS ? `com.example.${cleanName}.ios` : `com.example.${cleanName}`;
-}
-
-async function augmentConfigWithDetectedTargets(
-  projectRoot: string,
-  config: PoltergeistConfig
-): Promise<void> {
-  const hasEnabledTarget = config.targets.some((target) => target.enabled !== false);
-  if (hasEnabledTarget) {
-    return;
-  }
-
-  try {
-    const dirEntries = await readdir(projectRoot, { withFileTypes: true });
-    const entryMap = new Map(dirEntries.map((entry) => [entry.name.toLowerCase(), entry]));
-
-    const resolveEntryName = (key: string): string => entryMap.get(key)?.name ?? key;
-
-    if (entryMap.has('makefile')) {
-      const makefileName = resolveEntryName('makefile');
-      const makefilePath = join(projectRoot, makefileName);
-      let targetName = 'app';
-      let outputPath = './app';
-      let buildCommand = 'make';
-
-      try {
-        const makefile = await readFile(makefilePath, 'utf-8');
-        const targetMatch = makefile.match(/^\s*TARGET\s*[:=]\s*([^\s]+)\s*$/m);
-        if (targetMatch) {
-          targetName = targetMatch[1];
-          outputPath = `./${targetName}`;
-          buildCommand = `make ${targetName}`;
-        }
-      } catch {
-        // Fallback to defaults if Makefile cannot be read
-      }
-
-      config.targets.push({
-        name: targetName,
-        type: 'executable',
-        enabled: true,
-        buildCommand,
-        outputPath,
-        watchPaths: ['**/*.c', '**/*.h', 'Makefile'],
-      });
-      return;
-    }
-
-    const hasGoMod = entryMap.has('go.mod');
-    const hasRootGoFile = dirEntries.some(
-      (entry) => entry.isFile() && entry.name.toLowerCase().endsWith('.go')
-    );
-
-    if (hasGoMod || hasRootGoFile) {
-      const goTargets: Array<{ name: string; packagePath: string }> = [];
-      const cmdEntry = entryMap.get('cmd');
-
-      if (cmdEntry?.isDirectory()) {
-        const cmdDirPath = join(projectRoot, cmdEntry.name);
-        try {
-          const cmdDirEntries = await readdir(cmdDirPath, { withFileTypes: true });
-          for (const subEntry of cmdDirEntries) {
-            if (!subEntry.isDirectory()) continue;
-            const mainFilePath = join(cmdDirPath, subEntry.name, 'main.go');
-            if (existsSync(mainFilePath)) {
-              goTargets.push({
-                name: subEntry.name,
-                packagePath: `./cmd/${subEntry.name}`,
-              });
-            }
-          }
-        } catch {
-          // Ignore read errors and fall back to root detection.
-        }
-      }
-
-      if (goTargets.length === 0 && entryMap.has('main.go')) {
-        goTargets.push({
-          name: path.basename(projectRoot),
-          packagePath: '.',
-        });
-      }
-
-      if (goTargets.length > 0) {
-        for (const target of goTargets) {
-          config.targets.push({
-            name: target.name,
-            type: 'executable',
-            enabled: true,
-            buildCommand: `mkdir -p ./dist/bin && go build -o ./dist/bin/${target.name} ${target.packagePath}`,
-            outputPath: `./dist/bin/${target.name}`,
-            watchPaths: ['**/*.go', 'go.mod', 'go.sum'],
-          });
-        }
-        return;
-      }
-    }
-
-    const hasPythonIndicator =
-      entryMap.has('pyproject.toml') ||
-      entryMap.has('requirements.txt') ||
-      entryMap.has('setup.py');
-    const hasPythonDirectory = dirEntries.some(
-      (entry) => entry.isDirectory() && ['tests', 'src'].includes(entry.name.toLowerCase())
-    );
-    const hasPythonFile = dirEntries.some(
-      (entry) => entry.isFile() && entry.name.toLowerCase().endsWith('.py')
-    );
-
-    if (hasPythonIndicator || hasPythonDirectory || hasPythonFile) {
-      config.targets.push({
-        name: 'tests',
-        type: 'executable',
-        enabled: true,
-        buildCommand: "python3 -m unittest discover -s tests -p '*.py' -v > test-results.txt 2>&1",
-        outputPath: './test-results.txt',
-        watchPaths: [
-          '*.py',
-          'src/**/*.py',
-          'tests/**/*.py',
-          'pyproject.toml',
-          'requirements.txt',
-          'setup.py',
-        ],
-      });
-    }
-  } catch {
-    // Ignore detection failures; config will remain minimal
-  }
-}
-
-// Helper function to generate default config for non-CMake projects
-function generateDefaultConfig(projectType: ProjectType): PoltergeistConfig {
-  const baseConfig: PoltergeistConfig = {
-    version: '1.0',
-    projectType,
-    targets: [],
-  };
-
-  // Add default targets based on project type
-  switch (projectType) {
-    case 'node':
-      baseConfig.targets.push({
-        name: 'dev',
-        type: 'executable',
-        enabled: true,
-        buildCommand: 'npm run build',
-        outputPath: './dist/index.js',
-        watchPaths: ['src/**/*.ts', 'src/**/*.js', 'package.json'],
-      });
-      break;
-    case 'rust':
-      baseConfig.targets.push({
-        name: 'debug',
-        type: 'executable',
-        enabled: true,
-        buildCommand: 'cargo build',
-        outputPath: './target/debug/app',
-        watchPaths: ['src/**/*.rs', 'Cargo.toml'],
-      });
-      break;
-    case 'python':
-      baseConfig.targets.push({
-        name: 'test',
-        type: 'test',
-        enabled: true,
-        testCommand: 'python -m pytest',
-        watchPaths: ['**/*.py', 'requirements.txt'],
-      });
-      break;
-    case 'swift':
-      baseConfig.targets.push({
-        name: 'debug',
-        type: 'executable',
-        enabled: true,
-        buildCommand: 'swift build',
-        outputPath: '.build/debug/App',
-        watchPaths: ['Sources/**/*.swift', 'Package.swift'],
-      });
-      break;
-  }
-
-  return baseConfig;
-}
-
 program
   .command('logs [target]')
   .description('Show Poltergeist logs')
@@ -1502,7 +792,7 @@ program
   .option('-C, --channel <name>', 'Log channel to display (default: build)')
   .option('--json', 'Output logs in JSON format')
   .action(async (targetName, options) => {
-    const { config, projectRoot } = await loadConfiguration(options.config);
+    const { config, projectRoot } = await loadConfigurationOrExit(options.config);
     const logChannel = sanitizeLogChannel(options.channel ?? DEFAULT_LOG_CHANNEL);
 
     // Handle smart defaults for log display
@@ -1610,7 +900,7 @@ program
   .description('List all configured targets')
   .option('-c, --config <path>', 'Path to config file')
   .action(async (options) => {
-    const { config } = await loadConfiguration(options.config);
+    const { config } = await loadConfigurationOrExit(options.config);
 
     console.log(chalk.cyan(`${ghost.brand()} Configured Targets`));
     console.log(chalk.gray('═'.repeat(50)));
@@ -1643,7 +933,7 @@ program
   .option('-t, --timeout <seconds>', 'Maximum time to wait in seconds', '300')
   .option('-c, --config <path>', 'Path to config file')
   .action(async (targetName, options) => {
-    const { config, projectRoot } = await loadConfiguration(options.config);
+    const { config, projectRoot } = await loadConfigurationOrExit(options.config);
     const logger = createLogger(config.logging?.level || 'info');
     const poltergeist = createPoltergeist(config, projectRoot, logger, options.config || '');
 
