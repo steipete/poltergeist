@@ -6,13 +6,25 @@ import type { NPMTarget } from '../src/types.js';
 
 const existsSyncMock = vi.fn<(path: string) => boolean>();
 const execSyncMock = vi.fn();
+const spawnMock = vi.fn();
+const stdoutEmitterFactory = () => {
+  const { EventEmitter } = require('events') as typeof import('events');
+  const emitter = new EventEmitter();
+  emitter.setEncoding = vi.fn();
+  return emitter;
+};
 
-vi.mock('fs', () => ({
-  existsSync: (...args: [string]) => existsSyncMock(...args),
-}));
+vi.mock('fs', async () => {
+  const actual = await vi.importActual<typeof import('fs')>('fs');
+  return {
+    ...actual,
+    existsSync: (...args: [string]) => existsSyncMock(...args),
+  };
+});
 
 vi.mock('child_process', () => ({
   execSync: (...args: unknown[]) => execSyncMock(...args),
+  spawn: (...args: unknown[]) => spawnMock(...args),
 }));
 
 const logger: Logger = {
@@ -38,6 +50,7 @@ describe('NPMBuilder output paths', () => {
   beforeEach(() => {
     existsSyncMock.mockReset();
     execSyncMock.mockReset();
+    spawnMock.mockReset();
     execSyncMock.mockReturnValue('9.0.0');
   });
 
@@ -75,5 +88,46 @@ describe('NPMBuilder output paths', () => {
 
     await expect((builder as any).postBuild()).resolves.not.toThrow();
     expect(existsSyncMock).toHaveBeenCalledWith(`${projectRoot}/dist/index.js`);
+  });
+
+  it('streams npm build output to the log file when captureLogs is enabled', async () => {
+    existsSyncMock.mockImplementation(
+      (path) => path.endsWith('package.json') || path.endsWith('pnpm-lock.yaml')
+    );
+
+    const builder = new NPMBuilder(makeTarget({ buildScript: 'build' }), projectRoot, logger, stateManager);
+
+    const stdout = stdoutEmitterFactory();
+    const stderr = stdoutEmitterFactory();
+    spawnMock.mockImplementation(() => {
+      const { EventEmitter } = require('events') as typeof import('events');
+      const proc = new EventEmitter() as any;
+      proc.stdout = stdout;
+      proc.stderr = stderr;
+      proc.kill = vi.fn();
+      // Emit output and exit on next tick
+      setImmediate(() => {
+        stdout.emit('data', Buffer.from('out line\n'));
+        stderr.emit('data', Buffer.from('err line\n'));
+        proc.emit('close', 0);
+        proc.emit('exit', 0);
+      });
+      return proc;
+    });
+
+    const logFile = `${process.env.TMPDIR ?? '/tmp'}/poltergeist-npm-builder.log`;
+    await (builder as any).executeBuild({ captureLogs: true, logFile });
+
+    expect(spawnMock).toHaveBeenCalledWith('pnpm run build', {
+      cwd: projectRoot,
+      env: expect.any(Object),
+      shell: true,
+      stdio: ['inherit', 'pipe', 'pipe'],
+    });
+
+    await new Promise((r) => setTimeout(r, 0));
+    const written = require('fs').readFileSync(logFile, 'utf-8');
+    expect(written).toContain('out line');
+    expect(written).toContain('err line');
   });
 });
