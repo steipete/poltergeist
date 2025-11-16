@@ -6,6 +6,7 @@ import chalk from 'chalk';
 import { Command } from 'commander';
 import { appendFileSync, existsSync, readFileSync, unlinkSync, writeFileSync } from 'fs';
 import path, { join } from 'path';
+import type { LoadedConfiguration } from './cli/configuration.js';
 import { loadConfiguration, parseGitSummaryModeOption } from './cli/configuration.js';
 import {
   augmentConfigWithDetectedTargets,
@@ -45,21 +46,24 @@ const { version } = PACKAGE_INFO;
 
 const program = new Command();
 
-const loadConfigOrExit = async (configPath?: string) => {
+const exitWithError = (message: string, code = 1): never => {
+  console.error(chalk.red(message));
+  process.exit(code);
+};
+
+const loadConfigOrExit = async (configPath?: string): Promise<LoadedConfiguration> => {
   try {
     return await loadConfiguration(configPath);
   } catch (error) {
-    console.error(chalk.red((error as Error).message));
-    process.exit(1);
+    return exitWithError((error as Error).message);
   }
 };
 
-const parseGitModeOrExit = (value?: string) => {
+const parseGitModeOrExit = (value?: string): 'ai' | 'list' | undefined => {
   try {
     return parseGitSummaryModeOption(value);
   } catch (error) {
-    console.error(chalk.red((error as Error).message));
-    process.exit(1);
+    return exitWithError((error as Error).message);
   }
 };
 
