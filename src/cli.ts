@@ -6,14 +6,6 @@ import chalk from 'chalk';
 import { Command } from 'commander';
 import { appendFileSync, existsSync, readFileSync, unlinkSync, writeFileSync } from 'fs';
 import path, { join } from 'path';
-import { FileSystemUtils } from './utils/filesystem.js';
-import { DEFAULT_LOG_CHANNEL, sanitizeLogChannel } from './utils/log-channels.js';
-import { isMainModule } from './utils/paths.js';
-
-// Version is hardcoded at compile time - NEVER read from filesystem
-// This ensures the binary always reports its compiled version
-const packageJson = { version: '2.0.0', name: '@steipete/poltergeist' };
-
 import { loadConfiguration, parseGitSummaryModeOption } from './cli/configuration.js';
 import {
   augmentConfigWithDetectedTargets,
@@ -23,6 +15,9 @@ import {
 } from './cli/init-helpers.js';
 import { displayLogs } from './cli/logging.js';
 import { formatTargetStatus, printBuildLockHints } from './cli/status-formatters.js';
+// Version is hardcoded at compile time - NEVER read from filesystem
+// This ensures the binary always reports its compiled version
+import { PACKAGE_INFO } from './cli/version.js';
 import {
   configurePolterCommand,
   getPolterDescription,
@@ -39,11 +34,14 @@ import type { AppBundleTarget, PoltergeistConfig, ProjectType, Target } from './
 import { CLIFormatter, type CommandGroup, type OptionInfo } from './utils/cli-formatter.js';
 import { CMakeProjectAnalyzer } from './utils/cmake-analyzer.js';
 import { ConfigurationManager } from './utils/config-manager.js';
+import { FileSystemUtils } from './utils/filesystem.js';
 import { ghost, poltergeistMessage } from './utils/ghost.js';
+import { DEFAULT_LOG_CHANNEL, sanitizeLogChannel } from './utils/log-channels.js';
+import { isMainModule } from './utils/paths.js';
 import { validateTarget } from './utils/target-validator.js';
 import { WatchmanConfigManager } from './watchman-config.js';
 
-const { version } = packageJson;
+const { version } = PACKAGE_INFO;
 
 const program = new Command();
 
