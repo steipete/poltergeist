@@ -405,38 +405,39 @@ program
       if (targetName) {
         targetToBuild = ConfigurationManager.findTarget(config, targetName) ?? undefined;
         if (!targetToBuild) {
-          console.error(chalk.red(`❌ Target '${targetName}' not found`));
-          console.error(chalk.yellow('Available targets:'));
-          config.targets.forEach((t) => {
-            console.error(`  - ${t.name} (${t.enabled ? 'enabled' : 'disabled'})`);
-          });
-          process.exit(1);
+          const available = config.targets
+            .map((t) => `  - ${t.name} (${t.enabled ? 'enabled' : 'disabled'})`)
+            .join('\n');
+          exitWithError(`❌ Target '${targetName}' not found\nAvailable targets:\n${available}`);
         }
       } else {
         // No target specified - build first enabled target
         const enabledTargets = config.targets.filter((t) => t.enabled !== false);
         if (enabledTargets.length === 0) {
-          console.error(chalk.red('❌ No enabled targets found'));
-          process.exit(1);
+          exitWithError('❌ No enabled targets found');
         } else if (enabledTargets.length === 1) {
           targetToBuild = enabledTargets[0];
         } else {
-          console.error(chalk.red('❌ Multiple targets available. Please specify:'));
-          enabledTargets.forEach((t) => {
-            console.error(`  - ${t.name}`);
-          });
-          console.error(chalk.yellow('Usage: poltergeist build <target>'));
-          process.exit(1);
+          const list = enabledTargets.map((t) => `  - ${t.name}`).join('\n');
+          exitWithError(
+            `❌ Multiple targets available. Please specify:\n${list}\nUsage: poltergeist build <target>`
+          );
         }
       }
 
-      console.log(chalk.cyan(`🔨 Building ${targetToBuild.name}...`));
+      if (!targetToBuild) {
+        exitWithError('❌ No target resolved for build'); // safety net
+      }
+
+      const target = targetToBuild as Target;
+
+      console.log(chalk.cyan(`🔨 Building ${target.name}...`));
 
       // Get the builder directly
       const { createBuilder } = await import('./builders/index.js');
       const { StateManager } = await import('./state.js');
       const stateManager = new StateManager(projectRoot, logger);
-      const builder = createBuilder(targetToBuild, projectRoot, logger, stateManager);
+      const builder = createBuilder(target, projectRoot, logger, stateManager);
 
       // Execute build with real-time output
       const startTime = Date.now();
@@ -444,11 +445,11 @@ program
       const showLockHints = (): void => {
         if (lockHintShown || options.json) return;
         lockHintShown = true;
-        printBuildLockHints(targetToBuild.name);
+        printBuildLockHints(target.name);
       };
       const buildStatus = await builder.build([], {
         captureLogs: true,
-        logFile: `.poltergeist-build-${targetToBuild.name}.log`,
+        logFile: `.poltergeist-build-${target.name}.log`,
         force: options.force ?? false,
         onLock: showLockHints,
       });
@@ -459,7 +460,8 @@ program
         console.log(
           JSON.stringify(
             {
-              target: targetToBuild.name,
+              target: target.name,
+              targetName: target.name,
               status: buildStatus.status,
               duration,
               timestamp: new Date().toISOString(),
@@ -476,14 +478,13 @@ program
           );
         } else if (buildStatus.status === 'building') {
           showLockHints();
-          console.error(chalk.yellow('Build skipped because another build is already running.'));
-          process.exit(1);
+          exitWithError('Build skipped because another build is already running.');
         } else {
           console.error(chalk.red(`❌ Build failed after ${Math.round(duration / 1000)}s`));
           if (buildStatus.errorSummary) {
             console.error(chalk.red(`Error: ${buildStatus.errorSummary}`));
           }
-          process.exit(1);
+          exitWithError('Build failed');
         }
       }
     } catch (error) {
@@ -503,7 +504,7 @@ program
           chalk.red(`❌ Build failed: ${error instanceof Error ? error.message : error}`)
         );
       }
-      process.exit(1);
+      exitWithError('Build failed');
     }
   });
 
