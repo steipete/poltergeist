@@ -1,20 +1,13 @@
 {
   "version": "1.0",
-  "projectType": "node",
-  "targets": [
+    "projectType": "node",
+    "targets": [
     {
-      "name": "build",
+      "name": "poltergeist",
       "type": "npm",
+      "enabled": true,
       "watchPaths": ["src/**/*.ts"],
       "outputPaths": ["dist/cli.js", "dist/polter.js"]
-    },
-    {
-      "name": "cli",
-      "type": "executable",
-      "enabled": true,
-      "buildCommand": "npm run build",
-      "outputPath": "./dist/cli.js",
-      "watchPaths": ["src/**/*.ts"]
     },
     {
       "name": "polter",
@@ -25,9 +18,17 @@
       "watchPaths": ["src/**/*.ts"]
     },
     {
-      "name": "poltergeist-mac",
+      "name": "cli",
+      "type": "executable",
+      "enabled": true,
+      "buildCommand": "npm run build",
+      "outputPath": "./dist/cli.js",
+      "watchPaths": ["src/**/*.ts"]
+    },
+    {
+      "name": "Polgergeist.app",
       "type": "app-bundle",
-      "enabled": false,
+      "enabled": true,
       "platform": "macos",
       "buildCommand": "cd apps/mac && ./scripts/build.sh",
       "bundleId": "com.poltergeist.app",
