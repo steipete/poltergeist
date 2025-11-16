@@ -42,15 +42,6 @@ interface TargetState {
   postBuildRunner?: PostBuildRunner;
 }
 
-interface ConfigChanges {
-  targetsAdded: Target[];
-  targetsRemoved: string[];
-  targetsModified: Array<{ name: string; oldTarget: Target; newTarget: Target }>;
-  watchmanChanged: boolean;
-  notificationsChanged: boolean;
-  buildSchedulingChanged: boolean;
-}
-
 export interface PoltergeistStartOptions {
   waitForInitialBuilds?: boolean;
 }
@@ -75,6 +66,7 @@ export class Poltergeist {
   private buildSchedulingConfig: BuildSchedulingConfig;
   private readyHandlers: Array<() => void> = [];
   private isReady = false;
+  private restarting = false;
 
   constructor(
     config: PoltergeistConfig,
@@ -717,25 +709,54 @@ export class Poltergeist {
     const configChanged = files.some((f) => f.name === 'poltergeist.config.json' && f.exists);
     if (!configChanged || !this.configPath) return;
 
-    this.logger.info('🔄 Configuration file changed, reloading...');
+    this.logger.info('🔄 Configuration file changed, restarting daemon with fresh config...');
+    await this.restartWithConfig();
+  }
 
+  /**
+   * Simpler, more reliable config reload: stop everything and start fresh with the latest config.
+   */
+  private async restartWithConfig(): Promise<void> {
+    if (this.restarting) {
+      this.logger.debug('Restart already in progress; skipping duplicate trigger.');
+      return;
+    }
+
+    this.restarting = true;
     try {
-      // Reload configuration
-      const newConfig = await ConfigurationManager.loadConfigFromPath(this.configPath);
+      const newConfig = this.configPath
+        ? await ConfigurationManager.loadConfigFromPath(this.configPath)
+        : this.config;
 
-      // Compare configs and determine what needs to be restarted
-      const changes = this.detectConfigChanges(this.config, newConfig);
+      await this.stop();
 
-      // Apply changes
-      await this.applyConfigChanges(newConfig, changes);
+      this.buildQueue = undefined;
+      this.buildSchedulingConfig = {
+        parallelization: 2,
+        prioritization: {
+          enabled: true,
+          focusDetectionWindow: 300000,
+          priorityDecayTime: 1800000,
+          buildTimeoutMultiplier: 2.0,
+        },
+        ...newConfig.buildScheduling,
+      };
+      this.priorityEngine = this.buildSchedulingConfig.prioritization.enabled
+        ? new PriorityEngine(this.buildSchedulingConfig, this.logger)
+        : undefined;
 
+      this.targetStates = new Map();
       this.config = newConfig;
-      this.logger.info('✅ Configuration reloaded successfully');
+      this.isReady = false;
+
+      await this.start(undefined, { waitForInitialBuilds: true });
+      this.logger.info('✅ Restarted daemon with updated configuration');
     } catch (error) {
       this.logger.error(
-        `❌ Failed to reload configuration: ${error instanceof Error ? error.message : error}`
+        `❌ Failed to restart after config change: ${error instanceof Error ? error.message : error}`
       );
-      // Continue with old config
+    } finally {
+      this.restarting = false;
     }
   }
 
