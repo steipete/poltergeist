@@ -20,7 +20,8 @@ Context: `src/cli.ts` was split into helper modules, but the entrypoint still mi
 
 4. **Error handling surface**  
    - Replace scattered `process.exit(1)` in helpers with typed errors; top-level command actions should own exit decisions.  
-   - Add minimal integration tests to ensure messages stay identical while exits move to the boundary.
+   - Add minimal integration tests to ensure messages stay identical while exits move to the boundary.  
+   - _Status_: **Deferred** — needs per-command treatment to avoid widening the CLI exit surface; tackle in small, command-scoped increments.
 
 5. **Version sourcing** ✅  
    - `cli/version.ts` now holds the constant imported by the entrypoint.
