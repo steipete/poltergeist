@@ -120,6 +120,20 @@ export class WatchService {
   public async stop(): Promise<void> {
     if (!this.watchman) return;
 
+    await this.unsubscribeAll();
+
+    await this.watchman.disconnect();
+    this.watchman = undefined;
+  }
+
+  public async refreshTargets(targetStates: Map<string, TargetState>): Promise<void> {
+    if (!this.watchman) return;
+    await this.unsubscribeAll();
+    await this.subscribeTargets(targetStates);
+  }
+
+  private async unsubscribeAll(): Promise<void> {
+    if (!this.watchman) return;
     for (const name of this.subscriptions) {
       try {
         await this.watchman.unsubscribe(name);
@@ -128,8 +142,5 @@ export class WatchService {
       }
     }
     this.subscriptions.clear();
-
-    await this.watchman.disconnect();
-    this.watchman = undefined;
   }
 }

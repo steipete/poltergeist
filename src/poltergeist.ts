@@ -739,6 +739,10 @@ export class Poltergeist {
     if (changes.watchmanChanged) {
       await this.watchmanConfigManager.ensureConfigUpToDate(newConfig);
     }
+
+    if (this.watchService) {
+      await this.watchService.refreshTargets(this.targetStates);
+    }
   }
 
   /**

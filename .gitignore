@@ -5,6 +5,7 @@ node_modules/
 dist/
 dist-bun/
 *.tsbuildinfo
+apps/mac/.build/
 
 # Logs
 .poltergeist.log
