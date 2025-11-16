@@ -2,6 +2,7 @@ import { describe, expect, it, vi } from 'vitest';
 import { Command } from 'commander';
 
 let statusCallCount = 0;
+let statusSequence: Array<'building' | 'success' | 'failure'> = ['building', 'success'];
 
 vi.mock('../../src/cli/shared.js', () => ({
   loadConfigOrExit: vi.fn().mockResolvedValue({
@@ -28,10 +29,25 @@ vi.mock('../../src/factories.js', () => ({
   createPoltergeist: () => ({
     getStatus: vi.fn(async () => {
       statusCallCount += 1;
-      if (statusCallCount === 1) {
+      const next = statusSequence.shift() ?? 'success';
+      if (next === 'building') {
         return {
           app: {
             lastBuild: { status: 'building', timestamp: new Date().toISOString() },
+            buildCommand: 'echo',
+          },
+        };
+      }
+
+      if (next === 'failure') {
+        return {
+          app: {
+            lastBuild: {
+              status: 'failure',
+              timestamp: new Date().toISOString(),
+              duration: 1500,
+              errorSummary: 'boom',
+            },
             buildCommand: 'echo',
           },
         };
@@ -56,6 +72,7 @@ const stripAnsi = (s: string) => s.replace(/\x1B\[[0-9;]*m/g, '');
 
 describe('wait --json', () => {
   it('emits JSON on success without blocking real time', async () => {
+    statusSequence = ['building', 'success'];
     const program = new Command();
     registerStatusCommands(program);
 
@@ -74,5 +91,25 @@ describe('wait --json', () => {
     logSpy.mockRestore();
     expect(output).toContain('"status": "success"');
     expect(statusCallCount).toBeGreaterThanOrEqual(2);
+  });
+
+  it('rejects when build fails', async () => {
+    statusCallCount = 0;
+    statusSequence = ['building', 'failure'];
+    const program = new Command();
+    registerStatusCommands(program);
+
+    const logSpy = vi.spyOn(console, 'log').mockImplementation(() => {});
+    vi.useFakeTimers();
+    const parsePromise = program.parseAsync(['wait', '--json'], { from: 'user' });
+    // Prevent unhandled rejection warning while we assert below.
+    parsePromise.catch(() => {});
+
+    // First status: building, second: failure
+    await vi.runAllTimersAsync();
+
+    await expect(parsePromise).rejects.toThrow('Build failed');
+    vi.useRealTimers();
+    logSpy.mockRestore();
   });
 });
