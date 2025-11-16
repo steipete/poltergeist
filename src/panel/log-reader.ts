@@ -18,8 +18,8 @@ export class LogTailReader {
     this.maxLines = options.maxLines ?? 50;
   }
 
-  public async read(targetName: string, limit?: number): Promise<string[]> {
-    const logPath = FileSystemUtils.getLogFilePath(this.projectRoot, targetName);
+  public async read(targetName: string, channel?: string, limit?: number): Promise<string[]> {
+    const logPath = FileSystemUtils.getLogFilePath(this.projectRoot, targetName, channel);
     const maxLines = limit ?? this.maxLines;
 
     try {

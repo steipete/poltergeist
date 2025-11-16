@@ -13,10 +13,15 @@ import {
 import chalk from 'chalk';
 import wrapAnsi from 'wrap-ansi';
 import type { Logger } from '../logger.js';
+import {
+  cycleChannelIndex,
+  DEFAULT_LOG_CHANNEL,
+  normalizeLogChannels,
+} from '../utils/log-channels.js';
 import type { StatusPanelController } from './panel-controller.js';
 import type { PanelSnapshot, PanelStatusScriptResult, TargetPanelEntry } from './types.js';
 
-const CONTROLS_LINE = 'Controls: ↑/↓ move · ←/→ toggle · r refresh · q quit';
+const CONTROLS_LINE = 'Controls: ↑/↓ move · ←/→ cycle logs · r refresh · q quit';
 const LOG_FETCH_LIMIT = 40;
 const LOG_OVERHEAD_LINES = 3; // blank spacer + header + divider inside formatLogs
 const SUMMARY_FRACTION = 0.5; // summary gets half of remaining lines when selected
@@ -45,13 +50,16 @@ export class PanelApp {
   private started = false;
   private resizeListenerAttached = false;
   private userNavigated = false;
-  // Left/right toggle between build and test-focused log views.
-  private logMode: 'build' | 'test' = 'build';
+  // Left/right cycles through available log channels for the selected target.
+  private readonly logChannelIndex = new Map<string, number>();
+  // If only a single channel exists, left/right toggles between all/test-filtered logs.
+  private logViewMode: 'all' | 'tests' = 'all';
   // Left/right while on summary toggles AI vs Git summary.
   private summaryMode: 'ai' | 'git' = 'ai';
   private snapshot: PanelSnapshot;
   private selectedIndex: number;
   private logLines: string[] = [];
+  private logChannelLabel: string = DEFAULT_LOG_CHANNEL;
   private readonly handleTerminalResize = () => {
     if (!this.disposed) {
       this.updateView('resize');
@@ -73,6 +81,8 @@ export class PanelApp {
     } else {
       this.selectedIndex = 0;
     }
+    this.syncLogChannelState(this.snapshot.targets);
+    this.logChannelLabel = this.getSelectedChannel(this.snapshot.targets[this.selectedIndex]);
 
     this.tui.addChild(this.view);
     // Input bridge never renders anything but receives all keyboard input.
@@ -135,6 +145,7 @@ export class PanelApp {
 
   private handleSnapshot(next: PanelSnapshot): void {
     this.snapshot = next;
+    this.syncLogChannelState(next.targets);
     const selectableCount = this.getSelectableCount(next);
     const maxIndex = Math.max(0, selectableCount - 1);
     if (!this.userNavigated) {
@@ -149,6 +160,7 @@ export class PanelApp {
     } else if (this.selectedIndex > maxIndex) {
       this.selectedIndex = maxIndex;
     }
+    this.logChannelLabel = this.getSelectedChannel(this.snapshot.targets[this.selectedIndex]);
     this.updateView('snapshot');
     this.queueLogRefresh();
     this.updateLogPolling();
@@ -183,12 +195,12 @@ export class PanelApp {
         void this.controller.forceRefresh();
       }
       if (lower === 'b') {
-        this.setLogMode('build');
+        this.setLogViewMode('all');
         i += 1;
         continue;
       }
       if (lower === 't') {
-        this.setLogMode('test');
+        this.setLogViewMode('tests');
         i += 1;
         continue;
       }
@@ -227,10 +239,10 @@ export class PanelApp {
     }
   }
 
-  private setLogMode(mode: 'build' | 'test'): void {
-    if (this.logMode === mode) return;
-    this.logMode = mode;
-    this.updateView('log-mode-key');
+  private setLogViewMode(mode: 'all' | 'tests'): void {
+    if (this.logViewMode === mode) return;
+    this.logViewMode = mode;
+    this.updateView('log-view-mode-key');
     this.queueLogRefresh();
     this.updateLogPolling();
   }
@@ -246,8 +258,9 @@ export class PanelApp {
       return;
     }
     this.selectedIndex = nextIndex;
-    this.logMode = 'build';
+    this.logViewMode = 'all';
     this.summaryMode = 'ai';
+    this.logChannelLabel = this.getSelectedChannel(this.snapshot.targets[this.selectedIndex]);
     this.updateView('selection');
     this.queueLogRefresh();
     this.updateLogPolling();
@@ -256,6 +269,35 @@ export class PanelApp {
   private shouldShowLogs(_entry?: TargetPanelEntry): boolean {
     // Always show the log section; tests benefit and idle targets show an explicit "(no logs)" message.
     return true;
+  }
+
+  private syncLogChannelState(targets: TargetPanelEntry[]): void {
+    const activeNames = new Set<string>();
+    for (const target of targets) {
+      activeNames.add(target.name);
+      const channels = this.getLogChannels(target);
+      const currentIndex = this.logChannelIndex.get(target.name) ?? 0;
+      const clampedIndex = Math.min(Math.max(currentIndex, 0), Math.max(0, channels.length - 1));
+      this.logChannelIndex.set(target.name, clampedIndex);
+    }
+    // Drop entries for targets no longer present.
+    for (const name of Array.from(this.logChannelIndex.keys())) {
+      if (!activeNames.has(name)) {
+        this.logChannelIndex.delete(name);
+      }
+    }
+  }
+
+  private getLogChannels(target: TargetPanelEntry | undefined): string[] {
+    if (!target) return [DEFAULT_LOG_CHANNEL];
+    return normalizeLogChannels(target.logChannels);
+  }
+
+  private getSelectedChannel(target: TargetPanelEntry | undefined): string {
+    const channels = this.getLogChannels(target);
+    if (channels.length === 0) return DEFAULT_LOG_CHANNEL;
+    const index = this.logChannelIndex.get(target?.name ?? '') ?? 0;
+    return channels[Math.min(Math.max(index, 0), channels.length - 1)];
   }
 
   private updateView(_reason: string = 'update'): void {
@@ -290,9 +332,10 @@ export class PanelApp {
       summarySelected: viewingSummary,
       summaryInfo,
       logLimit,
-      logMode: this.logMode,
+      logChannel: this.logChannelLabel,
+      logViewMode: this.logViewMode,
       summaryMode: this.summaryMode,
-      });
+    });
     if (this.started) {
       this.tui.requestRender();
     }
@@ -315,15 +358,19 @@ export class PanelApp {
     const entry = this.snapshot.targets[this.selectedIndex];
     if (!entry || !this.shouldShowLogs(entry)) {
       this.logLines = [];
+      this.logChannelLabel = DEFAULT_LOG_CHANNEL;
       this.updateView('logs-reset');
       return;
     }
     try {
-      const lines = await this.controller.getLogLines(entry.name, LOG_FETCH_LIMIT);
-      this.logLines = lines;
+      const channel = this.getSelectedChannel(entry);
+      const lines = await this.controller.getLogLines(entry.name, channel, LOG_FETCH_LIMIT);
+      this.logChannelLabel = channel;
+      this.logLines = this.logViewMode === 'tests' ? filterTestLogs(lines) : lines;
     } catch (error) {
       const message = error instanceof Error ? error.message : String(error);
       this.logLines = [`Failed to read log: ${message}`];
+      this.logChannelLabel = DEFAULT_LOG_CHANNEL;
       this.logger.warn(`[Panel] Failed to read logs for ${entry.name}: ${message}`);
     }
     this.updateView('logs');
@@ -462,14 +509,19 @@ export class PanelApp {
       return;
     }
 
-    const modes: Array<'build' | 'test'> = ['build', 'test'];
-    const currentIdx = modes.indexOf(this.logMode);
-    const nextIdx =
-      direction === 'next'
-        ? (currentIdx + 1) % modes.length
-        : (currentIdx - 1 + modes.length) % modes.length;
-    this.logMode = modes[nextIdx];
-    this.updateView('log-mode');
+    const channels = this.getLogChannels(entry);
+    if (channels.length > 1) {
+      const currentIdx = this.logChannelIndex.get(entry.name) ?? 0;
+      const nextIdx = cycleChannelIndex(channels, currentIdx, direction);
+      this.logChannelIndex.set(entry.name, nextIdx);
+      this.logChannelLabel = channels[nextIdx];
+      this.updateView('log-channel');
+    } else {
+      // Single channel: keep legacy build/test filtering behaviour for users that expect it.
+      const nextView = this.logViewMode === 'all' ? 'tests' : 'all';
+      this.logViewMode = nextView;
+      this.updateView('log-view-mode');
+    }
     this.queueLogRefresh();
     this.updateLogPolling();
   }
@@ -518,7 +570,8 @@ interface PanelViewState {
   summarySelected: boolean;
   summaryInfo: SummaryRenderInfo;
   logLimit: number;
-  logMode: 'build' | 'test';
+  logChannel: string;
+  logViewMode: 'all' | 'tests';
   summaryMode: 'ai' | 'git';
 }
 
@@ -602,19 +655,26 @@ class PanelView extends Container {
         this.dirtyFiles.setText(`${dirtyBody}\n${summaryDivider}`);
         this.aiMarkdown.setText('');
       }
-  } else {
-    this.dirtyFiles.setText('');
-    this.aiHeader.setText('');
-    this.aiMarkdown.setText('');
+    } else {
+      this.dirtyFiles.setText('');
+      this.aiHeader.setText('');
+      this.aiMarkdown.setText('');
     }
     if (state.shouldShowLogs) {
       const entry = snapshot.targets[selectedIndex];
       const filteredLogs =
-        state.logMode === 'test'
+        state.logViewMode === 'tests'
           ? filterTestLogs(state.logLines)
           : filterBuildLogs(state.logLines);
       this.logs.setText(
-        formatLogs(entry, filteredLogs, state.width, state.logLimit, state.logMode)
+        formatLogs(
+          entry,
+          state.logChannel,
+          filteredLogs,
+          state.width,
+          state.logLimit,
+          state.logViewMode
+        )
       );
     } else {
       this.logs.setText('');
@@ -985,11 +1045,7 @@ function formatDirtyFiles(snapshot: PanelSnapshot): string {
   const lines: string[] = [];
   lines.push(
     colors.header(
-      `Dirty Files (${visibleCount}${
-        totalDirty > visibleCount
-          ? ` of ${totalDirty}`
-          : ''
-      }):`
+      `Dirty Files (${visibleCount}${totalDirty > visibleCount ? ` of ${totalDirty}` : ''}):`
     )
   );
   groups.forEach((group) => {
@@ -1033,18 +1089,19 @@ function formatAiSummary(lines: string[]): { header?: string; body: string } | n
 
 function formatLogs(
   entry: TargetPanelEntry | undefined,
+  channel: string,
   lines: string[],
   width: number,
   maxLines: number,
-  mode: 'build' | 'test'
+  viewMode: 'all' | 'tests'
 ): string {
   if (!entry) {
     return '';
   }
   const header = colors.header(
-    `Logs — ${entry.name}${entry.status.lastBuild?.status ? ` (${entry.status.lastBuild.status})` : ''}${
-      mode === 'test' ? ' [tests]' : ''
-    }`
+    `Logs — ${entry.name}${
+      entry.status.lastBuild?.status ? ` (${entry.status.lastBuild.status})` : ''
+    } · ${channel}${viewMode === 'tests' ? ' [tests]' : ''}`
   );
   const divider = colors.line('─'.repeat(Math.max(4, width)));
   const wrapped: string[] = [];

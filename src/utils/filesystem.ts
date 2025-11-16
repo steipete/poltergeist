@@ -7,6 +7,7 @@ import { createHash } from 'crypto';
 import { existsSync, readFileSync, writeFileSync } from 'fs';
 import { tmpdir } from 'os';
 import { dirname, join, resolve as resolvePath, sep } from 'path';
+import { DEFAULT_LOG_CHANNEL, sanitizeLogChannel } from './log-channels.js';
 
 /**
  * Centralized file system utilities for Poltergeist operations
@@ -47,18 +48,32 @@ export class FileSystemUtils {
    * Generate build log file name with project context
    * Uses same naming convention as state files for consistency
    */
-  public static generateLogFileName(projectRoot: string, targetName: string): string {
+  public static generateLogFileName(
+    projectRoot: string,
+    targetName: string,
+    channel: string = DEFAULT_LOG_CHANNEL
+  ): string {
     // Use both Unix and Windows separators to handle cross-platform paths in tests
     const projectName = projectRoot.split(/[/\\]/).pop() || 'unknown';
     const projectHash = createHash('sha256').update(projectRoot).digest('hex').substring(0, 8);
-    return `${projectName}-${projectHash}-${targetName}.log`;
+    const sanitizedChannel = sanitizeLogChannel(channel);
+    const nameParts = [projectName, projectHash, targetName];
+    // Only fan out log filenames when a non-default channel is requested to preserve existing paths.
+    if (sanitizedChannel !== DEFAULT_LOG_CHANNEL) {
+      nameParts.push(sanitizedChannel);
+    }
+    return `${nameParts.join('-')}.log`;
   }
 
   /**
    * Get full path to build log file for a target
    */
-  public static getLogFilePath(projectRoot: string, targetName: string): string {
-    const fileName = FileSystemUtils.generateLogFileName(projectRoot, targetName);
+  public static getLogFilePath(
+    projectRoot: string,
+    targetName: string,
+    channel: string = DEFAULT_LOG_CHANNEL
+  ): string {
+    const fileName = FileSystemUtils.generateLogFileName(projectRoot, targetName, channel);
     return join(FileSystemUtils.getStateDirectory(), fileName);
   }
 

@@ -8,6 +8,7 @@ import { FileSystemUtils } from '../utils/filesystem.js';
 import { formatTestOutput } from '../utils/test-formatter.js';
 import { GitMetricsCollector } from './git-metrics.js';
 import { LogTailReader } from './log-reader.js';
+import { normalizeLogChannels } from '../utils/log-channels.js';
 import type {
   PanelControllerOptions,
   PanelSnapshot,
@@ -77,6 +78,8 @@ export class StatusPanelController {
         status: { status: 'unknown' },
         targetType: target.type,
         enabled: target.enabled,
+        // Normalize upfront so downstream UI can safely index into channels without re-validating.
+        logChannels: normalizeLogChannels(target.logChannels),
       })),
       summary: {
         totalTargets: options.config.targets.length,
@@ -139,8 +142,8 @@ export class StatusPanelController {
     await this.refreshStatusScripts(true);
   }
 
-  public async getLogLines(targetName: string, limit?: number): Promise<string[]> {
-    return this.logReader.read(targetName, limit);
+  public async getLogLines(targetName: string, channel?: string, limit?: number): Promise<string[]> {
+    return this.logReader.read(targetName, channel, limit);
   }
 
   public dispose(): void {

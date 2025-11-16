@@ -8,6 +8,7 @@ export interface TargetPanelEntry {
   status: StatusObject;
   targetType?: string;
   enabled?: boolean;
+  logChannels?: string[];
 }
 
 export interface PanelSummary {

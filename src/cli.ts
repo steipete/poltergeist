@@ -18,6 +18,7 @@ import { readdir, readFile } from 'fs/promises';
 import path, { join } from 'path';
 import { createInterface } from 'readline';
 import { FileSystemUtils } from './utils/filesystem.js';
+import { DEFAULT_LOG_CHANNEL, sanitizeLogChannel } from './utils/log-channels.js';
 import { isMainModule } from './utils/paths.js';
 
 // Version is hardcoded at compile time - NEVER read from filesystem
@@ -1498,9 +1499,11 @@ program
   .option('-t, --tail <number>', 'Number of lines to show (default: 100)')
   .option('-f, --follow', 'Follow log output')
   .option('-c, --config <path>', 'Path to config file')
+  .option('-C, --channel <name>', 'Log channel to display (default: build)')
   .option('--json', 'Output logs in JSON format')
   .action(async (targetName, options) => {
     const { config, projectRoot } = await loadConfiguration(options.config);
+    const logChannel = sanitizeLogChannel(options.channel ?? DEFAULT_LOG_CHANNEL);
 
     // Handle smart defaults for log display
     let logTarget = targetName;
@@ -1565,7 +1568,7 @@ program
     };
 
     const candidateLogFiles = [
-      logTarget ? FileSystemUtils.getLogFilePath(projectRoot, logTarget) : undefined,
+      logTarget ? FileSystemUtils.getLogFilePath(projectRoot, logTarget, logChannel) : undefined,
       resolveLogPath(config.logging?.file),
       path.join(projectRoot, '.poltergeist.log'),
       logTarget ? path.join(projectRoot, `${logTarget}.log`) : undefined,
