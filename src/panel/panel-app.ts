@@ -451,7 +451,8 @@ function formatHeader(snapshot: PanelSnapshot, width?: number): string {
   const summaryLine = formatSummary(snapshot, mode);
 
   const lines = [projectLine, branchLine, summaryLine];
-  const mapped = lines.map((line) => centerText(line, width ? width - 2 : undefined));
+  const targetContentWidth = width ? Math.max(2, width - 2) : undefined;
+  const mapped = lines.map((line) => centerText(line, targetContentWidth));
   return boxLines(mapped, width);
 }
 
@@ -531,7 +532,7 @@ function centerText(text: string, width?: number): string {
 function boxLines(lines: string[], maxWidth?: number): string {
   if (lines.length === 0) return '';
   const widestLine = Math.max(...lines.map((line) => visibleWidth(line)));
-  const boxWidth = Math.max(4, Math.max(maxWidth ?? 0, widestLine + 2));
+  const boxWidth = maxWidth ? Math.max(4, maxWidth) : Math.max(4, widestLine + 2);
   const contentWidth = boxWidth - 2;
   const top = `┌${'─'.repeat(contentWidth)}┐`;
   const bottom = `└${'─'.repeat(contentWidth)}┘`;
