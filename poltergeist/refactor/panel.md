@@ -21,4 +21,5 @@
 - ✅ Event-triggered log refresh: panel now listens to `log-update` events and refreshes logs immediately when status/summary data change.
 - ✅ Cache `buildTargetRows` within a render pass using snapshot versioning.
 - ✅ Added extra tests: truncation, header compact/narrow separators, log wrapping.
-- Remaining: fine-tune badge-width elision & document new flags (monochrome), consider additional `formatLogs` multiline cases if needed.
+- ✅ Documented new flag: `docs/panel-flags.md` explains `POLTERGEIST_MONOCHROME=1`.
+- Remaining: fine-tune badge-width elision (ensure consistent truncation with duration/time pills) and add any additional `formatLogs` multiline cases if needed.
