@@ -19,6 +19,7 @@ import type { PanelSnapshot, PanelStatusScriptResult, TargetPanelEntry } from '.
 const CONTROLS_LINE = 'Controls: ↑/↓ move · r refresh · q quit';
 const LOG_FETCH_LIMIT = 40;
 const LOG_OVERHEAD_LINES = 3; // blank spacer + header + divider inside formatLogs
+const SUMMARY_FRACTION = 0.5; // summary gets half of remaining lines when selected
 
 interface PanelAppOptions {
   controller: StatusPanelController;
@@ -513,11 +514,19 @@ class PanelView extends Container {
       const aiSummary = formatAiSummary(snapshot.git.summary ?? []);
       if (aiSummary && aiSummary.body.trim().length > 0) {
         this.dirtyFiles.setText('');
-      const headerText = aiSummary.header ?? colors.header('AI Summary of changed files:');
+        const headerText = aiSummary.header ?? colors.header('AI Summary of changed files:');
         this.aiHeader.setText(`\n${headerText}`);
-        this.aiMarkdown.setText(aiSummary.body.trim());
+        const limitedBody = limitSummaryLines(
+          aiSummary.body.trim(),
+          Math.max(1, Math.floor(state.logLimit * SUMMARY_FRACTION))
+        );
+        this.aiMarkdown.setText(limitedBody);
       } else {
-        this.dirtyFiles.setText(formatDirtyFiles(snapshot));
+        const limitedDirty = limitSummaryLines(
+          formatDirtyFiles(snapshot),
+          Math.max(1, Math.floor(state.logLimit * SUMMARY_FRACTION))
+        );
+        this.dirtyFiles.setText(limitedDirty);
         this.aiHeader.setText('');
         this.aiMarkdown.setText('');
       }
@@ -758,6 +767,13 @@ function countLines(text: string): number {
     return 0;
   }
   return text.split('\n').length;
+}
+
+function limitSummaryLines(text: string, maxLines: number): string {
+  if (maxLines <= 0) return '';
+  const lines = text.split('\n');
+  if (lines.length <= maxLines) return text;
+  return lines.slice(0, maxLines).join('\n');
 }
 
 function filterTestLogs(lines: string[]): string[] {
