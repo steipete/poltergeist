@@ -35,7 +35,7 @@ const logger: Logger = {
   success: vi.fn(),
 };
 
-const stateManager = {} as unknown as StateManager;
+const stateManager = {} as StateManager;
 
 const projectRoot = '/project';
 

@@ -60,10 +60,10 @@ describe('Pattern Normalization', () => {
     });
 
     it('should throw on non-string pattern', () => {
-      expect(() => manager.normalizeWatchPattern(null as unknown as string)).toThrow(
+      expect(() => manager.normalizeWatchPattern(null as string)).toThrow(
         'Watch pattern must be a non-empty string'
       );
-      expect(() => manager.normalizeWatchPattern(undefined as unknown as string)).toThrow(
+      expect(() => manager.normalizeWatchPattern(undefined as string)).toThrow(
         'Watch pattern must be a non-empty string'
       );
     });
