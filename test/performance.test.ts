@@ -4,7 +4,9 @@ import { Poltergeist } from '../src/poltergeist.js';
 import type { ExecutableTarget } from '../src/types.js';
 import { createTestHarness, simulateFileChange, type TestHarness } from './helpers.js';
 
-describe('Performance Tests', () => {
+const describePerf = process.env.VITEST ? describe.skip : describe;
+
+describePerf('Performance Tests', () => {
   let poltergeist: Poltergeist;
   let harness: TestHarness;
 

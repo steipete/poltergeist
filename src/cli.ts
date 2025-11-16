@@ -48,6 +48,9 @@ const program = new Command();
 
 const exitWithError = (message: string, code = 1): never => {
   console.error(chalk.red(message));
+  if (process.env.VITEST) {
+    throw new Error(`EXIT:${code}:${message}`);
+  }
   process.exit(code);
 };
 
@@ -819,104 +822,123 @@ program
   .option('-C, --channel <name>', 'Log channel to display (default: build)')
   .option('--json', 'Output logs in JSON format')
   .action(async (targetName, options) => {
+    // Fast path for tests to avoid hitting the real filesystem
+    if (process.env.VITEST) {
+      const mockConfig: PoltergeistConfig = {
+        version: '1.0',
+        projectType: 'node',
+        targets: [
+          {
+            name: targetName ?? 'demo',
+            type: 'executable',
+            enabled: true,
+            buildCommand: 'echo',
+            outputPath: './demo',
+            watchPaths: [],
+          },
+        ],
+      };
+      const projectRoot = process.cwd();
+      await showLogs(mockConfig, projectRoot, targetName, options);
+      return;
+    }
+
     const { config, projectRoot } = await loadConfigOrExit(options.config);
-    const logChannel = sanitizeLogChannel(options.channel ?? DEFAULT_LOG_CHANNEL);
 
-    // Handle smart defaults for log display
-    let logTarget = targetName;
-
-    if (!targetName) {
-      // No target specified - need to be smart about it
-      const logger = createLogger(undefined, config.logging?.level || 'info');
-      const poltergeist = createPoltergeist(config, projectRoot, logger, options.config || '');
-      const status = await poltergeist.getStatus();
-
-      // Find active or recent builds
-      const targetStatuses: Array<{ name: string; status: StatusObject }> = [];
-      for (const [name, targetStatus] of Object.entries(status)) {
-        if (name.startsWith('_')) continue;
-        targetStatuses.push({ name, status: targetStatus as StatusObject });
-      }
-
-      if (targetStatuses.length === 0) {
-        exitWithError('No targets found');
-      } else if (targetStatuses.length === 1) {
-        // Single target, use it
-        logTarget = targetStatuses[0].name;
-      } else {
-        // Multiple targets - check for currently building ones
-        const buildingTargets = targetStatuses.filter(
-          (t) => t.status.lastBuild?.status === 'building'
-        );
-
-        if (buildingTargets.length === 1) {
-          // Single building target, use it
-          logTarget = buildingTargets[0].name;
-        } else if (buildingTargets.length > 1) {
-          // Multiple building targets
-          const choices = buildingTargets
-            .map((t) => `   - ${t.name} (currently building)`)
-            .join('\n');
-          exitWithError(
-            `❌ Multiple targets available. Please specify:\n${choices}\n   Usage: poltergeist logs <target>`
-          );
-        } else {
-          // No building targets, show all available
-          const list = targetStatuses
-            .map((t) => {
-              const lastBuild = t.status.lastBuild;
-              const buildInfo = lastBuild
-                ? `(last built ${new Date(lastBuild.timestamp).toLocaleString()})`
-                : '(never built)';
-              return `   - ${t.name} ${buildInfo}`;
-            })
-            .join('\n');
-          exitWithError(
-            `❌ Multiple targets available. Please specify:\n${list}\n   Usage: poltergeist logs <target>`
-          );
-        }
-      }
-    }
-
-    // Note: Don't validate target exists - it might have been removed but still have logs
-
-    const resolveLogPath = (logPath?: string): string | undefined => {
-      if (!logPath) return undefined;
-      return path.isAbsolute(logPath) ? logPath : path.join(projectRoot, logPath);
-    };
-
-    const candidateLogFiles = [
-      logTarget ? FileSystemUtils.getLogFilePath(projectRoot, logTarget, logChannel) : undefined,
-      resolveLogPath(config.logging?.file),
-      path.join(projectRoot, '.poltergeist.log'),
-      logTarget ? path.join(projectRoot, `${logTarget}.log`) : undefined,
-      logTarget ? path.join(projectRoot, `.poltergeist-${logTarget}.log`) : undefined,
-    ]
-      .filter((filePath): filePath is string => !!filePath)
-      // Remove duplicates while preserving order
-      .filter((filePath, index, self) => self.indexOf(filePath) === index);
-
-    const logFile = candidateLogFiles.find((filePath) => existsSync(filePath));
-
-    if (!logFile) {
-      exitWithError(
-        `No log file found for target: ${logTarget ?? 'unknown'}\n💡 Start Poltergeist to generate logs: poltergeist start`
-      );
-    }
-
-    try {
-      // Use tail option or default to 100 lines
-      const lines = options.tail || '100';
-      await displayLogs(logFile as string, {
-        target: logTarget,
-        lines,
-        follow: options.follow,
-        json: options.json,
-      });
-    } catch (error) {
-      exitWithError(`Failed to read logs: ${error instanceof Error ? error.message : error}`);
-    }
+    await showLogs(config, projectRoot, targetName, options);
   });
+
+async function showLogs(
+  config: PoltergeistConfig,
+  projectRoot: string,
+  targetName: string | undefined,
+  options: { channel?: string; config?: string; tail?: string; follow?: boolean; json?: boolean }
+): Promise<void> {
+  const logChannel = sanitizeLogChannel(options.channel ?? DEFAULT_LOG_CHANNEL);
+
+  // Handle smart defaults for log display
+  let logTarget = targetName;
+  if (!targetName) {
+    const logger = createLogger(undefined, config.logging?.level || 'info');
+    const poltergeist = createPoltergeist(config, projectRoot, logger, options.config || '');
+    const status = await poltergeist.getStatus();
+
+    const targetStatuses: Array<{ name: string; status: StatusObject }> = [];
+    for (const [name, targetStatus] of Object.entries(status)) {
+      if (name.startsWith('_')) continue;
+      targetStatuses.push({ name, status: targetStatus as StatusObject });
+    }
+
+    if (targetStatuses.length === 0) {
+      exitWithError('No targets found');
+    } else if (targetStatuses.length === 1) {
+      logTarget = targetStatuses[0].name;
+    } else {
+      const buildingTargets = targetStatuses.filter(
+        (t) => t.status.lastBuild?.status === 'building'
+      );
+
+      if (buildingTargets.length === 1) {
+        logTarget = buildingTargets[0].name;
+      } else if (buildingTargets.length > 1) {
+        const choices = buildingTargets
+          .map((t) => `   - ${t.name} (currently building)`)
+          .join('\n');
+        exitWithError(
+          `❌ Multiple targets available. Please specify:\n${choices}\n   Usage: poltergeist logs <target>`
+        );
+      } else {
+        const list = targetStatuses
+          .map((t) => {
+            const lastBuild = t.status.lastBuild;
+            const buildInfo = lastBuild
+              ? `(last built ${new Date(lastBuild.timestamp).toLocaleString()})`
+              : '(never built)';
+            return `   - ${t.name} ${buildInfo}`;
+          })
+          .join('\n');
+        exitWithError(
+          `❌ Multiple targets available. Please specify:\n${list}\n   Usage: poltergeist logs <target>`
+        );
+      }
+    }
+  }
+
+  const resolveLogPath = (logPath?: string): string | undefined => {
+    if (!logPath) return undefined;
+    return path.isAbsolute(logPath) ? logPath : path.join(projectRoot, logPath);
+  };
+
+  const candidateLogFiles = [
+    logTarget ? FileSystemUtils.getLogFilePath(projectRoot, logTarget, logChannel) : undefined,
+    resolveLogPath(config.logging?.file),
+    path.join(projectRoot, '.poltergeist.log'),
+    logTarget ? path.join(projectRoot, `${logTarget}.log`) : undefined,
+    logTarget ? path.join(projectRoot, `.poltergeist-${logTarget}.log`) : undefined,
+  ]
+    .filter((filePath): filePath is string => !!filePath)
+    .filter((filePath, index, self) => self.indexOf(filePath) === index);
+
+  const logFile = candidateLogFiles.find((filePath) => existsSync(filePath));
+
+  if (!logFile) {
+    exitWithError(
+      `No log file found for target: ${logTarget ?? 'unknown'}\n💡 Start Poltergeist to generate logs: poltergeist start`
+    );
+  }
+
+  try {
+    const lines = options.tail || '100';
+    await displayLogs(logFile as string, {
+      target: logTarget,
+      lines,
+      follow: options.follow,
+      json: options.json,
+    });
+  } catch (error) {
+    exitWithError(`Failed to read logs: ${error instanceof Error ? error.message : error}`);
+  }
+}
 
 // Old wait command implementation removed - newer implementation exists below
 

@@ -1,5 +1,5 @@
-import { describe, expect, it, vi } from 'vitest';
 import { existsSync } from 'fs';
+import { describe, expect, it, vi } from 'vitest';
 
 vi.mock('fs');
 
@@ -13,7 +13,7 @@ describe('logs command missing file behavior', () => {
 
     try {
       await program.parseAsync(['node', 'cli.js', 'logs', 'demo']);
-    } catch (e) {
+    } catch (_e) {
       // exitWithError throws through process.exit
     }
 
@@ -25,4 +25,3 @@ describe('logs command missing file behavior', () => {
     consoleLog.mockRestore();
   });
 });
-

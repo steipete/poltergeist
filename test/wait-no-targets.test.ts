@@ -1,5 +1,5 @@
-import { describe, expect, it, vi } from 'vitest';
 import { existsSync, readFileSync } from 'fs';
+import { describe, expect, it, vi } from 'vitest';
 
 vi.mock('fs');
 vi.mock('../src/factories.js');
@@ -19,8 +19,22 @@ describe('wait command edge cases', () => {
       version: '1.0',
       projectType: 'node',
       targets: [
-        { name: 'a', type: 'executable', buildCommand: 'echo', outputPath: 'a', watchPaths: [], enabled: true },
-        { name: 'b', type: 'executable', buildCommand: 'echo', outputPath: 'b', watchPaths: [], enabled: true },
+        {
+          name: 'a',
+          type: 'executable',
+          buildCommand: 'echo',
+          outputPath: 'a',
+          watchPaths: [],
+          enabled: true,
+        },
+        {
+          name: 'b',
+          type: 'executable',
+          buildCommand: 'echo',
+          outputPath: 'b',
+          watchPaths: [],
+          enabled: true,
+        },
       ],
     } as const;
 
@@ -54,4 +68,3 @@ describe('wait command edge cases', () => {
     consoleLog.mockRestore();
   });
 });
-

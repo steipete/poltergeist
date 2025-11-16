@@ -57,4 +57,3 @@ describe('build command lock handling', () => {
     consoleLog.mockRestore();
   });
 });
-
