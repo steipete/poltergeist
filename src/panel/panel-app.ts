@@ -18,7 +18,7 @@ import type { PanelSnapshot, PanelStatusScriptResult, TargetPanelEntry } from '.
 
 const CONTROLS_LINE = 'Controls: ↑/↓ move · r refresh · q quit';
 const LOG_FETCH_LIMIT = 40;
-const LOG_DISPLAY_LIMIT = 12;
+const LOG_OVERHEAD_LINES = 3; // blank spacer + header + divider inside formatLogs
 
 interface PanelAppOptions {
   controller: StatusPanelController;
@@ -57,7 +57,17 @@ export class PanelApp {
     this.controller = options.controller;
     this.logger = options.logger;
     this.snapshot = this.controller.getSnapshot();
-    this.selectedIndex = this.snapshot.preferredIndex ?? 0;
+    const summaryIndex = this.getSummaryIndex(this.snapshot);
+    if (this.snapshot.preferredIndex !== undefined && this.snapshot.targets.length > 0) {
+      this.selectedIndex = Math.min(
+        this.snapshot.preferredIndex,
+        Math.max(0, this.snapshot.targets.length - 1)
+      );
+    } else if (summaryIndex !== null) {
+      this.selectedIndex = summaryIndex;
+    } else {
+      this.selectedIndex = 0;
+    }
 
     this.tui.addChild(this.view);
     // Input bridge never renders anything but receives all keyboard input.
@@ -120,10 +130,19 @@ export class PanelApp {
 
   private handleSnapshot(next: PanelSnapshot): void {
     this.snapshot = next;
+    const selectableCount = this.getSelectableCount(next);
+    const maxIndex = Math.max(0, selectableCount - 1);
     if (!this.userNavigated) {
-      this.selectedIndex = next.preferredIndex ?? this.selectedIndex ?? 0;
-    } else if (this.selectedIndex >= next.targets.length) {
-      this.selectedIndex = Math.max(0, next.targets.length - 1);
+      const summaryIndex = this.getSummaryIndex(next);
+      if (next.preferredIndex !== undefined && next.targets.length > 0) {
+        this.selectedIndex = Math.min(next.preferredIndex, next.targets.length - 1);
+      } else if (summaryIndex !== null) {
+        this.selectedIndex = summaryIndex;
+      } else {
+        this.selectedIndex = Math.min(this.selectedIndex ?? 0, maxIndex);
+      }
+    } else if (this.selectedIndex > maxIndex) {
+      this.selectedIndex = maxIndex;
     }
     this.updateView('snapshot');
     this.queueLogRefresh();
@@ -184,12 +203,12 @@ export class PanelApp {
   }
 
   private moveSelection(delta: number): void {
-    const targets = this.snapshot.targets;
-    if (targets.length === 0) {
+    const maxIndex = Math.max(0, this.getSelectableCount(this.snapshot) - 1);
+    if (maxIndex === 0 && this.selectedIndex === 0) {
       return;
     }
     this.userNavigated = true;
-    const nextIndex = Math.min(Math.max(this.selectedIndex + delta, 0), targets.length - 1);
+    const nextIndex = Math.min(Math.max(this.selectedIndex + delta, 0), maxIndex);
     if (nextIndex === this.selectedIndex) {
       return;
     }
@@ -208,16 +227,35 @@ export class PanelApp {
   }
 
   private updateView(_reason: string = 'update'): void {
-    const entry = this.snapshot.targets[this.selectedIndex];
-    const shouldShowLogs = this.shouldShowLogs(entry);
+    const summaryIndex = this.getSummaryIndex(this.snapshot);
+    const viewingSummary = summaryIndex !== null && this.selectedIndex === summaryIndex;
+    const entry =
+      viewingSummary || this.selectedIndex < 0
+        ? undefined
+        : this.snapshot.targets[this.selectedIndex];
+    const shouldShowLogs = entry ? this.shouldShowLogs(entry) : false;
     const width = this.terminal.columns || 80;
+    const height = this.terminal.rows || 24;
+    const summaryInfo = this.computeSummaryLines(this.snapshot, viewingSummary);
+    const logDisplayLimit = shouldShowLogs
+      ? this.computeLogDisplayLimit({
+          width,
+          height,
+          snapshot: this.snapshot,
+          summaryInfo,
+        })
+      : 0;
+    const logLimit = Math.max(0, logDisplayLimit);
     this.view.update({
       snapshot: this.snapshot,
       selectedIndex: this.selectedIndex,
-      logLines: shouldShowLogs ? this.logLines.slice(-LOG_DISPLAY_LIMIT) : [],
+      logLines: shouldShowLogs && logLimit > 0 ? this.logLines.slice(-logLimit) : [],
       shouldShowLogs,
       controlsLine: CONTROLS_LINE,
       width,
+      summaryRowLabel: this.getSummaryLabel(this.snapshot),
+      summarySelected: viewingSummary,
+      summaryInfo,
     });
     if (this.started) {
       this.tui.requestRender();
@@ -269,6 +307,111 @@ export class PanelApp {
       this.logTimer = undefined;
     }
   }
+
+  private computeLogDisplayLimit({
+    width,
+    height,
+    snapshot,
+    summaryInfo,
+  }: {
+    width: number;
+    height: number;
+    snapshot: PanelSnapshot;
+    summaryInfo: SummaryRenderInfo;
+  }): number {
+    const headerText = formatHeader(snapshot, width);
+    const targetsText = formatTargets(
+      snapshot.targets,
+      this.selectedIndex,
+      splitStatusScripts(snapshot.statusScripts ?? []).scriptsByTarget,
+      width,
+      this.getSummaryLabel(snapshot)
+        ? { label: this.getSummaryLabel(snapshot)!, selected: false }
+        : undefined
+    );
+    const globalScriptsText = formatGlobalScripts(
+      splitStatusScripts(snapshot.statusScripts ?? []).globalScripts,
+      width
+    );
+    const footerText = (() => {
+      const divider = colors.line('─'.repeat(Math.max(4, width)));
+      return `${divider}\n${colors.header(CONTROLS_LINE)}`;
+    })();
+
+    const nonLogLines =
+      countLines(headerText) +
+      1 + // spacer
+      countLines(targetsText) +
+      countLines(globalScriptsText) +
+      summaryInfo.totalLines +
+      countLines(footerText);
+
+    const remaining = height - nonLogLines;
+    if (remaining <= LOG_OVERHEAD_LINES) {
+      return 0;
+    }
+    return Math.max(0, remaining - LOG_OVERHEAD_LINES);
+  }
+
+  private computeSummaryLines(snapshot: PanelSnapshot, viewingSummary: boolean): SummaryRenderInfo {
+    if (!viewingSummary) {
+      return { aiHeaderLines: 0, aiMarkdownLines: 0, dirtyLines: 0, totalLines: 0 };
+    }
+
+    const aiSummary = formatAiSummary(snapshot.git.summary ?? []);
+    if (aiSummary && aiSummary.body.trim().length > 0) {
+      const headerText = aiSummary.header ?? colors.header('AI summary of changed files:');
+      const aiHeaderLines = countLines(`\n${headerText}`);
+      const aiMarkdownLines = countLines(aiSummary.body.trim());
+      return {
+        aiHeaderLines,
+        aiMarkdownLines,
+        dirtyLines: 0,
+        totalLines: aiHeaderLines + aiMarkdownLines,
+      };
+    }
+
+    const dirtyText = formatDirtyFiles(snapshot);
+    const dirtyLines = countLines(dirtyText);
+    return {
+      aiHeaderLines: 0,
+      aiMarkdownLines: 0,
+      dirtyLines,
+      totalLines: dirtyLines,
+    };
+  }
+
+  private getSummaryLabel(snapshot: PanelSnapshot): string | undefined {
+    if (this.hasAiSummary(snapshot)) {
+      return 'AI summary';
+    }
+    if (this.hasDirtySummary(snapshot)) {
+      return 'Git status';
+    }
+    return undefined;
+  }
+
+  private hasAiSummary(snapshot: PanelSnapshot): boolean {
+    return (snapshot.git.summary ?? []).some((line) => line.trim().length > 0);
+  }
+
+  private hasDirtySummary(snapshot: PanelSnapshot): boolean {
+    const dirtyCount = snapshot.git.dirtyFiles ?? 0;
+    const names = snapshot.git.dirtyFileNames ?? [];
+    return dirtyCount > 0 || names.length > 0;
+  }
+
+  private hasSummaryRow(snapshot: PanelSnapshot): boolean {
+    return this.hasAiSummary(snapshot) || this.hasDirtySummary(snapshot);
+  }
+
+  private getSummaryIndex(snapshot: PanelSnapshot): number | null {
+    return this.hasSummaryRow(snapshot) ? snapshot.targets.length : null;
+  }
+
+  private getSelectableCount(snapshot: PanelSnapshot): number {
+    return snapshot.targets.length + (this.hasSummaryRow(snapshot) ? 1 : 0);
+  }
 }
 
 interface PanelViewState {
@@ -278,6 +421,16 @@ interface PanelViewState {
   shouldShowLogs: boolean;
   controlsLine: string;
   width: number;
+  summaryRowLabel?: string;
+  summarySelected: boolean;
+  summaryInfo: SummaryRenderInfo;
+}
+
+interface SummaryRenderInfo {
+  aiHeaderLines: number;
+  aiMarkdownLines: number;
+  dirtyLines: number;
+  totalLines: number;
 }
 
 class PanelView extends Container {
@@ -309,17 +462,31 @@ class PanelView extends Container {
     const { scriptsByTarget, globalScripts } = splitStatusScripts(snapshot.statusScripts ?? []);
     this.header.setText(formatHeader(snapshot, state.width));
     this.targets.setText(
-      formatTargets(snapshot.targets, selectedIndex, scriptsByTarget, state.width)
+      formatTargets(
+        snapshot.targets,
+        selectedIndex,
+        scriptsByTarget,
+        state.width,
+        state.summaryRowLabel
+          ? { label: state.summaryRowLabel, selected: state.summarySelected }
+          : undefined
+      )
     );
     this.globalScripts.setText(formatGlobalScripts(globalScripts, state.width));
-    const aiSummary = formatAiSummary(snapshot.git.summary ?? []);
-    if (aiSummary && aiSummary.body.trim().length > 0) {
-      this.dirtyFiles.setText('');
-      const headerText = aiSummary.header ?? colors.header('AI summary of changed files:');
-      this.aiHeader.setText(`\n${headerText}`);
-      this.aiMarkdown.setText(aiSummary.body.trim());
+    if (state.summarySelected) {
+      const aiSummary = formatAiSummary(snapshot.git.summary ?? []);
+      if (aiSummary && aiSummary.body.trim().length > 0) {
+        this.dirtyFiles.setText('');
+        const headerText = aiSummary.header ?? colors.header('AI summary of changed files:');
+        this.aiHeader.setText(`\n${headerText}`);
+        this.aiMarkdown.setText(aiSummary.body.trim());
+      } else {
+        this.dirtyFiles.setText(formatDirtyFiles(snapshot));
+        this.aiHeader.setText('');
+        this.aiMarkdown.setText('');
+      }
     } else {
-      this.dirtyFiles.setText(formatDirtyFiles(snapshot));
+      this.dirtyFiles.setText('');
       this.aiHeader.setText('');
       this.aiMarkdown.setText('');
     }
@@ -546,11 +713,19 @@ function boxLines(lines: string[], maxWidth?: number): string {
   return [top, ...body, bottom].join('\n');
 }
 
+function countLines(text: string): number {
+  if (!text) {
+    return 0;
+  }
+  return text.split('\n').length;
+}
+
 function formatTargets(
   entries: TargetPanelEntry[],
   selectedIndex: number,
   scriptsByTarget: Map<string, PanelStatusScriptResult[]>,
-  width: number
+  width: number,
+  summaryRow?: { label: string; selected: boolean }
 ): string {
   if (entries.length === 0) {
     return colors.header('No targets configured.');
@@ -621,6 +796,12 @@ function formatTargets(
       });
     });
   });
+
+  if (summaryRow) {
+    const summaryName = summaryRow.selected ? colors.accent(summaryRow.label) : summaryRow.label;
+    const summaryStatus = colors.muted('view');
+    lines.push(`${pad(summaryName, targetCol)}${pad(summaryStatus, statusCol)}`);
+  }
 
   lines.push(divider);
 
