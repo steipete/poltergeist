@@ -41,4 +41,12 @@ describe('target tree flattening', () => {
     ]);
     expect(rows.map((r) => r.target.name)).toEqual(['X', 'Tests', 'Suite', 'B', 'A']);
   });
+
+  it('marks a lone child with single connector', () => {
+    const rows = buildTargetRows([makeTarget('Suite'), makeTarget('Only', 'Suite')]);
+    expect(rows.map((r) => [r.target.name, r.depth, r.connector])).toEqual([
+      ['Suite', 0, 'root'],
+      ['Only', 1, 'single'],
+    ]);
+  });
 });

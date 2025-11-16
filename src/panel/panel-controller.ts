@@ -280,6 +280,9 @@ export class StatusPanelController {
         status: (statusMap[target.name] as StatusObject) || { status: 'unknown' },
         targetType: target.type,
         enabled: target.enabled,
+        group: target.group,
+        // Preserve log channels so the panel keeps per-target log routing after refresh.
+        logChannels: normalizeLogChannels(target.logChannels),
       }));
 
       const summary = this.computeSummary(targets);
