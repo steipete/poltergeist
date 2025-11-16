@@ -13,6 +13,7 @@ Poltergeist surfaces live progress for builds and tests and renders a text bar i
 
 - **SwiftPM builds**: lines like `[12/50] Compiling Foo.swift` are parsed from stdout.
 - **XCTest runs**: lines `Test Case '-[Suite testX]' passed/failed ...` increment the counter; the final `Executed N tests` summary supplies a total when present.
+- **xcodebuild (mac targets)**: `scripts/build-mac-debug.sh` now wraps `xcodebuild` with a progress filter that emits `[n/total] Compile ...` markers before the stream is beautified by `xcbeautify`.
 - **Vitest runs**: summary lines like `Tests 2 failed | 5 passed | 7 total` (or `Test Files … total`) are parsed; counts before `total` become the current value.
 
 Each update writes a `progress` payload into the target’s state file:
@@ -30,6 +31,7 @@ Each update writes a `progress` payload into the target’s state file:
 
 - Parsing is heuristic; non-Swift builders/tests need to emit `[n/total]` or adopt a future structured marker to be picked up.
 - Progress writes are throttled (~300 ms) to avoid excessive state churn.
+- For Xcode builds the denominator is best-effort (running max of compile steps as they appear); percent may adjust slightly as more compile actions are observed.
 
 ## Adding progress for other targets
 
