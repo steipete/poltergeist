@@ -225,6 +225,10 @@ function computeSummaryLines(
       const bodyLines = countLines(aiSummary.body.trim());
       return { headerLines, bodyLines, totalLines: headerLines + bodyLines };
     }
+    // AI selected but not loaded yet: show loading placeholder centered in summary area.
+    const placeholder = colors.muted('AI summary loading…');
+    const lines = countLines(placeholder);
+    return { headerLines: 0, bodyLines: lines, totalLines: lines };
   }
 
   // Fallback to git-dirty list when AI summary is empty or git view was chosen.
