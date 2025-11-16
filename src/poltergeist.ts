@@ -418,6 +418,7 @@ export class Poltergeist {
         state.builder.stop();
         this.targetStates.delete(targetName);
         await this.stateManager.removeState(targetName);
+        await this.watchService?.unsubscribeTargets([targetName]);
       }
     } else {
       // Stop all targets
@@ -741,6 +742,9 @@ export class Poltergeist {
     }
 
     if (this.watchService) {
+      if (changes.targetsRemoved.length > 0) {
+        await this.watchService.unsubscribeTargets(changes.targetsRemoved);
+      }
       await this.watchService.refreshTargets(this.targetStates);
     }
   }

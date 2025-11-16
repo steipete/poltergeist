@@ -28,7 +28,7 @@ export class WatchService {
     files: Array<{ name: string; exists: boolean; type?: string }>,
     targetNames: string[]
   ) => void;
-  private readonly subscriptions = new Set<string>();
+  private readonly subscriptions = new Map<string, Set<string>>(); // subscriptionName -> targets
 
   constructor({
     projectRoot,
@@ -81,7 +81,7 @@ export class WatchService {
           },
           exclusionExpressions
         );
-        this.subscriptions.add(subscriptionName);
+        this.subscriptions.set(subscriptionName, new Set(targetNames));
         targetNames.forEach((targetName) => {
           const state = targetStates.get(targetName);
           if (state) state.watching = true;
@@ -110,7 +110,7 @@ export class WatchService {
         },
         (files) => onChange(files)
       );
-      this.subscriptions.add('poltergeist_config');
+      this.subscriptions.set('poltergeist_config', new Set(['config']));
       this.logger.info('🔧 Watching configuration file for changes');
     } catch (error) {
       this.logger.warn(`⚠️ Failed to watch config file: ${error}`);
@@ -132,9 +132,32 @@ export class WatchService {
     await this.subscribeTargets(targetStates);
   }
 
+  public async unsubscribeTargets(targetNames: string[]): Promise<void> {
+    if (!this.watchman) return;
+    const toRemove: string[] = [];
+
+    for (const [subscription, targets] of this.subscriptions.entries()) {
+      for (const target of targetNames) {
+        targets.delete(target);
+      }
+      if (targets.size === 0 || subscription === 'poltergeist_config') {
+        toRemove.push(subscription);
+      }
+    }
+
+    for (const subscription of toRemove) {
+      try {
+        await this.watchman.unsubscribe(subscription);
+      } catch (error) {
+        this.logger.warn(`Failed to unsubscribe ${subscription}: ${error}`);
+      }
+      this.subscriptions.delete(subscription);
+    }
+  }
+
   private async unsubscribeAll(): Promise<void> {
     if (!this.watchman) return;
-    for (const name of this.subscriptions) {
+    for (const name of this.subscriptions.keys()) {
       try {
         await this.watchman.unsubscribe(name);
       } catch (error) {
