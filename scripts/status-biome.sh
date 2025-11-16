@@ -8,7 +8,7 @@ OUTPUT="$(NO_COLOR=1 pnpm run lint 2>&1)"
 STATUS=$?
 
 if [ $STATUS -eq 0 ]; then
-  echo "Biome: no issues"
+  echo "no issues"
 else
   echo "Biome: failed (exit $STATUS)"
   echo "$OUTPUT" | head -n 5
