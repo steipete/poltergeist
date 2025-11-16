@@ -558,8 +558,7 @@ program
 
       if (view === 'panel') {
         if (options.json) {
-          console.error(chalk.red('--json is not compatible with the panel view.'));
-          process.exit(1);
+          exitWithError('--json is not compatible with the panel view.');
         }
         const gitSummaryMode = parseGitModeOrExit(options.gitMode);
 
@@ -609,8 +608,7 @@ program
         }
       }
     } catch (error) {
-      console.error(chalk.red(poltergeistMessage('error', `Failed to get status: ${error}`)));
-      process.exit(1);
+      exitWithError(poltergeistMessage('error', `Failed to get status: ${error}`));
     }
   });
 
@@ -630,9 +628,9 @@ program
 
     // Check if config already exists
     if (existsSync(configPath) && !options.dryRun) {
-      console.error(chalk.red('❌ poltergeist.config.json already exists!'));
-      console.error(chalk.yellow('Remove it first or use --dry-run to preview changes.'));
-      process.exit(1);
+      exitWithError(
+        '❌ poltergeist.config.json already exists!\nRemove it first or use --dry-run to preview changes.'
+      );
     }
 
     console.log(chalk.gray(poltergeistMessage('info', 'Initializing configuration...')));
