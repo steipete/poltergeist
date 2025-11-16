@@ -6,6 +6,7 @@ import type { Logger } from '../logger.js';
 import type { StateManager } from '../state.js';
 import type { BuildProgress, BuildStatus, Target } from '../types.js';
 import { BuildStatusManager } from '../utils/build-status-manager.js';
+import { stripAnsi } from '../utils/ansi.js';
 
 export const parseVitestProgressLine = (line: string): BuildProgress | null => {
   if (!/Test(s)?\s/i.test(line)) return null;
@@ -214,7 +215,8 @@ export abstract class BaseBuilder<T extends Target = Target> {
           const output = data.toString();
 
           // Extract progress indicators like "[12/50] Compiling Foo.swift"
-          for (const line of output.split('\n')) {
+          for (const raw of output.split('\n')) {
+            const line = stripAnsi(raw).replace(/\r/g, '');
             const match = line.match(/^\[(\d+)\/(\d+)\]\s*(.*)$/);
             if (match) {
               const current = Number.parseInt(match[1], 10);
@@ -238,9 +240,11 @@ export abstract class BaseBuilder<T extends Target = Target> {
               updateProgress(vitestProgress);
             }
 
+            const sanitized = line;
+
             // Heuristic test progress for XCTest output
             if (this.target.type === 'test') {
-              const testResult = line.match(
+              const testResult = sanitized.match(
                 /^Test Case '-\[[^ ]+ ([^]]+)\]' (passed|failed) \(([\d.]+) seconds\)/
               );
               if (testResult) {
@@ -262,7 +266,7 @@ export abstract class BaseBuilder<T extends Target = Target> {
                 }
               }
 
-              const executed = line.match(/^Executed (\d+) tests?, with /);
+              const executed = sanitized.match(/^Executed (\d+) tests?, with /);
               if (executed) {
                 const reported = Number.parseInt(executed[1], 10);
                 if (Number.isFinite(reported) && reported > 0) {
