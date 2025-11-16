@@ -329,7 +329,8 @@ class PanelView extends Container {
     } else {
       this.logs.setText('');
     }
-    this.footer.setText(colors.header(state.controlsLine));
+    const divider = colors.line('─'.repeat(Math.max(4, state.width)));
+    this.footer.setText(`${divider}\n${colors.header(state.controlsLine)}`);
   }
 }
 
@@ -433,7 +434,8 @@ function formatHeader(snapshot: PanelSnapshot, width?: number): string {
   const summaryLine = formatSummary(snapshot);
 
   const lines = [projectLine, branchLine, summaryLine];
-  return lines.map((line) => centerText(line, width)).join('\n');
+  const centered = lines.map((line) => centerText(line, width ? width - 2 : undefined));
+  return boxLines(centered, width);
 }
 
 function formatSummary(snapshot: PanelSnapshot): string {
@@ -479,6 +481,22 @@ function centerText(text: string, width?: number): string {
   const left = Math.floor(totalPad / 2);
   const right = totalPad - left;
   return `${' '.repeat(left)}${text}${' '.repeat(right)}`;
+}
+
+function boxLines(lines: string[], maxWidth?: number): string {
+  if (lines.length === 0) return '';
+  const contentWidth =
+    Math.min(
+      maxWidth !== undefined ? Math.max(2, maxWidth - 2) : Number.POSITIVE_INFINITY,
+      Math.max(...lines.map((line) => visibleWidth(line)))
+    ) || 0;
+  if (contentWidth <= 0) {
+    return lines.join('\n');
+  }
+  const top = `┌${'─'.repeat(contentWidth)}┐`;
+  const bottom = `└${'─'.repeat(contentWidth)}┘`;
+  const body = lines.map((line) => `│${pad(line, contentWidth)}│`);
+  return [top, ...body, bottom].join('\n');
 }
 
 function formatTargets(
