@@ -61,10 +61,7 @@ export class NPMBuilder extends BaseBuilder<NPMTarget> {
       );
     }
 
-    // Validate output paths are specified
-    if (!this.target.outputPaths || this.target.outputPaths.length === 0) {
-      throw new Error(`Target ${this.target.name}: outputPaths is required for npm targets`);
-    }
+    // outputPaths are optional; when provided we verify them after the build
   }
 
   private getInstallInstructions(): string {

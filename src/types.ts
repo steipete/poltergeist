@@ -129,7 +129,7 @@ export interface NPMTarget extends BaseTarget {
   type: 'npm';
   buildScript?: string; // default: 'build'
   packageManager?: 'npm' | 'yarn' | 'pnpm' | 'bun' | 'auto'; // default: 'auto' (detect from lockfiles)
-  outputPaths?: string[]; // required for validation
+  outputPaths?: string[]; // optional; verified after builds when provided
   installOnChange?: boolean; // default: true when package.json changes
 }
 
