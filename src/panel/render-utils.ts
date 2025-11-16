@@ -113,9 +113,7 @@ function formatSummary(snapshot: PanelSnapshot, mode: HeaderMode = 'full'): stri
       ? colors.success('0 failed')
       : colors.failure(failureParts.join(' + '));
 
-  const daemonText = `${snapshot.summary.running}/${snapshot.summary.totalTargets} ${daemonLabel}${
-    snapshot.summary.running === 1 ? '' : 's'
-  }`;
+  const daemonText = `${snapshot.summary.running}/${snapshot.summary.totalTargets} ${daemonLabel}`;
 
   if (mode === 'narrow') {
     return `${buildingText} · ${failureText} · ${daemonText}`;
