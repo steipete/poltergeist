@@ -14,6 +14,10 @@ export interface PanelSummary {
   totalTargets: number;
   building: number;
   failures: number;
+  /** Number of failed build targets (excludes status scripts) */
+  targetFailures?: number;
+  /** Number of failed status scripts */
+  scriptFailures?: number;
   running: number;
   activeDaemons?: string[];
 }

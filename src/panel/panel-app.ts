@@ -433,7 +433,26 @@ function formatHeader(snapshot: PanelSnapshot): string {
 function formatSummary(snapshot: PanelSnapshot): string {
   const daemonLabel = snapshot.summary.running === 1 ? 'daemon running' : 'daemons running';
   const daemonSuffix = formatDaemonSuffix(snapshot.summary.activeDaemons ?? []);
-  return `${colors.muted('Builds:')} ${snapshot.summary.building} building · ${snapshot.summary.failures} failed · ${snapshot.summary.running} ${daemonLabel}${daemonSuffix} · total ${snapshot.summary.totalTargets}`;
+  const buildingText =
+    snapshot.summary.building > 0
+      ? colors.warning(`${snapshot.summary.building} building`)
+      : `${snapshot.summary.building} building`;
+
+  const targetFailures = snapshot.summary.targetFailures ?? snapshot.summary.failures ?? 0;
+  const scriptFailures = snapshot.summary.scriptFailures ?? 0;
+  const failureParts: string[] = [];
+  if (targetFailures > 0) {
+    failureParts.push(`${targetFailures} build${targetFailures === 1 ? '' : 's'} failed`);
+  }
+  if (scriptFailures > 0) {
+    failureParts.push(`${scriptFailures} script${scriptFailures === 1 ? '' : 's'} failed`);
+  }
+  const failureText =
+    failureParts.length === 0
+      ? colors.success('0 failed')
+      : colors.failure(failureParts.join(' + '));
+
+  return `${colors.muted('Builds:')} ${buildingText} · ${failureText} · ${snapshot.summary.running} ${daemonLabel}${daemonSuffix} · total ${snapshot.summary.totalTargets}`;
 }
 
 function pad(text: string, width: number): string {

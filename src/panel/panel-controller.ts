@@ -63,11 +63,11 @@ export class StatusPanelController {
     this.scriptCache = new Map();
     this.profileEnabled = process.env.POLTERGEIST_PANEL_PROFILE === '1';
     if (options.config.statusScripts?.length) {
-      this.options.logger.info(
+      this.options.logger.debug(
         `[Panel] Loaded ${options.config.statusScripts.length} status script(s)`
       );
     } else {
-      this.options.logger.info('[Panel] No status scripts configured');
+      this.options.logger.debug('[Panel] No status scripts configured');
     }
 
     this.snapshot = {
@@ -81,6 +81,8 @@ export class StatusPanelController {
         totalTargets: options.config.targets.length,
         building: 0,
         failures: 0,
+        targetFailures: 0,
+        scriptFailures: 0,
         running: 0,
         activeDaemons: [],
       },
@@ -177,7 +179,10 @@ export class StatusPanelController {
     }
   }
 
-  private computeSummary(targets: TargetPanelEntry[]): PanelSnapshot['summary'] {
+  private computeSummary(
+    targets: TargetPanelEntry[],
+    scriptFailuresOverride?: number
+  ): PanelSnapshot['summary'] {
     const activeDaemonKeys = new Set<string>();
     const summary = targets.reduce<PanelSnapshot['summary']>(
       (acc, entry) => {
@@ -186,6 +191,7 @@ export class StatusPanelController {
           acc.building += 1;
         } else if (entry.status.lastBuild?.status === 'failure') {
           acc.failures += 1;
+          acc.targetFailures = (acc.targetFailures ?? 0) + 1;
         }
         if (entry.status.process?.isActive) {
           const pid = entry.status.process.pid;
@@ -197,9 +203,20 @@ export class StatusPanelController {
         }
         return acc;
       },
-      { totalTargets: 0, building: 0, failures: 0, running: 0, activeDaemons: [] }
+      {
+        totalTargets: 0,
+        building: 0,
+        failures: 0,
+        targetFailures: 0,
+        scriptFailures: scriptFailuresOverride ?? this.snapshot.summary.scriptFailures ?? 0,
+        running: 0,
+        activeDaemons: [],
+      }
     );
 
+    const targetFailures = summary.targetFailures ?? 0;
+    const scriptFailures = summary.scriptFailures ?? 0;
+    summary.failures = targetFailures + scriptFailures;
     summary.running = activeDaemonKeys.size;
     summary.activeDaemons = Array.from(activeDaemonKeys);
     return summary;
@@ -313,6 +330,7 @@ export class StatusPanelController {
       const totalStart = Date.now();
       const configs = this.options.config.statusScripts ?? [];
       const results: PanelStatusScriptResult[] = [];
+      let scriptFailures = 0;
       const now = Date.now();
 
       for (const scriptConfig of configs) {
@@ -322,6 +340,9 @@ export class StatusPanelController {
 
         if (!force && cache && now - cache.lastRun < cooldownMs) {
           results.push(cache.result);
+          if ((cache.result.exitCode ?? 0) !== 0) {
+            scriptFailures += 1;
+          }
           if (this.profileEnabled) {
             this.options.logger.info(
               `[PanelProfile] script ${scriptConfig.label ?? scriptConfig.command} skipped (cache hit)`
@@ -333,6 +354,9 @@ export class StatusPanelController {
         const scriptStart = Date.now();
         const result = await this.runStatusScript(scriptConfig);
         const scriptMs = Date.now() - scriptStart;
+        if ((result.exitCode ?? 0) !== 0) {
+          scriptFailures += 1;
+        }
         if (this.profileEnabled) {
           this.options.logger.info(
             `[PanelProfile] script ${scriptConfig.label ?? scriptConfig.command} ran in ${scriptMs}ms (exit ${result.exitCode ?? 0})`
@@ -344,6 +368,7 @@ export class StatusPanelController {
 
       this.snapshot = {
         ...this.snapshot,
+        summary: this.computeSummary(this.snapshot.targets, scriptFailures),
         statusScripts: results,
         lastUpdated: Date.now(),
       };

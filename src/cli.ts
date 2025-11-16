@@ -543,10 +543,11 @@ program
   .command('panel')
   .description('Open the interactive status panel')
   .option('-c, --config <path>', 'Path to config file')
+  .option('--verbose', 'Enable verbose logging (same as --log-level debug)')
   .option('--git-mode <mode>', 'Git summary mode (ai | list)', 'ai')
   .action(async (options) => {
     const { config, projectRoot, configPath } = await loadConfiguration(options.config);
-    const logger = createLogger(config.logging?.level || 'info');
+    const logger = createLogger(options.verbose ? 'debug' : config.logging?.level || 'info');
     const gitSummaryMode = parseGitSummaryModeOption(options.gitMode);
     await runStatusPanel({
       config,
