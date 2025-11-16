@@ -1040,11 +1040,13 @@ function formatScriptLines(script: PanelStatusScriptResult, prefix = '', width =
   const normalizedLines = selectedLines.map((line, index) =>
     normalizeScriptLine(line, script.label, script.exitCode, index === 0)
   );
+  const hideLabelForSwiftLintSuccess = normalizedLines[0] === 'SwiftLint ✓';
   const hideLabel =
     (script.targets?.length === 1 &&
       script.label.toLowerCase().startsWith('tests') &&
       script.lines.length > 0) ||
-    script.label.toLowerCase() === 'tests';
+    script.label.toLowerCase() === 'tests' ||
+    hideLabelForSwiftLintSuccess;
 
   if (normalizedLines.length === 0) {
     const line = `${scriptColor(`${prefix}${hideLabel ? '' : `${script.label}: `}(no output)`)}`;
