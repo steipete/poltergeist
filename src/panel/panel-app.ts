@@ -847,18 +847,14 @@ function formatScriptLines(script: PanelStatusScriptResult, prefix = '', width =
   const normalizedLines = selectedLines.map((line, index) =>
     normalizeScriptLine(line, script.label, script.exitCode, index === 0)
   );
-  const durationTag = ` · ${formatDurationShort(script.durationMs ?? 0)}`;
-  const coloredDuration = colors.muted(durationTag);
   const hideLabel =
     (script.targets?.length === 1 &&
       script.label.toLowerCase().startsWith('tests') &&
       script.lines.length > 0) ||
     script.label.toLowerCase() === 'tests';
-  const shouldAppendDuration =
-    !normalizedLines[0]?.match(/\b\d+(?:\.\d+)?s\b/) && script.durationMs !== undefined;
 
   if (normalizedLines.length === 0) {
-    const line = `${scriptColor(`${prefix}${hideLabel ? '' : `${script.label}: `}(no output)`)}${coloredDuration}`;
+    const line = `${scriptColor(`${prefix}${hideLabel ? '' : `${script.label}: `}(no output)`)}`;
     return wrapAnsi(line, Math.max(1, width), {
       hard: false,
       trim: false,
@@ -867,9 +863,7 @@ function formatScriptLines(script: PanelStatusScriptResult, prefix = '', width =
   const block = normalizedLines
     .map((line, index) =>
       index === 0
-        ? `${scriptColor(`${prefix}${hideLabel ? '' : `${script.label}: `}${line}`)}${
-            shouldAppendDuration ? coloredDuration : ''
-          }`
+        ? `${scriptColor(`${prefix}${hideLabel ? '' : `${script.label}: `}${line}`)}`
         : `${scriptColor(`${prefix}  ${line}`)}`
     )
     .join('\n');
