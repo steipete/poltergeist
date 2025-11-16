@@ -8,6 +8,7 @@ import type { BuildProgress, BuildStatus, Target } from '../types.js';
 import { BuildStatusManager } from '../utils/build-status-manager.js';
 import { stripAnsi } from '../utils/ansi.js';
 
+// Vitest prints aggregates like "Tests 2 failed | 5 passed | 7 total"
 export const parseVitestProgressLine = (line: string): BuildProgress | null => {
   if (!/Test(s)?\s/i.test(line)) return null;
   const numbers = line.match(/\d+/g);
@@ -214,7 +215,7 @@ export abstract class BaseBuilder<T extends Target = Target> {
         this.currentProcess.stdout.on('data', (data) => {
           const output = data.toString();
 
-          // Extract progress indicators like "[12/50] Compiling Foo.swift"
+          // Extract build/test progress indicators like "[12/50] Compiling Foo.swift"
           for (const raw of output.split('\n')) {
             const line = stripAnsi(raw).replace(/\r/g, '');
             const match = line.match(/^\[(\d+)\/(\d+)\]\s*(.*)$/);
