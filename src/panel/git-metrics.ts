@@ -171,7 +171,10 @@ export class GitMetricsCollector {
     this.upstreamCooldownUntil.set(projectRoot, now + 120_000);
     try {
       const upstream = `origin/${branch}`;
-      await this.runner(['fetch', '--quiet', '--no-tags', '--depth=1', 'origin', branch], projectRoot);
+      await this.runner(
+        ['fetch', '--quiet', '--no-tags', '--depth=1', 'origin', branch],
+        projectRoot
+      );
       const aheadRaw = await this.runner(
         ['rev-list', '--count', `${upstream}..HEAD`],
         projectRoot
@@ -308,7 +311,7 @@ export class GitMetricsCollector {
           '-lc',
           `claude -p ${JSON.stringify(
             CLAUDE_SUMMARY_PROMPT
-          )} --allow-dangerously-skip-permissions --model haiku`,
+          )} --dangerously-skip-permissions --model haiku`,
         ],
         {
           cwd: projectRoot,
