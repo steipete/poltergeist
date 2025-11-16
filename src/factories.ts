@@ -1,7 +1,12 @@
 // Factory functions for easier testing and initialization
 
 import { BuilderFactory } from './builders/index.js';
-import type { PoltergeistDependencies } from './interfaces.js';
+import type {
+  IBuilderFactory,
+  IStateManager,
+  IWatchmanClient,
+  PoltergeistDependencies,
+} from './interfaces.js';
 import { createLogger, type Logger } from './logger.js';
 import { BuildNotifier } from './notifier.js';
 import { Poltergeist } from './poltergeist.js';
@@ -60,50 +65,54 @@ export function createMockDependencies(): PoltergeistDependencies {
     throw new Error('This function requires Vitest. Import it in your test file.');
   }
 
-  return {
-    stateManager: {
-      initializeState: vi.fn().mockResolvedValue({}),
-      readState: vi.fn().mockResolvedValue(null),
-      updateState: vi.fn().mockResolvedValue(undefined),
-      updateBuildStatus: vi.fn().mockResolvedValue(undefined),
-      updatePostBuildResult: vi.fn().mockResolvedValue(undefined),
-      removeState: vi.fn().mockResolvedValue(undefined),
-      isLocked: vi.fn().mockResolvedValue(false),
-      discoverStates: vi.fn().mockResolvedValue({}),
-      forceUnlock: vi.fn().mockResolvedValue(undefined),
-      startHeartbeat: vi.fn(),
-      stopHeartbeat: vi.fn(),
-      cleanup: vi.fn().mockResolvedValue(undefined),
-    },
-    builderFactory: {
-      createBuilder: vi.fn().mockReturnValue({
-        build: vi.fn().mockResolvedValue({
-          status: 'success',
-          targetName: 'test',
-          timestamp: new Date().toISOString(),
-        }),
-        validate: vi.fn().mockResolvedValue(undefined),
-        stop: vi.fn(),
-        getOutputInfo: vi.fn(),
-      }),
-    },
-    watchmanClient: {
-      connect: vi.fn().mockResolvedValue(undefined),
-      disconnect: vi.fn().mockResolvedValue(undefined),
-      watchProject: vi.fn().mockResolvedValue(undefined),
-      subscribe: vi.fn().mockResolvedValue(undefined),
-      unsubscribe: vi.fn().mockResolvedValue(undefined),
-      isConnected: vi.fn().mockReturnValue(true),
-    },
-    notifier: Object.assign(Object.create(BuildNotifier.prototype), {
-      config: { enabled: false },
-      notifyBuildStart: vi.fn().mockResolvedValue(undefined),
-      notifyBuildComplete: vi.fn().mockResolvedValue(undefined),
-      notifyBuildFailed: vi.fn().mockResolvedValue(undefined),
-      notifyPoltergeistStarted: vi.fn().mockResolvedValue(undefined),
-      notifyPoltergeistStopped: vi.fn().mockResolvedValue(undefined),
-    }) as BuildNotifier,
+  const stateManager: IStateManager = {
+    initializeState: vi.fn().mockResolvedValue({}),
+    readState: vi.fn().mockResolvedValue(null),
+    updateState: vi.fn().mockResolvedValue(undefined),
+    updateBuildStatus: vi.fn().mockResolvedValue(undefined),
+    updatePostBuildResult: vi.fn().mockResolvedValue(undefined),
+    removeState: vi.fn().mockResolvedValue(undefined),
+    isLocked: vi.fn().mockResolvedValue(false),
+    discoverStates: vi.fn().mockResolvedValue({}),
+    forceUnlock: vi.fn().mockResolvedValue(undefined),
+    startHeartbeat: vi.fn(),
+    stopHeartbeat: vi.fn(),
+    cleanup: vi.fn().mockResolvedValue(undefined),
   };
+
+  const builderFactory: IBuilderFactory = {
+    createBuilder: vi.fn().mockReturnValue({
+      build: vi.fn().mockResolvedValue({
+        status: 'success',
+        targetName: 'test',
+        timestamp: new Date().toISOString(),
+      }),
+      validate: vi.fn().mockResolvedValue(undefined),
+      stop: vi.fn(),
+      getOutputInfo: vi.fn(),
+      describeBuilder: vi.fn(),
+    }),
+  };
+
+  const watchmanClient: IWatchmanClient = {
+    connect: vi.fn().mockResolvedValue(undefined),
+    disconnect: vi.fn().mockResolvedValue(undefined),
+    watchProject: vi.fn().mockResolvedValue(undefined),
+    subscribe: vi.fn().mockResolvedValue(undefined),
+    unsubscribe: vi.fn().mockResolvedValue(undefined),
+    isConnected: vi.fn().mockReturnValue(true),
+  };
+
+  const notifier = Object.assign(Object.create(BuildNotifier.prototype), {
+    config: { enabled: false },
+    notifyBuildStart: vi.fn().mockResolvedValue(undefined),
+    notifyBuildComplete: vi.fn().mockResolvedValue(undefined),
+    notifyBuildFailed: vi.fn().mockResolvedValue(undefined),
+    notifyPoltergeistStarted: vi.fn().mockResolvedValue(undefined),
+    notifyPoltergeistStopped: vi.fn().mockResolvedValue(undefined),
+  }) as BuildNotifier;
+
+  return { stateManager, builderFactory, watchmanClient, notifier };
 }
 
 /**
