@@ -460,9 +460,20 @@ export function progressBar(percent: number, width: number): string {
   const filled = Math.round((percent / 100) * width);
   const clamped = Math.max(0, Math.min(width, filled));
   const empty = Math.max(0, width - clamped);
-  // ASCII-only bar so it renders in every terminal/font.
-  const body = colors.accent('='.repeat(clamped)) + colors.muted('-'.repeat(empty));
-  return colors.muted('[') + body + colors.muted(']');
+  // Prefer CLI-style blocks; fall back to ASCII if the terminal/font mangles them.
+  const preferAscii = process.env.POLTERGEIST_ASCII_BAR === '1';
+  const filledChar = preferAscii ? '=' : '█';
+  const emptyChar = preferAscii ? '-' : '░';
+  const bodyRaw = colors.accent(filledChar.repeat(clamped)) + colors.muted(emptyChar.repeat(empty));
+  const bar = colors.muted('[') + bodyRaw + colors.muted(']');
+
+  // Auto-fallback: if the rendered width loses glyphs, retry with ASCII.
+  if (!preferAscii && visibleWidth(stripAnsiCodes(bar)) !== visibleWidth(bar)) {
+    const asciiBody = colors.accent('='.repeat(clamped)) + colors.muted('-'.repeat(empty));
+    return colors.muted('[') + asciiBody + colors.muted(']');
+  }
+
+  return bar;
 }
 
 function formatStatusBadge(

@@ -1,4 +1,6 @@
 import { promises as fs } from 'fs';
+import { resolveLogPath } from '../cli/log-path-resolver.js';
+import type { PoltergeistConfig } from '../types.js';
 import { FileSystemUtils } from '../utils/filesystem.js';
 
 export interface LogReaderOptions {
@@ -9,17 +11,24 @@ export interface LogReaderOptions {
 export class LogTailReader {
   private readonly maxBytes: number;
   private readonly maxLines: number;
+  private readonly config?: PoltergeistConfig;
 
   constructor(
     private readonly projectRoot: string,
-    options: LogReaderOptions = {}
+    options: LogReaderOptions & { config?: PoltergeistConfig } = {}
   ) {
     this.maxBytes = options.maxBytes ?? 16 * 1024;
     this.maxLines = options.maxLines ?? 50;
+    this.config = options.config;
   }
 
   public async read(targetName: string, channel?: string, limit?: number): Promise<string[]> {
-    const logPath = FileSystemUtils.getLogFilePath(this.projectRoot, targetName, channel);
+    const logPath = this.config
+      ? resolveLogPath({ projectRoot: this.projectRoot, config: this.config, targetName, channel })
+          .logFile
+      : FileSystemUtils.getLogFilePath(this.projectRoot, targetName, channel);
+
+    if (!logPath) return [];
     const maxLines = limit ?? this.maxLines;
 
     try {

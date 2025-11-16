@@ -154,4 +154,20 @@ describe('render utils', () => {
     expect(statusPart).not.toContain('['); // no bar
     expect(statusPart).toContain('building'); // badge still present
   });
+
+  it('renders block bars when ASCII fallback is not forced', () => {
+    const target: TargetPanelEntry = {
+      ...makeTarget('Integration'),
+      status: {
+        lastBuild: {
+          status: 'building',
+          progress: { percent: 50, current: 5, total: 10, updatedAt: new Date().toISOString() },
+        },
+      },
+    };
+    const rows = buildTargetRows([target]);
+    const text = formatTargets(rows, 0, new Map(), 60);
+    const statusPart = text.split('\n')[2]; // keep ANSI
+    expect(statusPart).toMatch(/[█░]/);
+  });
 });

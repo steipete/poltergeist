@@ -8,7 +8,7 @@ Observed while splitting `poltergeist.ts` into `BuildCoordinator` and `WatchServ
 - **Constructor wiring**: Centralize dependency wiring (logger, watchman, notifier, queue) in one factory so `Poltergeist.start()` stays slim and tests share the same setup path.
 - **Test coverage gaps**: Add unit tests for `WatchService` (grouping, exclusions, unsubscribe) and integration tests for config reload ensuring new coordinator/queue are used.
 - **ANSI utility reuse**: Deduplicate ANSI stripping by importing `utils/ansi.ts` in CLI/tests instead of ad-hoc regexes.
-- **Logging path helpers**: Extract a single helper returning resolved log path + channel to avoid duplication across CLI commands.
+- **Logging path helpers**: Extract a single helper returning resolved log path + channel to avoid duplication across CLI commands (panel `log-reader` still builds paths directly).
 - **Ignore large artifacts**: Extend `.gitignore` for `apps/mac/.build/**`, `dist-bun/**`, and example `node_modules/typescript/lib/*` to keep commit helper clean.
 - **Type tightening in mocks**: Replace `any` in state-manager and builder mocks with interfaces to keep new modules strictly typed.
 
