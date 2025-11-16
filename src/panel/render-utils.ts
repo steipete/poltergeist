@@ -205,7 +205,12 @@ export function formatTargets(
     const badge = formatStatusBadge(status, statusLabel, color);
     const timePart = lastBuild && lastBuild !== '—' ? color(lastBuild) : '';
     const durationPart = duration && duration !== '—' ? colors.muted(duration) : '';
-    const statusDetails = formatStatusDetails(statusCol, badge, timePart, durationPart);
+    const progressText =
+      status === 'building' && entry.status.lastBuild?.progress
+        ? formatProgress(entry.status.lastBuild.progress, statusCol)
+        : null;
+    const statusDetails =
+      progressText ?? formatStatusDetails(statusCol, badge, timePart, durationPart);
 
     const rowLine = `${pad(`${targetName}${enabledLabel}`, targetCol)}${pad(statusDetails, statusCol)}`;
     lines.push(rowLine);
@@ -432,6 +437,29 @@ function formatStatusDetails(
   }
 
   return truncateVisible(badge, maxWidth);
+}
+
+function formatProgress(
+  progress: import('../types.js').BuildProgress,
+  maxWidth: number
+): string | null {
+  const { percent, current, total, label } = progress;
+  const barWidth = Math.max(10, Math.min(24, maxWidth - 18));
+  const bar = progressBar(percent, barWidth);
+  const parts = [`${percent}%`, bar, `${current}/${total}`];
+  if (label) {
+    parts.push(label);
+  }
+  const text = parts.join(' ');
+  return truncateVisible(text, maxWidth);
+}
+
+function progressBar(percent: number, width: number): string {
+  const filled = Math.round((percent / 100) * width);
+  const clamped = Math.max(0, Math.min(width, filled));
+  const empty = Math.max(0, width - clamped);
+  const body = colors.accent('█'.repeat(clamped)) + colors.muted('░'.repeat(empty));
+  return colors.muted('[') + body + colors.muted(']');
 }
 
 function formatStatusBadge(

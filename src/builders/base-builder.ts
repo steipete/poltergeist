@@ -4,7 +4,7 @@ import { createWriteStream, mkdirSync } from 'fs';
 import { dirname } from 'path';
 import type { Logger } from '../logger.js';
 import type { StateManager } from '../state.js';
-import type { BuildStatus, Target } from '../types.js';
+import type { BuildProgress, BuildStatus, Target } from '../types.js';
 import { BuildStatusManager } from '../utils/build-status-manager.js';
 
 export interface BuildOptions {
@@ -150,6 +150,23 @@ export abstract class BaseBuilder<T extends Target = Target> {
       let lastOutputLines: string[] = [];
       const maxErrorLines = 50;
       const maxOutputLines = 100;
+      let lastProgressPercent = -1;
+      let lastProgressUpdate = 0;
+      const throttleMs = 300;
+      const updateProgress = (progress: BuildProgress) => {
+        const now = Date.now();
+        if (progress.percent === lastProgressPercent && now - lastProgressUpdate < throttleMs) {
+          return;
+        }
+        lastProgressPercent = progress.percent;
+        lastProgressUpdate = now;
+        const buildingStatus: BuildStatus = BuildStatusManager.createBuildingStatus(
+          this.target.name,
+          { gitHash: this.getGitHash(), builder: this.getBuilderName() }
+        );
+        buildingStatus.progress = progress;
+        void this.stateManager.updateBuildStatus(this.target.name, buildingStatus);
+      };
 
       if (options.captureLogs && options.logFile) {
         // Create log directory if it doesn't exist
@@ -171,6 +188,26 @@ export abstract class BaseBuilder<T extends Target = Target> {
       if (this.currentProcess.stdout && this.currentProcess.stderr) {
         this.currentProcess.stdout.on('data', (data) => {
           const output = data.toString();
+
+          // Extract progress indicators like "[12/50] Compiling Foo.swift"
+          for (const line of output.split('\n')) {
+            const match = line.match(/^\[(\d+)\/(\d+)\]\s*(.*)$/);
+            if (match) {
+              const current = Number.parseInt(match[1], 10);
+              const total = Number.parseInt(match[2], 10);
+              if (Number.isFinite(current) && Number.isFinite(total) && total > 0) {
+                const percent = Math.min(100, Math.max(0, Math.round((current / total) * 100)));
+                const label = match[3]?.trim() || undefined;
+                updateProgress({
+                  current,
+                  total,
+                  percent,
+                  label,
+                  updatedAt: new Date().toISOString(),
+                });
+              }
+            }
+          }
 
           // Keep recent output for error context
           const lines = output.split('\n').filter((l: string) => l.trim());

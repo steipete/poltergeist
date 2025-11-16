@@ -17,6 +17,7 @@ export interface StatusObject {
     gitHash?: string;
     builder?: string;
     error?: string;
+    progress?: import('../types.js').BuildProgress;
   };
   app?: {
     bundleId?: string;

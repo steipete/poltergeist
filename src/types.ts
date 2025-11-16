@@ -592,6 +592,7 @@ export interface BuildStatus {
   git?: string;
   gitHash?: string;
   builder?: string;
+  progress?: BuildProgress;
 }
 
 // CLI options
@@ -609,6 +610,14 @@ export interface BuildResult {
   error?: string;
   duration: number;
   exitCode?: number;
+}
+
+export interface BuildProgress {
+  current: number;
+  total: number;
+  percent: number;
+  label?: string;
+  updatedAt: string;
 }
 
 // File change interface (from watchman)
