@@ -274,7 +274,12 @@ export function formatSummaryChips(
   const parts = modes.map((mode) => {
     const count = summaryCount(mode, snapshot);
     const suffix = count > 0 ? ` (${count})` : '';
-    const label = mode.type === 'ai' ? 'AI Summary' : mode.label;
+    const label =
+      mode.type === 'ai' && !hasAiSummaryLoaded(snapshot)
+        ? 'AI Summary (Loading...)'
+        : mode.type === 'ai'
+          ? 'AI Summary'
+          : mode.label;
     const body = `${label}${suffix}`;
     return mode.key === activeSummaryKey ? colors.accent(body) : colors.muted(body);
   });
@@ -294,6 +299,10 @@ function summaryCount(mode: SummaryModeOption, snapshot: PanelSnapshot): number 
     return mode.summary.lines.filter((line) => line.trim().length > 0).length;
   }
   return 0;
+}
+
+function hasAiSummaryLoaded(snapshot: PanelSnapshot): boolean {
+  return (snapshot.git.summary ?? []).some((line) => line.trim().length > 0);
 }
 
 function formatDaemonSuffix(activeDaemons: string[]): string {

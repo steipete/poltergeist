@@ -83,7 +83,7 @@ describe('augmentConfigWithDetectedTargets', () => {
   it('detects python targets when enabled', async () => {
     const tmpDir = mkdtempSync(path.join(tmpdir(), 'poltergeist-py-'));
     writeFileSync(path.join(tmpDir, 'pyproject.toml'), '[build-system]\n', 'utf-8');
-    writeFileSync(path.join(tmpDir, 'main.py'), 'print(\"hi\")', 'utf-8');
+    writeFileSync(path.join(tmpDir, 'main.py'), 'print("hi")', 'utf-8');
 
     const config: PoltergeistConfig = {
       version: '1.0',
