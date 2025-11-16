@@ -592,15 +592,16 @@ class PanelView extends Container {
           this.aiMarkdown.setText('');
         }
       } else {
-      const limitedDirty = limitSummaryLines(
-        formatDirtyFiles(snapshot),
-        Math.max(1, Math.floor(state.logLimit * SUMMARY_FRACTION))
-      );
-      const dirtyBody = limitedDirty.trim().length > 0 ? limitedDirty : colors.muted('Git clean');
-      this.aiHeader.setText(`${colors.header('\nGit dirty files:')}`);
-      this.dirtyFiles.setText(`${dirtyBody}\n${summaryDivider}`);
-      this.aiMarkdown.setText('');
-    }
+        const limitedDirty = limitSummaryLines(
+          formatDirtyFiles(snapshot),
+          Math.max(1, Math.floor(state.logLimit * SUMMARY_FRACTION))
+        );
+        const dirtyBody = limitedDirty.trim().length > 0 ? limitedDirty : colors.muted('Git clean');
+        const divider = colors.line('─'.repeat(Math.max(4, state.width)));
+        this.aiHeader.setText(`${colors.header('\nGit dirty files:')}\n${divider}`);
+        this.dirtyFiles.setText(`${dirtyBody}\n${summaryDivider}`);
+        this.aiMarkdown.setText('');
+      }
   } else {
     this.dirtyFiles.setText('');
     this.aiHeader.setText('');
