@@ -1,17 +1,22 @@
-import { existsSync, writeFileSync } from 'fs';
-import path, { join } from 'path';
 import chalk from 'chalk';
 import type { Command } from 'commander';
-import { augmentConfigWithDetectedTargets, findXcodeProjects, generateDefaultConfig, guessBundleId } from '../init-helpers.js';
-import { loadConfigOrExit, exitWithError } from '../shared.js';
+import { existsSync, writeFileSync } from 'fs';
+import path, { join } from 'path';
 import { createLogger } from '../../logger.js';
-import { WatchmanConfigManager } from '../../watchman-config.js';
+import type { AppBundleTarget, PoltergeistConfig, ProjectType, Target } from '../../types.js';
 import { CMakeProjectAnalyzer } from '../../utils/cmake-analyzer.js';
 import { FileSystemUtils } from '../../utils/filesystem.js';
 import { ghost, poltergeistMessage } from '../../utils/ghost.js';
-import type { AppBundleTarget, PoltergeistConfig, ProjectType, Target } from '../../types.js';
+import { WatchmanConfigManager } from '../../watchman-config.js';
+import {
+  augmentConfigWithDetectedTargets,
+  findXcodeProjects,
+  generateDefaultConfig,
+  guessBundleId,
+} from '../init-helpers.js';
 import { instantiateStateManager } from '../loaders.js';
 import { applyConfigOption } from '../options.js';
+import { exitWithError, loadConfigOrExit } from '../shared.js';
 
 export const registerProjectCommands = (program: Command): void => {
   program
@@ -103,7 +108,8 @@ export const registerProjectCommands = (program: Command): void => {
               const projectName = path.basename(project.path, path.extname(project.path));
               const relativeDir = path.relative(projectRoot, projectDir) || '.';
               const isIOS =
-                projectName.toLowerCase().includes('ios') || project.path.toLowerCase().includes('/ios/');
+                projectName.toLowerCase().includes('ios') ||
+                project.path.toLowerCase().includes('/ios/');
 
               const targetName =
                 projectName
@@ -197,7 +203,9 @@ export const registerProjectCommands = (program: Command): void => {
 
         console.log(chalk.blue('\n📋 For AI Agent Integration (Claude, Cursor, etc.):'));
         console.log(chalk.gray('  Consider adding a CLAUDE.md file with instructions like:'));
-        console.log(chalk.gray('  • NEVER manually run build commands when Poltergeist is running'));
+        console.log(
+          chalk.gray('  • NEVER manually run build commands when Poltergeist is running')
+        );
         console.log(chalk.gray('  • ALWAYS use "polter <target>" to ensure fresh builds'));
         console.log(chalk.gray('  • Poltergeist automatically detects changes and rebuilds'));
         console.log(chalk.gray('  This helps AI agents work better with your project!'));
@@ -282,7 +290,11 @@ export const registerProjectCommands = (program: Command): void => {
           return fileName.replace(/\.state$/i, '');
         };
 
-        const readStateForFile = async (manager: any, file: string, targetName: string): Promise<any> => {
+        const readStateForFile = async (
+          manager: any,
+          file: string,
+          targetName: string
+        ): Promise<any> => {
           let state = await manager.readState(targetName);
           if (!state) {
             const fallbackName = file.replace(/\.state$/i, '');

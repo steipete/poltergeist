@@ -2,6 +2,7 @@
 // Centralizing here keeps type-checking consistent and helps Bun compile include modules.
 import type { StateManager as StateManagerType } from '../state.js';
 import type { Target } from '../types.js';
+
 type RunWrapper = typeof import('../polter.js')['runWrapper'];
 
 export const loadDaemonManager = async (): Promise<typeof import('../daemon/daemon-manager.js')> =>
@@ -38,11 +39,13 @@ export const instantiateStateManager = async (
   // Support both class and factory-style exports if refactored later
   if (typeof StateManager === 'function') {
     try {
-      return new (StateManager as new (root: string, l: any) => InstanceType<typeof StateManagerType >)(
-        projectRoot,
-        logger
-      );
-    } catch (error) {
+      return new (
+        StateManager as new (
+          root: string,
+          l: any
+        ) => InstanceType<typeof StateManagerType>
+      )(projectRoot, logger);
+    } catch (_error) {
       // Fallback for factory-style default export
       return (StateManager as unknown as (root: string, l: any) => any)(projectRoot, logger);
     }

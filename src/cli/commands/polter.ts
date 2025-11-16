@@ -1,9 +1,15 @@
 import type { Command } from 'commander';
-import { configurePolterCommand, getPolterDescription, parsePolterOptions } from '../../cli-shared/polter-command.js';
+import {
+  configurePolterCommand,
+  getPolterDescription,
+  parsePolterOptions,
+} from '../../cli-shared/polter-command.js';
 import { loadRunWrapper } from '../loaders.js';
 
 export const registerPolterCommand = (program: Command): void => {
-  const polterCommand = program.command('polter <target> [args...]').description(getPolterDescription());
+  const polterCommand = program
+    .command('polter <target> [args...]')
+    .description(getPolterDescription());
 
   configurePolterCommand(polterCommand);
 

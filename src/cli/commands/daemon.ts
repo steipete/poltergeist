@@ -1,23 +1,25 @@
-import { appendFileSync } from 'fs';
-import path from 'path';
 import chalk from 'chalk';
 import type { Command } from 'commander';
+import { appendFileSync } from 'fs';
+import path from 'path';
 import { createPoltergeist } from '../../factories.js';
 import { createLogger } from '../../logger.js';
+import type { Target } from '../../types.js';
 import { ConfigurationManager } from '../../utils/config-manager.js';
 import { ghost, poltergeistMessage } from '../../utils/ghost.js';
-import { printBuildLockHints } from '../status-formatters.js';
 import { validateTarget } from '../../utils/target-validator.js';
-import { loadConfigOrExit, exitWithError } from '../shared.js';
 import { createBuilderForTarget, instantiateStateManager, loadDaemonManager } from '../loaders.js';
 import { applyConfigOption, applyLogLevelOptions, applyTargetOption } from '../options.js';
-import type { Target } from '../../types.js';
+import { exitWithError, loadConfigOrExit } from '../shared.js';
+import { printBuildLockHints } from '../status-formatters.js';
 
 export const registerDaemonCommands = (program: Command): void => {
   const haunt = program
     .command('haunt')
     .alias('start')
-    .description('Start watching and auto-building your project (spawns a daemon and returns immediately)')
+    .description(
+      'Start watching and auto-building your project (spawns a daemon and returns immediately)'
+    )
     .option('-f, --foreground', 'Run in foreground (blocking mode)')
     .action(async (options) => {
       const { config, projectRoot, configPath } = await loadConfigOrExit(options.config);
@@ -40,7 +42,8 @@ export const registerDaemonCommands = (program: Command): void => {
         }
       }
 
-      const logLevel = options.logLevel || (options.verbose ? 'debug' : config.logging?.level || 'info');
+      const logLevel =
+        options.logLevel || (options.verbose ? 'debug' : config.logging?.level || 'info');
 
       const logger = createLogger(config.logging?.file || '.poltergeist.log', logLevel);
       const flushLoggerIfPossible = () => {
@@ -85,7 +88,9 @@ export const registerDaemonCommands = (program: Command): void => {
         try {
           if (isTestMode) {
             console.log(chalk.gray(poltergeistMessage('info', 'Starting daemon...')));
-            console.log(chalk.green(`${ghost.success()} Poltergeist daemon started (PID: test-mode)`));
+            console.log(
+              chalk.green(`${ghost.success()} Poltergeist daemon started (PID: test-mode)`)
+            );
             console.log(chalk.gray('Use "poltergeist logs" to see output'));
             console.log(chalk.gray('Use "poltergeist status" to check build status'));
             console.log(chalk.gray('Use "poltergeist stop" to stop watching'));
@@ -97,7 +102,9 @@ export const registerDaemonCommands = (program: Command): void => {
 
           if (await daemon.isDaemonRunning(projectRoot)) {
             console.log(
-              chalk.yellow(`${ghost.warning()} Poltergeist daemon is already running for this project`)
+              chalk.yellow(
+                `${ghost.warning()} Poltergeist daemon is already running for this project`
+              )
             );
             console.log(chalk.gray('Use "poltergeist status" to see details'));
             console.log(chalk.gray('Use "poltergeist stop" to stop the daemon'));
@@ -144,7 +151,9 @@ export const registerDaemonCommands = (program: Command): void => {
         } else {
           const enabledTargets = config.targets.filter((t) => t.enabled);
           console.log(
-            chalk.gray(poltergeistMessage('info', `Building ${enabledTargets.length} enabled target(s)`))
+            chalk.gray(
+              poltergeistMessage('info', `Building ${enabledTargets.length} enabled target(s)`)
+            )
           );
         }
 
@@ -192,7 +201,9 @@ export const registerDaemonCommands = (program: Command): void => {
         const daemon = new DaemonManager(logger);
 
         if (!(await daemon.isDaemonRunning(projectRoot))) {
-          console.log(chalk.yellow(`${ghost.warning()} No Poltergeist daemon running for this project`));
+          console.log(
+            chalk.yellow(`${ghost.warning()} No Poltergeist daemon running for this project`)
+          );
           exitWithError('No daemon running');
         }
 
@@ -332,7 +343,9 @@ export const registerDaemonCommands = (program: Command): void => {
           );
         } else {
           if (buildStatus.status === 'success') {
-            console.log(chalk.green(`✅ Build completed successfully in ${Math.round(duration / 1000)}s`));
+            console.log(
+              chalk.green(`✅ Build completed successfully in ${Math.round(duration / 1000)}s`)
+            );
           } else if (buildStatus.status === 'building') {
             showLockHints();
             exitWithError('Build skipped because another build is already running.');
@@ -357,7 +370,9 @@ export const registerDaemonCommands = (program: Command): void => {
             )
           );
         } else {
-          console.error(chalk.red(`❌ Build failed: ${error instanceof Error ? error.message : error}`));
+          console.error(
+            chalk.red(`❌ Build failed: ${error instanceof Error ? error.message : error}`)
+          );
         }
         exitWithError('Build failed');
       }

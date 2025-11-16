@@ -1,5 +1,9 @@
 import { describe, expect, it, vi } from 'vitest';
-import { createPoltergeistWithDeps, createMockDependencies, createTestHarness } from '../src/factories.js';
+import {
+  createMockDependencies,
+  createPoltergeistWithDeps,
+  createTestHarness,
+} from '../src/factories.js';
 import { createLogger } from '../src/logger.js';
 import { BuildStatusType } from '../src/utils/build-status-manager.js';
 

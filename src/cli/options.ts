@@ -7,5 +7,6 @@ export const applyTargetOption = (cmd: Command): Command =>
   cmd.option('-t, --target <name>', 'Target to build (omit to build all enabled targets)');
 
 export const applyLogLevelOptions = (cmd: Command): Command =>
-  cmd.option('--verbose', 'Enable verbose logging (same as --log-level debug)')
+  cmd
+    .option('--verbose', 'Enable verbose logging (same as --log-level debug)')
     .option('--log-level <level>', 'Set log level (debug, info, warn, error)');

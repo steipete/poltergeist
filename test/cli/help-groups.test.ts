@@ -1,7 +1,7 @@
-import { describe, expect, it } from 'vitest';
 import { Command } from 'commander';
-import { HELP_GROUPS, COMMAND_DESCRIPTORS } from '../../src/cli/commands/registry.js';
+import { describe, expect, it } from 'vitest';
 import { registerCliCommands } from '../../src/cli/commands/index.js';
+import { COMMAND_DESCRIPTORS, HELP_GROUPS } from '../../src/cli/commands/registry.js';
 
 const expandDescriptorNames = (names: string[]): string[] => {
   const expansions: Record<string, string[]> = {
@@ -19,9 +19,11 @@ describe('help groups', () => {
     const program = new Command();
     registerCliCommands(program);
     const registered = new Set<string>();
-    program.commands.forEach((c) => {
-      registered.add(c.name());
-      c.aliases().forEach((a) => registered.add(a));
+    program.commands.forEach((command) => {
+      registered.add(command.name());
+      for (const alias of command.aliases()) {
+        registered.add(alias);
+      }
     });
 
     const grouped = HELP_GROUPS.flatMap((g) => g.commands.map((c) => c.name));
@@ -33,10 +35,7 @@ describe('help groups', () => {
 
   it('descriptor command expansions cover help groups', () => {
     const described = new Set(
-      expandDescriptorNames(COMMAND_DESCRIPTORS.map((d) => d.name)).concat([
-        'start',
-        'rest',
-      ])
+      expandDescriptorNames(COMMAND_DESCRIPTORS.map((d) => d.name)).concat(['start', 'rest'])
     );
     const grouped = HELP_GROUPS.flatMap((g) => g.commands.map((c) => c.name));
 

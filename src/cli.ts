@@ -2,11 +2,11 @@
 import chalk from 'chalk';
 import { Command } from 'commander';
 import { readFileSync, unlinkSync } from 'fs';
-import { PACKAGE_INFO } from './cli/version.js';
-import { configureProgramHelp } from './cli/help.js';
 import { registerCliCommands } from './cli/commands/index.js';
 import { configureDeprecatedFlags } from './cli/deprecated-flags.js';
+import { configureProgramHelp } from './cli/help.js';
 import { exitWithError } from './cli/shared.js';
+import { PACKAGE_INFO } from './cli/version.js';
 import { runDaemon } from './daemon/daemon-worker.js';
 import { isMainModule } from './utils/paths.js';
 

@@ -5,8 +5,8 @@ import { dirname } from 'path';
 import type { Logger } from '../logger.js';
 import type { StateManager } from '../state.js';
 import type { BuildProgress, BuildStatus, Target } from '../types.js';
-import { BuildStatusManager } from '../utils/build-status-manager.js';
 import { stripAnsi } from '../utils/ansi.js';
+import { BuildStatusManager } from '../utils/build-status-manager.js';
 
 // Vitest prints aggregates like "Tests 2 failed | 5 passed | 7 total"
 export const parseVitestProgressLine = (line: string): BuildProgress | null => {

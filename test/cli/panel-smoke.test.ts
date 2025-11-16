@@ -6,7 +6,15 @@ vi.mock('../../src/cli/shared.js', () => ({
     config: {
       version: '1.0',
       projectType: 'node',
-      targets: [{ name: 'app', type: 'executable', enabled: true, buildCommand: 'echo ok', watchPaths: ['src/**'] }],
+      targets: [
+        {
+          name: 'app',
+          type: 'executable',
+          enabled: true,
+          buildCommand: 'echo ok',
+          watchPaths: ['src/**'],
+        },
+      ],
     },
     projectRoot: '/tmp/project',
     configPath: '/tmp/project/poltergeist.config.json',

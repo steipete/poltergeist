@@ -1,5 +1,5 @@
-import { describe, expect, it } from 'vitest';
 import { Command } from 'commander';
+import { describe, expect, it } from 'vitest';
 import { registerCliCommands } from '../../src/cli/commands/index.js';
 
 const serializeCommand = (cmd: any) => ({

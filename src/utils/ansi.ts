@@ -1,4 +1,7 @@
 /**
  * Strip ANSI escape sequences from a string.
  */
-export const stripAnsi = (input: string): string => input.replace(/\x1B\[[0-9;]*m/g, '');
+// biome-ignore lint/suspicious/noControlCharactersInRegex: pattern needs the ANSI escape byte
+const ansiEscapePattern = /\u001B\[[0-9;]*m/g;
+
+export const stripAnsi = (input: string): string => input.replace(ansiEscapePattern, '');

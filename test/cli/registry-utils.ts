@@ -17,9 +17,11 @@ export const collectRegisteredNames = (): Set<string> => {
   const program = new Command();
   registerCliCommands(program);
   const names = new Set<string>();
-  program.commands.forEach((c) => {
-    names.add(c.name());
-    c.aliases().forEach((a) => names.add(a));
+  program.commands.forEach((command) => {
+    names.add(command.name());
+    for (const alias of command.aliases()) {
+      names.add(alias);
+    }
   });
   return names;
 };

@@ -1,5 +1,5 @@
-import { describe, expect, it, vi } from 'vitest';
 import { Command } from 'commander';
+import { describe, expect, it, vi } from 'vitest';
 
 const exitWithError = vi.fn((message?: string) => {
   throw new Error(message ?? 'exit');

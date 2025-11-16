@@ -1,5 +1,6 @@
-import { describe, expect, it, vi } from 'vitest';
 import { Command } from 'commander';
+import { describe, expect, it, vi } from 'vitest';
+import { stripAnsi } from '../../src/utils/ansi.js';
 
 let statusCallCount = 0;
 let statusSequence: Array<'building' | 'success' | 'failure'> = ['building', 'success'];
@@ -67,8 +68,6 @@ vi.mock('../../src/factories.js', () => ({
 }));
 
 import { registerStatusCommands } from '../../src/cli/commands/status.js';
-
-const stripAnsi = (s: string) => s.replace(/\x1B\[[0-9;]*m/g, '');
 
 describe('wait --json', () => {
   it('emits JSON on success without blocking real time', async () => {

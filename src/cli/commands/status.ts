@@ -5,14 +5,14 @@ import { createLogger } from '../../logger.js';
 import { runStatusPanel } from '../../panel/run-panel.js';
 import type { StatusObject } from '../../status/types.js';
 import type { PoltergeistConfig } from '../../types.js';
-import { DEFAULT_LOG_CHANNEL, sanitizeLogChannel } from '../../utils/log-channels.js';
-import { displayLogs } from '../logging.js';
-import { formatTargetStatus } from '../status-formatters.js';
-import { ensureOrExit, exitWithError, loadConfigOrExit, parseGitModeOrExit } from '../shared.js';
 import { ghost, poltergeistMessage } from '../../utils/ghost.js';
+import { DEFAULT_LOG_CHANNEL, sanitizeLogChannel } from '../../utils/log-channels.js';
 import { validateTarget } from '../../utils/target-validator.js';
 import { resolveLogPath } from '../log-path-resolver.js';
+import { displayLogs } from '../logging.js';
 import { applyConfigOption } from '../options.js';
+import { ensureOrExit, exitWithError, loadConfigOrExit, parseGitModeOrExit } from '../shared.js';
+import { formatTargetStatus } from '../status-formatters.js';
 
 export const registerStatusCommands = (program: Command): void => {
   const panelCmd = program
@@ -92,7 +92,9 @@ export const registerStatusCommands = (program: Command): void => {
               });
             }
 
-            console.log(chalk.gray('Tip: run "poltergeist status panel" to open the live dashboard.'));
+            console.log(
+              chalk.gray('Tip: run "poltergeist status panel" to open the live dashboard.')
+            );
           }
         }
       } catch (error) {
@@ -132,7 +134,8 @@ export const registerStatusCommands = (program: Command): void => {
 
         const activeBuilds = Object.entries(status)
           .filter(
-            ([name, s]) => !name.startsWith('_') && (s as StatusObject).lastBuild?.status === 'building'
+            ([name, s]) =>
+              !name.startsWith('_') && (s as StatusObject).lastBuild?.status === 'building'
           )
           .map(([name, s]) => ({ name, status: s as StatusObject }));
 

@@ -95,7 +95,12 @@ describe('NPMBuilder output paths', () => {
       (path) => path.endsWith('package.json') || path.endsWith('pnpm-lock.yaml')
     );
 
-    const builder = new NPMBuilder(makeTarget({ buildScript: 'build' }), projectRoot, logger, stateManager);
+    const builder = new NPMBuilder(
+      makeTarget({ buildScript: 'build' }),
+      projectRoot,
+      logger,
+      stateManager
+    );
 
     const stdout = stdoutEmitterFactory();
     const stderr = stdoutEmitterFactory();

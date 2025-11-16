@@ -1,8 +1,7 @@
-// Poltergeist v1.0 - Clean, simple implementation
-// Live testing: Poltergeist watching itself!
-
 import { IntelligentBuildQueue } from './build-queue.js';
-import type { BaseBuilder } from './builders/index.js';
+import { BuildCoordinator } from './core/build-coordinator.js';
+import type { TargetState } from './core/target-state.js';
+import { WatchService } from './core/watch-service.js';
 import type {
   IBuilderFactory,
   IStateManager,
@@ -18,29 +17,17 @@ import { ExecutableRunner } from './runners/executable-runner.js';
 import { type PoltergeistState, StateManager } from './state.js';
 import type {
   BuildSchedulingConfig,
-  BuildStatus,
   ExecutableTarget,
   PoltergeistConfig,
   Target,
 } from './types.js';
 import { BuildStatusManager } from './utils/build-status-manager.js';
+import { type ConfigChanges, detectConfigChanges } from './utils/config-diff.js';
 import { ConfigurationManager } from './utils/config-manager.js';
-import { FileSystemUtils } from './utils/filesystem.js';
 import { expandGlobPatterns } from './utils/glob-utils.js';
 import { ProcessManager } from './utils/process-manager.js';
 import { WatchmanClient } from './watchman.js';
 import { WatchmanConfigManager } from './watchman-config.js';
-
-interface TargetState {
-  target: Target;
-  builder: BaseBuilder;
-  watching: boolean;
-  lastBuild?: BuildStatus;
-  pendingFiles: Set<string>;
-  buildTimer?: NodeJS.Timeout;
-  runner?: ExecutableRunner;
-  postBuildRunner?: PostBuildRunner;
-}
 
 export interface PoltergeistStartOptions {
   waitForInitialBuilds?: boolean;
@@ -66,64 +53,8 @@ export class Poltergeist {
   private buildSchedulingConfig: BuildSchedulingConfig;
   private readyHandlers: Array<() => void> = [];
   private isReady = false;
-
-  /**
-   * Compare two configs and report granular changes. Used by tests and future incremental reloads.
-   */
-  public detectConfigChanges(
-    oldConfig: PoltergeistConfig,
-    newConfig: PoltergeistConfig
-  ): {
-    targetsAdded: Target[];
-    targetsRemoved: string[];
-    targetsModified: Array<{ name: string; oldTarget: Target; newTarget: Target }>;
-    watchmanChanged: boolean;
-    notificationsChanged: boolean;
-    buildSchedulingChanged: boolean;
-  } {
-    const oldTargets = new Map(oldConfig.targets.map((t) => [t.name, t] as const));
-    const newTargets = new Map(newConfig.targets.map((t) => [t.name, t] as const));
-
-    const targetsAdded: Target[] = [];
-    const targetsRemoved: string[] = [];
-    const targetsModified: Array<{ name: string; oldTarget: Target; newTarget: Target }> = [];
-
-    for (const [name, target] of newTargets) {
-      if (!oldTargets.has(name)) {
-        targetsAdded.push(target);
-        continue;
-      }
-
-      const oldTarget = oldTargets.get(name);
-      if (oldTarget && JSON.stringify(oldTarget) !== JSON.stringify(target)) {
-        targetsModified.push({ name, oldTarget, newTarget: target });
-      }
-    }
-
-    for (const [name, _target] of oldTargets) {
-      if (!newTargets.has(name)) {
-        targetsRemoved.push(name);
-      }
-    }
-
-    const watchmanChanged =
-      JSON.stringify(oldConfig.watchman || {}) !== JSON.stringify(newConfig.watchman || {});
-    const notificationsChanged =
-      JSON.stringify(oldConfig.notifications || {}) !==
-      JSON.stringify(newConfig.notifications || {});
-    const buildSchedulingChanged =
-      JSON.stringify(oldConfig.buildScheduling || {}) !==
-      JSON.stringify(newConfig.buildScheduling || {});
-
-    return {
-      targetsAdded,
-      targetsRemoved,
-      targetsModified,
-      watchmanChanged,
-      notificationsChanged,
-      buildSchedulingChanged,
-    };
-  }
+  private watchService?: WatchService;
+  private buildCoordinator?: BuildCoordinator;
 
   constructor(
     config: PoltergeistConfig,
@@ -203,129 +134,44 @@ export class Poltergeist {
     this.isRunning = true;
     this.logger.info('Starting Poltergeist...');
 
-    // Start heartbeat
     this.stateManager.startHeartbeat();
-
-    // Setup Watchman configuration with exclusions
     await this.setupWatchmanConfig();
 
-    // Initialize notifier if enabled and not already injected
-    if (this.config.notifications?.enabled !== false && !this.notifier) {
-      this.notifier = new BuildNotifier({
-        enabled: this.config.notifications?.enabled ?? true,
-        successSound: this.config.notifications?.successSound,
-        failureSound: this.config.notifications?.failureSound,
-      });
-    }
+    this.initializeNotifierIfNeeded();
+    this.initializeBuildQueue();
 
-    // Initialize intelligent build queue now that notifier is available
-    if (
-      this.buildSchedulingConfig.prioritization.enabled &&
-      this.priorityEngine &&
-      !this.buildQueue
-    ) {
-      this.buildQueue = new IntelligentBuildQueue(
-        this.buildSchedulingConfig,
-        this.logger,
-        this.priorityEngine,
-        this.notifier
-      );
-    }
-
-    // Determine which targets to build
     const targetsToWatch = this.getTargetsToWatch(targetName);
-    if (targetsToWatch.length === 0) {
-      this.logger.warn('⚠️ No enabled targets found. Daemon will continue running.');
-      this.logger.info('💡 You can enable targets by editing poltergeist.config.json');
-      // Continue running to allow hot reload when targets are added
-    } else {
-      this.logger.info(`👻 [Poltergeist] Building ${targetsToWatch.length} enabled target(s)`);
-    }
+    this.logTargetsToWatch(targetsToWatch.length);
+    await this.initializeTargetStates(targetsToWatch);
 
-    // Initialize target states
-    for (const target of targetsToWatch) {
-      if (target.watchPaths?.length) {
-        target.watchPaths = expandGlobPatterns(target.watchPaths);
-      }
-      const builder = this.builderFactory.createBuilder(
-        target,
-        this.projectRoot,
-        this.logger,
-        this.stateManager
-      );
+    await this.ensureWatchman();
 
-      // Initialize state early so validation failures still surface in the panel.
-      await this.stateManager.initializeState(target);
+    this.watchService = new WatchService({
+      projectRoot: this.projectRoot,
+      config: this.config,
+      logger: this.logger,
+      watchman: this.watchman,
+      watchmanConfigManager: this.watchmanConfigManager,
+      onFilesChanged: (files, targetNames) => this.handleFileChanges(files, targetNames),
+    });
 
-      try {
-        await builder.validate();
-      } catch (error) {
-        const errorMessage = error instanceof Error ? error.message : String(error);
-        const failureStatus = BuildStatusManager.createFailureStatus(
-          target.name,
-          { message: errorMessage, summary: 'Validation failed', type: 'configuration' },
-          { duration: 0 },
-          { gitHash: 'validation', builder: builder.describeBuilder?.() || target.type }
-        );
-        await this.stateManager.updateBuildStatus(target.name, failureStatus);
-        this.logger.error(`[${target.name}] Validation failed: ${errorMessage}`);
-        // Skip wiring this target into the watcher since it cannot build.
-        continue;
-      }
+    await this.watchService.subscribeTargets(this.targetStates);
+    await this.watchService.subscribeConfig(this.configPath, (files) =>
+      this.handleConfigChange(files)
+    );
 
-      let runner: ExecutableRunner | undefined;
-      if (target.type === 'executable' && target.autoRun?.enabled) {
-        runner = new ExecutableRunner(target as ExecutableTarget, {
-          projectRoot: this.projectRoot,
-          logger: this.logger,
-        });
-      }
-
-      const postBuildRunner =
-        target.postBuild && target.postBuild.length > 0
-          ? new PostBuildRunner({
-              targetName: target.name,
-              hooks: target.postBuild,
-              projectRoot: this.projectRoot,
-              stateManager: this.stateManager,
-              logger: this.logger,
-            })
-          : undefined;
-
-      this.targetStates.set(target.name, {
-        target,
-        builder,
-        watching: false,
-        pendingFiles: new Set(),
-        runner,
-        postBuildRunner,
-      });
-
-      // Register with intelligent build queue if enabled
-      if (this.buildQueue) {
-        this.buildQueue.registerTarget(target, builder);
-      }
-
-      // Initialize state file
-      await this.stateManager.initializeState(target);
-    }
-
-    // Connect to Watchman
-    if (!this.watchman) {
-      this.watchman = new WatchmanClient(this.logger);
-    }
-    await this.watchman?.connect();
-
-    // Watch the project
-    await this.watchman?.watchProject(this.projectRoot);
-
-    // Subscribe to file changes for each target
-    await this.subscribeToChanges();
+    this.buildCoordinator = new BuildCoordinator({
+      projectRoot: this.projectRoot,
+      logger: this.logger,
+      stateManager: this.stateManager,
+      notifier: this.notifier,
+      buildQueue: this.buildQueue,
+      buildSchedulingConfig: this.buildSchedulingConfig,
+    });
 
     this.notifyReady();
 
-    // Do initial builds
-    const initialBuilds = this.performInitialBuilds();
+    const initialBuilds = this.buildCoordinator.performInitialBuilds(this.targetStates);
     if (waitForInitialBuilds) {
       await initialBuilds;
     } else {
@@ -336,7 +182,6 @@ export class Poltergeist {
 
     this.logger.info('👻 [Poltergeist] is now watching for changes...');
 
-    // Handle graceful shutdown using ProcessManager
     this.processManager.registerShutdownHandlers(async () => {
       await this.stop();
       await this.cleanup();
@@ -375,88 +220,123 @@ export class Poltergeist {
     return this.config.targets.filter((t) => t.enabled);
   }
 
-  private async subscribeToChanges(): Promise<void> {
-    if (!this.watchman) return;
+  private initializeNotifierIfNeeded(): void {
+    if (this.config.notifications?.enabled === false || this.notifier) {
+      return;
+    }
+    this.notifier = new BuildNotifier({
+      enabled: this.config.notifications?.enabled ?? true,
+      successSound: this.config.notifications?.successSound,
+      failureSound: this.config.notifications?.failureSound,
+    });
+  }
 
-    // Group targets by their watch paths to optimize subscriptions
-    const pathToTargets = new Map<string, Set<string>>();
+  private initializeBuildQueue(): void {
+    if (
+      !this.buildSchedulingConfig.prioritization.enabled ||
+      !this.priorityEngine ||
+      this.buildQueue
+    ) {
+      return;
+    }
+    this.buildQueue = new IntelligentBuildQueue(
+      this.buildSchedulingConfig,
+      this.logger,
+      this.priorityEngine,
+      this.notifier
+    );
+  }
 
-    for (const [name, state] of this.targetStates) {
-      this.logger.debug(
-        `Target ${name} has ${state.target.watchPaths.length} watch paths: ${JSON.stringify(state.target.watchPaths)}`
+  private logTargetsToWatch(count: number): void {
+    if (count === 0) {
+      this.logger.warn('⚠️ No enabled targets found. Daemon will continue running.');
+      this.logger.info('💡 You can enable targets by editing poltergeist.config.json');
+    } else {
+      this.logger.info(`👻 [Poltergeist] Building ${count} enabled target(s)`);
+    }
+  }
+
+  private async initializeTargetStates(targets: Target[]): Promise<void> {
+    for (const target of targets) {
+      if (target.watchPaths?.length) {
+        target.watchPaths = expandGlobPatterns(target.watchPaths);
+      }
+
+      const builder = this.builderFactory.createBuilder(
+        target,
+        this.projectRoot,
+        this.logger,
+        this.stateManager
       );
-      for (const pattern of state.target.watchPaths) {
-        this.logger.debug(`Processing watch path: ${pattern}`);
-        if (!pathToTargets.has(pattern)) {
-          pathToTargets.set(pattern, new Set());
-        }
-        pathToTargets.get(pattern)?.add(name);
-      }
-    }
 
-    // Create subscriptions with strict validation
-    for (const [pattern, targetNames] of pathToTargets) {
-      this.logger.debug(`Creating subscription for pattern: "${pattern}"`);
+      await this.stateManager.initializeState(target);
 
       try {
-        // Normalize and validate pattern
-        const normalizedPattern = this.watchmanConfigManager.normalizeWatchPattern(pattern);
-        this.watchmanConfigManager.validateWatchPattern(normalizedPattern);
-
-        const subscriptionName = `poltergeist_${normalizedPattern.replace(/[^a-zA-Z0-9]/g, '_')}`;
-
-        // Get optimized exclusion expressions (no fallbacks)
-        const exclusionExpressions = this.watchmanConfigManager.createExclusionExpressions(
-          this.config
-        );
-
-        await this.watchman.subscribe(
-          this.projectRoot,
-          subscriptionName,
-          {
-            expression: ['match', normalizedPattern, 'wholename'],
-            fields: ['name', 'exists', 'type'],
-          },
-          (files) => {
-            this.handleFileChanges(files, Array.from(targetNames));
-          },
-          exclusionExpressions
-        );
-
-        targetNames.forEach((targetName) => {
-          const state = this.targetStates.get(targetName);
-          if (state) {
-            state.watching = true;
-          }
-        });
-
-        this.logger.info(`👻 Watching ${targetNames.size} target(s): ${normalizedPattern}`);
+        await builder.validate();
       } catch (error) {
-        this.logger.error(`❌ Invalid watch pattern "${pattern}": ${error}`);
-        throw error; // Fail fast - no pattern fixing
+        const errorMessage = error instanceof Error ? error.message : String(error);
+        const failureStatus = BuildStatusManager.createFailureStatus(
+          target.name,
+          { message: errorMessage, summary: 'Validation failed', type: 'configuration' },
+          { duration: 0 },
+          { gitHash: 'validation', builder: builder.describeBuilder?.() || target.type }
+        );
+        await this.stateManager.updateBuildStatus(target.name, failureStatus);
+        this.logger.error(`[${target.name}] Validation failed: ${errorMessage}`);
+        continue;
+      }
+
+      const runner =
+        target.type === 'executable' && target.autoRun?.enabled
+          ? new ExecutableRunner(target as ExecutableTarget, {
+              projectRoot: this.projectRoot,
+              logger: this.logger,
+            })
+          : undefined;
+
+      const postBuildRunner =
+        target.postBuild && target.postBuild.length > 0
+          ? new PostBuildRunner({
+              targetName: target.name,
+              hooks: target.postBuild,
+              projectRoot: this.projectRoot,
+              stateManager: this.stateManager,
+              logger: this.logger,
+            })
+          : undefined;
+
+      this.targetStates.set(target.name, {
+        target,
+        builder,
+        watching: false,
+        pendingFiles: new Set(),
+        runner,
+        postBuildRunner,
+      });
+
+      if (this.buildQueue) {
+        this.buildQueue.registerTarget(target, builder);
       }
     }
+  }
 
-    // Subscribe to configuration file changes for automatic reloading
-    if (this.configPath) {
-      try {
-        await this.watchman.subscribe(
-          this.projectRoot,
-          'poltergeist_config',
-          {
-            expression: ['match', 'poltergeist.config.json', 'wholename'],
-            fields: ['name', 'exists', 'type'],
-          },
-          (files) => {
-            this.handleConfigChange(files);
-          }
-        );
-        this.logger.info('🔧 Watching configuration file for changes');
-      } catch (error) {
-        this.logger.warn(`⚠️ Failed to watch config file: ${error}`);
-        // Don't fail startup if config watching fails
-      }
+  private async ensureWatchman(): Promise<void> {
+    if (!this.watchman) {
+      this.watchman = new WatchmanClient(this.logger);
     }
+    await this.watchman.connect();
+    await this.watchman.watchProject(this.projectRoot);
+  }
+
+  private refreshBuildCoordinator(): void {
+    this.buildCoordinator = new BuildCoordinator({
+      projectRoot: this.projectRoot,
+      logger: this.logger,
+      stateManager: this.stateManager,
+      notifier: this.notifier,
+      buildQueue: this.buildQueue,
+      buildSchedulingConfig: this.buildSchedulingConfig,
+    });
   }
 
   /**
@@ -521,113 +401,8 @@ export class Poltergeist {
       const delay = state.target.settlingDelay || this.config.watchman?.settlingDelay || 1000;
 
       state.buildTimer = setTimeout(() => {
-        this.buildTarget(targetName);
+        this.buildCoordinator?.buildTarget(targetName, this.targetStates);
       }, delay);
-    }
-  }
-
-  private async performInitialBuilds(): Promise<void> {
-    // Use intelligent build queue if available
-    const queue = this.buildQueue;
-    if (queue && this.buildSchedulingConfig.prioritization.enabled) {
-      await Promise.all(
-        Array.from(this.targetStates.values()).map((state) =>
-          queue.queueTargetBuild(state.target, 'initial-build')
-        )
-      );
-      return;
-    }
-
-    // Fallback to traditional builds
-    const buildPromises: Promise<void>[] = [];
-
-    for (const [name, state] of this.targetStates) {
-      // Get all files matching watch patterns for initial build
-      const allFiles = await this.getAllWatchedFiles(state.target);
-      for (const file of allFiles) {
-        state.pendingFiles.add(file);
-      }
-
-      buildPromises.push(this.buildTarget(name));
-    }
-
-    await Promise.all(buildPromises);
-  }
-
-  private async getAllWatchedFiles(_target: Target): Promise<string[]> {
-    // In a real implementation, this would query the file system
-    // For now, return empty array to trigger a full build
-    return [];
-  }
-
-  private async buildTarget(targetName: string): Promise<void> {
-    const state = this.targetStates.get(targetName);
-    if (!state) return;
-
-    const changedFiles = Array.from(state.pendingFiles);
-    state.pendingFiles.clear();
-
-    try {
-      const buildOptions = {
-        captureLogs: true,
-        logFile: FileSystemUtils.getLogFilePath(this.projectRoot, state.target.name),
-      };
-      const status = await state.builder.build(changedFiles, buildOptions);
-      state.lastBuild = status;
-      if (state.runner) {
-        if (BuildStatusManager.isSuccess(status)) {
-          await state.runner.onBuildSuccess();
-        } else if (BuildStatusManager.isFailure(status)) {
-          state.runner.onBuildFailure(status);
-        }
-      }
-      if (BuildStatusManager.isSuccess(status)) {
-        state.postBuildRunner?.onBuildResult('success');
-      } else if (BuildStatusManager.isFailure(status)) {
-        state.postBuildRunner?.onBuildResult('failure');
-      }
-
-      // Send notification
-      if (this.notifier) {
-        if (BuildStatusManager.isSuccess(status)) {
-          const outputInfo = state.builder.getOutputInfo();
-          const message = BuildStatusManager.formatNotificationMessage(status, outputInfo);
-
-          await this.notifier.notifyBuildComplete(
-            `${targetName} Built`,
-            message,
-            state.target.icon
-          );
-        } else if (BuildStatusManager.isFailure(status)) {
-          const errorMessage = BuildStatusManager.getErrorMessage(status);
-          await this.notifier.notifyBuildFailed(
-            `${targetName} Failed`,
-            errorMessage,
-            state.target.icon
-          );
-        }
-      }
-    } catch (error) {
-      const errorMessage = error instanceof Error ? error.message : String(error);
-      this.logger.error(`[${targetName}] Build error: ${errorMessage}`);
-
-      // Record failure so the panel reflects the error instead of "watching".
-      const failureStatus = BuildStatusManager.createFailureStatus(
-        targetName,
-        { message: errorMessage, summary: 'Build threw before status update' },
-        { duration: 0 },
-        { gitHash: 'unknown', builder: state.builder.describeBuilder?.() || state.target.type }
-      );
-      state.lastBuild = failureStatus;
-      await this.stateManager.updateBuildStatus(targetName, failureStatus);
-
-      if (this.notifier) {
-        await this.notifier.notifyBuildFailed(
-          `${targetName} Error`,
-          errorMessage,
-          state.target.icon
-        );
-      }
     }
   }
 
@@ -653,11 +428,9 @@ export class Poltergeist {
       }
       this.targetStates.clear();
 
-      // Disconnect from Watchman
-      if (this.watchman) {
-        await this.watchman.disconnect();
-        this.watchman = undefined;
-      }
+      await this.watchService?.stop();
+      this.watchService = undefined;
+      this.watchman = undefined;
 
       // Cleanup state manager
       await this.stateManager.cleanup();
@@ -797,7 +570,7 @@ export class Poltergeist {
 
     try {
       const newConfig = await ConfigurationManager.loadConfigFromPath(this.configPath);
-      const changes = this.detectConfigChanges(this.config, newConfig);
+      const changes = detectConfigChanges(this.config, newConfig);
       await this.applyConfigChanges(newConfig, changes);
       this.config = newConfig;
       this.logger.info('✅ Configuration reloaded successfully');
@@ -814,7 +587,7 @@ export class Poltergeist {
    */
   public async applyConfigChanges(
     newConfig: PoltergeistConfig,
-    changes: ReturnType<Poltergeist['detectConfigChanges']>
+    changes: ConfigChanges
   ): Promise<void> {
     // Handle target removals
     for (const name of changes.targetsRemoved) {
@@ -869,6 +642,10 @@ export class Poltergeist {
           postBuildRunner,
         });
 
+        if (this.buildQueue) {
+          this.buildQueue.registerTarget(target, builder);
+        }
+
         await this.stateManager.initializeState(target);
       } catch (error) {
         this.logger.error(
@@ -907,6 +684,10 @@ export class Poltergeist {
         runner,
         postBuildRunner: previous?.postBuildRunner,
       });
+
+      if (this.buildQueue) {
+        this.buildQueue.registerTarget(mod.newTarget, builder);
+      }
     }
 
     // Apply other config changes
@@ -919,6 +700,7 @@ export class Poltergeist {
         ...newConfig.notifications,
       };
       this.notifier = new BuildNotifier(notifications);
+      this.refreshBuildCoordinator();
     }
 
     if (changes.buildSchedulingChanged) {
@@ -935,6 +717,22 @@ export class Poltergeist {
       this.priorityEngine = this.buildSchedulingConfig.prioritization.enabled
         ? new PriorityEngine(this.buildSchedulingConfig, this.logger)
         : undefined;
+
+      if (this.buildSchedulingConfig.prioritization.enabled && this.priorityEngine) {
+        this.buildQueue = new IntelligentBuildQueue(
+          this.buildSchedulingConfig,
+          this.logger,
+          this.priorityEngine,
+          this.notifier
+        );
+        for (const state of this.targetStates.values()) {
+          this.buildQueue.registerTarget(state.target, state.builder);
+        }
+      } else {
+        this.buildQueue = undefined;
+      }
+
+      this.refreshBuildCoordinator();
     }
 
     // Update watchman config manager policies if needed

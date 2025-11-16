@@ -1,10 +1,10 @@
 import type { Command } from 'commander';
-import { registerDaemonCommands } from './daemon.js';
-import { registerStatusCommands } from './status.js';
-import { registerProjectCommands } from './project.js';
-import { registerPolterCommand } from './polter.js';
-import { registerVersionCommand } from './version.js';
 import type { CommandGroup } from '../../utils/cli-formatter.js';
+import { registerDaemonCommands } from './daemon.js';
+import { registerPolterCommand } from './polter.js';
+import { registerProjectCommands } from './project.js';
+import { registerStatusCommands } from './status.js';
+import { registerVersionCommand } from './version.js';
 
 export interface CommandOptionDescriptor {
   flags: string;
@@ -25,12 +25,18 @@ export const COMMAND_DESCRIPTORS: CommandDescriptor[] = [
     register: registerDaemonCommands,
     options: [
       { flags: '-c, --config <path>', description: 'Path to config file' },
-      { flags: '-t, --target <name>', description: 'Target to build (omit to build all enabled targets)' },
+      {
+        flags: '-t, --target <name>',
+        description: 'Target to build (omit to build all enabled targets)',
+      },
       { flags: '--verbose', description: 'Enable verbose logging (same as --log-level debug)' },
       { flags: '--log-level <level>', description: 'Set log level (debug, info, warn, error)' },
       { flags: '-f, --foreground', description: 'Run in foreground (blocking mode)' },
       { flags: '--json', description: 'Output build result as JSON (build)' },
-      { flags: '-f, --force', description: 'Force rebuild even if another build is running (build)' },
+      {
+        flags: '-f, --force',
+        description: 'Force rebuild even if another build is running (build)',
+      },
     ],
     aliases: ['start', 'haunt', 'stop', 'rest', 'restart'],
   },
@@ -62,7 +68,10 @@ export const COMMAND_DESCRIPTORS: CommandDescriptor[] = [
       { flags: '--preset <name>', description: 'Use specific CMake preset (init)' },
       { flags: '--generator <gen>', description: 'CMake generator to use (init)' },
       { flags: '--build-dir <dir>', description: 'Build directory (init)' },
-      { flags: '--no-auto-add', description: 'Skip auto-adding inferred targets when none are enabled (init)' },
+      {
+        flags: '--no-auto-add',
+        description: 'Skip auto-adding inferred targets when none are enabled (init)',
+      },
       { flags: '-a, --all', description: 'Remove all state files (clean)' },
       { flags: '-d, --days <number>', description: 'Remove state files older than N days (clean)' },
     ],

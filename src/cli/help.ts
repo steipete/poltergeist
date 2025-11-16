@@ -1,4 +1,4 @@
-import { Command } from 'commander';
+import type { Command } from 'commander';
 import { CLIFormatter, type CommandGroup, type OptionInfo } from '../utils/cli-formatter.js';
 import { HELP_GROUPS } from './commands/registry.js';
 

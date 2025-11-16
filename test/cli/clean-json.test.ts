@@ -1,24 +1,28 @@
-import { describe, expect, it, vi } from 'vitest';
 import { Command } from 'commander';
+import { describe, expect, it, vi } from 'vitest';
 
 const listAllStatesMock = vi.fn();
 const removeStateMock = vi.fn();
 
 vi.mock('../../src/state.js', () => ({
   StateManager: class {
-    constructor() {}
     static listAllStates = listAllStatesMock;
     readState = vi.fn().mockResolvedValue({
       projectName: 'demo',
       target: 'app',
-      process: { isActive: false, lastHeartbeat: new Date(Date.now() - 10 * 24 * 60 * 60 * 1000).toISOString() },
+      process: {
+        isActive: false,
+        lastHeartbeat: new Date(Date.now() - 10 * 24 * 60 * 60 * 1000).toISOString(),
+      },
     });
     removeState = removeStateMock;
   },
 }));
 
 vi.mock('../../src/logger.js', () => ({ createLogger: () => ({ info: vi.fn(), error: vi.fn() }) }));
-vi.mock('../../src/utils/filesystem.js', () => ({ FileSystemUtils: { findProjectRoot: () => '/tmp/project' } }));
+vi.mock('../../src/utils/filesystem.js', () => ({
+  FileSystemUtils: { findProjectRoot: () => '/tmp/project' },
+}));
 
 import { registerProjectCommands } from '../../src/cli/commands/project.js';
 

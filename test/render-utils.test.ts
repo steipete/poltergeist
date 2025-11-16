@@ -1,5 +1,5 @@
-import { describe, expect, it } from 'vitest';
 import stripAnsi from 'strip-ansi';
+import { describe, expect, it } from 'vitest';
 import { progressBar } from '../src/panel/render-utils.js';
 
 describe('render-utils progressBar', () => {

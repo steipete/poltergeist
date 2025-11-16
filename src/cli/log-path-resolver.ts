@@ -2,7 +2,7 @@ import { existsSync } from 'fs';
 import path from 'path';
 import type { PoltergeistConfig, Target } from '../types.js';
 import { FileSystemUtils } from '../utils/filesystem.js';
-import { sanitizeLogChannel, DEFAULT_LOG_CHANNEL } from '../utils/log-channels.js';
+import { DEFAULT_LOG_CHANNEL, sanitizeLogChannel } from '../utils/log-channels.js';
 
 export interface ResolveLogPathOptions {
   config: PoltergeistConfig;
