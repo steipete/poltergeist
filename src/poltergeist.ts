@@ -1,5 +1,6 @@
 import { IntelligentBuildQueue } from './build-queue.js';
 import { BuildCoordinator } from './core/build-coordinator.js';
+import { DebouncedBuildScheduler } from './core/debounced-build-scheduler.js';
 import { StatusPresenter } from './core/status-presenter.js';
 import type { TargetState } from './core/target-state.js';
 import { WatchService } from './core/watch-service.js';
@@ -57,6 +58,7 @@ export class Poltergeist {
   private watchService?: WatchService;
   private buildCoordinator?: BuildCoordinator;
   private statusPresenter: StatusPresenter;
+  private debouncedScheduler: DebouncedBuildScheduler;
 
   constructor(
     config: PoltergeistConfig,
@@ -110,6 +112,13 @@ export class Poltergeist {
     this.statusPresenter = new StatusPresenter({
       logger: this.logger,
       stateManager: this.stateManager,
+    });
+
+    this.debouncedScheduler = new DebouncedBuildScheduler({
+      defaultDelayMs: this.config.watchman?.settlingDelay || 1000,
+      buildTarget: (name) => {
+        void this.buildCoordinator?.buildTarget(name, this.targetStates);
+      },
     });
   }
 
@@ -391,26 +400,7 @@ export class Poltergeist {
     }
 
     // Fallback to traditional immediate builds
-    for (const targetName of targetNames) {
-      const state = this.targetStates.get(targetName);
-      if (!state) continue;
-
-      for (const file of changedFiles) {
-        state.pendingFiles.add(file);
-      }
-
-      // Clear existing timer
-      if (state.buildTimer) {
-        clearTimeout(state.buildTimer);
-      }
-
-      // Set new timer with settling delay
-      const delay = state.target.settlingDelay || this.config.watchman?.settlingDelay || 1000;
-
-      state.buildTimer = setTimeout(() => {
-        this.buildCoordinator?.buildTarget(targetName, this.targetStates);
-      }, delay);
-    }
+    this.debouncedScheduler.schedule(changedFiles, targetNames, this.targetStates);
   }
 
   public async stop(targetName?: string): Promise<void> {
