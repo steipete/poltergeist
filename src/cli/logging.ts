@@ -11,6 +11,39 @@ export interface LogEntry {
   [key: string]: unknown;
 }
 
+type ParsedLog = { entry?: LogEntry; error?: unknown };
+
+export function parseLogLine(line: string, targetFilter?: string): ParsedLog {
+  // New plain text format: timestamp LEVEL: [target] message
+  const plainTextMatch = line.match(/^(\S+)\s+(\w+)\s*:\s*(?:\[([^\]]+)\]\s*)?(.*)$/);
+
+  if (plainTextMatch) {
+    const [, timestamp, level, target, message] = plainTextMatch;
+    return {
+      entry: {
+        timestamp,
+        level: level.toLowerCase(),
+        message: message.trim(),
+        target: target || targetFilter,
+      },
+    };
+  }
+
+  if (line.startsWith('{')) {
+    try {
+      const entry = JSON.parse(line) as LogEntry;
+      if (targetFilter && entry.target !== targetFilter) {
+        return {};
+      }
+      return { entry };
+    } catch (error) {
+      return { error };
+    }
+  }
+
+  return {};
+}
+
 // Display logs with formatting and filtering
 export async function displayLogs(
   logFile: string,
@@ -65,31 +98,9 @@ export async function readLogEntries(
   const entries: LogEntry[] = [];
 
   for (const line of lines) {
-    // Parse plain text format: timestamp LEVEL: [target] message
-    const plainTextMatch = line.match(/^(\S+)\s+(\w+)\s*:\s*(?:\[([^\]]+)\]\s*)?(.*)$/);
-
-    if (plainTextMatch) {
-      const [, timestamp, level, target, message] = plainTextMatch;
-
-      const entry: LogEntry = {
-        timestamp,
-        level: level.toLowerCase(),
-        message: message.trim(),
-        target: target || targetFilter,
-      };
-
+    const { entry } = parseLogLine(line, targetFilter);
+    if (entry) {
       entries.push(entry);
-    } else {
-      // Try to parse as JSON for backward compatibility with old logs
-      try {
-        const entry = JSON.parse(line) as LogEntry;
-        if (targetFilter && entry.target !== targetFilter) {
-          continue;
-        }
-        entries.push(entry);
-      } catch (_error) {
-        // Not JSON and not matching plain text format - skip
-      }
     }
   }
 
@@ -186,38 +197,13 @@ export async function followLogs(
       rl.on('line', (line) => {
         if (!line.trim()) return;
 
-        if (line.startsWith('{')) {
-          // Legacy JSON format
-          try {
-            const entry = JSON.parse(line) as LogEntry;
-            if (targetFilter && entry.target !== targetFilter) {
-              return;
-            }
-            if (jsonOutput) {
-              console.log(JSON.stringify(entry));
-            } else {
-              formatLogEntry(entry);
-            }
-          } catch (_error) {
-            // Skip malformed lines
-          }
+        const { entry } = parseLogLine(line, targetFilter);
+        if (!entry) return;
+
+        if (jsonOutput) {
+          console.log(JSON.stringify(entry));
         } else {
-          // New plain text format: timestamp LEVEL: [target] message
-          const plainTextMatch = line.match(/^(\S+)\s+(\w+)\s*:\s*(?:\[([^\]]+)\]\s*)?(.*)$/);
-          if (plainTextMatch) {
-            const [, timestamp, level, target, message] = plainTextMatch;
-            const entry: LogEntry = {
-              timestamp,
-              level: level.toLowerCase().trim(),
-              message: message.trim(),
-              target: target || targetFilter,
-            };
-            if (jsonOutput) {
-              console.log(JSON.stringify(entry));
-            } else {
-              formatLogEntry(entry);
-            }
-          }
+          formatLogEntry(entry);
         }
       });
 

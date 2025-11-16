@@ -87,7 +87,10 @@ export function formatHeader(
   const summaryLine = formatSummary(snapshot, mode);
 
   const tabsLine = formatSummaryTabs(summaryModes, activeSummaryKey, snapshot, width);
-  const lines = [tabsLine || projectLine, branchLine, summaryLine];
+  const lines = [projectLine, branchLine, summaryLine];
+  if (tabsLine) {
+    lines.push(tabsLine);
+  }
   const wrapped = wrapAnsi(lines.join('\n'), Math.max(1, width ?? 80), {
     hard: false,
     trim: false,
@@ -184,16 +187,14 @@ function formatSummaryTabs(
     return '';
   }
 
-  const parts = modes
-    .filter((mode) => mode.hasData ?? true)
-    .map((mode) => {
-      const count = summaryCount(mode, snapshot);
-      const suffix = count > 0 ? ` (${count})` : '';
-      const label = mode.type === 'ai' ? 'AI Summary' : mode.label;
-      const body = `${label}${suffix}`;
-      const decorated = mode.key === activeSummaryKey ? colors.accent(body) : colors.muted(body);
-      return decorated;
-    });
+  const parts = modes.map((mode) => {
+    const count = summaryCount(mode, snapshot);
+    const suffix = count > 0 ? ` (${count})` : '';
+    const label = mode.type === 'ai' ? 'AI Summary' : mode.label;
+    const body = `${label}${suffix}`;
+    const decorated = mode.key === activeSummaryKey ? colors.accent(body) : colors.muted(body);
+    return decorated;
+  });
 
   const line = parts.join(' | ');
   return width ? centerText(line, width) : line;
