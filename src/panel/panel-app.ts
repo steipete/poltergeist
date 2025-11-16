@@ -45,8 +45,10 @@ export class PanelApp {
   private started = false;
   private resizeListenerAttached = false;
   private userNavigated = false;
-   // Left/right toggle between build and test-focused log views.
+  // Left/right toggle between build and test-focused log views.
   private logMode: 'build' | 'test' = 'build';
+  // Left/right while on summary toggles AI vs Git summary.
+  private summaryMode: 'ai' | 'git' = 'ai';
   private snapshot: PanelSnapshot;
   private selectedIndex: number;
   private logLines: string[] = [];
@@ -200,12 +202,12 @@ export class PanelApp {
           continue;
         }
         if (code === 'C') {
-          this.flipLogMode('next');
+          this.flipLogModeOrSummary('next');
           i += 3;
           continue;
         }
         if (code === 'D') {
-          this.flipLogMode('prev');
+          this.flipLogModeOrSummary('prev');
           i += 3;
           continue;
         }
@@ -247,7 +249,7 @@ export class PanelApp {
     const shouldShowLogs = entry ? this.shouldShowLogs(entry) : false;
     const width = this.terminal.columns || 80;
     const height = this.terminal.rows || 24;
-    const summaryInfo = this.computeSummaryLines(this.snapshot, viewingSummary);
+    const summaryInfo = this.computeSummaryLines(this.snapshot, viewingSummary, this.summaryMode);
     const logDisplayLimit = shouldShowLogs
       ? this.computeLogDisplayLimit({
           width,
@@ -399,19 +401,28 @@ export class PanelApp {
       return 'AI Summary';
     }
     if (this.hasDirtySummary(snapshot)) {
-      return 'Git status';
+      return 'Git Status';
     }
     return undefined;
   }
 
-  private flipLogMode(direction: 'next' | 'prev'): void {
-    // Only meaningful when logs are visible.
+  private flipLogModeOrSummary(direction: 'next' | 'prev'): void {
     const summaryIndex = this.getSummaryIndex(this.snapshot);
     const viewingSummary = summaryIndex !== null && this.selectedIndex === summaryIndex;
-    const entry =
-      viewingSummary || this.selectedIndex < 0
-        ? undefined
-        : this.snapshot.targets[this.selectedIndex];
+    if (viewingSummary) {
+      const modes: Array<'ai' | 'git'> = ['ai', 'git'];
+      const currentIdx = modes.indexOf(this.summaryMode);
+      const nextIdx =
+        direction === 'next'
+          ? (currentIdx + 1) % modes.length
+          : (currentIdx - 1 + modes.length) % modes.length;
+      this.summaryMode = modes[nextIdx];
+      this.updateView('summary-mode');
+      return;
+    }
+
+    // Toggle logs when not on summary.
+    const entry = this.snapshot.targets[this.selectedIndex];
     if (!entry || !this.shouldShowLogs(entry)) {
       return;
     }
@@ -461,6 +472,7 @@ interface PanelViewState {
   summaryInfo: SummaryRenderInfo;
   logLimit: number;
   logMode: 'build' | 'test';
+  summaryMode: 'ai' | 'git';
 }
 
 interface SummaryRenderInfo {
