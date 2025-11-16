@@ -13,6 +13,8 @@ export interface TargetRow {
  * reference a parent via `group`. Ordering honors the first time we see a group name.
  */
 export const buildTargetRows = (targets: TargetPanelEntry[]): TargetRow[] => {
+  // The tree is intentionally shallow: group header (depth 0) -> children (depth 1).
+  // We keep breadth-first ordering by first appearance to match user expectations.
   type Bucket = { header?: TargetPanelEntry; children: TargetPanelEntry[]; order: number };
   const groups = new Map<string, Bucket>();
   const standalone: TargetPanelEntry[] = [];

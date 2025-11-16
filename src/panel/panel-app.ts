@@ -1021,12 +1021,12 @@ function limitSummaryLines(text: string, maxLines: number): string {
 
 const TEST_LOG_PATTERN = /\b(test(ing)?|tests|suite|spec|describe|it|passed|failed)\b/i;
 
-function filterTestLogs(lines: string[]): string[] {
+export function filterTestLogs(lines: string[]): string[] {
   const filtered = lines.filter((line) => TEST_LOG_PATTERN.test(line));
   return filtered.length > 0 ? filtered : lines;
 }
 
-function filterBuildLogs(lines: string[]): string[] {
+export function filterBuildLogs(lines: string[]): string[] {
   const filtered = lines.filter((line) => !TEST_LOG_PATTERN.test(line));
   return filtered.length > 0 ? filtered : lines;
 }
@@ -1214,7 +1214,7 @@ function formatAiSummary(lines: string[]): { header?: string; body: string } | n
   return { body: filtered.join('\n') };
 }
 
-function formatLogs(
+export function formatLogs(
   entry: TargetPanelEntry | undefined,
   channel: string,
   lines: string[],
@@ -1242,7 +1242,7 @@ function formatLogs(
   const content =
     limited.length > 0
       ? limited.map((line) => colors.accent(line)).join('\n')
-      : colors.muted('  (no logs)');
+      : colors.muted(centerText('(no logs)', Math.max(1, width - 2)));
   return `\n${header}\n${divider}\n${content}`;
 }
 
