@@ -303,10 +303,7 @@ program
     if (isTestMode) {
       const pretendRunning = process.env.POLTERGEIST_TEST_DAEMON_RUNNING === 'true';
       if (!pretendRunning) {
-        console.log(
-          chalk.yellow(`${ghost.warning()} No Poltergeist daemon running for this project`)
-        );
-        process.exit(1);
+        exitWithError(`${ghost.warning()} No Poltergeist daemon running for this project`, 1);
       }
 
       console.log(chalk.gray(poltergeistMessage('info', 'Stopping daemon...')));
@@ -843,8 +840,7 @@ program
       }
 
       if (targetStatuses.length === 0) {
-        console.error(chalk.red('No targets found'));
-        process.exit(1);
+        exitWithError('No targets found');
       } else if (targetStatuses.length === 1) {
         // Single target, use it
         logTarget = targetStatuses[0].name;
@@ -859,24 +855,26 @@ program
           logTarget = buildingTargets[0].name;
         } else if (buildingTargets.length > 1) {
           // Multiple building targets
-          console.error(chalk.red('❌ Multiple targets available. Please specify:'));
-          for (const t of buildingTargets) {
-            console.error(`   - ${t.name} (currently building)`);
-          }
-          console.error(`   Usage: poltergeist logs <target>`);
-          process.exit(1);
+          const choices = buildingTargets
+            .map((t) => `   - ${t.name} (currently building)`)
+            .join('\n');
+          exitWithError(
+            `❌ Multiple targets available. Please specify:\n${choices}\n   Usage: poltergeist logs <target>`
+          );
         } else {
           // No building targets, show all available
-          console.error(chalk.red('❌ Multiple targets available. Please specify:'));
-          for (const t of targetStatuses) {
-            const lastBuild = t.status.lastBuild;
-            const buildInfo = lastBuild
-              ? `(last built ${new Date(lastBuild.timestamp).toLocaleString()})`
-              : '(never built)';
-            console.error(`   - ${t.name} ${buildInfo}`);
-          }
-          console.error(`   Usage: poltergeist logs <target>`);
-          process.exit(1);
+          const list = targetStatuses
+            .map((t) => {
+              const lastBuild = t.status.lastBuild;
+              const buildInfo = lastBuild
+                ? `(last built ${new Date(lastBuild.timestamp).toLocaleString()})`
+                : '(never built)';
+              return `   - ${t.name} ${buildInfo}`;
+            })
+            .join('\n');
+          exitWithError(
+            `❌ Multiple targets available. Please specify:\n${list}\n   Usage: poltergeist logs <target>`
+          );
         }
       }
     }
@@ -902,25 +900,22 @@ program
     const logFile = candidateLogFiles.find((filePath) => existsSync(filePath));
 
     if (!logFile) {
-      console.error(chalk.red(`No log file found for target: ${logTarget}`));
-      console.error(chalk.yellow('💡 Start Poltergeist to generate logs: poltergeist start'));
-      process.exit(1);
+      exitWithError(
+        `No log file found for target: ${logTarget ?? 'unknown'}\n💡 Start Poltergeist to generate logs: poltergeist start`
+      );
     }
 
     try {
       // Use tail option or default to 100 lines
       const lines = options.tail || '100';
-      await displayLogs(logFile, {
+      await displayLogs(logFile as string, {
         target: logTarget,
         lines,
         follow: options.follow,
         json: options.json,
       });
     } catch (error) {
-      console.error(
-        chalk.red(`Failed to read logs: ${error instanceof Error ? error.message : error}`)
-      );
-      process.exit(1);
+      exitWithError(`Failed to read logs: ${error instanceof Error ? error.message : error}`);
     }
   });
 
