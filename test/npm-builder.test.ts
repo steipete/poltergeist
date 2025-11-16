@@ -1,4 +1,4 @@
-import { describe, expect, it, vi, beforeEach } from 'vitest';
+import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { NPMBuilder } from '../src/builders/npm-builder.js';
 import type { Logger } from '../src/logger.js';
 import type { StateManager } from '../src/state.js';
@@ -61,8 +61,8 @@ describe('NPMBuilder output paths', () => {
   });
 
   it('still verifies declared outputPaths after a build', async () => {
-    existsSyncMock.mockImplementation((path) =>
-      path.endsWith('package.json') || path.endsWith('dist/index.js')
+    existsSyncMock.mockImplementation(
+      (path) => path.endsWith('package.json') || path.endsWith('dist/index.js')
     );
 
     const builder = new NPMBuilder(

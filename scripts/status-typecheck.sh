@@ -8,7 +8,7 @@ OUTPUT="$(pnpm run typecheck --pretty false 2>&1)"
 STATUS=$?
 
 if [ $STATUS -eq 0 ]; then
-  echo "Typecheck: no issues"
+  echo "no issues"
 else
   echo "Typecheck: failed (exit $STATUS)"
   echo "$OUTPUT" | head -n 5
