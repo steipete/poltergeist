@@ -4,7 +4,11 @@ All notable changes to Poltergeist will be documented in this file.
 
 ## [Unreleased]
 
-- _No entries yet_
+- Panel polish: centered full-width header box with compressed separators on narrow terminals, home-path shortening, muted durations, and tighter SwiftLint success output now shown as a simple `SwiftLint ✓`.
+- Upstream awareness: branch line shows ahead/behind badge (`↑n/↓n`) and keeps the header calm when up to date.
+- Usability tweaks: panel clears the screen on launch to hide restart noise and preserves readability with minimal spacing; durations remain gray while status colors stay intact.
+- Stability fixes: guarded stale-build warning when the daemon state file is missing; tightened test formatter typing.
+- Dependency hygiene: pnpm lockfile regenerated after switching the local oracle dependency to a workspace link.
 
 ## [2.1.0] - 2025-11-15
 
