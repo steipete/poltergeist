@@ -521,9 +521,7 @@ class PanelView extends Container {
       ...row,
       selected: state.selectedRowIndex === rowStart + idx,
     }));
-    this.header.setText(
-      formatHeader(snapshot, state.width, state.summaryModes, state.activeSummaryKey)
-    );
+    this.header.setText(formatHeader(snapshot, state.width));
     this.targets.setText(
       formatTargets(
         state.rows,
