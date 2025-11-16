@@ -245,7 +245,7 @@ export abstract class BaseBuilder<T extends Target = Target> {
             // Heuristic test progress for XCTest output
             if (this.target.type === 'test') {
               const testResult = sanitized.match(
-                /^Test Case '-\[[^ ]+ ([^]]+)\]' (passed|failed) \(([\d.]+) seconds\)/
+                /^Test Case '(?:-\[[^ ]+ )?([^']+)' (passed|failed) \(([\d.]+) seconds\)/
               );
               if (testResult) {
                 testCurrent += 1;
