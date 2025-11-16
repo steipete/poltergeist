@@ -1,5 +1,3 @@
-import { existsSync } from 'fs';
-import path from 'path';
 import chalk from 'chalk';
 import type { Command } from 'commander';
 import { createPoltergeist } from '../../factories.js';
@@ -7,13 +5,13 @@ import { createLogger } from '../../logger.js';
 import { runStatusPanel } from '../../panel/run-panel.js';
 import type { StatusObject } from '../../status/types.js';
 import type { PoltergeistConfig } from '../../types.js';
-import { FileSystemUtils } from '../../utils/filesystem.js';
 import { DEFAULT_LOG_CHANNEL, sanitizeLogChannel } from '../../utils/log-channels.js';
 import { displayLogs } from '../logging.js';
 import { formatTargetStatus } from '../status-formatters.js';
 import { exitWithError, loadConfigOrExit, parseGitModeOrExit } from '../shared.js';
 import { ghost, poltergeistMessage } from '../../utils/ghost.js';
 import { validateTarget } from '../../utils/target-validator.js';
+import { resolveLogPath } from '../log-path-resolver.js';
 
 export const registerStatusCommands = (program: Command): void => {
   program
@@ -248,91 +246,23 @@ async function showLogs(
 ): Promise<void> {
   const logChannel = sanitizeLogChannel(options.channel ?? DEFAULT_LOG_CHANNEL);
 
-  let logTarget = targetName;
-  if (!targetName) {
-    if (process.env.VITEST) {
-      const enabledTargets = config.targets.filter((t) => t.enabled !== false);
-      if (enabledTargets.length === 1) {
-        logTarget = enabledTargets[0]?.name;
-      }
-    } else {
-      const logger = createLogger(undefined, config.logging?.level || 'info');
-      const poltergeist = createPoltergeist(config, projectRoot, logger, options.config || '');
-      const status = await poltergeist.getStatus();
+  const resolved = resolveLogPath({
+    channel: logChannel,
+    config,
+    projectRoot,
+    targetName: targetName ?? (process.env.VITEST ? config.targets[0]?.name : undefined),
+  });
 
-      const targetStatuses: Array<{ name: string; status: StatusObject }> = [];
-      for (const [name, targetStatus] of Object.entries(status)) {
-        if (name.startsWith('_')) continue;
-        targetStatuses.push({ name, status: targetStatus as StatusObject });
-      }
-
-      if (targetStatuses.length === 0) {
-        exitWithError('No targets found');
-      } else if (targetStatuses.length === 1) {
-        logTarget = targetStatuses[0].name;
-      } else {
-        const buildingTargets = targetStatuses.filter(
-          (t) => t.status.lastBuild?.status === 'building'
-        );
-
-        if (buildingTargets.length === 1) {
-          logTarget = buildingTargets[0].name;
-        } else if (buildingTargets.length > 1) {
-          const choices = buildingTargets
-            .map((t) => `   - ${t.name} (currently building)`)
-            .join('\n');
-          exitWithError(
-            `❌ Multiple targets available. Please specify:\n${choices}\n   Usage: poltergeist logs <target>`
-          );
-        } else {
-          const list = targetStatuses
-            .map((t) => {
-              const lastBuild = t.status.lastBuild;
-              const buildInfo = lastBuild
-                ? `(last built ${new Date(lastBuild.timestamp).toLocaleString()})`
-                : '(never built)';
-              return `   - ${t.name} ${buildInfo}`;
-            })
-            .join('\n');
-          exitWithError(
-            `❌ Multiple targets available. Please specify:\n${list}\n   Usage: poltergeist logs <target>`
-          );
-        }
-      }
-    }
-  }
-
-  if (!logTarget && process.env.VITEST) {
-    logTarget = config.targets[0]?.name;
-  }
-
-  const resolveLogPath = (logPath?: string): string | undefined => {
-    if (!logPath) return undefined;
-    return path.isAbsolute(logPath) ? logPath : path.join(projectRoot, logPath);
-  };
-
-  const candidateLogFiles = [
-    logTarget ? FileSystemUtils.getLogFilePath(projectRoot, logTarget, logChannel) : undefined,
-    resolveLogPath(config.logging?.file),
-    path.join(projectRoot, '.poltergeist.log'),
-    logTarget ? path.join(projectRoot, `${logTarget}.log`) : undefined,
-    logTarget ? path.join(projectRoot, `.poltergeist-${logTarget}.log`) : undefined,
-  ]
-    .filter((filePath): filePath is string => !!filePath)
-    .filter((filePath, index, self) => self.indexOf(filePath) === index);
-
-  const logFile = candidateLogFiles.find((filePath) => existsSync(filePath));
-
-  if (!logFile) {
+  if (!resolved.logFile) {
     exitWithError(
-      `No log file found for target: ${logTarget ?? 'unknown'}\n💡 Start Poltergeist to generate logs: poltergeist start`
+      `No log file found for target: ${resolved.target ?? 'unknown'}\n💡 Start Poltergeist to generate logs: poltergeist start`
     );
   }
 
   try {
     const lines = options.tail || '100';
-    await displayLogs(logFile as string, {
-      target: logTarget,
+    await displayLogs(resolved.logFile as string, {
+      target: resolved.target,
       lines,
       follow: options.follow,
       json: options.json,
