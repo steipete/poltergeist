@@ -531,12 +531,13 @@ class PanelView extends Container {
     );
     this.globalScripts.setText(formatGlobalScripts(globalScripts, state.width));
     if (state.summarySelected) {
+      const summaryDivider = colors.line('─'.repeat(Math.max(4, state.width)));
       if (state.summaryMode === 'ai') {
         const aiSummary = formatAiSummary(snapshot.git.summary ?? []);
         if (aiSummary && aiSummary.body.trim().length > 0) {
           this.dirtyFiles.setText('');
           const headerText = aiSummary.header ?? colors.header('AI Summary of changed files:');
-          this.aiHeader.setText(`\n${headerText}`);
+          this.aiHeader.setText(`\n${headerText}\n${summaryDivider}`);
           const limitedBody = limitSummaryLines(
             aiSummary.body.trim(),
             Math.max(1, Math.floor(state.logLimit * SUMMARY_FRACTION))
@@ -557,7 +558,7 @@ class PanelView extends Container {
           Math.max(1, Math.floor(state.logLimit * SUMMARY_FRACTION))
         );
         this.dirtyFiles.setText(limitedDirty);
-        this.aiHeader.setText(colors.header('\nGit dirty files:'));
+        this.aiHeader.setText(`${colors.header('\nGit dirty files:')}\n${summaryDivider}`);
         this.aiMarkdown.setText('');
       }
     } else {
