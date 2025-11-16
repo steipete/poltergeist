@@ -39,13 +39,18 @@ export const COMMAND_DESCRIPTORS: CommandDescriptor[] = [
       { flags: '-c, --config <path>', description: 'Path to config file' },
       { flags: '-t, --target <name>', description: 'Target to filter status/logs' },
       { flags: '--verbose', description: 'Show detailed status information' },
+      { flags: '--json', description: 'Output status/logs/wait as JSON where supported' },
     ],
     aliases: ['panel', 'logs', 'wait'],
   },
   {
     name: 'project',
     register: registerProjectCommands,
-    options: [{ flags: '-c, --config <path>', description: 'Path to config file' }],
+    options: [
+      { flags: '-c, --config <path>', description: 'Path to config file' },
+      { flags: '--dry-run', description: 'Show actions without writing files (init/clean)' },
+      { flags: '--json', description: 'Output JSON summary for clean' },
+    ],
     aliases: ['init', 'list', 'clean'],
   },
   {
