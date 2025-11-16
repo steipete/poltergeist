@@ -619,6 +619,7 @@ program
   .option('--generator <gen>', 'CMake generator to use')
   .option('--build-dir <dir>', 'Build directory', 'build')
   .option('--dry-run', 'Show what would be generated without creating config')
+  .option('--no-auto-add', 'Skip auto-adding inferred targets when none are enabled')
   .action(async (options) => {
     const projectRoot = process.cwd();
     const configPath = join(projectRoot, 'poltergeist.config.json');
@@ -772,7 +773,9 @@ program
       }
     }
 
-    const detectedTargets = await augmentConfigWithDetectedTargets(projectRoot, config);
+    const detectedTargets = await augmentConfigWithDetectedTargets(projectRoot, config, {
+      allowAutoAdd: options.autoAdd !== false,
+    });
 
     const configJson = JSON.stringify(config, null, 2);
 
