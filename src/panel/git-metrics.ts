@@ -12,6 +12,10 @@ export interface GitMetrics {
   insertions: number;
   deletions: number;
   branch?: string;
+  ahead?: number;
+  behind?: number;
+  upstream?: string;
+  lastFetchedAt?: number;
   hasRepo: boolean;
   lastUpdated: number;
   summary?: string[];
@@ -46,6 +50,7 @@ export class GitMetricsCollector {
   private summaryCooldownUntil = new Map<string, number>();
   private summaryCache = new Map<string, string[] | undefined>();
   private summarySignatures = new Map<string, string>();
+  private upstreamCooldownUntil = new Map<string, number>();
 
   constructor(options: GitMetricsOptions = {}) {
     this.throttleMs = options.throttleMs ?? 5000;
@@ -98,6 +103,7 @@ export class GitMetricsCollector {
       );
       const { insertions, deletions } = this.parseDiffStats(diffRaw);
       const summary = this.summaryMode === 'ai' ? this.summaryCache.get(projectRoot) : undefined;
+      const upstream = await this.maybeRefreshUpstream(projectRoot, branch);
 
       const metrics: GitMetrics = {
         dirtyFiles,
@@ -105,6 +111,10 @@ export class GitMetricsCollector {
         insertions,
         deletions,
         branch,
+        ahead: upstream?.ahead ?? this.cache.get(projectRoot)?.ahead,
+        behind: upstream?.behind ?? this.cache.get(projectRoot)?.behind,
+        upstream: upstream?.upstream ?? this.cache.get(projectRoot)?.upstream,
+        lastFetchedAt: upstream?.lastFetchedAt ?? this.cache.get(projectRoot)?.lastFetchedAt,
         hasRepo: true,
         lastUpdated: Date.now(),
         summary,
@@ -135,6 +145,52 @@ export class GitMetricsCollector {
       };
       this.cache.set(projectRoot, fallback);
       return fallback;
+    }
+  }
+
+  private async maybeRefreshUpstream(
+    projectRoot: string,
+    branch?: string
+  ): Promise<{ ahead: number; behind: number; upstream: string; lastFetchedAt: number } | null> {
+    if (!branch) return null;
+    const now = Date.now();
+    const cooldownUntil = this.upstreamCooldownUntil.get(projectRoot) ?? 0;
+    if (now < cooldownUntil) {
+      const cached = this.cache.get(projectRoot);
+      return cached?.upstream
+        ? {
+            ahead: cached.ahead ?? 0,
+            behind: cached.behind ?? 0,
+            upstream: cached.upstream,
+            lastFetchedAt: cached.lastFetchedAt ?? 0,
+          }
+        : null;
+    }
+
+    // Update immediately, then set cooldown (2 minutes) to avoid frequent fetches.
+    this.upstreamCooldownUntil.set(projectRoot, now + 120_000);
+    try {
+      const upstream = `origin/${branch}`;
+      await this.runner(['fetch', '--quiet', '--no-tags', '--depth=1', 'origin', branch], projectRoot);
+      const aheadRaw = await this.runner(
+        ['rev-list', '--count', `${upstream}..HEAD`],
+        projectRoot
+      ).catch(() => '0');
+      const behindRaw = await this.runner(
+        ['rev-list', '--count', `HEAD..${upstream}`],
+        projectRoot
+      ).catch(() => '0');
+      return {
+        ahead: Number.parseInt(aheadRaw.trim() || '0', 10) || 0,
+        behind: Number.parseInt(behindRaw.trim() || '0', 10) || 0,
+        upstream,
+        lastFetchedAt: Date.now(),
+      };
+    } catch (error) {
+      this.logger?.warn?.(
+        `[Panel] Failed to refresh upstream status: ${error instanceof Error ? error.message : error}`
+      );
+      return null;
     }
   }
 

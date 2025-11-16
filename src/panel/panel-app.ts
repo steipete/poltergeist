@@ -433,8 +433,10 @@ function formatHeader(snapshot: PanelSnapshot, width?: number): string {
   const dirtyLabel = mode === 'full' ? 'Dirty files:' : 'Dirty:';
   const deltaLabel = mode === 'full' ? 'ΔLOC:' : 'Δ:';
   const separator = mode === 'narrow' ? colors.muted(' · ') : colors.muted(' | ');
-  const branchLine = [
+  const upstreamBadge = formatUpstreamBadge(snapshot.git, mode);
+  const branchSegments = [
     `${colors.muted(branchLabel)} ${colors.text(branch)}`,
+    upstreamBadge,
     `${colors.muted(dirtyLabel)} ${
       snapshot.git.hasRepo ? dirtyColor(String(dirtyFiles)) : colors.info('n/a')
     }`,
@@ -443,7 +445,8 @@ function formatHeader(snapshot: PanelSnapshot, width?: number): string {
         ? `${insertColor(`+${insertions}`)} ${colors.muted('/')} ${deleteColor(`-${deletions}`)}`
         : colors.info('n/a')
     }`,
-  ].join(`  ${separator}  `);
+  ].filter(Boolean);
+  const branchLine = branchSegments.join(`  ${separator}  `);
 
   const summaryLine = formatSummary(snapshot, mode);
 
@@ -454,6 +457,23 @@ function formatHeader(snapshot: PanelSnapshot, width?: number): string {
       : (line: string) => centerText(line, width ? width - 2 : undefined);
   const mapped = lines.map(mapLine);
   return boxLines(mapped, width);
+}
+
+function formatUpstreamBadge(git: PanelSnapshot['git'], mode: HeaderMode): string | undefined {
+  const ahead = git.ahead ?? 0;
+  const behind = git.behind ?? 0;
+  if (ahead === 0 && behind === 0) {
+    return mode === 'narrow' ? undefined : colors.success('✓ up to date');
+  }
+  const parts: string[] = [];
+  if (behind > 0) {
+    parts.push(colors.failure(`↓${behind}`));
+  }
+  if (ahead > 0) {
+    parts.push(colors.accent(`↑${ahead}`));
+  }
+  const label = mode === 'full' ? 'upstream' : 'up';
+  return `${colors.muted(label)} ${parts.join(' ')}`.trim();
 }
 
 function formatSummary(snapshot: PanelSnapshot, mode: HeaderMode = 'full'): string {
