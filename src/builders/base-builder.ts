@@ -153,6 +153,8 @@ export abstract class BaseBuilder<T extends Target = Target> {
       let lastProgressPercent = -1;
       let lastProgressUpdate = 0;
       const throttleMs = 300;
+      let testCurrent = 0;
+      let testTotal = 0;
       const updateProgress = (progress: BuildProgress) => {
         const now = Date.now();
         if (progress.percent === lastProgressPercent && now - lastProgressUpdate < throttleMs) {
@@ -205,6 +207,52 @@ export abstract class BaseBuilder<T extends Target = Target> {
                   label,
                   updatedAt: new Date().toISOString(),
                 });
+              }
+            }
+
+            // Heuristic test progress for XCTest output
+            if (this.target.type === 'test') {
+              const testResult = line.match(
+                /^Test Case '-\[[^ ]+ ([^]]+)\]' (passed|failed) \(([\d.]+) seconds\)/
+              );
+              if (testResult) {
+                testCurrent += 1;
+                // If we don't yet know total, keep it at least as high as current.
+                testTotal = Math.max(testTotal, testCurrent);
+                const percent =
+                  testTotal > 0
+                    ? Math.min(100, Math.round((testCurrent / testTotal) * 100))
+                    : undefined;
+                if (percent !== undefined) {
+                  updateProgress({
+                    current: testCurrent,
+                    total: testTotal,
+                    percent,
+                    label: `Test ${testCurrent}/${testTotal}`,
+                    updatedAt: new Date().toISOString(),
+                  });
+                }
+              }
+
+              const executed = line.match(/^Executed (\d+) tests?, with /);
+              if (executed) {
+                const reported = Number.parseInt(executed[1], 10);
+                if (Number.isFinite(reported) && reported > 0) {
+                  testTotal = Math.max(testTotal, reported);
+                  const percent =
+                    testTotal > 0
+                      ? Math.min(100, Math.round((testCurrent / testTotal) * 100))
+                      : undefined;
+                  if (percent !== undefined) {
+                    updateProgress({
+                      current: testCurrent,
+                      total: testTotal,
+                      percent,
+                      label: `Tests ${testCurrent}/${testTotal}`,
+                      updatedAt: new Date().toISOString(),
+                    });
+                  }
+                }
               }
             }
           }
