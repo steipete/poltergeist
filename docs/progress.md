@@ -13,6 +13,7 @@ Poltergeist surfaces live progress for builds and tests and renders a text bar i
 
 - **SwiftPM builds**: lines like `[12/50] Compiling Foo.swift` are parsed from stdout.
 - **XCTest runs**: lines `Test Case '-[Suite testX]' passed/failed ...` increment the counter; the final `Executed N tests` summary supplies a total when present.
+- **Vitest runs**: summary lines like `Tests 2 failed | 5 passed | 7 total` (or `Test Files … total`) are parsed; counts before `total` become the current value.
 
 Each update writes a `progress` payload into the target’s state file:
 

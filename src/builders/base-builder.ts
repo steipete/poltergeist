@@ -7,6 +7,28 @@ import type { StateManager } from '../state.js';
 import type { BuildProgress, BuildStatus, Target } from '../types.js';
 import { BuildStatusManager } from '../utils/build-status-manager.js';
 
+export const parseVitestProgressLine = (line: string): BuildProgress | null => {
+  if (!/Test(s)?\s/i.test(line)) return null;
+  const numbers = line.match(/\d+/g);
+  if (!numbers || numbers.length < 2) return null;
+  const total = Number.parseInt(numbers[numbers.length - 1] ?? '', 10);
+  if (!Number.isFinite(total) || total <= 0) return null;
+  const current = numbers
+    .slice(0, -1)
+    .map((n) => Number.parseInt(n, 10))
+    .filter((n) => Number.isFinite(n) && n >= 0)
+    .reduce((sum, n) => sum + n, 0);
+  if (!Number.isFinite(current) || current <= 0) return null;
+  const percent = Math.min(100, Math.max(0, Math.round((current / total) * 100)));
+  return {
+    current,
+    total,
+    percent,
+    label: 'Vitest',
+    updatedAt: new Date().toISOString(),
+  };
+};
+
 export interface BuildOptions {
   captureLogs?: boolean;
   logFile?: string;
@@ -208,6 +230,12 @@ export abstract class BaseBuilder<T extends Target = Target> {
                   updatedAt: new Date().toISOString(),
                 });
               }
+            }
+
+            // Vitest structured-ish progress lines, e.g. "Tests 2 failed | 5 passed | 7 total"
+            const vitestProgress = parseVitestProgressLine(line);
+            if (vitestProgress) {
+              updateProgress(vitestProgress);
             }
 
             // Heuristic test progress for XCTest output
