@@ -10,17 +10,14 @@ import { printBuildLockHints } from '../status-formatters.js';
 import { validateTarget } from '../../utils/target-validator.js';
 import { loadConfigOrExit, exitWithError } from '../shared.js';
 import { createBuilderForTarget, instantiateStateManager, loadDaemonManager } from '../loaders.js';
+import { applyConfigOption, applyLogLevelOptions, applyTargetOption } from '../options.js';
 import type { Target } from '../../types.js';
 
 export const registerDaemonCommands = (program: Command): void => {
-  program
+  const haunt = program
     .command('haunt')
     .alias('start')
     .description('Start watching and auto-building your project (spawns a daemon and returns immediately)')
-    .option('-t, --target <name>', 'Target to build (omit to build all enabled targets)')
-    .option('-c, --config <path>', 'Path to config file')
-    .option('--verbose', 'Enable verbose logging (same as --log-level debug)')
-    .option('--log-level <level>', 'Set log level (debug, info, warn, error)')
     .option('-f, --foreground', 'Run in foreground (blocking mode)')
     .action(async (options) => {
       const { config, projectRoot, configPath } = await loadConfigOrExit(options.config);
@@ -162,6 +159,10 @@ export const registerDaemonCommands = (program: Command): void => {
         flushLoggerIfPossible();
       }
     });
+
+  applyTargetOption(haunt);
+  applyConfigOption(haunt);
+  applyLogLevelOptions(haunt);
 
   program
     .command('stop')
