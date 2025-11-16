@@ -229,7 +229,7 @@ program
           console.log(chalk.gray('Use "poltergeist status" to see details'));
           console.log(chalk.gray('Use "poltergeist stop" to stop the daemon'));
           flushLoggerIfPossible();
-          process.exit(1);
+          exitWithError('Daemon already running');
         }
 
         console.log(chalk.gray(poltergeistMessage('info', 'Starting daemon...')));
