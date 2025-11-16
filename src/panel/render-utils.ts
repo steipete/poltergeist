@@ -249,7 +249,7 @@ export function formatTargets(
 
   if (summaryRow && summaryModes.length > 0) {
     const chipKey = summaryRow.selected ? activeSummaryKey : undefined;
-    const chips = formatSummaryChips(summaryModes, chipKey, width, { center: false });
+    const chips = formatSummaryChips(summaryModes, chipKey, width, { center: true });
     if (chips) {
       lines.push(chips);
     }
