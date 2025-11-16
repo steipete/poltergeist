@@ -11,6 +11,7 @@ import { FileSystemUtils } from '../../utils/filesystem.js';
 import { ghost, poltergeistMessage } from '../../utils/ghost.js';
 import type { AppBundleTarget, PoltergeistConfig, ProjectType, Target } from '../../types.js';
 import { instantiateStateManager } from '../loaders.js';
+import { applyConfigOption } from '../options.js';
 
 export const registerProjectCommands = (program: Command): void => {
   program
@@ -209,10 +210,9 @@ export const registerProjectCommands = (program: Command): void => {
       }
     });
 
-  program
+  const listCmd = program
     .command('list')
     .description('List all configured targets')
-    .option('-c, --config <path>', 'Path to config file')
     .action(async (options) => {
       const { config } = await loadConfigOrExit(options.config);
 
@@ -240,6 +240,8 @@ export const registerProjectCommands = (program: Command): void => {
         });
       }
     });
+
+  applyConfigOption(listCmd);
 
   program
     .command('clean')

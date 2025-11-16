@@ -12,12 +12,12 @@ import { ensureOrExit, exitWithError, loadConfigOrExit, parseGitModeOrExit } fro
 import { ghost, poltergeistMessage } from '../../utils/ghost.js';
 import { validateTarget } from '../../utils/target-validator.js';
 import { resolveLogPath } from '../log-path-resolver.js';
+import { applyConfigOption } from '../options.js';
 
 export const registerStatusCommands = (program: Command): void => {
-  program
+  const panelCmd = program
     .command('panel')
     .description('Open the interactive status panel')
-    .option('-c, --config <path>', 'Path to config file')
     .option('--verbose', 'Enable verbose logging (same as --log-level debug)')
     .option('--git-mode <mode>', 'Git summary mode (ai | list)', 'ai')
     .action(async (options) => {
@@ -33,11 +33,12 @@ export const registerStatusCommands = (program: Command): void => {
       });
     });
 
-  program
+  applyConfigOption(panelCmd);
+
+  const statusCmd = program
     .command('status [view]')
     .description('Check Poltergeist status')
     .option('-t, --target <name>', 'Check specific target status')
-    .option('-c, --config <path>', 'Path to config file')
     .option('--verbose', 'Show detailed status information')
     .option('--json', 'Output status as JSON')
     .option('--git-mode <mode>', 'Git summary mode (ai | list)', 'ai')
@@ -99,12 +100,13 @@ export const registerStatusCommands = (program: Command): void => {
       }
     });
 
-  program
+  applyConfigOption(statusCmd);
+
+  const logsCmd = program
     .command('logs [target]')
     .description('Show Poltergeist logs')
     .option('-t, --tail <number>', 'Number of lines to show (default: 100)')
     .option('-f, --follow', 'Follow log output')
-    .option('-c, --config <path>', 'Path to config file')
     .option('-C, --channel <name>', 'Log channel to display (default: build)')
     .option('--json', 'Output logs in JSON format')
     .action(async (targetName, options) => {
@@ -113,11 +115,12 @@ export const registerStatusCommands = (program: Command): void => {
       await showLogs(config, projectRoot, targetName, options);
     });
 
-  program
+  applyConfigOption(logsCmd);
+
+  const waitCmd = program
     .command('wait [target]')
     .description('Wait for a build to complete')
     .option('-t, --timeout <seconds>', 'Maximum time to wait in seconds', '300')
-    .option('-c, --config <path>', 'Path to config file')
     .option('--json', 'Output result as JSON')
     .action(async (targetName, options) => {
       const { config, projectRoot } = await loadConfigOrExit(options.config);
@@ -281,6 +284,7 @@ export const registerStatusCommands = (program: Command): void => {
         exitWithError(`Failed to wait: ${error}`);
       }
     });
+  applyConfigOption(waitCmd);
 };
 
 async function showLogs(

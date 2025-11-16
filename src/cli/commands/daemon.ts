@@ -164,11 +164,10 @@ export const registerDaemonCommands = (program: Command): void => {
   applyConfigOption(haunt);
   applyLogLevelOptions(haunt);
 
-  program
+  const stopCmd = program
     .command('stop')
     .alias('rest')
     .description('Stop Poltergeist daemon')
-    .option('-c, --config <path>', 'Path to config file')
     .action(async (options) => {
       const { config, projectRoot } = await loadConfigOrExit(options.config);
       const logger = createLogger(config.logging?.level || 'info');
@@ -205,13 +204,12 @@ export const registerDaemonCommands = (program: Command): void => {
       }
     });
 
-  program
+  applyConfigOption(stopCmd);
+
+  const restartCmd = program
     .command('restart')
     .description('Restart Poltergeist daemon')
-    .option('-c, --config <path>', 'Path to config file')
     .option('-f, --foreground', 'Restart in foreground mode')
-    .option('--verbose', 'Enable verbose logging')
-    .option('-t, --target <name>', 'Target to build')
     .action(async (options) => {
       console.log(chalk.gray(poltergeistMessage('info', 'Restarting...')));
 
@@ -249,6 +247,10 @@ export const registerDaemonCommands = (program: Command): void => {
         exitWithError(poltergeistMessage('error', `Restart failed: ${error}`));
       }
     });
+
+  applyConfigOption(restartCmd);
+  applyTargetOption(restartCmd);
+  applyLogLevelOptions(restartCmd);
 
   program
     .command('build [target]')
