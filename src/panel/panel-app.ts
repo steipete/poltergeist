@@ -44,6 +44,8 @@ export class PanelApp {
   private started = false;
   private resizeListenerAttached = false;
   private userNavigated = false;
+   // Left/right toggle between build and test-focused log views.
+  private logMode: 'build' | 'test' = 'build';
   private snapshot: PanelSnapshot;
   private selectedIndex: number;
   private logLines: string[] = [];
@@ -193,6 +195,16 @@ export class PanelApp {
         }
         if (code === 'B') {
           this.moveSelection(1);
+          i += 3;
+          continue;
+        }
+        if (code === 'C') {
+          this.flipLogMode('next');
+          i += 3;
+          continue;
+        }
+        if (code === 'D') {
+          this.flipLogMode('prev');
           i += 3;
           continue;
         }
@@ -358,7 +370,7 @@ export class PanelApp {
 
     const aiSummary = formatAiSummary(snapshot.git.summary ?? []);
     if (aiSummary && aiSummary.body.trim().length > 0) {
-      const headerText = aiSummary.header ?? colors.header('AI summary of changed files:');
+      const headerText = aiSummary.header ?? colors.header('AI Summary of changed files:');
       const aiHeaderLines = countLines(`\n${headerText}`);
       const aiMarkdownLines = countLines(aiSummary.body.trim());
       return {
@@ -381,7 +393,7 @@ export class PanelApp {
 
   private getSummaryLabel(snapshot: PanelSnapshot): string | undefined {
     if (this.hasAiSummary(snapshot)) {
-      return 'AI summary';
+      return 'AI Summary';
     }
     if (this.hasDirtySummary(snapshot)) {
       return 'Git status';
@@ -476,7 +488,7 @@ class PanelView extends Container {
       const aiSummary = formatAiSummary(snapshot.git.summary ?? []);
       if (aiSummary && aiSummary.body.trim().length > 0) {
         this.dirtyFiles.setText('');
-        const headerText = aiSummary.header ?? colors.header('AI summary of changed files:');
+      const headerText = aiSummary.header ?? colors.header('AI Summary of changed files:');
         this.aiHeader.setText(`\n${headerText}`);
         this.aiMarkdown.setText(aiSummary.body.trim());
       } else {
