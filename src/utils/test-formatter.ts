@@ -73,7 +73,7 @@ function summarizeSwift(lines: string[]): string | null {
   const status = failures !== undefined ? (failures === '0' ? 'PASS' : 'FAIL') : suiteStatus(suite);
   if (!status) return null;
 
-  const parts = [status];
+  const parts: string[] = [status];
   if (tests !== undefined) parts.push(`${tests} tests`);
   if (failures !== undefined) parts.push(`${failures} fail`);
   if (duration) parts.push(`${duration}s`);

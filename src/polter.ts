@@ -148,6 +148,7 @@ function warnIfBuildStaleByAge(
 
   try {
     const state = FileSystemUtils.readJsonFileStrict<PoltergeistState>(statePath);
+    if (!state) return;
     const ts = state.lastBuild?.timestamp;
     if (!ts) return;
 
