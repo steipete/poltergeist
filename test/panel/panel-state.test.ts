@@ -1,5 +1,9 @@
 import { describe, expect, it } from 'vitest';
-import { getDefaultSummaryMode, getSummaryModes } from '../../src/panel/panel-state.js';
+import {
+  getDefaultSummaryMode,
+  getSummaryModes,
+  hasSummaryRow,
+} from '../../src/panel/panel-state.js';
 import type { PanelSnapshot } from '../../src/panel/types.js';
 
 const baseSnapshot = (): PanelSnapshot => ({
@@ -26,6 +30,7 @@ describe('panel-state summary defaults', () => {
     const modes = getSummaryModes(snapshot);
     expect(modes.find((m) => m.key === 'ai')?.hasData).toBe(true);
     expect(getDefaultSummaryMode(snapshot)).toBe('ai');
+    expect(hasSummaryRow(snapshot)).toBe(true);
   });
 
   it('falls back to first mode when no data', () => {
@@ -33,5 +38,6 @@ describe('panel-state summary defaults', () => {
     const modes = getSummaryModes(snapshot);
     expect(modes[0]?.hasData).toBe(false);
     expect(getDefaultSummaryMode(snapshot)).toBe(modes[0]?.key ?? 'ai');
+    expect(hasSummaryRow(snapshot)).toBe(false);
   });
 });

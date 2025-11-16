@@ -93,7 +93,7 @@ export const findSummaryByMode = (
 };
 
 export const hasSummaryRow = (snapshot: PanelSnapshot): boolean =>
-  getSummaryModes(snapshot).length > 0;
+  getSummaryModes(snapshot).some((mode) => mode.hasData);
 
 export const getRowSummaries = (snapshot: PanelSnapshot): PanelSummaryScriptResult[] =>
   (snapshot.summaryScripts ?? []).filter((summary) => summary.placement === 'row');
