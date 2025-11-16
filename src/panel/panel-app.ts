@@ -474,7 +474,7 @@ function formatTargets(
     const lastBuild = formatRelativeTime(entry.status.lastBuild?.timestamp);
     const duration = formatDuration(entry.status.lastBuild?.duration);
 
-    const parts = [color(statusLabel)];
+    const parts = [formatStatusBadge(status, statusLabel, color)];
     if (lastBuild && lastBuild !== '—') {
       parts.push(lastBuild);
     }
@@ -627,6 +627,25 @@ function statusColor(status?: string): { color: (value: string) => string; label
       return { color: colors.accent, label: 'watching' };
     default:
       return { color: colors.info, label: status || 'unknown' };
+  }
+}
+
+function formatStatusBadge(
+  status: string | undefined,
+  label: string,
+  color: (value: string) => string
+): string {
+  switch (status) {
+    case 'success':
+      return colors.success('✅');
+    case 'failure':
+      return colors.failure('✖ failure');
+    case 'building':
+      return colors.warning('⏳ building');
+    case 'watching':
+      return colors.accent('👁 watching');
+    default:
+      return color(label);
   }
 }
 
