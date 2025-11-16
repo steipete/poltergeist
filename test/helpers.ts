@@ -301,11 +301,14 @@ export function simulateFileChange(
 /**
  * Wait for all pending timers and promises
  */
-export async function waitForAsync(ms?: number): Promise<void> {
-  if (ms) {
-    vi.advanceTimersByTime(ms);
+export async function waitForAsync(ms?: number, options?: { drainAll?: boolean }): Promise<void> {
+  const drainAll = options?.drainAll ?? true;
+  if (typeof ms === 'number') {
+    await vi.advanceTimersByTimeAsync(ms);
   }
-  await vi.runAllTimersAsync();
+  if (drainAll) {
+    await vi.runAllTimersAsync();
+  }
   await Promise.resolve();
 }
 

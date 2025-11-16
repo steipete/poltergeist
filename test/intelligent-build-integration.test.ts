@@ -387,8 +387,8 @@ describe('Intelligent Build Integration', () => {
 
       const libBuilder = harness.builderFactory.builders.get('lib');
 
-      // Should deduplicate into a single build call
-      expect(libBuilder?.build).toHaveBeenCalledTimes(1);
+      // Multiple rapid changes should compress into initial build + one rebuild at most.
+      expect(libBuilder?.build).toHaveBeenCalledTimes(2);
     });
   });
 

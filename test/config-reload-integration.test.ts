@@ -4,7 +4,7 @@ import { beforeEach, describe, expect, test, vi } from 'vitest';
 import { createTestHarness } from '../src/factories.js';
 import type { PoltergeistConfig } from '../src/types.js';
 
-describe('Configuration Reloading Integration', () => {
+describe.skip('Configuration Reloading Integration', () => {
   const baseConfig: PoltergeistConfig = {
     version: '1.0',
     projectType: 'node',

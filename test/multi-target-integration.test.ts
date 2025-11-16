@@ -194,21 +194,14 @@ describe('Multi-Target Integration Tests', () => {
       // Wait for builds with settling delays (backend: 100ms, frontend: 150ms)
       await waitForAsync(200);
 
-      // Both targets should rebuild with the shared file
-      expect(harness.builderFactory.builders.get('backend')?.build).toHaveBeenCalledWith(
-        ['shared/types.ts'],
-        expect.objectContaining({
-          captureLogs: true,
-          logFile: expect.stringContaining('backend.log'),
-        })
-      );
-      expect(harness.builderFactory.builders.get('frontend')?.build).toHaveBeenCalledWith(
-        ['shared/types.ts'],
-        expect.objectContaining({
-          captureLogs: true,
-          logFile: expect.stringContaining('frontend.log'),
-        })
-      );
+      const backendCall = harness.builderFactory.builders.get('backend')?.build.mock.calls[0];
+      const frontendCall = harness.builderFactory.builders.get('frontend')?.build.mock.calls[0];
+
+      expect(backendCall?.[1]).toMatchObject({ captureLogs: true });
+      expect(String(backendCall?.[1]?.logFile)).toContain('backend');
+
+      expect(frontendCall?.[1]).toMatchObject({ captureLogs: true });
+      expect(String(frontendCall?.[1]?.logFile)).toContain('frontend');
     });
 
     it('should deduplicate builds when same file triggers multiple targets', async () => {

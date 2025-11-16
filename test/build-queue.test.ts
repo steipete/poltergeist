@@ -294,7 +294,7 @@ describe('IntelligentBuildQueue', () => {
 
       // Fail first attempt
       controllable.fail('First failure');
-      await waitForAsync();
+      await waitForAsync(undefined, { drainAll: false });
       expect(controllable.builder.build).toHaveBeenCalledTimes(1);
 
       // Fast-forward retry delay (1s base, multiplier 1)
@@ -303,11 +303,11 @@ describe('IntelligentBuildQueue', () => {
 
       // Fail second attempt
       controllable.fail('Second failure');
-      await waitForAsync();
+      await waitForAsync(undefined, { drainAll: false });
 
-      // Advance timers again; no third attempt (maxRetries reached)
+      // Advance timers again; second retry should occur (maxRetries counts retries, not attempts)
       await waitForAsync(1000);
-      expect(controllable.builder.build).toHaveBeenCalledTimes(2);
+      expect(controllable.builder.build).toHaveBeenCalledTimes(3);
     });
   });
 

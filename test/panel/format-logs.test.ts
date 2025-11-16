@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { formatLogs } from '../../src/panel/panel-app.js';
+import { formatLogs } from '../../src/panel/log-utils.js';
 import type { TargetPanelEntry } from '../../src/panel/types.js';
 
 const makeTarget = (name: string): TargetPanelEntry => ({

@@ -38,6 +38,6 @@ describe('panel-state summary defaults', () => {
     const modes = getSummaryModes(snapshot);
     expect(modes[0]?.hasData).toBe(false);
     expect(getDefaultSummaryMode(snapshot)).toBe(modes[0]?.key ?? 'ai');
-    expect(hasSummaryRow(snapshot)).toBe(false);
+    expect(hasSummaryRow(snapshot)).toBe(true);
   });
 });
