@@ -5,10 +5,10 @@ import { promisify } from 'util';
 import type { StatusObject } from '../status/types.js';
 import type { StatusScriptConfig, SummaryScriptConfig } from '../types.js';
 import { FileSystemUtils } from '../utils/filesystem.js';
+import { normalizeLogChannels } from '../utils/log-channels.js';
 import { formatTestOutput } from '../utils/test-formatter.js';
 import { GitMetricsCollector } from './git-metrics.js';
 import { LogTailReader } from './log-reader.js';
-import { normalizeLogChannels } from '../utils/log-channels.js';
 import type {
   PanelControllerOptions,
   PanelSnapshot,
@@ -24,6 +24,7 @@ interface UpdateEvent {
 }
 
 type UpdateListener = (snapshot: PanelSnapshot) => void;
+type LogListener = () => void;
 
 export class StatusPanelController {
   private snapshot: PanelSnapshot;
@@ -151,12 +152,23 @@ export class StatusPanelController {
     };
   }
 
+  public onLogUpdate(listener: LogListener): () => void {
+    this.emitter.on('log-update', listener);
+    return () => {
+      this.emitter.off('log-update', listener);
+    };
+  }
+
   public async forceRefresh(): Promise<void> {
     await this.refreshStatus({ refreshGit: true, forceGit: true });
     await this.refreshStatusScripts(true);
   }
 
-  public async getLogLines(targetName: string, channel?: string, limit?: number): Promise<string[]> {
+  public async getLogLines(
+    targetName: string,
+    channel?: string,
+    limit?: number
+  ): Promise<string[]> {
     return this.logReader.read(targetName, channel, limit);
   }
 
@@ -308,6 +320,7 @@ export class StatusPanelController {
       };
 
       this.emitter.emit('update', { snapshot: this.snapshot });
+      this.emitter.emit('log-update');
       const emitMs = Date.now() - emitStart;
 
       const totalMs = Date.now() - totalStart;
@@ -455,6 +468,7 @@ export class StatusPanelController {
           lastUpdated: Date.now(),
         };
         this.emitter.emit('update', { snapshot: this.snapshot });
+        this.emitter.emit('log-update');
       }
 
       const jobs = configs.map(async (scriptConfig) => {
@@ -482,6 +496,7 @@ export class StatusPanelController {
           lastUpdated: Date.now(),
         };
         this.emitter.emit('update', { snapshot: this.snapshot });
+        this.emitter.emit('log-update');
         return result;
       });
 
@@ -516,7 +531,9 @@ export class StatusPanelController {
 
   private mergeSummaryResult(result: PanelSummaryScriptResult): PanelSummaryScriptResult[] {
     const current = this.snapshot.summaryScripts ?? [];
-    const filtered = current.filter((r) => !(r.label === result.label && r.placement === result.placement));
+    const filtered = current.filter(
+      (r) => !(r.label === result.label && r.placement === result.placement)
+    );
     return [...filtered, result];
   }
 

@@ -79,6 +79,7 @@ export class PanelApp {
   // Cache flattened rows per snapshot to avoid redundant tree builds.
   private cachedRowsVersion: number | null = null;
   private cachedRows: TargetRow[] = [];
+  private unsubscribeLogs?: () => void;
   private snapshot: PanelSnapshot;
   // Index within the flattened target list (tree order); may point to summary/custom rows.
   private selectedRowIndex: number;
@@ -130,6 +131,9 @@ export class PanelApp {
     this.unsubscribe = this.controller.onUpdate((snapshot) => {
       this.handleSnapshot(snapshot);
     });
+    this.unsubscribeLogs = this.controller.onLogUpdate(() => {
+      this.queueLogRefresh();
+    });
 
     this.tui.start();
     this.started = true;
@@ -152,6 +156,10 @@ export class PanelApp {
     if (this.unsubscribe) {
       this.unsubscribe();
       this.unsubscribe = undefined;
+    }
+    if (this.unsubscribeLogs) {
+      this.unsubscribeLogs();
+      this.unsubscribeLogs = undefined;
     }
     if (this.resizeListenerAttached && typeof process.stdout.off === 'function') {
       process.stdout.off('resize', this.handleTerminalResize);
@@ -490,6 +498,8 @@ interface PanelViewState {
   width: number;
   summaryRowLabel?: string;
   summarySelected: boolean;
+  summaryModes: SummaryModeOption[];
+  activeSummaryKey: string;
   customSummary?: PanelSummaryScriptResult;
   rowSummaries: PanelSummaryScriptResult[];
   summaryInfo: SummaryRenderInfo;
