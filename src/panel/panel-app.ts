@@ -201,6 +201,9 @@ export class PanelApp {
 
   private shouldShowLogs(entry?: TargetPanelEntry): boolean {
     const status = entry?.status.lastBuild?.status;
+    if (entry?.targetType === 'test') {
+      return true;
+    }
     return status === 'building' || status === 'failure';
   }
 
