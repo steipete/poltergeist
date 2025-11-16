@@ -844,6 +844,9 @@ function formatScriptLines(script: PanelStatusScriptResult, prefix = '', width =
   const scriptColor = scriptColorFromExitCode(script.exitCode);
   const limit = Math.max(1, script.maxLines ?? script.lines.length);
   const selectedLines = script.lines.slice(0, limit).map(stripAnsiCodes);
+  const normalizedLines = selectedLines.map((line, index) =>
+    normalizeScriptLine(line, script.label, script.exitCode, index === 0)
+  );
   const durationTag = ` · ${formatDurationShort(script.durationMs ?? 0)}`;
   const coloredDuration = colors.muted(durationTag);
   const hideLabel =
@@ -852,16 +855,16 @@ function formatScriptLines(script: PanelStatusScriptResult, prefix = '', width =
       script.lines.length > 0) ||
     script.label.toLowerCase() === 'tests';
   const shouldAppendDuration =
-    !selectedLines[0]?.match(/\b\d+(?:\.\d+)?s\b/) && script.durationMs !== undefined;
+    !normalizedLines[0]?.match(/\b\d+(?:\.\d+)?s\b/) && script.durationMs !== undefined;
 
-  if (selectedLines.length === 0) {
+  if (normalizedLines.length === 0) {
     const line = `${scriptColor(`${prefix}${hideLabel ? '' : `${script.label}: `}(no output)`)}${coloredDuration}`;
     return wrapAnsi(line, Math.max(1, width), {
       hard: false,
       trim: false,
     }).split('\n');
   }
-  const block = selectedLines
+  const block = normalizedLines
     .map((line, index) =>
       index === 0
         ? `${scriptColor(`${prefix}${hideLabel ? '' : `${script.label}: `}${line}`)}${
@@ -876,4 +879,25 @@ const ansiRegexPattern = '\\x1B\\[[0-?]*[ -/]*[@-~]';
 const ansiRegex = new RegExp(ansiRegexPattern, 'g');
 function stripAnsiCodes(value: string): string {
   return value.replace(ansiRegex, '');
+}
+
+function normalizeScriptLine(
+  line: string,
+  label: string,
+  exitCode: number | null,
+  isFirstLine: boolean
+): string {
+  const lowerLine = line.toLowerCase();
+  const lowerLabel = label.toLowerCase();
+  const looksLikeSwiftLint =
+    lowerLabel.includes('swiftlint') || lowerLine.startsWith('swiftlint') || lowerLine.includes('swiftlint:');
+
+  if (looksLikeSwiftLint && isFirstLine && (exitCode ?? 0) === 0) {
+    const zeroMatch = /swiftlint:\s*0\s+errors\s*\/\s*0\s+warnings/i;
+    if (zeroMatch.test(line)) {
+      return 'SwiftLint ✓';
+    }
+  }
+
+  return line;
 }
