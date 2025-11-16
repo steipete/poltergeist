@@ -1,5 +1,6 @@
 import { IntelligentBuildQueue } from './build-queue.js';
 import { BuildCoordinator } from './core/build-coordinator.js';
+import { ConfigReloadOrchestrator } from './core/config-reload-orchestrator.js';
 import { DebouncedBuildScheduler } from './core/debounced-build-scheduler.js';
 import { LifecycleHooks } from './core/lifecycle-hooks.js';
 import { StatusPresenter } from './core/status-presenter.js';
@@ -25,7 +26,7 @@ import type {
   PoltergeistConfig,
   Target,
 } from './types.js';
-import { type ConfigChanges, detectConfigChanges } from './utils/config-diff.js';
+import type { ConfigChanges } from './utils/config-diff.js';
 import { ConfigurationManager } from './utils/config-manager.js';
 import { ProcessManager } from './utils/process-manager.js';
 import { WatchmanClient } from './watchman.js';
@@ -59,6 +60,7 @@ export class Poltergeist {
   private debouncedScheduler: DebouncedBuildScheduler;
   private lifecycle: TargetLifecycleManager;
   private lifecycleHooks: LifecycleHooks;
+  private configReload: ConfigReloadOrchestrator;
 
   constructor(
     config: PoltergeistConfig,
@@ -129,6 +131,7 @@ export class Poltergeist {
     });
 
     this.lifecycleHooks = new LifecycleHooks({ logger: this.logger });
+    this.configReload = new ConfigReloadOrchestrator({ configPath });
   }
 
   /**
@@ -403,10 +406,10 @@ export class Poltergeist {
     this.logger.info('🔄 Configuration file changed, reloading...');
 
     try {
-      const newConfig = await ConfigurationManager.loadConfigFromPath(this.configPath);
-      const changes = detectConfigChanges(this.config, newConfig);
-      await this.applyConfigChanges(newConfig, changes);
-      this.config = newConfig;
+      const result = await this.configReload.reloadConfig(this.config);
+      if (!result) return;
+      await this.applyConfigChanges(result.config, result.changes);
+      this.config = result.config;
       this.logger.info('✅ Configuration reloaded successfully');
     } catch (error) {
       this.logger.error(
