@@ -24,7 +24,7 @@ function makeLogger(): Logger {
     debug: vi.fn(),
     verbose: vi.fn(),
     success: vi.fn(),
-  } as unknown as Logger;
+  } as Logger;
 }
 
 describe('ExecutableRunner', () => {

@@ -8,7 +8,7 @@ const makeStream = (overrides: Partial<NodeJS.WriteStream> = {}) =>
     rows: 24,
     getColorDepth: () => 24,
     ...overrides,
-  }) as unknown as NodeJS.WriteStream;
+  }) as NodeJS.WriteStream;
 
 describe('terminal helpers', () => {
   it('interprets environment flags consistently', () => {

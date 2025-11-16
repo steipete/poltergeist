@@ -146,7 +146,7 @@ describe('DaemonManager', () => {
         kill: vi.fn(),
       };
 
-      vi.mocked(spawn).mockReturnValue(mockChild as unknown as ChildProcess);
+      vi.mocked(spawn).mockReturnValue(mockChild as ChildProcess);
 
       const pid = await daemon.startDaemon(config, {
         projectRoot: testProjectPath,
@@ -226,7 +226,7 @@ describe('DaemonManager', () => {
         kill: vi.fn(),
       };
 
-      vi.mocked(spawn).mockReturnValue(mockChild as unknown as ChildProcess);
+      vi.mocked(spawn).mockReturnValue(mockChild as ChildProcess);
 
       await expect(
         daemon.startDaemon(config, {
@@ -253,7 +253,7 @@ describe('DaemonManager', () => {
         kill: vi.fn(),
       };
 
-      vi.mocked(spawn).mockReturnValue(mockChild as unknown as ChildProcess);
+      vi.mocked(spawn).mockReturnValue(mockChild as ChildProcess);
 
       // Simulate timeout by not calling the message callback
       mockChild.once.mockImplementation((event, _callback) => {
