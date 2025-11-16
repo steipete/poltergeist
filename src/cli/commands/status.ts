@@ -8,7 +8,7 @@ import type { PoltergeistConfig } from '../../types.js';
 import { DEFAULT_LOG_CHANNEL, sanitizeLogChannel } from '../../utils/log-channels.js';
 import { displayLogs } from '../logging.js';
 import { formatTargetStatus } from '../status-formatters.js';
-import { exitWithError, loadConfigOrExit, parseGitModeOrExit } from '../shared.js';
+import { ensureOrExit, exitWithError, loadConfigOrExit, parseGitModeOrExit } from '../shared.js';
 import { ghost, poltergeistMessage } from '../../utils/ghost.js';
 import { validateTarget } from '../../utils/target-validator.js';
 import { resolveLogPath } from '../log-path-resolver.js';
@@ -164,9 +164,7 @@ export const registerStatusCommands = (program: Command): void => {
           );
         }
 
-        if (!targetToWait || !targetStatus) {
-          exitWithError('No target selected to wait for.');
-        }
+        ensureOrExit(targetToWait && targetStatus, 'No target selected to wait for.');
         const resolvedTarget = targetToWait as string;
         const resolvedStatus = targetStatus as StatusObject;
 
@@ -208,9 +206,7 @@ export const registerStatusCommands = (program: Command): void => {
           const updatedStatus = await poltergeist.getStatus(resolvedTarget);
           const targetUpdate = updatedStatus[resolvedTarget] as StatusObject;
 
-          if (!targetUpdate) {
-            exitWithError('❌ Build failed\nError: Target disappeared');
-          }
+          ensureOrExit(targetUpdate, '❌ Build failed\nError: Target disappeared');
 
           const buildStatus = targetUpdate.lastBuild?.status;
 

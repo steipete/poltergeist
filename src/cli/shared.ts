@@ -25,3 +25,13 @@ export const parseGitModeOrExit = (value?: string): 'ai' | 'list' | undefined =>
     return exitWithError((error as Error).message);
   }
 };
+
+/**
+ * Convenience guard that exits with an error if the condition is falsy.
+ * Keeps command handlers concise while preserving existing exit behaviour.
+ */
+export const ensureOrExit = (condition: any, message: string, code = 1): void => {
+  if (!condition) {
+    exitWithError(message, code);
+  }
+};
