@@ -253,7 +253,25 @@ export class Poltergeist {
         this.logger,
         this.stateManager
       );
-      await builder.validate();
+
+      // Initialize state early so validation failures still surface in the panel.
+      await this.stateManager.initializeState(target);
+
+      try {
+        await builder.validate();
+      } catch (error) {
+        const errorMessage = error instanceof Error ? error.message : String(error);
+        const failureStatus = BuildStatusManager.createFailureStatus(
+          target.name,
+          { message: errorMessage, summary: 'Validation failed', type: 'configuration' },
+          { duration: 0 },
+          { gitHash: 'validation', builder: builder.describeBuilder?.() || target.type }
+        );
+        await this.stateManager.updateBuildStatus(target.name, failureStatus);
+        this.logger.error(`[${target.name}] Validation failed: ${errorMessage}`);
+        // Skip wiring this target into the watcher since it cannot build.
+        continue;
+      }
 
       let runner: ExecutableRunner | undefined;
       if (target.type === 'executable' && target.autoRun?.enabled) {
@@ -593,6 +611,16 @@ export class Poltergeist {
       const errorMessage = error instanceof Error ? error.message : String(error);
       this.logger.error(`[${targetName}] Build error: ${errorMessage}`);
 
+      // Record failure so the panel reflects the error instead of "watching".
+      const failureStatus = BuildStatusManager.createFailureStatus(
+        targetName,
+        { message: errorMessage, summary: 'Build threw before status update' },
+        { duration: 0 },
+        { gitHash: 'unknown', builder: state.builder.describeBuilder?.() || state.target.type }
+      );
+      state.lastBuild = failureStatus;
+      await this.stateManager.updateBuildStatus(targetName, failureStatus);
+
       if (this.notifier) {
         await this.notifier.notifyBuildFailed(
           `${targetName} Error`,
@@ -648,6 +676,22 @@ export class Poltergeist {
   public async getStatus(targetName?: string): Promise<Record<string, unknown>> {
     const status: Record<string, unknown> = {};
 
+    const deriveStatus = (stateFile?: PoltergeistState, fallback?: string): string => {
+      if (!stateFile) return fallback ?? 'unknown';
+      const hasBuild = Boolean(stateFile.lastBuild);
+      if (hasBuild) {
+        return stateFile.lastBuild?.status ?? fallback ?? 'unknown';
+      }
+      // No build recorded: surface this as failure after a short grace window instead of "watching".
+      const start = Date.parse(stateFile.process.startTime ?? '') || 0;
+      const ageMs = Date.now() - start;
+      const graceMs = 30_000; // 30s grace for startup
+      if (stateFile.process.isActive && ageMs > graceMs) {
+        return 'failure';
+      }
+      return fallback ?? (stateFile.process.isActive ? 'watching' : 'stopped');
+    };
+
     if (targetName) {
       const targetConfig = ConfigurationManager.findTarget(this.config, targetName);
       const lookupName = targetConfig?.name ?? targetName;
@@ -656,7 +700,7 @@ export class Poltergeist {
 
       if (state && stateFile) {
         status[lookupName] = {
-          status: state.watching ? 'watching' : 'idle',
+          status: deriveStatus(stateFile, state.watching ? 'watching' : 'idle'),
           process: stateFile.process,
           lastBuild: stateFile.lastBuild || state.lastBuild,
           appInfo: stateFile.appInfo,
@@ -669,11 +713,7 @@ export class Poltergeist {
         };
       } else if (stateFile) {
         status[lookupName] = {
-          status: stateFile.lastBuild?.status
-            ? stateFile.lastBuild.status
-            : stateFile.process.isActive
-              ? 'watching'
-              : 'stopped',
+          status: deriveStatus(stateFile),
           process: stateFile.process,
           lastBuild: stateFile.lastBuild,
           appInfo: stateFile.appInfo,
@@ -691,7 +731,7 @@ export class Poltergeist {
 
         if (state && stateFile) {
           status[target.name] = {
-            status: state.watching ? 'watching' : 'idle',
+            status: deriveStatus(stateFile, state.watching ? 'watching' : 'idle'),
             enabled: target.enabled,
             type: target.type,
             process: stateFile.process,
@@ -706,11 +746,7 @@ export class Poltergeist {
           };
         } else if (stateFile) {
           status[target.name] = {
-            status: stateFile.lastBuild?.status
-              ? stateFile.lastBuild.status
-              : stateFile.process.isActive
-                ? 'watching'
-                : 'stopped',
+            status: deriveStatus(stateFile),
             enabled: target.enabled,
             type: target.type,
             process: stateFile.process,

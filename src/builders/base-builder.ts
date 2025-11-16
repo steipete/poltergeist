@@ -283,6 +283,13 @@ export abstract class BaseBuilder<T extends Target = Target> {
     return this.target.type;
   }
 
+  /**
+   * Expose builder name for logging/telemetry without widening protected access.
+   */
+  public describeBuilder(): string {
+    return this.getBuilderName();
+  }
+
   private formatChangedFiles(changedFiles: string[]): string {
     if (changedFiles.length === 0) {
       return '';
