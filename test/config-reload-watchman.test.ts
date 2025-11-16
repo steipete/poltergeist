@@ -82,8 +82,7 @@ describe('config reload refreshes watchman', () => {
     );
 
     // Inject mock watch service (test-only override)
-    (poltergeist as unknown as { watchService: typeof mockWatchService }).watchService =
-      mockWatchService;
+    (poltergeist as { watchService?: typeof mockWatchService }).watchService = mockWatchService;
 
     const newConfig = {
       ...baseConfig,

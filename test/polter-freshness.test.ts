@@ -57,17 +57,15 @@ describe('isBinaryFresh', () => {
   });
 
   function setupMocks() {
-    (childProcess.execSync as unknown as ReturnType<typeof vi.fn>).mockImplementation(
-      (cmd: any) => {
-        if (typeof cmd === 'string' && cmd.includes('rev-parse')) {
-          return Buffer.from(`${cleanGitHash}\n`);
-        }
-        if (typeof cmd === 'string' && cmd.includes('git status')) {
-          return Buffer.from('');
-        }
-        throw new Error(`unexpected execSync command: ${cmd}`);
+    (childProcess.execSync as ReturnType<typeof vi.fn>).mockImplementation((cmd: any) => {
+      if (typeof cmd === 'string' && cmd.includes('rev-parse')) {
+        return Buffer.from(`${cleanGitHash}\n`);
       }
-    );
+      if (typeof cmd === 'string' && cmd.includes('git status')) {
+        return Buffer.from('');
+      }
+      throw new Error(`unexpected execSync command: ${cmd}`);
+    });
   }
 
   it('returns true when binary is newer than last successful build and git clean', async () => {
@@ -106,17 +104,15 @@ describe('isBinaryFresh', () => {
     const root = mkdtempSync(path.join(tmpdir(), 'polter-git-'));
     tempRoots.push(root);
 
-    (childProcess.execSync as unknown as ReturnType<typeof vi.fn>).mockImplementation(
-      (cmd: any) => {
-        if (typeof cmd === 'string' && cmd.includes('rev-parse')) {
-          return Buffer.from(`deadbeefdeadbeefdeadbeefdeadbeefdeadbeef\n`);
-        }
-        if (typeof cmd === 'string' && cmd.includes('git status')) {
-          return Buffer.from('');
-        }
-        throw new Error(`unexpected execSync command: ${cmd}`);
+    (childProcess.execSync as ReturnType<typeof vi.fn>).mockImplementation((cmd: any) => {
+      if (typeof cmd === 'string' && cmd.includes('rev-parse')) {
+        return Buffer.from(`deadbeefdeadbeefdeadbeefdeadbeefdeadbeef\n`);
       }
-    );
+      if (typeof cmd === 'string' && cmd.includes('git status')) {
+        return Buffer.from('');
+      }
+      throw new Error(`unexpected execSync command: ${cmd}`);
+    });
 
     const buildTime = Date.now();
     writeState(root, new Date(buildTime).toISOString());

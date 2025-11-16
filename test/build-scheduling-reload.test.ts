@@ -114,7 +114,7 @@ describe('build scheduling reload', () => {
 
     const lastQueueInstance = (
       IntelligentBuildQueue as unknown as { mock: { results: Array<{ value: any }> } }
-    ).mock.results[1].value;
+    ).mock.results[1]?.value;
     expect(lastQueueInstance.registerTarget).toHaveBeenCalledWith(
       expect.objectContaining({ name: 't1' }),
       expect.any(Object)

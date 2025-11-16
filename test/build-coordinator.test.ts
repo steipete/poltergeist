@@ -52,10 +52,13 @@ describe('BuildCoordinator', () => {
       throw new Error('Test config missing target');
     }
     const state = createSuccessState(target);
-    const notifier = {
+    const notifier: Pick<
+      Parameters<typeof BuildCoordinator>[0]['notifier'],
+      'notifyBuildComplete' | 'notifyBuildFailed'
+    > = {
       notifyBuildComplete: vi.fn(),
       notifyBuildFailed: vi.fn(),
-    } as unknown as Parameters<typeof BuildCoordinator>[0]['notifier'];
+    };
 
     const coordinator = new BuildCoordinator({
       projectRoot: '/project',
@@ -93,9 +96,10 @@ describe('BuildCoordinator', () => {
     };
 
     const stateManager = createMockStateManager();
-    const notifier = {
-      notifyBuildFailed: vi.fn(),
-    } as unknown as Parameters<typeof BuildCoordinator>[0]['notifier'];
+    const notifier: Pick<Parameters<typeof BuildCoordinator>[0]['notifier'], 'notifyBuildFailed'> =
+      {
+        notifyBuildFailed: vi.fn(),
+      };
 
     const coordinator = new BuildCoordinator({
       projectRoot: '/project',

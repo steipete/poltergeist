@@ -296,7 +296,7 @@ describe('WatchmanConfigManager - Xcode Project Detection', () => {
             buildCommand: 'xcodebuild',
             outputPath: './build/App.app',
             bundleId: 'com.example.app',
-            watchPaths: ['', null as unknown as string], // Invalid patterns
+            watchPaths: ['', null as string], // Invalid patterns
             settlingDelay: 1000,
           },
         ],
