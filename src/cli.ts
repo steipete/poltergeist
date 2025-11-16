@@ -642,7 +642,7 @@ program
       console.log(chalk.blue(`Auto-detected project type: ${projectType}`));
     }
 
-    let config: PoltergeistConfig;
+    let config!: PoltergeistConfig;
 
     if (projectType === 'cmake') {
       try {
@@ -680,8 +680,7 @@ program
           });
         }
       } catch (error) {
-        console.error(chalk.red(`Failed to analyze CMake project: ${error}`));
-        process.exit(1);
+        exitWithError(`Failed to analyze CMake project: ${error}`);
       }
     } else {
       // Generate config for other project types
@@ -987,7 +986,7 @@ program
         const statusObj = status[targetName] as StatusObject;
         if (statusObj.lastBuild?.status !== 'building') {
           console.log(chalk.yellow(`Target '${targetName}' is not currently building`));
-          process.exit(0);
+          return;
         }
         targetToWait = targetName;
         targetStatus = statusObj;
@@ -1273,7 +1272,7 @@ const warnOldFlag = (flag: string, newFlag: string) => {
   console.error(chalk.yellow(`Use ${newFlag} instead.`));
   console.error(chalk.gray('\nExample:'));
   console.error(chalk.gray(`  poltergeist haunt ${newFlag}`));
-  process.exit(1);
+  exitWithError(`Deprecated flag ${flag} used`);
 };
 
 // Add hidden options for deprecated flags
@@ -1310,8 +1309,7 @@ if (process.argv.includes('--daemon-mode')) {
           }
         }, 1000);
       } catch (error) {
-        console.error('Failed to read daemon args file:', error);
-        process.exit(1);
+        exitWithError(`Failed to read daemon args file: ${error}`);
       }
     } else {
       // Try to decode as base64 for backward compatibility
@@ -1327,18 +1325,15 @@ if (process.argv.includes('--daemon-mode')) {
     try {
       parsedArgs = JSON.parse(daemonArgs);
     } catch (error) {
-      console.error('Failed to parse daemon arguments:', error);
-      process.exit(1);
+      exitWithError(`Failed to parse daemon arguments: ${error}`);
     }
 
     // Run daemon worker using static import (for Bun binary compatibility)
     runDaemon(parsedArgs).catch((error) => {
-      console.error('Failed to start daemon worker:', error);
-      process.exit(1);
+      exitWithError(`Failed to start daemon worker: ${error}`);
     });
   } else {
-    console.error('Missing daemon arguments');
-    process.exit(1);
+    exitWithError('Missing daemon arguments');
   }
 } else {
   // Check if we're being invoked as 'polter' instead of 'poltergeist'
@@ -1361,8 +1356,7 @@ if (process.argv.includes('--daemon-mode')) {
         // The polter module handles its own CLI parsing
       })
       .catch((err) => {
-        console.error('Failed to load polter:', err);
-        process.exit(1);
+        exitWithError(`Failed to load polter: ${err}`);
       });
   } else {
     // Parse arguments only when run directly (not when imported for testing)
