@@ -47,7 +47,7 @@ describe('augmentConfigWithDetectedTargets', () => {
       targets: [],
     };
 
-    await augmentConfigWithDetectedTargets(tmpDir, config);
+    const summaries = await augmentConfigWithDetectedTargets(tmpDir, config);
 
     rmSync(tmpDir, { recursive: true, force: true });
 
@@ -57,5 +57,26 @@ describe('augmentConfigWithDetectedTargets', () => {
       buildCommand: 'make demo',
       enabled: true,
     });
+    expect(summaries).toEqual([{ name: 'demo', type: 'executable', reason: 'makefile' }]);
+  });
+
+  it('can skip auto-add when disabled', async () => {
+    const tmpDir = mkdtempSync(path.join(tmpdir(), 'poltergeist-skip-'));
+    writeFileSync(path.join(tmpDir, 'Makefile'), 'all:\n\t@echo skip\n', 'utf-8');
+
+    const config: PoltergeistConfig = {
+      version: '1.0',
+      projectType: 'node',
+      targets: [],
+    };
+
+    const summaries = await augmentConfigWithDetectedTargets(tmpDir, config, {
+      allowAutoAdd: false,
+    });
+
+    rmSync(tmpDir, { recursive: true, force: true });
+
+    expect(config.targets).toHaveLength(0);
+    expect(summaries).toEqual([]);
   });
 });

@@ -60,13 +60,30 @@ export function guessBundleId(projectName: string, projectPath: string): string 
   return isIOS ? `com.example.${cleanName}.ios` : `com.example.${cleanName}`;
 }
 
+export interface DetectionSummary {
+  name: string;
+  type: string;
+  reason: string;
+}
+
+export interface AugmentOptions {
+  /** Allow auto-added targets (Makefile/Go/Python). Defaults to true. */
+  allowAutoAdd?: boolean;
+}
+
 export async function augmentConfigWithDetectedTargets(
   projectRoot: string,
-  config: PoltergeistConfig
-): Promise<void> {
+  config: PoltergeistConfig,
+  options: AugmentOptions = {}
+): Promise<DetectionSummary[]> {
+  const summaries: DetectionSummary[] = [];
+  if (options.allowAutoAdd === false) {
+    return summaries;
+  }
+
   const hasEnabledTarget = config.targets.some((target) => target.enabled !== false);
   if (hasEnabledTarget) {
-    return;
+    return summaries;
   }
 
   try {
@@ -102,7 +119,8 @@ export async function augmentConfigWithDetectedTargets(
         outputPath,
         watchPaths: ['**/*.c', '**/*.h', 'Makefile'],
       });
-      return;
+      summaries.push({ name: targetName, type: 'executable', reason: 'makefile' });
+      return summaries;
     }
 
     const hasGoMod = entryMap.has('go.mod');
@@ -150,8 +168,9 @@ export async function augmentConfigWithDetectedTargets(
             outputPath: `./dist/bin/${target.name}`,
             watchPaths: ['**/*.go', 'go.mod', 'go.sum'],
           });
+          summaries.push({ name: target.name, type: 'executable', reason: 'go' });
         }
-        return;
+        return summaries;
       }
     }
 
@@ -182,10 +201,13 @@ export async function augmentConfigWithDetectedTargets(
           'setup.py',
         ],
       });
+      summaries.push({ name: 'tests', type: 'executable', reason: 'python' });
     }
   } catch {
     // Ignore detection failures; config will remain minimal
   }
+
+  return summaries;
 }
 
 // Helper function to generate default config for non-CMake projects

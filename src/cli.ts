@@ -768,7 +768,7 @@ program
       }
     }
 
-    await augmentConfigWithDetectedTargets(projectRoot, config);
+    const detectedTargets = await augmentConfigWithDetectedTargets(projectRoot, config);
 
     const configJson = JSON.stringify(config, null, 2);
 
@@ -779,6 +779,15 @@ program
     } else {
       writeFileSync(configPath, configJson, 'utf-8');
       console.log(chalk.green('✅ Created poltergeist.config.json'));
+      if (detectedTargets.length > 0) {
+        console.log(
+          chalk.gray(
+            `Auto-added targets: ${detectedTargets
+              .map((t) => `${t.name} (${t.reason})`)
+              .join(', ')}`
+          )
+        );
+      }
 
       // Recommend CLAUDE.md for AI agents
       console.log(chalk.blue('\n📋 For AI Agent Integration (Claude, Cursor, etc.):'));
