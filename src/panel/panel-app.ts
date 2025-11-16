@@ -430,7 +430,7 @@ function formatHeader(snapshot: PanelSnapshot, width?: number): string {
   const projectRoot = snapshot.projectRoot.replace(homedir(), '~');
   const projectLine = `${colors.text(snapshot.projectName)} — ${colors.muted(projectRoot)}`;
   const branchLabel = mode === 'full' ? 'Branch:' : 'Br:';
-  const dirtyLabel = mode === 'full' ? 'Dirty files:' : 'Dirty:';
+  const dirtyLabel = mode === 'full' ? 'dirty files:' : 'dirty:';
   const deltaLabel = mode === 'full' ? 'ΔLOC:' : 'Δ:';
   const separator = mode === 'narrow' ? colors.muted(' · ') : colors.muted(' | ');
   const upstreamBadge = formatUpstreamBadge(snapshot.git, mode);
