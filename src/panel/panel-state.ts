@@ -80,7 +80,8 @@ export const resolveSummaryMode = (modes: SummaryModeOption[], desired: string):
 
 export const getDefaultSummaryMode = (snapshot: PanelSnapshot): string => {
   const modes = getSummaryModes(snapshot);
-  return modes[0]?.key ?? 'ai';
+  const withData = modes.find((mode) => mode.hasData);
+  return withData?.key ?? modes[0]?.key ?? 'ai';
 };
 
 export const findSummaryByMode = (
