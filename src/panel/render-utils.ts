@@ -444,6 +444,8 @@ function formatProgress(
   maxWidth: number
 ): string | null {
   const { percent, current, total, label } = progress;
+  // Hide the bar when a build is effectively done or percent is invalid.
+  if (!Number.isFinite(percent) || percent >= 100) return null;
   const barWidth = Math.max(10, Math.min(24, maxWidth - 18));
   const bar = progressBar(percent, barWidth);
   const parts = [`${percent}%`, bar, `${current}/${total}`];
@@ -459,7 +461,7 @@ export function progressBar(percent: number, width: number): string {
   const clamped = Math.max(0, Math.min(width, filled));
   const empty = Math.max(0, width - clamped);
   // ASCII-only bar so it renders in every terminal/font.
-  const body = colors.accent('='.repeat(clamped)) + colors.muted('.'.repeat(empty));
+  const body = colors.accent('='.repeat(clamped)) + colors.muted('-'.repeat(empty));
   return colors.muted('[') + body + colors.muted(']');
 }
 

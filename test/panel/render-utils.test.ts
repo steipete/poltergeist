@@ -136,4 +136,22 @@ describe('render utils', () => {
     const plain = stripAnsiCodes(header);
     expect(plain).toContain(' · '); // compact mode uses spaced middots
   });
+
+  it('hides the progress bar once a build reports 100%', () => {
+    const target: TargetPanelEntry = {
+      ...makeTarget('Integration'),
+      status: {
+        lastBuild: {
+          status: 'building',
+          timestamp: new Date().toISOString(),
+          progress: { percent: 100, current: 68, total: 68, updatedAt: new Date().toISOString() },
+        },
+      },
+    };
+    const rows = buildTargetRows([target]);
+    const text = formatTargets(rows, 0, new Map(), 60);
+    const statusPart = stripAnsiCodes(text.split('\n')[2]).slice(18);
+    expect(statusPart).not.toContain('['); // no bar
+    expect(statusPart).toContain('building'); // badge still present
+  });
 });
