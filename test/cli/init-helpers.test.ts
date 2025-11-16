@@ -15,7 +15,7 @@ describe('generateDefaultConfig', () => {
     expect(nodeConfig.targets[0]).toMatchObject({
       name: 'dev',
       type: 'executable',
-      buildCommand: 'npm run build',
+      buildCommand: 'pnpm run build',
     });
 
     const rustConfig = generateDefaultConfig('rust');

@@ -423,8 +423,8 @@ const examples: ExampleDefinition[] = [
         );
         buildDetected = true;
       } catch {
-        log('TypeScript build not detected within timeout; running npm run build manually.');
-        await runProcess('npm', ['run', 'build', '--silent'], {
+        log('TypeScript build not detected within timeout; running pnpm run build manually.');
+        await runProcess('pnpm', ['run', 'build', '--silent'], {
           cwd: exampleRoot,
         });
       }

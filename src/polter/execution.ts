@@ -43,7 +43,7 @@ export async function executeStaleWithWarning(
       chalk.yellow(poltergeistMessage('warning', '⚠ Executing potentially stale binary'))
     );
     console.warn(chalk.yellow('   The binary may be outdated. For fresh builds:'));
-    console.warn(chalk.yellow('   npm run poltergeist:haunt'));
+    console.warn(chalk.yellow('   pnpm run poltergeist:haunt'));
     console.warn('');
   }
 

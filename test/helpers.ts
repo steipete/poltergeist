@@ -231,7 +231,7 @@ export function createTestConfig(overrides?: Partial<PoltergeistConfig>): Polter
         name: 'test-target',
         type: 'executable',
         enabled: true,
-        buildCommand: 'npm run build',
+        buildCommand: 'pnpm run build',
         outputPath: './dist',
         watchPaths: ['src/**/*.ts'],
         settlingDelay: 100,

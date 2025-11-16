@@ -1,11 +1,12 @@
 {
-  "version": "1.0",
+    "version": "1.0",
     "projectType": "node",
     "targets": [
     {
       "name": "poltergeist",
-      "type": "npm",
+      "type": "executable",
       "enabled": true,
+      "buildCommand": "pnpm run build",
       "watchPaths": ["src/**/*.ts"],
       "outputPaths": ["dist/cli.js", "dist/polter.js"]
     },
@@ -13,7 +14,7 @@
       "name": "polter",
       "type": "executable",
       "enabled": true,
-      "buildCommand": "npm run build",
+      "buildCommand": "pnpm run build",
       "outputPath": "./dist/polter.js",
       "watchPaths": ["src/**/*.ts"]
     },
@@ -21,7 +22,7 @@
       "name": "cli",
       "type": "executable",
       "enabled": true,
-      "buildCommand": "npm run build",
+      "buildCommand": "pnpm run build",
       "outputPath": "./dist/cli.js",
       "watchPaths": ["src/**/*.ts"]
     },

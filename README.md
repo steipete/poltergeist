@@ -12,7 +12,7 @@
   A universal file watcher with auto-rebuild for any language or build system
 </div>
 
-Poltergeist is an AI-friendly universal file-watcher that auto-detects any project and rebuilds them as soon as a file has been changed. Think `npm run dev` for native apps, with automatic configuration, notifications and a smart build queue. It stands on the shoulders of [giants](https://facebook.github.io/watchman/) and fills the glue layer that's been missing.
+Poltergeist is an AI-friendly universal file-watcher that auto-detects any project and rebuilds them as soon as a file has been changed. Think `pnpm run dev` for native apps, with automatic configuration, notifications and a smart build queue. It stands on the shoulders of [giants](https://facebook.github.io/watchman/) and fills the glue layer that's been missing.
 
 Works on macOS, Linux, and Windows. Available as a standalone binary (no Node.js required) or npm package.
 
@@ -218,9 +218,9 @@ poltergeist/
 ### Contributing
 Contributions welcome! Requirements:
 1. Tests pass: `npm test`
-2. Code formatted: `npm run format` 
-3. Linting passes: `npm run lint`
-4. Types check: `npm run typecheck`
+2. Code formatted: `pnpm run format` 
+3. Linting passes: `pnpm run lint`
+4. Types check: `pnpm run typecheck`
 
 ### Development Philosophy
 - **No backwards compatibility**: Clean breaks over legacy support

@@ -122,7 +122,7 @@ export async function runWrapper(targetName: string, args: string[], options: Pa
         } else {
           console.warn(chalk.yellow('👻 [Poltergeist] ⚠ Executing potentially stale binary'));
           console.warn(chalk.yellow('   The binary may be outdated. For fresh builds:'));
-          console.warn(chalk.yellow('   npm run poltergeist:haunt'));
+          console.warn(chalk.yellow('   pnpm run poltergeist:haunt'));
           console.warn('');
         }
       }

@@ -225,7 +225,7 @@ export function generateDefaultConfig(projectType: ProjectType): PoltergeistConf
         name: 'dev',
         type: 'executable',
         enabled: true,
-        buildCommand: 'npm run build',
+        buildCommand: 'pnpm run build',
         outputPath: './dist/index.js',
         watchPaths: ['src/**/*.ts', 'src/**/*.js', 'package.json'],
       });

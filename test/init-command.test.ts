@@ -104,7 +104,7 @@ describe.skipIf(process.platform === 'win32' && process.env.CI)(
         expect(config.targets).toHaveLength(1);
         expect(config.targets[0].name).toBe('dev');
         expect(config.targets[0].type).toBe('executable');
-        expect(config.targets[0].buildCommand).toBe('npm run build');
+        expect(config.targets[0].buildCommand).toBe('pnpm run build');
         expect(config.targets[0].watchPaths).toEqual([
           'src/**/*.ts',
           'src/**/*.js',
