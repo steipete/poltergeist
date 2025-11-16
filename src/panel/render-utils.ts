@@ -240,13 +240,6 @@ export function formatTargets(
     });
   });
 
-  if (summaryRow && summaryModes.length > 0) {
-    const summaryName = summaryRow.selected ? colors.accent(summaryRow.label) : summaryRow.label;
-    const chips = formatSummaryChips(summaryModes, activeSummaryKey, statusCol);
-    const summaryStatus = chips || colors.muted('no summary data');
-    lines.push(`${pad(summaryName, targetCol)}${pad(summaryStatus, statusCol)}`);
-  }
-
   rowSummaries.forEach((row) => {
     const name = row.selected ? colors.accent(row.label) : row.label;
     const status =
@@ -256,14 +249,23 @@ export function formatTargets(
 
   lines.push(divider);
 
+  if (summaryRow && summaryModes.length > 0) {
+    const chips = formatSummaryChips(summaryModes, activeSummaryKey, width);
+    if (chips) {
+      lines.push(chips);
+    }
+  }
+
   return lines.join('\n');
 }
 
-function formatSummaryChips(
+export function formatSummaryChips(
   modes: SummaryModeOption[],
   activeSummaryKey: string | undefined,
-  width: number
+  width: number,
+  options: { center?: boolean } = {}
 ): string {
+  const center = options.center ?? true;
   if (modes.length === 0) return '';
 
   // Build pill strings first, then re-wrap if the line overflows.
@@ -281,7 +283,7 @@ function formatSummaryChips(
   const totalWidth = pills.reduce((sum, p) => sum + p.width + 1, 0); // +1 spacer between pills
   const allPills = pills.map((p) => p.pill).join(' ');
   if (totalWidth <= width || width < 30) {
-    return centerText(allPills, width);
+    return center ? centerText(allPills, width) : allPills;
   }
 
   // Wrap to next line if too wide; simple greedy wrap.
@@ -301,13 +303,11 @@ function formatSummaryChips(
   if (current.length) {
     lines.push(current.join(' '));
   }
-  return lines.map((line) => centerText(line, width)).join('\n');
+  return lines.map((line) => (center ? centerText(line, width) : line)).join('\n');
 }
 
 function summaryChipLabel(mode: SummaryModeOption): string {
-  if (mode.type === 'ai') return 'AI';
-  if (mode.type === 'git') return 'Git';
-  return mode.summary?.label ?? (mode.label.replace(/^Summary\s*\(|\)$/g, '') || 'Custom');
+  return mode.label;
 }
 
 function formatDaemonSuffix(activeDaemons: string[]): string {
