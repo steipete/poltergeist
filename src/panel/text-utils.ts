@@ -27,7 +27,10 @@ export function boxLines(lines: string[], maxWidth?: number): string {
   const contentWidth = boxWidth - 2;
   const top = `┌${'─'.repeat(contentWidth)}┐`;
   const bottom = `└${'─'.repeat(contentWidth)}┘`;
-  const body = lines.map((line) => `│${pad(line, contentWidth)}│`);
+  const body = lines.map((line) => {
+    const centered = visibleWidth(line) > contentWidth ? line : centerText(line, contentWidth);
+    return `│${pad(centered, contentWidth)}│`;
+  });
   return [top, ...body, bottom].join('\n');
 }
 
