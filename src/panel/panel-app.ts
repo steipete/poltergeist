@@ -474,14 +474,17 @@ function formatTargets(
     const lastBuild = formatRelativeTime(entry.status.lastBuild?.timestamp);
     const duration = formatDuration(entry.status.lastBuild?.duration);
 
-    const parts = [formatStatusBadge(status, statusLabel, color)];
-    if (lastBuild && lastBuild !== '—') {
-      parts.push(lastBuild);
+    const badge = formatStatusBadge(status, statusLabel, color);
+    const timePart = lastBuild && lastBuild !== '—' ? color(lastBuild) : '';
+    const durationPart = duration && duration !== '—' ? duration : '';
+
+    let statusDetails = badge;
+    if (timePart) {
+      statusDetails += ` ${timePart}`;
     }
-    if (duration && duration !== '—') {
-      parts.push(duration);
+    if (durationPart) {
+      statusDetails += ` · ${durationPart}`;
     }
-    const statusDetails = parts.join(' · ');
 
     const row = `${pad(`${targetName}${enabledLabel}`, targetCol)}${pad(statusDetails, statusCol)}`;
     lines.push(row);
