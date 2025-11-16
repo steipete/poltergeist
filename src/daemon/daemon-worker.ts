@@ -22,7 +22,14 @@ export async function runDaemon(args: DaemonArgs): Promise<void> {
 
   if (process.env.POLTERGEIST_DEBUG_DAEMON === 'true') {
     console.error('[daemon-worker] argv:', process.argv);
-    console.error('[daemon-worker] configPath:', configPath, 'projectRoot:', projectRoot, 'target:', target);
+    console.error(
+      '[daemon-worker] configPath:',
+      configPath,
+      'projectRoot:',
+      projectRoot,
+      'target:',
+      target
+    );
   }
 
   // Create file-based logger using the standard logger factory

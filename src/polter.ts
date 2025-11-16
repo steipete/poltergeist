@@ -11,7 +11,7 @@
  */
 
 import chalk from 'chalk';
-import { execSync, type ChildProcess, spawn } from 'child_process';
+import { type ChildProcess, execSync, spawn } from 'child_process';
 import { Command } from 'commander';
 import { existsSync, readFileSync, statSync, unwatchFile, watchFile } from 'fs';
 import ora from 'ora';
@@ -138,11 +138,7 @@ export async function isBinaryFresh(
   }
 }
 
-function warnIfBuildStaleByAge(
-  projectRoot: string,
-  targetName: string,
-  maxAgeMinutes = 10
-): void {
+function warnIfBuildStaleByAge(projectRoot: string, targetName: string, maxAgeMinutes = 10): void {
   const statePath = getStateFile(projectRoot, targetName);
   if (!statePath || !existsSync(statePath)) return;
 

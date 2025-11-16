@@ -45,19 +45,19 @@ export const getSelectedChannel = (
 export const getSummaryModes = (snapshot: PanelSnapshot): SummaryModeOption[] => {
   const modes: SummaryModeOption[] = [];
   if (hasAiSummary(snapshot)) {
-    modes.push({ key: 'ai', label: 'Summary (AI)', type: 'ai', hasData: true });
+    modes.push({ key: 'ai', label: 'AI', type: 'ai', hasData: true });
   } else {
-    modes.push({ key: 'ai', label: 'Summary (AI)', type: 'ai', hasData: false });
+    modes.push({ key: 'ai', label: 'AI', type: 'ai', hasData: false });
   }
   if (hasDirtySummary(snapshot)) {
-    modes.push({ key: 'git', label: 'Summary (Git)', type: 'git', hasData: true });
+    modes.push({ key: 'git', label: 'Git', type: 'git', hasData: true });
   } else {
-    modes.push({ key: 'git', label: 'Summary (Git)', type: 'git', hasData: false });
+    modes.push({ key: 'git', label: 'Git', type: 'git', hasData: false });
   }
   for (const summary of getSummarySummaries(snapshot)) {
     modes.push({
       key: `custom:${summary.label}`,
-      label: `Summary (${summary.label})`,
+      label: summary.label ?? 'Custom',
       type: 'custom',
       summary,
       hasData:

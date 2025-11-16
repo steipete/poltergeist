@@ -1,11 +1,11 @@
+import * as childProcess from 'child_process';
 import { mkdtempSync, rmSync, utimesSync, writeFileSync } from 'fs';
 import { tmpdir } from 'os';
 import path from 'path';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import * as childProcess from 'child_process';
 import { isBinaryFresh, resolveBinaryPath } from '../src/polter.js';
-import { FileSystemUtils } from '../src/utils/filesystem.js';
 import type { PoltergeistState } from '../src/state.js';
+import { FileSystemUtils } from '../src/utils/filesystem.js';
 
 vi.mock('child_process', async () => {
   const actual = await vi.importActual<typeof import('child_process')>('child_process');

@@ -178,7 +178,16 @@ export class DaemonManager {
 
     const daemonWorkerJs = join(daemonDir, 'daemon-worker.js');
     const daemonWorkerTs = join(daemonDir, 'daemon-worker.ts');
-    const tsxLoader = join(daemonDir, '..', '..', 'node_modules', 'tsx', 'dist', 'esm', 'index.mjs');
+    const tsxLoader = join(
+      daemonDir,
+      '..',
+      '..',
+      'node_modules',
+      'tsx',
+      'dist',
+      'esm',
+      'index.mjs'
+    );
 
     let daemonWorkerPath = daemonWorkerJs;
     const spawnArgs: string[] = [];
@@ -332,7 +341,10 @@ export class DaemonManager {
         'ipc',
       ];
 
-      const args = spawnArgs.length > 0 ? [...spawnArgs, daemonWorkerPath, daemonArgs] : [daemonWorkerPath, daemonArgs];
+      const args =
+        spawnArgs.length > 0
+          ? [...spawnArgs, daemonWorkerPath, daemonArgs]
+          : [daemonWorkerPath, daemonArgs];
 
       child = spawn(process.execPath, args, {
         detached: true,

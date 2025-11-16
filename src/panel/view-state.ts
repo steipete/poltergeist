@@ -39,6 +39,7 @@ export interface PanelViewState {
   summaryRowLabel?: string;
   summarySelected: boolean;
   summaryModes: SummaryModeOption[];
+  activeSummaryKey?: string;
   customSummary?: PanelSummaryScriptResult;
   rowSummaries: PanelSummaryScriptResult[];
   summaryInfo: SummaryRenderInfo;
@@ -87,17 +88,15 @@ export const buildPanelViewState = (input: BuildViewStateInput): PanelViewState 
   const viewingSummary = summaryIndex !== null && selectedRowIndex === summaryIndex;
   const viewingCustomRow =
     selectedRowIndex >= customStart ? rowSummaries[selectedRowIndex - customStart] : undefined;
-  const _entry =
-    !viewingSummary && !viewingCustomRow && selectedRowIndex < rows.length
-      ? rows[selectedRowIndex]?.target
-      : undefined;
 
   const controlsLine = renderControlsLine(width);
+  const resolvedCustomSummary =
+    viewingCustomRow ?? findSummaryByMode(summaryModes, resolvedSummaryMode) ?? undefined;
   const summaryInfo = computeSummaryLines(
     snapshot,
     viewingSummary || Boolean(viewingCustomRow),
     resolvedSummaryMode,
-    viewingCustomRow ?? findSummaryByMode(summaryModes, resolvedSummaryMode)
+    resolvedCustomSummary
   );
 
   const logDisplayLimit = computeLogDisplayLimit({
@@ -128,7 +127,8 @@ export const buildPanelViewState = (input: BuildViewStateInput): PanelViewState 
     summaryRowLabel: getSummaryLabel(summaryModes, resolvedSummaryMode),
     summarySelected: viewingSummary,
     summaryModes,
-    customSummary: viewingCustomRow ?? findSummaryByMode(summaryModes, resolvedSummaryMode),
+    activeSummaryKey: resolvedSummaryMode,
+    customSummary: resolvedCustomSummary,
     rowSummaries,
     summaryInfo,
     logLimit,

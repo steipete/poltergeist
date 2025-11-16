@@ -37,7 +37,7 @@ import {
 import { buildTargetRows, type TargetRow } from './target-tree.js';
 import { limitSummaryLines } from './text-utils.js';
 import type { PanelSnapshot, TargetPanelEntry } from './types.js';
-import { buildPanelViewState } from './view-state.js';
+import { buildPanelViewState, type PanelViewState } from './view-state.js';
 
 const LOG_FETCH_LIMIT = 40;
 const SUMMARY_FRACTION = 0.5; // summary gets half of remaining lines when selected
@@ -303,7 +303,7 @@ export class PanelApp {
     }
     this.selectedRowIndex = nextIndex;
     this.logViewMode = 'all';
-    this.logChannelLabel = this.getSelectedChannel(ordered[this.selectedRowIndex]);
+    this.logChannelLabel = this.getSelectedChannel(ordered[this.selectedRowIndex]?.target);
     this.updateView('selection');
     this.queueLogRefresh();
     this.updateLogPolling();
