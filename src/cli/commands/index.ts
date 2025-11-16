@@ -5,10 +5,16 @@ import { registerProjectCommands } from './project.js';
 import { registerPolterCommand } from './polter.js';
 import { registerVersionCommand } from './version.js';
 
+export type CommandRegistrar = (program: Command) => void;
+
+export const COMMAND_REGISTRARS: CommandRegistrar[] = [
+  registerDaemonCommands,
+  registerStatusCommands,
+  registerProjectCommands,
+  registerPolterCommand,
+  registerVersionCommand,
+];
+
 export const registerCliCommands = (program: Command): void => {
-  registerDaemonCommands(program);
-  registerStatusCommands(program);
-  registerProjectCommands(program);
-  registerPolterCommand(program);
-  registerVersionCommand(program);
+  COMMAND_REGISTRARS.forEach((register) => register(program));
 };
