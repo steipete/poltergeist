@@ -118,6 +118,7 @@ export const registerStatusCommands = (program: Command): void => {
     .description('Wait for a build to complete')
     .option('-t, --timeout <seconds>', 'Maximum time to wait in seconds', '300')
     .option('-c, --config <path>', 'Path to config file')
+    .option('--json', 'Output result as JSON')
     .action(async (targetName, options) => {
       const { config, projectRoot } = await loadConfigOrExit(options.config);
       const logger = createLogger(config.logging?.level || 'info');
@@ -169,7 +170,9 @@ export const registerStatusCommands = (program: Command): void => {
         const resolvedTarget = targetToWait as string;
         const resolvedStatus = targetStatus as StatusObject;
 
-        if (!process.stdout.isTTY) {
+        const isJson = Boolean(options.json);
+
+        if (!process.stdout.isTTY && !isJson) {
           console.log(`⏳ Waiting for '${resolvedTarget}' build...`);
           if (resolvedStatus.buildCommand) {
             console.log(`Command: ${resolvedStatus.buildCommand}`);
@@ -212,10 +215,25 @@ export const registerStatusCommands = (program: Command): void => {
           const buildStatus = targetUpdate.lastBuild?.status;
 
           if (buildStatus === 'success') {
-            if (!process.stdout.isTTY) {
+            const durationMs = targetUpdate.lastBuild?.duration;
+            if (isJson) {
+              console.log(
+                JSON.stringify(
+                  {
+                    target: resolvedTarget,
+                    status: 'success',
+                    durationMs,
+                    startedAt: resolvedStatus.lastBuild?.timestamp,
+                    finishedAt: targetUpdate.lastBuild?.timestamp,
+                  },
+                  null,
+                  2
+                )
+              );
+            } else if (!process.stdout.isTTY) {
               console.log('✅ Build completed successfully');
-              if (targetUpdate.lastBuild?.duration) {
-                const durSec = Math.round(targetUpdate.lastBuild.duration / 1000);
+              if (durationMs) {
+                const durSec = Math.round(durationMs / 1000);
                 console.log(`Duration: ${durSec}s`);
               }
             } else {
@@ -226,9 +244,40 @@ export const registerStatusCommands = (program: Command): void => {
             const summary = targetUpdate.lastBuild?.errorSummary
               ? `\nError: ${targetUpdate.lastBuild.errorSummary}`
               : '';
+            if (isJson) {
+              console.log(
+                JSON.stringify(
+                  {
+                    target: resolvedTarget,
+                    status: 'failure',
+                    error: targetUpdate.lastBuild?.errorSummary ?? 'unknown',
+                    startedAt: resolvedStatus.lastBuild?.timestamp,
+                    finishedAt: targetUpdate.lastBuild?.timestamp,
+                  },
+                  null,
+                  2
+                )
+              );
+            }
             exitWithError(`❌ Build failed${summary}`);
           } else if (buildStatus !== 'building') {
-            exitWithError(`❌ Build failed\nError: Build ended with status: ${buildStatus}`);
+            const summary =
+              buildStatus === undefined ? 'unknown' : `Build ended with status: ${buildStatus}`;
+            if (isJson) {
+              console.log(
+                JSON.stringify(
+                  {
+                    target: resolvedTarget,
+                    status: buildStatus ?? 'unknown',
+                    startedAt: resolvedStatus.lastBuild?.timestamp,
+                    finishedAt: targetUpdate.lastBuild?.timestamp,
+                  },
+                  null,
+                  2
+                )
+              );
+            }
+            exitWithError(`❌ Build failed\nError: ${summary}`);
           }
           // Continue polling if still building
         }
