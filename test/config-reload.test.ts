@@ -411,13 +411,9 @@ describe('Configuration Reloading', () => {
         new Error('Invalid configuration file')
       );
 
-      const handleConfigChange = (
-        poltergeist as unknown as PoltergeistWithPrivate
-      ).handleConfigChange.bind(poltergeist);
-
       // Should not throw, just log error
       await expect(
-        handleConfigChange([{ name: 'poltergeist.config.json', exists: true }])
+        poltergeist.handleConfigChange([{ name: 'poltergeist.config.json', exists: true }])
       ).resolves.not.toThrow();
 
       // Verify error was logged
