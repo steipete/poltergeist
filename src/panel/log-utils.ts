@@ -38,8 +38,11 @@ export function formatLogs(
   const wrapped: string[] = [];
   const wrapWidth = Math.max(1, width - 2);
   for (const line of lines) {
-    const segments = wrapAnsi(line, wrapWidth, { hard: false, trim: false }).split('\n');
-    wrapped.push(...segments);
+    const logicalLines = String(line ?? '').split(/\r?\n/);
+    for (const logical of logicalLines) {
+      const segments = wrapAnsi(logical, wrapWidth, { hard: false, trim: false }).split('\n');
+      wrapped.push(...segments);
+    }
   }
   const limited =
     maxLines > 0 && wrapped.length > maxLines ? wrapped.slice(wrapped.length - maxLines) : wrapped;

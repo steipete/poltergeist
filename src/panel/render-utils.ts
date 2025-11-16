@@ -204,10 +204,7 @@ export function formatTargets(
     const badge = formatStatusBadge(status, statusLabel, color);
     const timePart = lastBuild && lastBuild !== '—' ? color(lastBuild) : '';
     const durationPart = duration && duration !== '—' ? colors.muted(duration) : '';
-    const statusDetails = truncateVisible(
-      [badge, timePart, durationPart].filter(Boolean).join(' '),
-      statusCol
-    );
+    const statusDetails = formatStatusDetails(statusCol, badge, timePart, durationPart);
 
     const rowLine = `${pad(`${targetName}${enabledLabel}`, targetCol)}${pad(statusDetails, statusCol)}`;
     lines.push(rowLine);
@@ -405,6 +402,39 @@ function statusColor(status?: string): { color: (value: string) => string; label
     default:
       return { color: colors.info, label: status || 'unknown' };
   }
+}
+
+function formatStatusDetails(
+  maxWidth: number,
+  badge: string,
+  timePart: string,
+  durationPart: string
+): string {
+  const join = (parts: string[]) => parts.filter(Boolean).join(' ');
+  const candidates: string[][] = [];
+
+  const full = [badge, timePart, durationPart].filter(Boolean);
+  if (full.length) {
+    candidates.push(full);
+  }
+
+  const withoutDuration = [badge, timePart].filter(Boolean);
+  if (durationPart && withoutDuration.length) {
+    candidates.push(withoutDuration);
+  }
+
+  if (withoutDuration.length > 0 || full.length > 0) {
+    candidates.push([badge]);
+  }
+
+  for (const parts of candidates) {
+    const joined = join(parts);
+    if (visibleWidth(joined) <= maxWidth) {
+      return joined;
+    }
+  }
+
+  return truncateVisible(badge, maxWidth);
 }
 
 function formatStatusBadge(

@@ -47,4 +47,25 @@ describe('log utils', () => {
     // Expect multiple lines due to wrapping.
     expect(plain.split('\n').length).toBeGreaterThan(1);
   });
+
+  it('respects maxLines after wrapping by keeping the tail', () => {
+    const entry = makeEntry('cli');
+    const output = formatLogs(entry, 'build', ['line1', 'line2', 'line3', 'line4'], 20, 2, 'all');
+    const lines = stripAnsiCodes(output).split('\n').slice(3); // skip header + divider
+    expect(lines).toEqual(['line3', 'line4']);
+  });
+
+  it('splits embedded newlines into separate log entries', () => {
+    const entry = makeEntry('cli');
+    const output = formatLogs(entry, 'build', ['line1\nline2', 'line3'], 30, 10, 'all');
+    const lines = stripAnsiCodes(output).split('\n').slice(3); // skip header + divider
+    expect(lines).toEqual(['line1', 'line2', 'line3']);
+  });
+
+  it('applies maxLines after expanding multiline entries', () => {
+    const entry = makeEntry('cli');
+    const output = formatLogs(entry, 'build', ['a\nb\nc\nd'], 30, 2, 'all');
+    const lines = stripAnsiCodes(output).split('\n').slice(3); // skip header + divider
+    expect(lines).toEqual(['c', 'd']);
+  });
 });

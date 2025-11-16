@@ -56,7 +56,7 @@ describe('render utils', () => {
     expect(line).toMatch(/ThisIsAVeryLong.*…/);
   });
 
-  it('truncates status badges when columns are narrow', () => {
+  it('elides duration before overflowing the status column', () => {
     const now = Date.now();
     const target: TargetPanelEntry = {
       ...makeTarget('short'),
@@ -69,7 +69,24 @@ describe('render utils', () => {
       },
     };
     const rows = buildTargetRows([target]);
-    const text = formatTargets(rows, 0, new Map(), 26); // narrow: targetCol=18, statusCol=8
+    const text = formatTargets(rows, 0, new Map(), 26); // targetCol=18, statusCol=16 (min)
+    const statusPart = stripAnsiCodes(text.split('\n')[2]).slice(18).trim();
+    expect(statusPart).toBe('✗ failure 1h ago');
+    expect(statusPart).not.toContain('12s');
+  });
+
+  it('still truncates overly long badges when needed', () => {
+    const target: TargetPanelEntry = {
+      ...makeTarget('short'),
+      status: {
+        lastBuild: {
+          status: 'this-status-label-is-way-too-long',
+          timestamp: new Date(Date.now() - 3_600_000).toISOString(),
+        },
+      },
+    };
+    const rows = buildTargetRows([target]);
+    const text = formatTargets(rows, 0, new Map(), 26);
     const statusPart = stripAnsiCodes(text.split('\n')[2]).slice(18);
     expect(statusPart).toContain('…');
   });
