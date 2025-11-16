@@ -2,6 +2,7 @@ import { IntelligentBuildQueue } from './build-queue.js';
 import { BuildCoordinator } from './core/build-coordinator.js';
 import { DebouncedBuildScheduler } from './core/debounced-build-scheduler.js';
 import { StatusPresenter } from './core/status-presenter.js';
+import { TargetLifecycleManager } from './core/target-lifecycle.js';
 import type { TargetState } from './core/target-state.js';
 import { WatchService } from './core/watch-service.js';
 import type {
@@ -23,10 +24,8 @@ import type {
   PoltergeistConfig,
   Target,
 } from './types.js';
-import { BuildStatusManager } from './utils/build-status-manager.js';
 import { type ConfigChanges, detectConfigChanges } from './utils/config-diff.js';
 import { ConfigurationManager } from './utils/config-manager.js';
-import { expandGlobPatterns } from './utils/glob-utils.js';
 import { ProcessManager } from './utils/process-manager.js';
 import { WatchmanClient } from './watchman.js';
 import { WatchmanConfigManager } from './watchman-config.js';
@@ -59,6 +58,7 @@ export class Poltergeist {
   private buildCoordinator?: BuildCoordinator;
   private statusPresenter: StatusPresenter;
   private debouncedScheduler: DebouncedBuildScheduler;
+  private lifecycle: TargetLifecycleManager;
 
   constructor(
     config: PoltergeistConfig,
@@ -119,6 +119,13 @@ export class Poltergeist {
       buildTarget: (name) => {
         void this.buildCoordinator?.buildTarget(name, this.targetStates);
       },
+    });
+
+    this.lifecycle = new TargetLifecycleManager({
+      projectRoot,
+      logger: this.logger,
+      stateManager: this.stateManager,
+      builderFactory: this.builderFactory,
     });
   }
 
@@ -273,67 +280,7 @@ export class Poltergeist {
   }
 
   private async initializeTargetStates(targets: Target[]): Promise<void> {
-    for (const target of targets) {
-      if (target.watchPaths?.length) {
-        target.watchPaths = expandGlobPatterns(target.watchPaths);
-      }
-
-      const builder = this.builderFactory.createBuilder(
-        target,
-        this.projectRoot,
-        this.logger,
-        this.stateManager
-      );
-
-      await this.stateManager.initializeState(target);
-
-      try {
-        await builder.validate();
-      } catch (error) {
-        const errorMessage = error instanceof Error ? error.message : String(error);
-        const failureStatus = BuildStatusManager.createFailureStatus(
-          target.name,
-          { message: errorMessage, summary: 'Validation failed', type: 'configuration' },
-          { duration: 0 },
-          { gitHash: 'validation', builder: builder.describeBuilder?.() || target.type }
-        );
-        await this.stateManager.updateBuildStatus(target.name, failureStatus);
-        this.logger.error(`[${target.name}] Validation failed: ${errorMessage}`);
-        continue;
-      }
-
-      const runner =
-        target.type === 'executable' && target.autoRun?.enabled
-          ? new ExecutableRunner(target as ExecutableTarget, {
-              projectRoot: this.projectRoot,
-              logger: this.logger,
-            })
-          : undefined;
-
-      const postBuildRunner =
-        target.postBuild && target.postBuild.length > 0
-          ? new PostBuildRunner({
-              targetName: target.name,
-              hooks: target.postBuild,
-              projectRoot: this.projectRoot,
-              stateManager: this.stateManager,
-              logger: this.logger,
-            })
-          : undefined;
-
-      this.targetStates.set(target.name, {
-        target,
-        builder,
-        watching: false,
-        pendingFiles: new Set(),
-        runner,
-        postBuildRunner,
-      });
-
-      if (this.buildQueue) {
-        this.buildQueue.registerTarget(target, builder);
-      }
-    }
+    await this.lifecycle.initTargets(targets, this.buildQueue);
   }
 
   private async ensureWatchman(): Promise<void> {
