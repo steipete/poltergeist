@@ -637,13 +637,13 @@ function formatStatusBadge(
 ): string {
   switch (status) {
     case 'success':
-      return colors.success('✅');
+      return colors.success('✔');
     case 'failure':
-      return colors.failure('✖ failure');
+      return colors.failure('✗ failure');
     case 'building':
-      return colors.warning('⏳ building');
+      return colors.warning('⧗ building');
     case 'watching':
-      return colors.accent('👁 watching');
+      return colors.accent('◉ watching');
     default:
       return color(label);
   }
