@@ -41,6 +41,19 @@ function resolveFormatter(formatter: FormatterKind, command?: string): Formatter
 }
 
 function summarizeSwift(lines: string[]): string | null {
+  // New Swift Testing summary
+  const modern = lines.find((l) => /Test run with \d+ tests/i.test(l));
+  if (modern) {
+    const m = modern.match(/Test run with (\d+) tests.*(passed|failed).*after ([0-9.]+) seconds/i);
+    if (m) {
+      const tests = m[1];
+      const status = m[2].toLowerCase() === 'passed' ? 'PASS' : 'FAIL';
+      const duration = m[3];
+      const parts = [status, `${tests} tests`, `${duration}s`];
+      return parts.join(' · ');
+    }
+  }
+
   // Prefer the "Executed X tests..." line
   const exec = [...lines].reverse().find((l) => /Executed\s+\d+\s+tests/i.test(l));
   const suite = [...lines].reverse().find((l) => /Test Suite '.*' (passed|failed)/i.test(l));
