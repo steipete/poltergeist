@@ -229,6 +229,7 @@ export class PanelApp {
     }
     this.selectedIndex = nextIndex;
     this.logMode = 'build';
+    this.summaryMode = 'ai';
     this.updateView('selection');
     this.queueLogRefresh();
     this.updateLogPolling();
@@ -268,10 +269,11 @@ export class PanelApp {
       width,
       summaryRowLabel: this.getSummaryLabel(this.snapshot),
       summarySelected: viewingSummary,
-      summaryInfo,
-      logLimit,
-      logMode: this.logMode,
-    });
+        summaryInfo,
+        logLimit,
+        logMode: this.logMode,
+        summaryMode: this.summaryMode,
+      });
     if (this.started) {
       this.tui.requestRender();
     }
@@ -368,22 +370,28 @@ export class PanelApp {
     return Math.max(0, remaining - LOG_OVERHEAD_LINES);
   }
 
-  private computeSummaryLines(snapshot: PanelSnapshot, viewingSummary: boolean): SummaryRenderInfo {
+  private computeSummaryLines(
+    snapshot: PanelSnapshot,
+    viewingSummary: boolean,
+    summaryMode: 'ai' | 'git'
+  ): SummaryRenderInfo {
     if (!viewingSummary) {
       return { aiHeaderLines: 0, aiMarkdownLines: 0, dirtyLines: 0, totalLines: 0 };
     }
 
-    const aiSummary = formatAiSummary(snapshot.git.summary ?? []);
-    if (aiSummary && aiSummary.body.trim().length > 0) {
-      const headerText = aiSummary.header ?? colors.header('AI Summary of changed files:');
-      const aiHeaderLines = countLines(`\n${headerText}`);
-      const aiMarkdownLines = countLines(aiSummary.body.trim());
-      return {
-        aiHeaderLines,
-        aiMarkdownLines,
-        dirtyLines: 0,
-        totalLines: aiHeaderLines + aiMarkdownLines,
-      };
+    if (summaryMode === 'ai') {
+      const aiSummary = formatAiSummary(snapshot.git.summary ?? []);
+      if (aiSummary && aiSummary.body.trim().length > 0) {
+        const headerText = aiSummary.header ?? colors.header('AI Summary of changed files:');
+        const aiHeaderLines = countLines(`\n${headerText}`);
+        const aiMarkdownLines = countLines(aiSummary.body.trim());
+        return {
+          aiHeaderLines,
+          aiMarkdownLines,
+          dirtyLines: 0,
+          totalLines: aiHeaderLines + aiMarkdownLines,
+        };
+      }
     }
 
     const dirtyText = formatDirtyFiles(snapshot);
@@ -523,23 +531,33 @@ class PanelView extends Container {
     );
     this.globalScripts.setText(formatGlobalScripts(globalScripts, state.width));
     if (state.summarySelected) {
-      const aiSummary = formatAiSummary(snapshot.git.summary ?? []);
-      if (aiSummary && aiSummary.body.trim().length > 0) {
-        this.dirtyFiles.setText('');
-        const headerText = aiSummary.header ?? colors.header('AI Summary of changed files:');
-        this.aiHeader.setText(`\n${headerText}`);
-        const limitedBody = limitSummaryLines(
-          aiSummary.body.trim(),
-          Math.max(1, Math.floor(state.logLimit * SUMMARY_FRACTION))
-        );
-        this.aiMarkdown.setText(limitedBody);
+      if (state.summaryMode === 'ai') {
+        const aiSummary = formatAiSummary(snapshot.git.summary ?? []);
+        if (aiSummary && aiSummary.body.trim().length > 0) {
+          this.dirtyFiles.setText('');
+          const headerText = aiSummary.header ?? colors.header('AI Summary of changed files:');
+          this.aiHeader.setText(`\n${headerText}`);
+          const limitedBody = limitSummaryLines(
+            aiSummary.body.trim(),
+            Math.max(1, Math.floor(state.logLimit * SUMMARY_FRACTION))
+          );
+          this.aiMarkdown.setText(limitedBody);
+        } else {
+          const limitedDirty = limitSummaryLines(
+            formatDirtyFiles(snapshot),
+            Math.max(1, Math.floor(state.logLimit * SUMMARY_FRACTION))
+          );
+          this.dirtyFiles.setText(limitedDirty);
+          this.aiHeader.setText('');
+          this.aiMarkdown.setText('');
+        }
       } else {
         const limitedDirty = limitSummaryLines(
           formatDirtyFiles(snapshot),
           Math.max(1, Math.floor(state.logLimit * SUMMARY_FRACTION))
         );
         this.dirtyFiles.setText(limitedDirty);
-        this.aiHeader.setText('');
+        this.aiHeader.setText(colors.header('\nGit dirty files:'));
         this.aiMarkdown.setText('');
       }
     } else {
