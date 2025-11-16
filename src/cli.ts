@@ -383,8 +383,7 @@ program
         console.log(chalk.green(`${ghost.success()} Poltergeist daemon restarted (PID: ${pid})`));
       }
     } catch (error) {
-      console.error(chalk.red(poltergeistMessage('error', `Restart failed: ${error}`)));
-      process.exit(1);
+      exitWithError(poltergeistMessage('error', `Restart failed: ${error}`));
     }
   });
 
