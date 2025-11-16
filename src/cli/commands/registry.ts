@@ -40,11 +40,13 @@ export const COMMAND_DESCRIPTORS: CommandDescriptor[] = [
       { flags: '-t, --target <name>', description: 'Target to filter status/logs' },
       { flags: '--verbose', description: 'Show detailed status information' },
     ],
+    aliases: ['panel', 'logs', 'wait'],
   },
   {
     name: 'project',
     register: registerProjectCommands,
     options: [{ flags: '-c, --config <path>', description: 'Path to config file' }],
+    aliases: ['init', 'list', 'clean'],
   },
   {
     name: 'polter',
