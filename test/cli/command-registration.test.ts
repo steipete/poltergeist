@@ -2,10 +2,15 @@ import { describe, expect, it } from 'vitest';
 import { Command } from 'commander';
 import { registerCliCommands } from '../../src/cli/commands/index.js';
 
+const serializeCommand = (cmd: any) => ({
+  name: cmd.name(),
+  aliases: cmd.aliases(),
+  options: cmd.options.map((opt: any) => opt.flags).sort(),
+});
+
 describe('CLI command registration', () => {
   it('registers all top-level commands', () => {
     const program = new Command();
-
     registerCliCommands(program);
 
     const names = program.commands.map((cmd) => cmd.name());
@@ -23,5 +28,16 @@ describe('CLI command registration', () => {
     expect(names).toContain('clean');
     expect(names).toContain('polter');
     expect(names).toContain('version');
+  });
+
+  it('keeps command aliases and common options aligned', () => {
+    const program = new Command();
+    registerCliCommands(program);
+
+    const snapshot = Object.fromEntries(
+      program.commands.map((cmd) => [cmd.name(), serializeCommand(cmd)])
+    );
+
+    expect(snapshot).toMatchSnapshot();
   });
 });

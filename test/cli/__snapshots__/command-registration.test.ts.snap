@@ -1,0 +1,139 @@
+// Vitest Snapshot v1, https://vitest.dev/guide/snapshot.html
+
+exports[`CLI command registration > keeps command aliases and common options aligned 1`] = `
+{
+  "build": {
+    "aliases": [],
+    "name": "build",
+    "options": [
+      "--json",
+      "--verbose",
+      "-c, --config <path>",
+      "-f, --force",
+    ],
+  },
+  "clean": {
+    "aliases": [],
+    "name": "clean",
+    "options": [
+      "--dry-run",
+      "--json",
+      "-a, --all",
+      "-d, --days <number>",
+    ],
+  },
+  "haunt": {
+    "aliases": [
+      "start",
+    ],
+    "name": "haunt",
+    "options": [
+      "--log-level <level>",
+      "--verbose",
+      "-c, --config <path>",
+      "-f, --foreground",
+      "-t, --target <name>",
+    ],
+  },
+  "init": {
+    "aliases": [],
+    "name": "init",
+    "options": [
+      "--auto",
+      "--build-dir <dir>",
+      "--cmake",
+      "--dry-run",
+      "--generator <gen>",
+      "--no-auto-add",
+      "--preset <name>",
+    ],
+  },
+  "list": {
+    "aliases": [],
+    "name": "list",
+    "options": [
+      "-c, --config <path>",
+    ],
+  },
+  "logs": {
+    "aliases": [],
+    "name": "logs",
+    "options": [
+      "--json",
+      "-C, --channel <name>",
+      "-c, --config <path>",
+      "-f, --follow",
+      "-t, --tail <number>",
+    ],
+  },
+  "panel": {
+    "aliases": [],
+    "name": "panel",
+    "options": [
+      "--git-mode <mode>",
+      "--verbose",
+      "-c, --config <path>",
+    ],
+  },
+  "polter": {
+    "aliases": [],
+    "name": "polter",
+    "options": [
+      "--log-lines <number>",
+      "--no-logs",
+      "--restart-delay <ms>",
+      "--restart-signal <signal>",
+      "--verbose",
+      "-f, --force",
+      "-n, --no-wait",
+      "-t, --timeout <ms>",
+      "-w, --watch",
+    ],
+  },
+  "restart": {
+    "aliases": [],
+    "name": "restart",
+    "options": [
+      "--log-level <level>",
+      "--verbose",
+      "-c, --config <path>",
+      "-f, --foreground",
+      "-t, --target <name>",
+    ],
+  },
+  "status": {
+    "aliases": [],
+    "name": "status",
+    "options": [
+      "--git-mode <mode>",
+      "--json",
+      "--verbose",
+      "-c, --config <path>",
+      "-t, --target <name>",
+    ],
+  },
+  "stop": {
+    "aliases": [
+      "rest",
+    ],
+    "name": "stop",
+    "options": [
+      "-c, --config <path>",
+    ],
+  },
+  "version": {
+    "aliases": [],
+    "name": "version",
+    "options": [],
+  },
+  "wait": {
+    "aliases": [],
+    "name": "wait",
+    "options": [
+      "--json",
+      "-c, --config <path>",
+      "-t, --timeout <seconds>",
+    ],
+  },
+}
+`;
