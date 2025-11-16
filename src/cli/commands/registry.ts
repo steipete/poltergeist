@@ -23,18 +23,33 @@ export const COMMAND_DESCRIPTORS: CommandDescriptor[] = [
   {
     name: 'daemon',
     register: registerDaemonCommands,
+    options: [
+      { flags: '-c, --config <path>', description: 'Path to config file' },
+      { flags: '-t, --target <name>', description: 'Target to build (omit to build all enabled targets)' },
+      { flags: '--verbose', description: 'Enable verbose logging (same as --log-level debug)' },
+      { flags: '--log-level <level>', description: 'Set log level (debug, info, warn, error)' },
+      { flags: '-f, --foreground', description: 'Run in foreground (blocking mode)' },
+    ],
+    aliases: ['start', 'haunt', 'stop', 'rest', 'restart'],
   },
   {
     name: 'status',
     register: registerStatusCommands,
+    options: [
+      { flags: '-c, --config <path>', description: 'Path to config file' },
+      { flags: '-t, --target <name>', description: 'Target to filter status/logs' },
+      { flags: '--verbose', description: 'Show detailed status information' },
+    ],
   },
   {
     name: 'project',
     register: registerProjectCommands,
+    options: [{ flags: '-c, --config <path>', description: 'Path to config file' }],
   },
   {
     name: 'polter',
     register: registerPolterCommand,
+    options: [],
   },
   {
     name: 'version',
