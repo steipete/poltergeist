@@ -12,7 +12,6 @@ import {
   formatAiSummary,
   formatDirtyFiles,
   formatFooter,
-  formatGlobalScripts,
   formatHeader,
   formatTargets,
   renderControlsLine,
@@ -180,9 +179,11 @@ function computeLogDisplayLimit({
     summaryLabel ? { label: summaryLabel, selected: selectedRowIndex === summaryIndex } : undefined,
     rowSummariesWithSelection,
     summaryModes,
-    summaryMode
+    summaryMode,
+    snapshot,
+    scriptsSplit.globalScripts
   );
-  const globalScriptsText = formatGlobalScripts(scriptsSplit.globalScripts, width);
+  const globalScriptsText = '';
   const footerText = formatFooter(controlsLine, width); // Always render as the last block.
 
   const nonLogLines =

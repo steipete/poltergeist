@@ -164,7 +164,8 @@ export function formatTargets(
   rowSummaries: Array<PanelSummaryScriptResult & { selected?: boolean }> = [],
   summaryModes: SummaryModeOption[] = [],
   activeSummaryKey?: string,
-  snapshot?: PanelSnapshot
+  snapshot?: PanelSnapshot,
+  globalScripts: PanelStatusScriptResult[] = []
 ): string {
   if (rows.length === 0) {
     return `${colors.header('No targets configured.')}\n${colors.muted('Hint: run poltergeist status to populate targets')}`;
@@ -246,6 +247,16 @@ export function formatTargets(
       row.exitCode && row.exitCode !== 0 ? colors.failure('needs attention') : colors.muted('view');
     lines.push(`${pad(name, targetCol)}${pad(status, statusCol)}`);
   });
+
+  if (globalScripts.length > 0) {
+    globalScripts.forEach((script) => {
+      const isFail = (script.exitCode ?? 0) !== 0;
+      const name = colors.header(script.label);
+      const primaryLine = script.lines?.[0]?.trim() || (isFail ? 'failed' : 'ok');
+      const statusText = isFail ? colors.failure(primaryLine) : colors.muted(primaryLine);
+      lines.push(`${pad(name, targetCol)}${pad(statusText, statusCol)}`);
+    });
+  }
 
   lines.push(divider);
 

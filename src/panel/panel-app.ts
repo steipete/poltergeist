@@ -29,7 +29,6 @@ import {
   formatAiSummary,
   formatDirtyFiles,
   formatFooter,
-  formatGlobalScripts,
   formatHeader,
   formatTargets,
   splitStatusScripts,
@@ -534,10 +533,11 @@ class PanelView extends Container {
         rowSummaries,
         state.summaryModes,
         state.summarySelected ? state.activeSummaryKey : undefined,
-        snapshot
+        snapshot,
+        globalScripts
       )
     );
-    this.globalScripts.setText(formatGlobalScripts(globalScripts, state.width));
+    this.globalScripts.setText('');
     const showSummary = state.summarySelected || Boolean(state.customSummary);
     if (showSummary) {
       const summaryDivider = colors.line('─'.repeat(Math.max(4, state.width)));
