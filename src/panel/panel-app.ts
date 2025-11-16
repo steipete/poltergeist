@@ -517,7 +517,7 @@ function formatTargets(
     entry.status.postBuild?.forEach((result) => {
       const postColor = postBuildColor(result.status);
       const durationTag =
-        result.durationMs !== undefined ? ` [${formatDurationShort(result.durationMs)}]` : '';
+        result.durationMs !== undefined ? ` · ${formatDurationShort(result.durationMs)}` : '';
       const summaryText =
         result.summary || `${result.name}: ${result.status ?? 'pending'}`.replace(/\s+/g, ' ');
       const postLines = wrapAnsi(postColor(`  ${summaryText}${durationTag}`), Math.max(1, width), {
@@ -761,7 +761,7 @@ function formatScriptLines(script: PanelStatusScriptResult, prefix = '', width =
   const scriptColor = scriptColorFromExitCode(script.exitCode);
   const limit = Math.max(1, script.maxLines ?? script.lines.length);
   const selectedLines = script.lines.slice(0, limit).map(stripAnsiCodes);
-  const durationTag = ` [${formatDurationShort(script.durationMs ?? 0)}]`;
+  const durationTag = ` · ${formatDurationShort(script.durationMs ?? 0)}`;
   if (selectedLines.length === 0) {
     return wrapAnsi(
       scriptColor(`${prefix}${script.label}: (no output)${durationTag}`),
