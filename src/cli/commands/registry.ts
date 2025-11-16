@@ -6,17 +6,40 @@ import { registerPolterCommand } from './polter.js';
 import { registerVersionCommand } from './version.js';
 import type { CommandGroup } from '../../utils/cli-formatter.js';
 
+export interface CommandOptionDescriptor {
+  flags: string;
+  description: string;
+  defaultValue?: string | boolean;
+}
+
 export interface CommandDescriptor {
   name: string;
   register: (program: Command) => void;
+  options?: CommandOptionDescriptor[];
+  aliases?: string[];
 }
 
 export const COMMAND_DESCRIPTORS: CommandDescriptor[] = [
-  { name: 'daemon', register: registerDaemonCommands },
-  { name: 'status', register: registerStatusCommands },
-  { name: 'project', register: registerProjectCommands },
-  { name: 'polter', register: registerPolterCommand },
-  { name: 'version', register: registerVersionCommand },
+  {
+    name: 'daemon',
+    register: registerDaemonCommands,
+  },
+  {
+    name: 'status',
+    register: registerStatusCommands,
+  },
+  {
+    name: 'project',
+    register: registerProjectCommands,
+  },
+  {
+    name: 'polter',
+    register: registerPolterCommand,
+  },
+  {
+    name: 'version',
+    register: registerVersionCommand,
+  },
 ];
 
 export const HELP_GROUPS: CommandGroup[] = [
