@@ -202,7 +202,9 @@ export class GitMetricsCollector {
     const entries = raw.split('\0').filter((line) => line.length > 0);
     const files: string[] = [];
     for (const line of entries) {
-      if (!/^[12u?]/.test(line)) continue;
+      // git status --porcelain=v2 codes:
+      // 1/2 = tracked, u = unmerged, ? = untracked, S = dirty submodule
+      if (!/^[12u?S]/.test(line)) continue;
       const path = this.extractPathFromStatus(line);
       if (path) {
         files.push(path);
@@ -211,13 +213,18 @@ export class GitMetricsCollector {
         }
       }
     }
-    const count = entries.filter((line) => /^[12u?]/.test(line)).length;
+    const count = entries.filter((line) => /^[12u?S]/.test(line)).length;
     return { count, files };
   }
 
   private extractPathFromStatus(line: string): string | null {
     if (line.startsWith('?')) {
       return line.replace(/^\?\s+/, '').trim() || null;
+    }
+    if (line.startsWith('S')) {
+      // Submodule entry format: "S <xy> <sub> <path>"
+      const parts = line.trim().split(/\s+/);
+      return parts[parts.length - 1] || null;
     }
     const tabIndex = line.indexOf('\t');
     if (tabIndex >= 0) {
