@@ -245,16 +245,8 @@ describe('Configuration Reloading', () => {
         ],
       };
 
-      // Access private method for testing
-      const applyChanges = (
-        poltergeist as unknown as PoltergeistWithPrivate
-      ).applyConfigChanges.bind(poltergeist);
-      const detectChanges = (
-        poltergeist as unknown as PoltergeistWithPrivate
-      ).detectConfigChanges.bind(poltergeist);
-
-      const changes = detectChanges(baseConfig, newConfig);
-      await applyChanges(newConfig, changes);
+      const changes = detectConfigChanges(baseConfig, newConfig);
+      await poltergeist.applyConfigChanges(newConfig, changes);
 
       // Verify that the builder factory was called to create the new target
       expect(enhancedMocks.builderFactory.createBuilder).toHaveBeenCalledWith(
@@ -294,16 +286,8 @@ describe('Configuration Reloading', () => {
         targets: [], // Remove all targets
       };
 
-      // Access private method for testing
-      const applyChanges = (
-        poltergeist as unknown as PoltergeistWithPrivate
-      ).applyConfigChanges.bind(poltergeist);
-      const detectChanges = (
-        poltergeist as unknown as PoltergeistWithPrivate
-      ).detectConfigChanges.bind(poltergeist);
-
-      const changes = detectChanges(baseConfig, newConfig);
-      await applyChanges(newConfig, changes);
+      const changes = detectConfigChanges(baseConfig, newConfig);
+      await poltergeist.applyConfigChanges(newConfig, changes);
 
       // Verify that target states were cleared - we can't directly access private fields,
       // but we can verify through status
@@ -345,17 +329,10 @@ describe('Configuration Reloading', () => {
         },
       };
 
-      const applyChanges = (
-        poltergeist as unknown as PoltergeistWithPrivate
-      ).applyConfigChanges.bind(poltergeist);
-      const detectChanges = (
-        poltergeist as unknown as PoltergeistWithPrivate
-      ).detectConfigChanges.bind(poltergeist);
-
-      const changes = detectChanges(baseConfig, newConfig);
+      const changes = detectConfigChanges(baseConfig, newConfig);
       expect(changes.notificationsChanged).toBe(true);
 
-      await applyChanges(newConfig, changes);
+      await poltergeist.applyConfigChanges(newConfig, changes);
 
       // The notifier should be initialized internally, but we can't easily test this
       // without accessing private fields. The test verifies the change detection works.
@@ -395,17 +372,10 @@ describe('Configuration Reloading', () => {
         },
       };
 
-      const applyChanges = (
-        poltergeist as unknown as PoltergeistWithPrivate
-      ).applyConfigChanges.bind(poltergeist);
-      const detectChanges = (
-        poltergeist as unknown as PoltergeistWithPrivate
-      ).detectConfigChanges.bind(poltergeist);
-
-      const changes = detectChanges(baseConfig, newConfig);
+      const changes = detectConfigChanges(baseConfig, newConfig);
       expect(changes.buildSchedulingChanged).toBe(true);
 
-      await applyChanges(newConfig, changes);
+      await poltergeist.applyConfigChanges(newConfig, changes);
 
       // Verify the change was detected - internal state changes are hard to test
       // without exposing private fields, but the detection logic is verified
