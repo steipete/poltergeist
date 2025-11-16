@@ -1,5 +1,6 @@
 import { IntelligentBuildQueue } from './build-queue.js';
 import { BuildCoordinator } from './core/build-coordinator.js';
+import { StatusPresenter } from './core/status-presenter.js';
 import type { TargetState } from './core/target-state.js';
 import { WatchService } from './core/watch-service.js';
 import type {
@@ -55,6 +56,7 @@ export class Poltergeist {
   private isReady = false;
   private watchService?: WatchService;
   private buildCoordinator?: BuildCoordinator;
+  private statusPresenter: StatusPresenter;
 
   constructor(
     config: PoltergeistConfig,
@@ -104,6 +106,11 @@ export class Poltergeist {
     if (this.buildSchedulingConfig.prioritization.enabled) {
       this.priorityEngine = new PriorityEngine(this.buildSchedulingConfig, logger);
     }
+
+    this.statusPresenter = new StatusPresenter({
+      logger: this.logger,
+      stateManager: this.stateManager,
+    });
   }
 
   /**
@@ -448,101 +455,8 @@ export class Poltergeist {
   }
 
   public async getStatus(targetName?: string): Promise<Record<string, unknown>> {
-    const status: Record<string, unknown> = {};
+    const status = await this.statusPresenter.getStatus(this.config, this.targetStates);
 
-    const deriveStatus = (stateFile?: PoltergeistState, fallback?: string): string => {
-      if (!stateFile) return fallback ?? 'unknown';
-      const hasBuild = Boolean(stateFile.lastBuild);
-      if (hasBuild) {
-        return stateFile.lastBuild?.status ?? fallback ?? 'unknown';
-      }
-      // No build recorded: surface this as failure after a short grace window instead of "watching".
-      const start = Date.parse(stateFile.process.startTime ?? '') || 0;
-      const ageMs = Date.now() - start;
-      const graceMs = 30_000; // 30s grace for startup
-      if (stateFile.process.isActive && ageMs > graceMs) {
-        return 'failure';
-      }
-      return fallback ?? (stateFile.process.isActive ? 'watching' : 'stopped');
-    };
-
-    if (targetName) {
-      const targetConfig = ConfigurationManager.findTarget(this.config, targetName);
-      const lookupName = targetConfig?.name ?? targetName;
-      const state = this.targetStates.get(lookupName);
-      const stateFile = await this.stateManager.readState(lookupName);
-
-      if (state && stateFile) {
-        status[lookupName] = {
-          status: deriveStatus(stateFile, state.watching ? 'watching' : 'idle'),
-          process: stateFile.process,
-          lastBuild: stateFile.lastBuild || state.lastBuild,
-          appInfo: stateFile.appInfo,
-          pendingFiles: state.pendingFiles.size,
-          buildStats: stateFile.buildStats,
-          buildCommand: targetConfig?.buildCommand,
-          postBuild: stateFile.postBuildResults
-            ? Object.values(stateFile.postBuildResults)
-            : undefined,
-        };
-      } else if (stateFile) {
-        status[lookupName] = {
-          status: deriveStatus(stateFile),
-          process: stateFile.process,
-          lastBuild: stateFile.lastBuild,
-          appInfo: stateFile.appInfo,
-          buildStats: stateFile.buildStats,
-          buildCommand: targetConfig?.buildCommand,
-        };
-      } else {
-        status[targetName] = { status: 'not found' };
-      }
-    } else {
-      // Get status for all targets
-      for (const target of this.config.targets) {
-        const state = this.targetStates.get(target.name);
-        const stateFile = await this.stateManager.readState(target.name);
-
-        if (state && stateFile) {
-          status[target.name] = {
-            status: deriveStatus(stateFile, state.watching ? 'watching' : 'idle'),
-            enabled: target.enabled,
-            type: target.type,
-            process: stateFile.process,
-            lastBuild: stateFile.lastBuild || state.lastBuild,
-            appInfo: stateFile.appInfo,
-            pendingFiles: state.pendingFiles.size,
-            buildStats: stateFile.buildStats,
-            buildCommand: target.buildCommand,
-            postBuild: stateFile.postBuildResults
-              ? Object.values(stateFile.postBuildResults)
-              : undefined,
-          };
-        } else if (stateFile) {
-          status[target.name] = {
-            status: deriveStatus(stateFile),
-            enabled: target.enabled,
-            type: target.type,
-            process: stateFile.process,
-            lastBuild: stateFile.lastBuild,
-            appInfo: stateFile.appInfo,
-            buildStats: stateFile.buildStats,
-            postBuild: stateFile.postBuildResults
-              ? Object.values(stateFile.postBuildResults)
-              : undefined,
-            buildCommand: target.buildCommand,
-          };
-        } else {
-          status[target.name] = {
-            status: 'not running',
-            enabled: target.enabled,
-            type: target.type,
-          };
-        }
-      }
-    }
-
-    // Add intelligent build queue status if enabled
     if (this.buildQueue && this.buildSchedulingConfig.prioritization.enabled) {
       status._buildQueue = {
         enabled: true,
@@ -555,6 +469,10 @@ export class Poltergeist {
         enabled: false,
         config: this.buildSchedulingConfig,
       };
+    }
+
+    if (targetName && !status[targetName]) {
+      status[targetName] = { status: 'not found' };
     }
 
     return status;
