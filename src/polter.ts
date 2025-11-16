@@ -1418,7 +1418,7 @@ export async function runWrapper(targetName: string, args: string[], options: Pa
     }
 
     // Emit a concise warning when the last successful build is older than 10 minutes.
-    if (status === 'success' || status === 'poltergeist-not-running') {
+    if (status === 'success' || status === 'poltergeist-not-running' || status === 'failed') {
       warnIfBuildStaleByAge(projectRoot, target.name, 10);
     }
 
