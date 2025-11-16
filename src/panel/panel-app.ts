@@ -231,6 +231,8 @@ export class PanelApp {
     if (this.logMode === mode) return;
     this.logMode = mode;
     this.updateView('log-mode-key');
+    this.queueLogRefresh();
+    this.updateLogPolling();
   }
 
   private moveSelection(delta: number): void {
@@ -329,7 +331,8 @@ export class PanelApp {
 
   private updateLogPolling(): void {
     const entry = this.snapshot.targets[this.selectedIndex];
-    const active = entry?.status.lastBuild?.status === 'building';
+    const active =
+      entry?.status.lastBuild?.status === 'building' || entry?.status.status === 'building';
     if (active && !this.logTimer) {
       this.logTimer = setInterval(() => {
         this.queueLogRefresh();
@@ -467,6 +470,8 @@ export class PanelApp {
         : (currentIdx - 1 + modes.length) % modes.length;
     this.logMode = modes[nextIdx];
     this.updateView('log-mode');
+    this.queueLogRefresh();
+    this.updateLogPolling();
   }
 
   private hasAiSummary(snapshot: PanelSnapshot): boolean {
@@ -591,7 +596,9 @@ class PanelView extends Container {
           formatDirtyFiles(snapshot),
           Math.max(1, Math.floor(state.logLimit * SUMMARY_FRACTION))
         );
-        this.dirtyFiles.setText(limitedDirty);
+        this.dirtyFiles.setText(
+          limitedDirty.trim().length > 0 ? limitedDirty : colors.muted('Git clean')
+        );
         this.aiHeader.setText(`${colors.header('\nGit dirty files:')}\n${summaryDivider}`);
         this.aiMarkdown.setText('');
       }
