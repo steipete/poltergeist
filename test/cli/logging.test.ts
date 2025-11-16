@@ -74,4 +74,11 @@ describe('readLogEntries', () => {
     expect(entries[0].message).toBe('Failed');
     expect(entries[1].message).toBe('Retrying');
   });
+
+  it('ignores lines that do not parse', async () => {
+    const file = createTempLogFile('not-a-log-line');
+    const entries = await readLogEntries(file, 'demo');
+    cleanup(file);
+    expect(entries).toHaveLength(0);
+  });
 });
