@@ -3,7 +3,7 @@ import chalk from 'chalk';
 import wrapAnsi from 'wrap-ansi';
 import type { SummaryModeOption } from './panel-state.js';
 import type { TargetRow } from './target-tree.js';
-import { boxLines, centerText, pad, truncateVisible, visibleWidth } from './text-utils.js';
+import { centerText, pad, truncateVisible, visibleWidth } from './text-utils.js';
 import type { PanelSnapshot, PanelStatusScriptResult, PanelSummaryScriptResult } from './types.js';
 
 export const CONTROLS_LINE = 'Controls: ↑/↓ move · ←/→ cycle logs · r refresh · q quit';
@@ -43,7 +43,12 @@ function getHeaderMode(width?: number): HeaderMode {
   return 'full';
 }
 
-export function formatHeader(snapshot: PanelSnapshot, width?: number): string {
+export function formatHeader(
+  snapshot: PanelSnapshot,
+  width?: number,
+  summaryModes: SummaryModeOption[] = [],
+  activeSummaryKey?: string
+): string {
   const mode = getHeaderMode(width);
   const branch = snapshot.git.branch ?? 'unknown';
   const dirtyFiles = snapshot.git.hasRepo ? snapshot.git.dirtyFiles : Number.NaN;
@@ -81,10 +86,12 @@ export function formatHeader(snapshot: PanelSnapshot, width?: number): string {
 
   const summaryLine = formatSummary(snapshot, mode);
 
-  const lines = [projectLine, branchLine, summaryLine];
-  const boxed = boxLines(lines, width);
-
-  const wrapped = wrapAnsi(boxed, Math.max(1, width ?? 80), { hard: false, trim: false });
+  const tabsLine = formatSummaryTabs(summaryModes, activeSummaryKey, snapshot, width);
+  const lines = [tabsLine || projectLine, branchLine, summaryLine];
+  const wrapped = wrapAnsi(lines.join('\n'), Math.max(1, width ?? 80), {
+    hard: false,
+    trim: false,
+  });
   return wrapped;
 }
 
@@ -152,6 +159,44 @@ export function formatFooter(controlsLine: string, width: number): string {
   const divider = colors.line('─'.repeat(Math.max(4, width)));
   const centered = centerText(controlsLine, width);
   return `${divider}\n${colors.header(centered)}`;
+}
+
+function summaryCount(mode: SummaryModeOption, snapshot: PanelSnapshot): number {
+  if (mode.type === 'ai') {
+    return (snapshot.git.summary ?? []).filter((line) => line.trim().length > 0).length;
+  }
+  if (mode.type === 'git') {
+    return snapshot.git.dirtyFileNames?.length ?? snapshot.git.dirtyFiles ?? 0;
+  }
+  if (mode.summary?.lines) {
+    return mode.summary.lines.filter((line) => line.trim().length > 0).length;
+  }
+  return 0;
+}
+
+function formatSummaryTabs(
+  modes: SummaryModeOption[],
+  activeSummaryKey: string | undefined,
+  snapshot: PanelSnapshot,
+  width?: number
+): string {
+  if (!modes.length) {
+    return '';
+  }
+
+  const parts = modes
+    .filter((mode) => mode.hasData ?? true)
+    .map((mode) => {
+      const count = summaryCount(mode, snapshot);
+      const suffix = count > 0 ? ` (${count})` : '';
+      const label = mode.type === 'ai' ? 'AI Summary' : mode.label;
+      const body = `${label}${suffix}`;
+      const decorated = mode.key === activeSummaryKey ? colors.accent(body) : colors.muted(body);
+      return decorated;
+    });
+
+  const line = parts.join(' | ');
+  return width ? centerText(line, width) : line;
 }
 
 export function formatTargets(

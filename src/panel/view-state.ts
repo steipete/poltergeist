@@ -164,7 +164,7 @@ function computeLogDisplayLimit({
   logOverheadLines: number;
 }): number {
   const rows = buildTargetRows(snapshot.targets);
-  const headerText = formatHeader(snapshot, width);
+  const headerText = formatHeader(snapshot, width, summaryModes, summaryMode);
   const summaryLabel = getSummaryLabel(summaryModes, summaryMode);
   const customStart = rows.length + (summaryIndex !== null ? 1 : 0);
   const rowSummariesWithSelection = rowSummaries.map((row, idx) => ({
