@@ -64,3 +64,5 @@ export function truncateVisible(text: string, maxWidth: number): string {
   }
   return `${acc}…`;
 }
+
+export { visibleWidth };
