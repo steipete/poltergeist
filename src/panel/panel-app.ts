@@ -1,4 +1,5 @@
 import { appendFileSync } from 'node:fs';
+import { homedir } from 'node:os';
 import {
   type Component,
   Container,
@@ -303,7 +304,7 @@ class PanelView extends Container {
   public update(state: PanelViewState): void {
     const { snapshot, selectedIndex } = state;
     const { scriptsByTarget, globalScripts } = splitStatusScripts(snapshot.statusScripts ?? []);
-    this.header.setText(formatHeader(snapshot));
+    this.header.setText(formatHeader(snapshot, state.width));
     this.targets.setText(
       formatTargets(snapshot.targets, selectedIndex, scriptsByTarget, state.width)
     );
@@ -403,7 +404,7 @@ const colors = {
   info: (value: string) => chalk.hex(palette.info)(value),
 };
 
-function formatHeader(snapshot: PanelSnapshot): string {
+function formatHeader(snapshot: PanelSnapshot, width?: number): string {
   const branch = snapshot.git.branch ?? 'unknown';
   const dirtyFiles = snapshot.git.hasRepo ? snapshot.git.dirtyFiles : Number.NaN;
   const insertions = snapshot.git.hasRepo ? snapshot.git.insertions : Number.NaN;
@@ -412,7 +413,8 @@ function formatHeader(snapshot: PanelSnapshot): string {
   const insertColor = !snapshot.git.hasRepo || insertions === 0 ? colors.info : colors.success;
   const deleteColor = !snapshot.git.hasRepo || deletions === 0 ? colors.info : colors.failure;
 
-  const projectLine = `${colors.text(snapshot.projectName)} — ${snapshot.projectRoot}`;
+  const projectRoot = snapshot.projectRoot.replace(homedir(), '~');
+  const projectLine = `${colors.text(snapshot.projectName)} — ${colors.muted(projectRoot)}`;
   const branchLine = [
     `${colors.muted('Branch:')} ${colors.text(branch)}`,
     `${colors.muted('Dirty files:')} ${
@@ -427,7 +429,8 @@ function formatHeader(snapshot: PanelSnapshot): string {
 
   const summaryLine = formatSummary(snapshot);
 
-  return `${projectLine}\n${branchLine}\n${summaryLine}`;
+  const lines = [projectLine, branchLine, summaryLine];
+  return lines.map((line) => centerText(line, width)).join('\n');
 }
 
 function formatSummary(snapshot: PanelSnapshot): string {
@@ -461,6 +464,18 @@ function pad(text: string, width: number): string {
     return text;
   }
   return `${text}${' '.repeat(width - length)}`;
+}
+
+function centerText(text: string, width?: number): string {
+  if (!width) return text;
+  const length = visibleWidth(text);
+  if (length >= width) {
+    return text;
+  }
+  const totalPad = width - length;
+  const left = Math.floor(totalPad / 2);
+  const right = totalPad - left;
+  return `${' '.repeat(left)}${text}${' '.repeat(right)}`;
 }
 
 function formatTargets(
