@@ -145,7 +145,7 @@ This file provides guidance to all coding agents (Claude, GPT, etc.) working in 
 **CRITICAL**: Poltergeist is distributed as a pre-compiled Bun executable, NOT as a Node.js package.
 
 ### Release Steps:
-1. **Build Bun binary**: Run `npm run build:bun` to create standalone executable
+1. **Build Bun binary**: Run `pnpm run build:bun` to create standalone executable
 2. **Create tarball**: Package the binary as `poltergeist-macos-{arch}-v{version}.tar.gz`
 3. **GitHub Release**: Upload the tarball to GitHub releases
 4. **Homebrew Formula**: Download from GitHub releases, NOT from npm registry
@@ -205,7 +205,7 @@ Poltergeist can build itself! The project includes a `poltergeist.config.json` t
 ### Setup
 ```bash
 # First time only - create initial build
-npm run build
+pnpm run build
 
 # Start Poltergeist to watch itself
 poltergeist start
@@ -224,7 +224,7 @@ polter poltergeist-cli status
 ```
 
 ### Important for AI Agents
-- **NEVER manually run `npm run build`** when Poltergeist is running
+- **NEVER manually run `pnpm run build`** when Poltergeist is running
 - **ALWAYS use `polter poltergeist-cli`** to run commands
 - Poltergeist detects its own changes and rebuilds automatically
 - The Mac app (poltergeist-mac target) also rebuilds automatically when enabled
@@ -302,19 +302,19 @@ Poltergeist is a file watcher and auto-builder for development projects. It uses
 ### CLI Development
 ```bash
 # Core development workflow
-npm run build              # Compile TypeScript to dist/
+pnpm run build              # Compile TypeScript to dist/
 npm test                   # Run Vitest test suite
-npm run dev               # Development mode with hot reload
-npm run typecheck         # TypeScript type checking
-npm run lint              # Biome linting and formatting checks
-npm run lint:fix          # Auto-fix linting issues
-npm run format            # Format code with Biome
+pnpm run dev               # Development mode with hot reload
+pnpm run typecheck         # TypeScript type checking
+pnpm run lint              # Biome linting and formatting checks
+pnpm run lint:fix          # Auto-fix linting issues
+pnpm run format            # Format code with Biome
 
 # Documentation generation
-npm run docs:build        # Generate all documentation (TypeScript + Swift)
-npm run docs:api          # Generate TypeScript API docs only
-npm run docs:swift        # Generate Swift API docs only
-npm run docs:serve        # Serve documentation on localhost:8080
+pnpm run docs:build        # Generate all documentation (TypeScript + Swift)
+pnpm run docs:api          # Generate TypeScript API docs only
+pnpm run docs:swift        # Generate Swift API docs only
+pnpm run docs:serve        # Serve documentation on localhost:8080
 
 # Single test execution
 npm test -- --run <test-name>     # Run specific test file
