@@ -27,6 +27,8 @@ export const registerProjectCommands = (program: Command): void => {
     .action(async (options) => {
       const projectRoot = process.cwd();
       const configPath = join(projectRoot, 'poltergeist.config.json');
+      const initLogger = createLogger();
+      const watchmanManager = new WatchmanConfigManager(projectRoot, initLogger);
 
       if (existsSync(configPath) && !options.dryRun) {
         exitWithError(
@@ -41,13 +43,9 @@ export const registerProjectCommands = (program: Command): void => {
       if (options.cmake) {
         projectType = 'cmake';
       } else if (options.auto) {
-        const logger = createLogger();
-        const watchmanManager = new WatchmanConfigManager(projectRoot, logger);
         projectType = await watchmanManager.detectProjectType();
         console.log(chalk.blue(`Auto-detected project type: ${projectType}`));
       } else {
-        const logger = createLogger();
-        const watchmanManager = new WatchmanConfigManager(projectRoot, logger);
         projectType = await watchmanManager.detectProjectType();
         console.log(chalk.blue(`Auto-detected project type: ${projectType}`));
       }
