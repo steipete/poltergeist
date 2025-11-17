@@ -9,6 +9,7 @@ import { createLogger } from '../dist/logger.js';
 import type { PoltergeistConfig } from '../dist/types.js';
 import { FileSystemUtils } from '../dist/utils/filesystem.js';
 import { ProcessManager } from '../dist/utils/process-manager.js';
+
 // Stable mocks for child_process so vi.mock hoists safely
 const { spawnMock, forkMock } = vi.hoisted(() => {
   const s = vi.fn();

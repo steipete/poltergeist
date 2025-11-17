@@ -149,7 +149,8 @@ jobs:
     - name: Setup Xcode
       uses: maxim-lobanov/setup-xcode@v1
       with:
-        xcode-version: latest
+        # Pin to stable Xcode to avoid actool crashes on macos-15 when "latest" selects RC builds
+        xcode-version: '16.4'
         
     - name: Install SwiftLint and swift-format
       run: |
