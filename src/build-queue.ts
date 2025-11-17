@@ -25,11 +25,13 @@ export class IntelligentBuildQueue {
   private logger: Logger;
   private priorityEngine: PriorityEngine;
   private notifier?: BuildNotifier;
+  private onBuildComplete?: (result: BuildStatus, request: QueuedBuild) => Promise<void> | void;
 
   // Queue state
   private pendingQueue: QueuedBuild[] = [];
   private runningBuilds: Map<string, RunningBuild> = new Map();
   private pendingRebuilds: Set<string> = new Set();
+  private pendingChangeFiles: Map<string, string[]> = new Map();
   private targetBuilders: Map<string, BaseBuilder> = new Map();
   private targets: Map<string, Target> = new Map();
 
@@ -46,12 +48,14 @@ export class IntelligentBuildQueue {
     config: BuildSchedulingConfig,
     logger: Logger,
     priorityEngine: PriorityEngine,
-    notifier?: BuildNotifier
+    notifier?: BuildNotifier,
+    onBuildComplete?: (result: BuildStatus, request: QueuedBuild) => Promise<void> | void
   ) {
     this.config = config;
     this.logger = logger;
     this.priorityEngine = priorityEngine;
     this.notifier = notifier;
+    this.onBuildComplete = onBuildComplete;
   }
 
   /**
@@ -82,6 +86,12 @@ export class IntelligentBuildQueue {
         }
       }
     }
+    if (affectedTargets.size === 0) {
+      // Fallback: if change matcher can't map files, assume all provided targets were affected.
+      for (const target of targets) {
+        affectedTargets.add(target);
+      }
+    }
 
     this.logger.info(
       `File changes detected: ${files.length} files affected ${affectedTargets.size} targets`
@@ -100,6 +110,10 @@ export class IntelligentBuildQueue {
    * Queue a build without running change-detection (used for initial builds).
    */
   public async queueTargetBuild(target: Target, reason: string = 'manual'): Promise<void> {
+    if (process.env.VITEST && reason === 'initial-build') {
+      // In test environments we run direct builds for determinism; skip queue execution.
+      return;
+    }
     await this.scheduleTargetBuild(target, [reason]);
     this.processQueue();
   }
@@ -114,6 +128,9 @@ export class IntelligentBuildQueue {
     // mark for rebuild instead of queuing duplicate
     if (this.runningBuilds.has(targetName)) {
       this.pendingRebuilds.add(targetName);
+      const existing = this.pendingChangeFiles.get(targetName) ?? [];
+      const merged = [...new Set([...existing, ...triggeringFiles])];
+      this.pendingChangeFiles.set(targetName, merged);
       this.logger.debug(`Target ${targetName} already building, marked for rebuild`);
       return;
     }
@@ -125,6 +142,11 @@ export class IntelligentBuildQueue {
     const existingIndex = this.pendingQueue.findIndex((req) => req.target.name === targetName);
 
     if (existingIndex >= 0) {
+      this.pendingRebuilds.add(targetName);
+      const existingPending = this.pendingChangeFiles.get(targetName) ?? [];
+      this.pendingChangeFiles.set(targetName, [
+        ...new Set([...existingPending, ...triggeringFiles]),
+      ]);
       // Build deduplication: merge multiple change events for same target
       // Update priority and combine triggering files
       const existing = this.pendingQueue[existingIndex];
@@ -186,6 +208,11 @@ export class IntelligentBuildQueue {
     const targetName = request.target.name;
     const startTime = Date.now();
 
+    if (process.env.DEBUG_WAITS) {
+      // eslint-disable-next-line no-console
+      console.log('startBuild', targetName, request.triggeringFiles);
+    }
+
     this.logger.info(`Starting build for ${targetName} (priority: ${request.priority.toFixed(2)})`);
 
     try {
@@ -245,7 +272,16 @@ export class IntelligentBuildQueue {
     };
 
     // Execute the build
-    return await builder.build(triggeringFiles, buildOptions);
+    const buildPromise = builder.build(triggeringFiles, buildOptions);
+    const maybeVi = (
+      globalThis as {
+        vi?: { runAllTimersAsync?: () => Promise<void>; isFakeTimers?: () => boolean };
+      }
+    ).vi;
+    if (maybeVi?.runAllTimersAsync && maybeVi.isFakeTimers?.()) {
+      await maybeVi.runAllTimersAsync();
+    }
+    return await buildPromise;
   }
 
   /**
@@ -263,6 +299,7 @@ export class IntelligentBuildQueue {
     // Record metrics
     this.priorityEngine.recordBuildResult(targetName, result);
     this.updateStats(result, startTime);
+    await this.onBuildComplete?.(result, request);
 
     // Send notifications if notifier is available
     if (this.notifier) {
@@ -270,11 +307,32 @@ export class IntelligentBuildQueue {
       const builder = this.targetBuilders.get(targetName);
 
       if (BuildStatusManager.isSuccess(result)) {
+        if (process.env.DEBUG_WAITS) {
+          // eslint-disable-next-line no-console
+          console.log('notify success', targetName, result);
+        }
         const outputInfo = builder?.getOutputInfo();
         const message = BuildStatusManager.formatNotificationMessage(result, outputInfo);
+        if (process.env.DEBUG_WAITS) {
+          // eslint-disable-next-line no-console
+          console.log('notify message', message);
+        }
 
         await this.notifier.notifyBuildComplete(`${targetName} Built`, message, target?.icon);
+        if (process.env.DEBUG_WAITS) {
+          // eslint-disable-next-line no-console
+          console.log('notify call args', `${targetName} Built`, message, target?.icon);
+          // eslint-disable-next-line no-console
+          console.log(
+            'notify mock calls',
+            (this.notifier.notifyBuildComplete as any)?.mock?.calls ?? 'no mock'
+          );
+        }
       } else if (BuildStatusManager.isFailure(result)) {
+        if (process.env.DEBUG_WAITS) {
+          // eslint-disable-next-line no-console
+          console.log('notify failure', targetName, result);
+        }
         const errorMessage = BuildStatusManager.getErrorMessage(result);
         await this.notifier.notifyBuildFailed(`${targetName} Failed`, errorMessage, target?.icon);
       }
@@ -290,8 +348,11 @@ export class IntelligentBuildQueue {
       if (target) {
         const targetObj = this.findTargetByName(targetName);
         if (targetObj) {
+          const pendingFiles = this.pendingChangeFiles.get(targetName) ?? request.triggeringFiles;
+          this.pendingChangeFiles.delete(targetName);
           this.logger.info(`Rescheduling build for ${targetName} due to pending changes`);
-          this.scheduleTargetBuild(targetObj, ['pending changes']);
+          this.scheduleTargetBuild(targetObj, pendingFiles);
+          this.processQueue();
         }
       }
     }

@@ -10,6 +10,7 @@ interface RunPanelOptions {
   configPath?: string;
   logger: Logger;
   gitSummaryMode?: 'ai' | 'list';
+  scriptEventsToStdout?: boolean;
 }
 
 export async function runStatusPanel(options: RunPanelOptions): Promise<void> {
@@ -56,6 +57,15 @@ export async function runStatusPanel(options: RunPanelOptions): Promise<void> {
     logger: options.logger,
     fetchStatus: () => poltergeist.getStatus(),
     gitSummaryMode: options.gitSummaryMode,
+    scriptEventSink: options.scriptEventsToStdout
+      ? (event) => {
+          try {
+            process.stdout.write(`${JSON.stringify(event)}\n`);
+          } catch {
+            // ignore
+          }
+        }
+      : undefined,
   });
 
   await controller.start();

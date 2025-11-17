@@ -185,7 +185,10 @@ export const registerDaemonCommands = (program: Command): void => {
       if (isTestMode) {
         const pretendRunning = process.env.POLTERGEIST_TEST_DAEMON_RUNNING === 'true';
         if (!pretendRunning) {
-          exitWithError(`${ghost.warning()} No Poltergeist daemon running for this project`, 1);
+          console.log(
+            chalk.yellow(`${ghost.warning()} No Poltergeist daemon running for this project`)
+          );
+          exitWithError('No daemon running');
         }
 
         console.log(chalk.gray(poltergeistMessage('info', 'Stopping daemon...')));
@@ -270,8 +273,14 @@ export const registerDaemonCommands = (program: Command): void => {
     .action(async (options) => {
       const { config, projectRoot } = await loadConfigOrExit(options.config);
       FileSystemUtils.writePauseFlag(projectRoot, true);
-      console.log(chalk.yellow(`${ghost.warning()} Auto-builds paused for ${config.projectType} project.`));
-      console.log(chalk.gray('Manual builds still run; press r in the panel or run `poltergeist resume` to re-enable.'));
+      console.log(
+        chalk.yellow(`${ghost.warning()} Auto-builds paused for ${config.projectType} project.`)
+      );
+      console.log(
+        chalk.gray(
+          'Manual builds still run; press r in the panel or run `poltergeist resume` to re-enable.'
+        )
+      );
     });
 
   applyConfigOption(pauseCmd);

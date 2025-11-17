@@ -238,7 +238,22 @@ export class BuildStatusManager {
    * Get error message with fallback logic
    */
   public static getErrorMessage(status: BuildStatus): string {
-    return status.errorSummary || status.error || 'Build failed';
+    if (status.errorSummary?.trim()) {
+      return status.errorSummary;
+    }
+
+    const rawError = status.error;
+
+    if (typeof rawError === 'string' && rawError.trim()) {
+      return rawError;
+    }
+
+    if (rawError && typeof rawError === 'object') {
+      if ('summary' in rawError && rawError.summary) return String(rawError.summary);
+      if ('message' in rawError && rawError.message) return String(rawError.message);
+    }
+
+    return 'Build failed';
   }
 
   /**

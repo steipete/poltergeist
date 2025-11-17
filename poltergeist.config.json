@@ -8,6 +8,7 @@
       "enabled": true,
       "buildCommand": "pnpm run build",
       "watchPaths": ["src/**/*.ts"],
+      "outputPath": "./dist/cli.js",
       "outputPaths": ["dist/cli.js", "dist/polter.js"]
     },
     {

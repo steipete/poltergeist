@@ -59,7 +59,7 @@ export class TargetLifecycleManager {
         );
         await this.stateManager.updateBuildStatus(target.name, failureStatus);
         this.logger.error(`[${target.name}] Validation failed: ${errorMessage}`);
-        continue;
+        throw new Error(errorMessage);
       }
 
       const runner =

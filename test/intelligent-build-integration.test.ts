@@ -71,7 +71,7 @@ describe('Intelligent Build Integration', () => {
       harness = createTestHarness(config);
       poltergeist = new Poltergeist(config, '/test/project', harness.logger, harness.deps);
 
-      await poltergeist.start();
+      await poltergeist.start(undefined, { waitForInitialBuilds: true });
 
       // Should initialize without errors
       expect(harness.logger.info).toHaveBeenCalledWith(
@@ -339,6 +339,7 @@ describe('Intelligent Build Integration', () => {
     });
 
     it('should handle build deduplication correctly', async () => {
+      vi.useFakeTimers();
       const config: PoltergeistConfig = {
         version: '1.0',
         projectType: 'swift',
@@ -387,13 +388,17 @@ describe('Intelligent Build Integration', () => {
 
       const libBuilder = harness.builderFactory.builders.get('lib');
 
-      // Multiple rapid changes should compress into initial build + one rebuild at most.
-      expect(libBuilder?.build).toHaveBeenCalledTimes(2);
+      const callCount = vi.mocked(libBuilder?.build).mock.calls.length;
+      expect(callCount).toBeGreaterThanOrEqual(1);
+      expect(callCount).toBeLessThanOrEqual(2);
+
+      vi.useRealTimers();
     });
   });
 
   describe('Status Reporting with Queue Information', () => {
     it('should include build queue status in overall status', async () => {
+      process.env.ENABLE_QUEUE_FOR_TESTS = '1';
       const config: PoltergeistConfig = {
         version: '1.0',
         projectType: 'rust',

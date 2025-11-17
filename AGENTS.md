@@ -28,6 +28,7 @@ Shared guardrails distilled from the various `~/Projects/*/AGENTS.md` files (sta
 - Before handing off work, run the full “green gate” for that repo (lint, type-check, tests, doc scripts, etc.). Follow the same command set humans run—no ad-hoc shortcuts.
 - Leave existing watchers running unless the owner tells you to stop them; keep their tmux panes healthy if you started them.
 - Treat every bug fix as a chance to add or extend automated tests that prove the behavior.
+- When someone asks to “fix CI,” use the GitHub CLI (`gh`) to inspect, rerun, and unblock failing workflows on GitHub until they are green.
 
 ### Code Quality & Naming
 - Refactor in place. Never create duplicate files with suffixes such as “V2”, “New”, or “Fixed”; update the canonical file and remove obsolete paths entirely.
@@ -75,20 +76,25 @@ Keep this master file up to date as you notice new rules that recur across repos
 
 <tools>
 # TOOLS
-- `runner`: Bash shim that routes every command through the Bun guardrails (timeouts, git policy, trash-safe deletes); first call: `./runner -- echo usage` to see the usage banner.
-- `git` / `bin/git`: Git shim that forces all git invocations through the runner and blocks destructive subcommands; first call: `./git --help` to confirm the wrapper and read git help.
-- `scripts/committer`: Commit helper that stages only the paths you list and creates the commit safely; first call: `./runner scripts/committer` to print its usage prompt.
-- `scripts/docs-list.ts`: Docs indexer that walks `docs/` and enforces required front-matter before printing summaries; first call: `./runner tsx scripts/docs-list.ts --help` (or run without flags to list docs).
-- `scripts/browser-tools.ts`: Chrome DevTools/Debugger helper to remote-control Chrome (start profiles, navigate, eval JS, screenshots); first call: `./runner ts-node scripts/browser-tools.ts --help`.
-- `scripts/runner.ts`: Bun implementation that powers the runner’s guardrails (timeouts, tmux nudges, git policy, safe deletes); first call: `./runner bun scripts/runner.ts --help` to show its usage banner.
-- `bin/sleep`: Sleep shim that enforces the 30-second ceiling by dispatching through the runner; first call: `./bin/sleep --help` to view the underlying `sleep` usage.
-- `xcp`: Command-line helper for managing Xcode projects and workspaces; first call: `./runner xcp --help` to see available subcommands.
-- `oracle`: CLI that bundles a prompt plus selected files to hand off to another AI; first call: `npx -y @steipete/oracle --help` (run via `./runner npx -y @steipete/oracle --help` if keeping guardrails).
-- `mcporter`: MCP launcher that runs any registered MCP server with one command; first call: `./runner npx mcporter --help` to see server discovery and flags.
-- `iterm`: Full TTY-capable terminal launched via MCP for unrestricted shell access; first call: `./runner npx mcporter iterm --help` to view options and requirements.
-- `firecrawl`: MCP-powered site fetcher that exports webpages to Markdown, even handling 404/500 responses; first call: `./runner npx mcporter firecrawl --help` to see fetch options.
-- `XcodeBuildMCP`: MCP wrapper around Xcode build/test/simulator tooling; first call: `./runner npx mcporter XcodeBuildMCP --help` to see available tools and auth needs.
-- `gh`: GitHub CLI for PRs, CI logs, releases, and repo queries; first call: `./runner gh help` (or `./runner gh --help`) to list top-level commands.
+
+Edit guidance: keep the actual tool list inside the `<tools></tools>` block below so downstream AGENTS syncs can copy the block contents verbatim (without wrapping twice).
+
+<tools>
+- `runner`: Bash shim that routes every command through Bun guardrails (timeouts, git policy, safe deletes).
+- `git` / `bin/git`: Git shim that forces git through the guardrails; use `./git --help` to inspect.
+- `scripts/committer`: Stages the files you list and creates the commit safely.
+- `scripts/docs-list.ts`: Walks `docs/`, enforces front-matter, prints summaries; run `tsx scripts/docs-list.ts`.
+- `scripts/browser-tools.ts`: Chrome helper for remote control/screenshot/eval; run `ts-node scripts/browser-tools.ts --help`.
+- `scripts/runner.ts`: Bun implementation backing `runner`; run `bun scripts/runner.ts --help`.
+- `bin/sleep`: Sleep shim that enforces the 30s ceiling; run `bin/sleep --help`.
+- `xcp`: Xcode project/workspace helper; run `xcp --help`.
+- `oracle`: CLI to bundle prompt + files for another AI; run `npx -y @steipete/oracle --help`.
+- `mcporter`: MCP launcher for any registered MCP server; run `npx mcporter`.
+- `iterm`: Full TTY terminal via MCP; run `npx mcporter iterm`.
+- `firecrawl`: MCP-powered site fetcher to Markdown; run `npx mcporter firecrawl`.
+- `XcodeBuildMCP`: MCP wrapper around Xcode tooling; run `npx mcporter XcodeBuildMCP`.
+- `gh`: GitHub CLI for PRs, CI logs, releases, repo queries; run `gh help`.
+</tools>
 
 </tools>
 
@@ -108,6 +114,7 @@ This file provides guidance to all coding agents (Claude, GPT, etc.) working in 
 - Skip `tmux wait-for`; allow sessions to exit naturally before querying results.
 - NEVER SLEEP LONGER THAN 30 sec.
 - `pnpm run poltergeist:haunt` must spawn the daemon and return immediately. If it blocks, treat that as a regression—start the helper and then inspect progress via `poltergeist status` / `poltergeist logs` rather than tailing the launch command itself.
+- State directories can be redirected via `POLTERGEIST_STATE_DIR`; make sure the directory exists before writing state/lock files to avoid ENOENT flakiness in tests.
 
 ## Claude-Specific Notes
 

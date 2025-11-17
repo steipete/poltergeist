@@ -58,6 +58,7 @@ const baseConfig: PoltergeistConfig = {
 
 describe('build scheduling reload', () => {
   it('recreates queue and re-registers targets on scheduling change', async () => {
+    process.env.ENABLE_QUEUE_FOR_TESTS = '1';
     const harness = createTestHarness(baseConfig);
 
     // Provide a mock watchman config manager to avoid fs writes

@@ -503,7 +503,7 @@ describe('Agent-Friendly Commands', () => {
       }
 
       const errorOutput = consoleErrorSpy.mock.calls.map((call) => call[0]).join('\n');
-      expect(errorOutput).toContain('❌ Multiple targets available');
+      expect(errorOutput).toContain('❌ Multiple targets building');
       expect(errorOutput).toContain('test-app');
       expect(errorOutput).toContain('test-lib');
     });

@@ -85,10 +85,10 @@ export function formatHeader(snapshot: PanelSnapshot, width?: number): string {
   const summaryLine = formatSummary(snapshot, mode);
 
   const pausedLine = snapshot.paused
-    ? colors.warning('⏸ Auto-builds paused — press r to resume or run `poltergeist resume`')
+    ? colors.warning('Auto-builds paused — press r to resume or run `poltergeist resume`')
     : undefined;
-  const lines = [projectLine, pausedLine, branchLine, summaryLine].filter(
-    (line): line is string => Boolean(line)
+  const lines = [projectLine, pausedLine, branchLine, summaryLine].filter((line): line is string =>
+    Boolean(line)
   );
   const wrapped = wrapAnsi(lines.join('\n'), Math.max(1, width ?? 80), {
     hard: false,
@@ -198,6 +198,9 @@ export function formatTargets(
     const status = entry.status.lastBuild?.status || entry.status.status || 'unknown';
     const { color, label } = statusColor(status);
     const pending = entry.status.pendingFiles ?? 0;
+    const scripts = scriptsByTarget.get(entry.name) ?? [];
+    const hasFailure = scripts.some((script) => (script.exitCode ?? 0) > 0);
+    const hasUnknown = !hasFailure && scripts.some((script) => script.exitCode === null);
     const prefixDepth = Math.max(0, rowEntry.depth - 1);
     const connector =
       rowEntry.depth === 0
@@ -206,7 +209,12 @@ export function formatTargets(
           ? '└─ '
           : '├─ ';
     const indent = rowEntry.depth > 0 ? '  '.repeat(prefixDepth) : '';
-    const rawName = `${indent}${connector}${entry.name}`;
+    const scriptBadge = hasFailure
+      ? colors.failure(' ✖ script')
+      : hasUnknown
+        ? colors.warning(' ⚠ script')
+        : '';
+    const rawName = `${indent}${connector}${entry.name}${scriptBadge}`;
     const displayName = truncateVisible(rawName, targetCol);
     const targetName = index === selectedIndex ? colors.accent(displayName) : displayName;
     const enabledLabel = entry.enabled ? '' : colors.header(' (disabled)');

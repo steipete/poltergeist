@@ -4,6 +4,9 @@ import { dirname } from 'path';
 import { fileURLToPath } from 'url';
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 import { CMakeAnalyzer } from '../src/utils/cmake-analyzer.js';
+import { queryBuildSystem } from '../src/utils/cmake-build-query.js';
+import { parseCMakeFiles } from '../src/utils/cmake-parser.js';
+import { isPatternRedundant, optimizeWatchPatterns } from '../src/utils/cmake-patterns.js';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
@@ -15,7 +18,7 @@ describe('CMakeAnalyzer', () => {
   beforeEach(() => {
     testDir = path.join(__dirname, 'test-cmake-project');
     fs.mkdirSync(testDir, { recursive: true });
-    analyzer = new CMakeAnalyzer(testDir);
+    analyzer = new CMakeAnalyzer(testDir, undefined, { parseCMakeFiles, queryBuildSystem });
   });
 
   afterEach(() => {
@@ -26,7 +29,7 @@ describe('CMakeAnalyzer', () => {
     it('should not modify patterns that are already optimized', () => {
       const patterns = ['src/{core,utils,helpers}/**/*.{c,h}', 'tests/**/*.{c,h}'];
 
-      const optimized = analyzer.optimizeWatchPatterns(patterns);
+      const optimized = optimizeWatchPatterns(patterns);
       // Patterns with braces are preserved as-is
       expect(optimized).toEqual(['src/{core,utils,helpers}/**/*.{c,h}', 'tests/**/*.{c,h}']);
     });
@@ -34,7 +37,7 @@ describe('CMakeAnalyzer', () => {
     it('should combine patterns with same prefix and suffix', () => {
       const patterns = ['src/core/**/*.c', 'src/utils/**/*.c', 'src/helpers/**/*.c'];
 
-      const optimized = analyzer.optimizeWatchPatterns(patterns);
+      const optimized = optimizeWatchPatterns(patterns);
       expect(optimized).toEqual(['src/{core,helpers,utils}/**/*.c']);
     });
 
@@ -46,7 +49,7 @@ describe('CMakeAnalyzer', () => {
         'src/utils/**/*.h',
       ];
 
-      const optimized = analyzer.optimizeWatchPatterns(patterns);
+      const optimized = optimizeWatchPatterns(patterns);
       expect(optimized).toEqual(['src/{core,utils}/**/*.c', 'src/{core,utils}/**/*.h']);
     });
 
@@ -58,7 +61,7 @@ describe('CMakeAnalyzer', () => {
         'spine-c/src/internal/**/*.{c,h}',
       ];
 
-      const optimized = analyzer.optimizeWatchPatterns(patterns);
+      const optimized = optimizeWatchPatterns(patterns);
       expect(optimized).toEqual(['spine-c/**/*.{c,h}']);
     });
 
@@ -78,7 +81,7 @@ describe('CMakeAnalyzer', () => {
         'spine-c/src/spine/**/*.{c,cpp,cxx,cc,h,hpp,hxx}',
       ];
 
-      const optimized = analyzer.optimizeWatchPatterns(patterns);
+      const optimized = optimizeWatchPatterns(patterns);
 
       // Should remove subdirectory patterns that are covered by parent patterns
       expect(optimized).not.toContain('spine-c-unit-tests/memory/**/*.{c,cpp,cxx,cc,h,hpp,hxx}');
@@ -90,14 +93,14 @@ describe('CMakeAnalyzer', () => {
     it('should handle single patterns without optimization', () => {
       const patterns = ['src/main.c', 'include/header.h'];
 
-      const optimized = analyzer.optimizeWatchPatterns(patterns);
+      const optimized = optimizeWatchPatterns(patterns);
       expect(optimized).toEqual(patterns.sort());
     });
 
     it('should handle empty pattern array', () => {
       const patterns: string[] = [];
 
-      const optimized = analyzer.optimizeWatchPatterns(patterns);
+      const optimized = optimizeWatchPatterns(patterns);
       expect(optimized).toEqual([]);
     });
 
@@ -108,14 +111,14 @@ describe('CMakeAnalyzer', () => {
         'project/src/module3/submodule/**/*.{c,h}',
       ];
 
-      const optimized = analyzer.optimizeWatchPatterns(patterns);
+      const optimized = optimizeWatchPatterns(patterns);
       expect(optimized).toEqual(['project/src/{module1,module2,module3}/submodule/**/*.{c,h}']);
     });
 
     it('should not combine patterns with different depths', () => {
       const patterns = ['src/core/**/*.c', 'src/core/internal/**/*.c', 'tests/**/*.c'];
 
-      const optimized = analyzer.optimizeWatchPatterns(patterns);
+      const optimized = optimizeWatchPatterns(patterns);
       // Should keep parent pattern and remove redundant child
       expect(optimized).toContain('src/core/**/*.c');
       expect(optimized).not.toContain('src/core/internal/**/*.c');
@@ -130,7 +133,7 @@ describe('CMakeAnalyzer', () => {
         'src/module_test/**/*.{c,h}',
       ];
 
-      const optimized = analyzer.optimizeWatchPatterns(patterns);
+      const optimized = optimizeWatchPatterns(patterns);
       // Should combine patterns with special characters
       expect(
         optimized.some((p) => p.includes('{@special,module_test,my-module,your-module}'))
@@ -141,7 +144,7 @@ describe('CMakeAnalyzer', () => {
       const patterns = ['src\\core\\**\\*.c', 'src\\utils\\**\\*.c'];
 
       // Should handle gracefully even if not optimized
-      const optimized = analyzer.optimizeWatchPatterns(patterns);
+      const optimized = optimizeWatchPatterns(patterns);
       expect(optimized).toEqual(patterns.sort());
     });
 
@@ -154,7 +157,7 @@ describe('CMakeAnalyzer', () => {
         'src/utils/**/*.ts',
       ];
 
-      const optimized = analyzer.optimizeWatchPatterns(patterns);
+      const optimized = optimizeWatchPatterns(patterns);
       // Non-wildcard patterns should remain
       expect(optimized).toContain('package.json');
       expect(optimized).toContain('tsconfig.json');
@@ -166,40 +169,37 @@ describe('CMakeAnalyzer', () => {
 
   describe('isPatternRedundant', () => {
     it('should detect redundant subdirectory patterns', () => {
-      const isRedundant = analyzer.isPatternRedundant(
-        'src/core/internal/**/*.c',
-        'src/core/**/*.c'
-      );
+      const isRedundant = isPatternRedundant('src/core/internal/**/*.c', 'src/core/**/*.c');
       expect(isRedundant).toBe(true);
     });
 
     it('should not mark non-subdirectory patterns as redundant', () => {
-      const isRedundant = analyzer.isPatternRedundant('src/core/**/*.c', 'src/utils/**/*.c');
+      const isRedundant = isPatternRedundant('src/core/**/*.c', 'src/utils/**/*.c');
       expect(isRedundant).toBe(false);
     });
 
     it('should not mark parent patterns as redundant', () => {
-      const isRedundant = analyzer.isPatternRedundant('src/**/*.c', 'src/core/**/*.c');
+      const isRedundant = isPatternRedundant('src/**/*.c', 'src/core/**/*.c');
       expect(isRedundant).toBe(false);
     });
 
     it('should handle patterns without wildcards correctly', () => {
-      const isRedundant = analyzer.isPatternRedundant('src/main.c', 'src/**/*.c');
+      const isRedundant = isPatternRedundant('src/main.c', 'src/**/*.c');
       expect(isRedundant).toBe(false);
     });
 
     it('should handle exact same patterns', () => {
-      const isRedundant = analyzer.isPatternRedundant('src/**/*.c', 'src/**/*.c');
+      const isRedundant = isPatternRedundant('src/**/*.c', 'src/**/*.c');
       expect(isRedundant).toBe(false); // Same patterns are not redundant to each other
     });
 
     it('should handle patterns with different extensions', () => {
-      const isRedundant = analyzer.isPatternRedundant('src/**/*.c', 'src/**/*.h');
+      const isRedundant = isPatternRedundant('src/**/*.c', 'src/**/*.h');
       expect(isRedundant).toBe(false);
     });
 
     it('should handle deeply nested redundant patterns', () => {
-      const isRedundant = analyzer.isPatternRedundant(
+      const isRedundant = isPatternRedundant(
         'src/core/internal/utils/helpers/**/*.c',
         'src/**/*.c'
       );
@@ -263,7 +263,7 @@ describe('CMakeAnalyzer', () => {
         'project/common/core/**/*.{c,cpp,h,hpp}',
       ];
 
-      const optimized = analyzer.optimizeWatchPatterns(patterns);
+      const optimized = optimizeWatchPatterns(patterns);
 
       const originalSize = JSON.stringify(patterns).length;
       const optimizedSize = JSON.stringify(optimized).length;
@@ -293,7 +293,7 @@ describe('CMakeAnalyzer', () => {
         'tests/integration/**/*.{c,cpp,cc}',
       ];
 
-      const optimized = analyzer.optimizeWatchPatterns(patterns);
+      const optimized = optimizeWatchPatterns(patterns);
 
       // Should keep non-optimizable patterns
       expect(optimized).toContain('**/CMakeLists.txt');

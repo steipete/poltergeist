@@ -42,6 +42,7 @@ exports[`CLI command registration > keeps command aliases and common options ali
       "--auto",
       "--build-dir <dir>",
       "--cmake",
+      "--cmake-no-configure",
       "--dry-run",
       "--generator <gen>",
       "--no-auto-add",
@@ -71,7 +72,15 @@ exports[`CLI command registration > keeps command aliases and common options ali
     "name": "panel",
     "options": [
       "--git-mode <mode>",
+      "--script-events",
       "--verbose",
+      "-c, --config <path>",
+    ],
+  },
+  "pause": {
+    "aliases": [],
+    "name": "pause",
+    "options": [
       "-c, --config <path>",
     ],
   },
@@ -99,6 +108,13 @@ exports[`CLI command registration > keeps command aliases and common options ali
       "-c, --config <path>",
       "-f, --foreground",
       "-t, --target <name>",
+    ],
+  },
+  "resume": {
+    "aliases": [],
+    "name": "resume",
+    "options": [
+      "-c, --config <path>",
     ],
   },
   "status": {

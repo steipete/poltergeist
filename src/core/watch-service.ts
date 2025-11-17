@@ -46,6 +46,11 @@ export class WatchService {
     this.onFilesChanged = onFilesChanged;
   }
 
+  // Attach mock handlers in tests; real Watchman client already emits subscription callbacks.
+  public attachHandlersTo(_watchman?: IWatchmanClient): void {
+    // intentional no-op; keeps interface for potential spies
+  }
+
   public async subscribeTargets(targetStates: Map<string, TargetState>): Promise<void> {
     if (!this.watchman) return;
 
@@ -146,10 +151,12 @@ export class WatchService {
     }
 
     for (const subscription of toRemove) {
-      try {
-        await this.watchman.unsubscribe(subscription);
-      } catch (error) {
-        this.logger.warn(`Failed to unsubscribe ${subscription}: ${error}`);
+      if (subscription !== 'poltergeist_config') {
+        try {
+          await this.watchman.unsubscribe(subscription);
+        } catch (error) {
+          this.logger.warn(`Failed to unsubscribe ${subscription}: ${error}`);
+        }
       }
       this.subscriptions.delete(subscription);
     }

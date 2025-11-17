@@ -5,7 +5,12 @@ import type { BaseBuilder } from '../src/builders/index.js';
 import { Poltergeist } from '../src/poltergeist.js';
 import { StateManager } from '../src/state.js';
 import type { AppBundleTarget, ExecutableTarget } from '../src/types.js';
-import { createTestHarness, simulateFileChange, type TestHarness } from './helpers.js';
+import {
+  createTestHarness,
+  simulateFileChange,
+  type TestHarness,
+  waitForAsync,
+} from './helpers.js';
 
 // Mock StateManager static methods
 vi.mock('../src/state.js', async () => {
@@ -92,9 +97,21 @@ describe('Poltergeist', () => {
     // Enable notifications in the mock notifier for these tests
     if (harness.deps.notifier) {
       harness.deps.notifier.config.enabled = true;
+      harness.deps.notifier.config.buildSuccess = true;
+      harness.deps.notifier.config.buildFailed = true;
     }
 
+    // Install fresh spies and ensure Poltergeist uses the same notifier instance
+    const notifier = harness.deps.notifier as any;
+    notifier.notifyBuildComplete = vi.fn().mockResolvedValue(undefined);
+    notifier.notifyBuildFailed = vi.fn().mockResolvedValue(undefined);
+
     poltergeist = new Poltergeist(harness.config, '/test/project', harness.logger, harness.deps);
+    // Replace internal notifier refs so coordinator shares the spy
+    (poltergeist as any).notifier = notifier;
+    (poltergeist as any).sharedNotifier = notifier;
+    // Force coordinator to rebuild with the spy
+    (poltergeist as any).refreshBuildCoordinator();
   });
 
   afterEach(() => {
@@ -219,7 +236,7 @@ describe('Poltergeist', () => {
         mockBuilder as BaseBuilder
       );
 
-      await expect(poltergeist.start()).rejects.toThrow('Invalid configuration');
+      await expect(poltergeist.start()).rejects.toThrow(/Invalid configuration/);
     });
   });
 
@@ -343,6 +360,10 @@ describe('Poltergeist', () => {
     beforeEach(async () => {
       vi.useFakeTimers();
       await poltergeist.start();
+      // Align mock reference with notifier instance used inside Poltergeist
+      const notifier = harness.deps.notifier as any;
+      notifier.notifyBuildComplete = vi.fn().mockResolvedValue(undefined);
+      notifier.notifyBuildFailed = vi.fn().mockResolvedValue(undefined);
     });
 
     afterEach(() => {
@@ -362,10 +383,7 @@ describe('Poltergeist', () => {
       simulateFileChange(harness.watchmanClient, ['src/main.ts'], 0);
 
       // Wait for settling delay and async operations
-      vi.advanceTimersByTime(110);
-      for (let i = 0; i < 10; i++) {
-        await Promise.resolve();
-      }
+      await waitForAsync(200);
 
       // Check that build was called and notifyBuildComplete was called
       expect(cliBuilder?.build).toHaveBeenCalled();
@@ -385,25 +403,21 @@ describe('Poltergeist', () => {
         status: 'failure',
         targetName: 'cli',
         timestamp: new Date().toISOString(),
-        error: 'Compilation error',
-        errorSummary: 'TypeScript error: Type mismatch',
+        error: {
+          message: 'Compilation error',
+          summary: 'TypeScript error: Type mismatch',
+        },
       });
 
       simulateFileChange(harness.watchmanClient, ['src/main.ts'], 0);
 
       // Wait for settling delay and async operations
-      vi.advanceTimersByTime(110);
-      for (let i = 0; i < 10; i++) {
-        await Promise.resolve();
-      }
+      await waitForAsync(200);
 
       // Check that build was called and notifyBuildFailed was called
       expect(cliBuilder?.build).toHaveBeenCalled();
-      expect(harness.deps.notifier?.notifyBuildFailed).toHaveBeenCalledWith(
-        'cli Failed',
-        'TypeScript error: Type mismatch',
-        undefined
-      );
+      const calls = vi.mocked(harness.deps.notifier?.notifyBuildFailed).mock.calls;
+      expect(calls).toEqual([['cli Failed', 'TypeScript error: Type mismatch', undefined]]);
     });
 
     it('should handle build exceptions', async () => {
@@ -414,10 +428,7 @@ describe('Poltergeist', () => {
       simulateFileChange(harness.watchmanClient, ['src/main.ts'], 0);
 
       // Wait for settling delay and async operations
-      vi.advanceTimersByTime(110);
-      for (let i = 0; i < 10; i++) {
-        await Promise.resolve();
-      }
+      await waitForAsync(200);
 
       // Check that build was called and error was logged properly
       expect(cliBuilder?.build).toHaveBeenCalled();

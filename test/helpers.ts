@@ -76,7 +76,13 @@ export function createMockStateManager(): IStateManager {
     }),
     readState: vi.fn().mockResolvedValue(null),
     updateState: vi.fn().mockResolvedValue(undefined),
-    updateBuildStatus: vi.fn().mockResolvedValue(undefined),
+    updateBuildStatus: vi.fn().mockImplementation(async (...args: any[]) => {
+      if (process.env.VITEST && process.env.DEBUG_WAITS) {
+        // eslint-disable-next-line no-console
+        console.log('updateBuildStatus', ...args);
+      }
+      return undefined;
+    }),
     forceUnlock: vi.fn().mockResolvedValue(false),
     removeState: vi.fn().mockResolvedValue(undefined),
     isLocked: vi.fn().mockResolvedValue(false),

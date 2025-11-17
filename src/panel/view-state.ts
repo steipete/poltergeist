@@ -32,6 +32,7 @@ export interface PanelViewState {
   rows: TargetRow[];
   selectedRowIndex: number;
   logLines: string[];
+  scriptBanner?: string;
   shouldShowLogs: boolean;
   controlsLine: string;
   width: number;
@@ -53,6 +54,7 @@ export interface BuildViewStateInput {
   rows?: TargetRow[];
   selectedRowIndex: number;
   logLines: string[];
+  scriptBanner?: string;
   logViewMode: 'all' | 'tests';
   summaryMode: string;
   logChannelLabel: string;
@@ -68,6 +70,7 @@ export const buildPanelViewState = (input: BuildViewStateInput): PanelViewState 
     rows: providedRows,
     selectedRowIndex,
     logLines,
+    scriptBanner,
     logViewMode,
     summaryMode,
     logChannelLabel,
@@ -110,6 +113,7 @@ export const buildPanelViewState = (input: BuildViewStateInput): PanelViewState 
     summaryIndex,
     rowSummaries,
     logOverheadLines,
+    scriptBanner,
   });
   const logLimit = Math.max(0, logDisplayLimit);
 
@@ -120,6 +124,7 @@ export const buildPanelViewState = (input: BuildViewStateInput): PanelViewState 
     rows,
     selectedRowIndex,
     logLines: clippedLogs,
+    scriptBanner,
     shouldShowLogs,
     controlsLine,
     width,
@@ -149,6 +154,7 @@ function computeLogDisplayLimit({
   summaryIndex,
   rowSummaries,
   logOverheadLines,
+  scriptBanner,
 }: {
   width: number;
   height: number;
@@ -161,6 +167,7 @@ function computeLogDisplayLimit({
   summaryIndex: number | null;
   rowSummaries: PanelSummaryScriptResult[];
   logOverheadLines: number;
+  scriptBanner?: string;
 }): number {
   const rows = buildTargetRows(snapshot.targets);
   const headerText = formatHeader(snapshot, width);
@@ -183,7 +190,7 @@ function computeLogDisplayLimit({
     snapshot,
     scriptsSplit.globalScripts
   );
-  const globalScriptsText = '';
+  const globalScriptsText = scriptBanner ?? '';
   const footerText = formatFooter(controlsLine, width); // Always render as the last block.
 
   const nonLogLines =

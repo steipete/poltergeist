@@ -89,8 +89,13 @@ describe('Multi-Target Integration Tests', () => {
   });
 
   // Helper to start Poltergeist and clear initial build calls
+
+  const getSubscriptionIndex = (pattern: string): number => {
+    const calls = vi.mocked(harness.watchmanClient.subscribe).mock.calls;
+    return calls.findIndex((call) => JSON.stringify(call[2]?.expression).includes(pattern));
+  };
   async function startAndClearBuilds() {
-    await poltergeist.start();
+    await poltergeist.start(undefined, { waitForInitialBuilds: false });
     harness.builderFactory.builders.forEach((builder) => {
       vi.mocked(builder.build).mockClear();
     });
@@ -101,13 +106,8 @@ describe('Multi-Target Integration Tests', () => {
       poltergeist = new Poltergeist(harness.config, '/test/project', harness.logger, harness.deps);
       await startAndClearBuilds();
 
-      // Get all subscribe calls
-      const subscribeCalls = vi.mocked(harness.watchmanClient.subscribe).mock.calls;
-
       // Find the subscription for backend files
-      const backendSubIndex = subscribeCalls.findIndex(
-        (call) => call[2].expression[1] === 'backend/**/*.ts'
-      );
+      const backendSubIndex = getSubscriptionIndex('backend/**/*.ts');
       expect(backendSubIndex).toBeGreaterThanOrEqual(0);
 
       // Trigger a change for the backend target only
@@ -126,9 +126,7 @@ describe('Multi-Target Integration Tests', () => {
       expect(macAppBuilder?.build).not.toHaveBeenCalled();
 
       // Now trigger frontend change
-      const frontendSubIndex = subscribeCalls.findIndex(
-        (call) => call[2].expression[1] === 'frontend/**/*.tsx'
-      );
+      const frontendSubIndex = getSubscriptionIndex('frontend/**/*.tsx');
       expect(frontendSubIndex).toBeGreaterThanOrEqual(0);
 
       simulateFileChange(harness.watchmanClient, ['frontend/App.tsx'], frontendSubIndex);
@@ -188,8 +186,8 @@ describe('Multi-Target Integration Tests', () => {
 
       // Simulate a change to a shared file - this should trigger both subscriptions
       // Both backend and frontend watch 'shared/**/*.ts'
-      simulateFileChange(harness.watchmanClient, ['shared/types.ts'], 0); // backend subscription
-      simulateFileChange(harness.watchmanClient, ['shared/types.ts'], 1); // frontend subscription
+      const sharedIdx = getSubscriptionIndex('shared/**/*.ts');
+      simulateFileChange(harness.watchmanClient, ['shared/types.ts'], sharedIdx); // backend+frontend share pattern
 
       // Wait for builds with settling delays (backend: 100ms, frontend: 150ms)
       await waitForAsync(200);
@@ -209,10 +207,9 @@ describe('Multi-Target Integration Tests', () => {
       await startAndClearBuilds();
 
       // Simulate the same file change multiple times quickly
-      simulateFileChange(harness.watchmanClient, ['shared/utils.ts'], 0); // backend subscription
-      simulateFileChange(harness.watchmanClient, ['shared/utils.ts'], 0); // duplicate
-      simulateFileChange(harness.watchmanClient, ['shared/utils.ts'], 1); // frontend subscription
-      simulateFileChange(harness.watchmanClient, ['shared/utils.ts'], 1); // duplicate
+      const sharedIdx = getSubscriptionIndex('shared/**/*.ts');
+      simulateFileChange(harness.watchmanClient, ['shared/utils.ts'], sharedIdx);
+      simulateFileChange(harness.watchmanClient, ['shared/utils.ts'], sharedIdx);
 
       // Wait for builds with settling delays
       await waitForAsync(200);
@@ -254,7 +251,7 @@ describe('Multi-Target Integration Tests', () => {
 
     it('should handle starting specific target only', async () => {
       poltergeist = new Poltergeist(harness.config, '/test/project', harness.logger, harness.deps);
-      await poltergeist.start('frontend');
+      await poltergeist.start('frontend', { waitForInitialBuilds: false });
 
       // Should create subscriptions for the specified target's watch paths
       // frontend has 2 watch paths: frontend/**/*.tsx and shared/**/*.ts

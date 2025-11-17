@@ -60,7 +60,7 @@ describe('Panel surface failures', () => {
 
     vi.mocked(mocks.builderFactory.createBuilder).mockReturnValue(builder as any);
 
-    await poltergeist.start();
+    await expect(poltergeist.start()).rejects.toThrow('validation boom');
 
     expect(mocks.stateManager.updateBuildStatus).toHaveBeenCalledWith(
       'alpha',
@@ -95,7 +95,7 @@ describe('Panel surface failures', () => {
     };
     vi.mocked(mocks.builderFactory.createBuilder).mockReturnValue(builder as any);
 
-    await poltergeist.start();
+    await expect(poltergeist.start(undefined, { waitForInitialBuilds: true })).rejects.toThrow();
 
     expect(mocks.stateManager.updateBuildStatus).toHaveBeenCalledWith(
       'alpha',

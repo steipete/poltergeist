@@ -48,7 +48,7 @@ export default defineConfig({
         'apps/',
         'src/watchman.ts',
         'src/watchman-config.ts',
-        'src/utils/cmake-analyzer.ts',
+        // Keep other heavy files excluded; analyzer now covered via helpers/e2e tests
         'src/cli.ts',
         'src/polter.ts',
         'src/daemon/daemon-manager.ts',

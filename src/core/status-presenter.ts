@@ -27,27 +27,37 @@ export class StatusPresenter {
 
     const deriveStatus = (stateFile?: PoltergeistState, fallback?: string): string => {
       if (!stateFile) return fallback ?? 'unknown';
-      const hasBuild = Boolean(stateFile.lastBuild);
-      if (hasBuild) {
-        return stateFile.lastBuild?.status ?? fallback ?? 'unknown';
+      if (stateFile.process?.isActive) {
+        const start =
+          typeof stateFile.process.startTime === 'string'
+            ? Date.parse(stateFile.process.startTime)
+            : undefined;
+        const startValid = Number.isFinite(start);
+        const graceMs = 30_000;
+        if (!fallback && startValid && Date.now() - (start as number) > graceMs) {
+          return 'failure';
+        }
+        return fallback ?? 'running';
       }
-      const start = Date.parse(stateFile.process.startTime ?? '') || 0;
-      const ageMs = Date.now() - start;
-      const graceMs = 30_000; // 30s grace for startup
-      if (stateFile.process.isActive && ageMs > graceMs) {
-        return 'failure';
+      if (stateFile.lastBuild?.status) {
+        return stateFile.lastBuild.status;
       }
-      return fallback ?? (stateFile.process.isActive ? 'watching' : 'stopped');
+      return fallback ?? 'stopped';
     };
 
-    // All targets status
-    for (const target of config.targets) {
+    const targetsToReport =
+      targetStates.size > 0
+        ? config.targets.filter((t) => targetStates.has(t.name))
+        : config.targets;
+
+    // All targets status (filtered when a subset is active)
+    for (const target of targetsToReport) {
       const state = targetStates.get(target.name);
       const stateFile = await this.deps.stateManager.readState(target.name);
 
       if (state && stateFile) {
-        status[target.name] = {
-          status: deriveStatus(stateFile, state.watching ? 'watching' : 'idle'),
+        const targetStatus: Record<string, unknown> = {
+          status: 'idle',
           enabled: target.enabled,
           type: target.type,
           process: stateFile.process,
@@ -56,12 +66,13 @@ export class StatusPresenter {
           pendingFiles: state.pendingFiles.size,
           buildStats: stateFile.buildStats,
           buildCommand: target.buildCommand,
-          postBuild: stateFile.postBuildResults
-            ? Object.values(stateFile.postBuildResults)
-            : undefined,
         };
+        if (stateFile.postBuildResults) {
+          targetStatus.postBuild = Object.values(stateFile.postBuildResults);
+        }
+        status[target.name] = targetStatus;
       } else if (stateFile) {
-        status[target.name] = {
+        const targetStatus: Record<string, unknown> = {
           status: deriveStatus(stateFile),
           enabled: target.enabled,
           type: target.type,
@@ -69,11 +80,12 @@ export class StatusPresenter {
           lastBuild: stateFile.lastBuild,
           appInfo: stateFile.appInfo,
           buildStats: stateFile.buildStats,
-          postBuild: stateFile.postBuildResults
-            ? Object.values(stateFile.postBuildResults)
-            : undefined,
           buildCommand: target.buildCommand,
         };
+        if (stateFile.postBuildResults) {
+          targetStatus.postBuild = Object.values(stateFile.postBuildResults);
+        }
+        status[target.name] = targetStatus;
       } else {
         status[target.name] = {
           status: 'not running',

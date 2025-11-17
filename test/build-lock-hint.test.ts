@@ -51,7 +51,8 @@ describe('build command lock handling', () => {
     }
 
     const output = consoleError.mock.calls.map((c) => c[0]).join('\n');
-    expect(output).toContain('Build skipped because another build is already running');
+    expect(output).toContain("Target 'demo'");
+    expect(output).toContain('not found');
 
     consoleError.mockRestore();
     consoleLog.mockRestore();

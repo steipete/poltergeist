@@ -2,7 +2,7 @@ import type { TargetState } from './target-state.js';
 
 interface DebouncedBuildSchedulerOpts {
   defaultDelayMs: number;
-  buildTarget: (targetName: string) => void;
+  buildTarget: (targetName: string, files: string[], state: TargetState) => void;
 }
 
 /**
@@ -10,7 +10,7 @@ interface DebouncedBuildSchedulerOpts {
  */
 export class DebouncedBuildScheduler {
   private readonly defaultDelayMs: number;
-  private readonly buildTarget: (targetName: string) => void;
+  private readonly buildTarget: (targetName: string, files: string[], state: TargetState) => void;
 
   constructor(opts: DebouncedBuildSchedulerOpts) {
     this.defaultDelayMs = opts.defaultDelayMs;
@@ -36,8 +36,9 @@ export class DebouncedBuildScheduler {
 
       const delay = state.target.settlingDelay || this.defaultDelayMs;
 
-      state.buildTimer = setTimeout(() => {
-        this.buildTarget(targetName);
+      state.buildTimer = setTimeout(async () => {
+        await this.buildTarget(targetName, Array.from(state.pendingFiles), state);
+        state.buildTimer = undefined;
       }, delay);
     }
   }

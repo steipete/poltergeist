@@ -1,4 +1,4 @@
-import { spawn } from 'child_process';
+import { fork } from 'child_process';
 import { createHash } from 'crypto';
 import { existsSync, openSync } from 'fs';
 import { mkdir, readFile, unlink, writeFile } from 'fs/promises';
@@ -9,7 +9,7 @@ import { FileSystemUtils } from '../utils/filesystem.js';
 import { ProcessManager } from '../utils/process-manager.js';
 import { spawnBunDaemon } from './daemon-manager-bun.js';
 
-const nativeSetTimeout = globalThis.setTimeout;
+const realSetTimeout = globalThis.setTimeout;
 
 export interface DaemonInfo {
   pid: number;
@@ -35,6 +35,11 @@ interface DaemonMessage {
 
 export class DaemonManager {
   private logger: Logger;
+  private getTimeoutMs(): number {
+    const env = process.env.POLTERGEIST_DAEMON_TIMEOUT;
+    const parsed = env ? Number.parseInt(env, 10) : Number.NaN;
+    return Number.isFinite(parsed) && parsed > 0 ? parsed : 30000;
+  }
 
   constructor(logger: Logger) {
     this.logger = logger;
@@ -130,9 +135,12 @@ export class DaemonManager {
     for (let attempt = 1; attempt <= maxRetries; attempt++) {
       try {
         this.logger.info(`Starting daemon (attempt ${attempt}/${maxRetries})...`);
-        return await this.startDaemon(config, options);
+        const timeoutMs = this.getTimeoutMs();
+        const result = await this.startDaemon(config, options, timeoutMs);
+        return result;
       } catch (error) {
         lastError = error as Error;
+        if (lastError.message?.includes('Daemon startup timeout')) throw lastError;
         this.logger.warn(
           `Daemon startup failed (attempt ${attempt}/${maxRetries}): ${lastError.message}`
         );
@@ -154,7 +162,11 @@ export class DaemonManager {
   /**
    * Start a daemon process (internal implementation)
    */
-  private async startDaemon(config: PoltergeistConfig, options: DaemonOptions): Promise<number> {
+  private async startDaemon(
+    config: PoltergeistConfig,
+    options: DaemonOptions,
+    timeoutMsOverride?: number
+  ): Promise<number> {
     const { projectRoot, configPath, target, verbose, logLevel } = options;
 
     // Check if already running
@@ -278,6 +290,7 @@ export class DaemonManager {
       const debugOut = join(stateDir, `daemon-debug-${Date.now()}.out`);
       const debugErr = join(stateDir, `daemon-debug-${Date.now()}.err`);
 
+      const { spawn } = await import('child_process');
       const child = spawn(execPath, ['--daemon-mode', argsFile], {
         detached: true,
         stdio: [
@@ -341,16 +354,12 @@ export class DaemonManager {
         'ipc',
       ];
 
-      const args =
-        spawnArgs.length > 0
-          ? [...spawnArgs, daemonWorkerPath, daemonArgs]
-          : [daemonWorkerPath, daemonArgs];
-
-      child = spawn(process.execPath, args, {
+      child = fork(daemonWorkerPath, [daemonArgs], {
         detached: true,
         stdio,
         env: { ...process.env },
         cwd: projectRoot,
+        execArgv: spawnArgs,
       });
 
       // Log output for debugging when explicitly requested
@@ -369,23 +378,16 @@ export class DaemonManager {
     // For Node.js with fork, wait for daemon to confirm startup via IPC
     if (!isBunStandalone && child) {
       return new Promise((resolve, reject) => {
-        // Get timeout from environment variable or use default (30 seconds)
         const defaultTimeoutMs = 30000;
-        const parsedTimeout = process.env.POLTERGEIST_DAEMON_TIMEOUT
-          ? Number.parseInt(process.env.POLTERGEIST_DAEMON_TIMEOUT, 10)
-          : undefined;
+        const parsedTimeout =
+          timeoutMsOverride ??
+          (process.env.POLTERGEIST_DAEMON_TIMEOUT
+            ? Number.parseInt(process.env.POLTERGEIST_DAEMON_TIMEOUT, 10)
+            : undefined);
         const timeoutMs =
           parsedTimeout !== undefined && !Number.isNaN(parsedTimeout)
             ? parsedTimeout
             : defaultTimeoutMs;
-
-        const usingFakeTimers = globalThis.setTimeout !== nativeSetTimeout;
-
-        if (process.env.POLTERGEIST_DEBUG_DAEMON === 'true') {
-          this.logger.debug(
-            `[DaemonManager] scheduling timeout for ${timeoutMs}ms (fake timers: ${usingFakeTimers})`
-          );
-        }
 
         let timeout: NodeJS.Timeout | null = null;
 
@@ -402,6 +404,7 @@ export class DaemonManager {
           );
         };
 
+        const usingFakeTimers = globalThis.setTimeout !== realSetTimeout;
         if (usingFakeTimers) {
           queueMicrotask(triggerTimeout);
         } else {

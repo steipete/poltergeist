@@ -4,7 +4,7 @@
  */
 
 import { createHash } from 'crypto';
-import { existsSync, readFileSync, writeFileSync, unlinkSync } from 'fs';
+import { existsSync, mkdirSync, readFileSync, unlinkSync, writeFileSync } from 'fs';
 import { tmpdir } from 'os';
 import { dirname, join, resolve as resolvePath, sep } from 'path';
 import { DEFAULT_LOG_CHANNEL, sanitizeLogChannel } from './log-channels.js';
@@ -21,7 +21,15 @@ export class FileSystemUtils {
    * Get the default state directory path (cross-platform)
    */
   public static getStateDirectory(): string {
-    return process.env.POLTERGEIST_STATE_DIR || join(tmpdir(), 'poltergeist');
+    const dir = process.env.POLTERGEIST_STATE_DIR || join(tmpdir(), 'poltergeist');
+    if (!existsSync(dir)) {
+      try {
+        mkdirSync(dir, { recursive: true });
+      } catch {
+        // Best-effort: if creation fails (permissions), fall back to returning the path.
+      }
+    }
+    return dir;
   }
 
   /**
@@ -81,7 +89,7 @@ export class FileSystemUtils {
    * Pause flag lives alongside state/log files so panel/daemon/CLI can flip it quickly.
    */
   public static getPauseFilePath(projectRoot: string): string {
-    const fileName = `${projectRoot.split(/[/\\]/).pop() || 'project'}-${this.projectHash(
+    const fileName = `${projectRoot.split(/[/\\]/).pop() || 'project'}-${FileSystemUtils.projectHash(
       projectRoot
     )}.paused`;
     return join(FileSystemUtils.getStateDirectory(), fileName);

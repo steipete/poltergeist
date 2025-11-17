@@ -24,6 +24,7 @@ export const registerProjectCommands = (program: Command): void => {
     .description('Initialize Poltergeist configuration for your project')
     .option('--cmake', 'Initialize for CMake project')
     .option('--auto', 'Auto-detect project type')
+    .option('--cmake-no-configure', 'Do not run cmake -B when no build dir exists')
     .option('--preset <name>', 'Use specific CMake preset')
     .option('--generator <gen>', 'CMake generator to use')
     .option('--build-dir <dir>', 'Build directory', 'build')
@@ -61,7 +62,17 @@ export const registerProjectCommands = (program: Command): void => {
         try {
           const analyzer = new CMakeProjectAnalyzer(projectRoot);
           console.log(chalk.gray('Analyzing CMake project...'));
-          const analysis = await analyzer.analyzeProject();
+          const analysis = await analyzer.analyzeProject({
+            autoConfigure: !options.cmakeNoConfigure,
+          });
+
+          if (analysis.errors?.length) {
+            analysis.errors.forEach((err) => {
+              initLogger.warn(
+                `[CMake] ${err.stage}: ${err.message}${err.details ? ` — ${err.details}` : ''}`
+              );
+            });
+          }
 
           console.log(chalk.green(`✅ Found ${analysis.targets.length} CMake targets`));
           if (analysis.generator) {

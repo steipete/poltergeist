@@ -1,5 +1,5 @@
 import type { Logger } from '../logger.js';
-import type { StatusObject } from '../status/types.js';
+import type { StatusMap, StatusObject } from '../status/types.js';
 import type { PoltergeistConfig } from '../types.js';
 import type { GitMetrics } from './git-metrics.js';
 
@@ -61,10 +61,23 @@ export interface PanelSummaryScriptResult {
 export interface PanelControllerOptions {
   config: PoltergeistConfig;
   projectRoot: string;
-  fetchStatus: () => Promise<Record<string, unknown>>;
+  fetchStatus: () => Promise<StatusMap>;
   logger: Logger;
+  logReader?: {
+    read: (target: string, channel?: string, limit?: number) => Promise<string[]>;
+  };
+  scriptEventSink?: (event: ScriptEvent) => void;
   configPath?: string;
   gitPollIntervalMs?: number;
   statusPollIntervalMs?: number;
   gitSummaryMode?: 'ai' | 'list';
+}
+
+export interface ScriptEvent {
+  kind: 'status' | 'summary';
+  label: string;
+  exitCode: number | null;
+  placement?: 'summary' | 'row';
+  targets?: string[];
+  timestamp: number;
 }

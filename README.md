@@ -76,6 +76,16 @@ npm install -g @steipete/poltergeist
 poltergeist init
 ```
 
+For CMake projects you can opt out of auto-configuring a build directory:
+
+```bash
+poltergeist init --cmake --cmake-no-configure
+```
+
+This preserves existing build trees and avoids running `cmake -B` automatically; targets are still detected from `CMakeLists.txt` and any existing build directory.
+
+If a build directory already exists (e.g. `build/CMakeCache.txt`), Poltergeist will read it to infer the generator and targets without reconfiguring.
+
 This automatically detects your project type (Swift, Node.js, Rust, Python, CMake, etc.) and creates an optimized configuration.
 
 2. **Start Watching** - Begin auto-building on file changes:

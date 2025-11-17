@@ -59,6 +59,7 @@ export class PanelApp {
   private exitPromise?: Promise<void>;
   private exitResolver?: () => void;
   private unsubscribe?: () => void;
+  private unsubscribeScripts?: () => void;
   private logTimer?: NodeJS.Timeout;
   private logBackoff?: NodeJS.Timeout;
   private lastActiveLogPoll = 0;
@@ -67,6 +68,8 @@ export class PanelApp {
   private started = false;
   private resizeListenerAttached = false;
   private userNavigated = false;
+  private scriptBanner?: { text: string; expires: number; created: number; durationMs: number };
+  private bannerTimeout?: NodeJS.Timeout;
   // Left/right cycles through available log channels for the selected target.
   private readonly logChannelIndex = new Map<string, number>();
   // If only a single channel exists, left/right toggles between all/test-filtered logs.
@@ -133,6 +136,32 @@ export class PanelApp {
     this.unsubscribeLogs = this.controller.onLogUpdate(() => {
       this.queueLogRefresh();
     });
+    this.unsubscribeScripts = this.controller.onScriptEvent((event) => {
+      const where = event.kind === 'summary' ? `summary (${event.placement})` : 'status';
+      this.logger.warn(
+        `[Panel] Script ${where} "${event.label}" exited ${event.exitCode ?? 'null'}`
+      );
+      const label =
+        where === 'status' && event.targets?.length
+          ? `${event.label} [${event.targets.join(', ')}]`
+          : event.label;
+      this.scriptBanner = {
+        text: `${label} exited ${event.exitCode ?? 'null'}`,
+        created: Date.now(),
+        expires: Date.now() + 15000,
+        durationMs: 15000,
+      };
+      if (this.bannerTimeout) {
+        clearTimeout(this.bannerTimeout);
+      }
+      this.bannerTimeout = setTimeout(() => {
+        if (this.scriptBanner && this.scriptBanner.expires <= Date.now()) {
+          this.scriptBanner = undefined;
+          this.updateView('banner-expire');
+        }
+      }, 15000);
+      this.updateView('script-event');
+    });
 
     this.tui.start();
     this.started = true;
@@ -160,9 +189,17 @@ export class PanelApp {
       this.unsubscribeLogs();
       this.unsubscribeLogs = undefined;
     }
+    if (this.unsubscribeScripts) {
+      this.unsubscribeScripts();
+      this.unsubscribeScripts = undefined;
+    }
     if (this.resizeListenerAttached && typeof process.stdout.off === 'function') {
       process.stdout.off('resize', this.handleTerminalResize);
       this.resizeListenerAttached = false;
+    }
+    if (this.bannerTimeout) {
+      clearTimeout(this.bannerTimeout);
+      this.bannerTimeout = undefined;
     }
     if (this.logTimer) {
       clearInterval(this.logTimer);
@@ -249,6 +286,13 @@ export class PanelApp {
       }
       if (lower === 't') {
         this.setLogViewMode('tests');
+        i += 1;
+        continue;
+      }
+      if (lower === 'd') {
+        // Dismiss script banner manually.
+        this.scriptBanner = undefined;
+        this.updateView('dismiss-banner');
         i += 1;
         continue;
       }
@@ -365,12 +409,21 @@ export class PanelApp {
     const entry = this.getCurrentRowTarget();
     const shouldShowLogs = Boolean(entry && this.shouldShowLogs(entry));
     const rows = this.getRows();
+    const activeScriptBanner =
+      this.scriptBanner && this.scriptBanner.expires > Date.now() ? this.scriptBanner : undefined;
+    if (this.scriptBanner && this.scriptBanner.expires <= Date.now()) {
+      this.scriptBanner = undefined;
+    }
 
     const viewState = buildPanelViewState({
       snapshot: this.snapshot,
       rows,
       selectedRowIndex: this.selectedRowIndex,
       logLines: this.logLines,
+      scriptBanner:
+        activeScriptBanner !== undefined
+          ? formatBannerWithCountdown(activeScriptBanner, Date.now())
+          : undefined,
       logViewMode: this.logViewMode,
       summaryMode: this.summaryMode,
       logChannelLabel: this.logChannelLabel,
@@ -548,7 +601,10 @@ class PanelView extends Container {
         globalScripts
       )
     );
-    this.globalScripts.setText('');
+    const scriptBannerText = state.scriptBanner
+      ? `${colors.failure('Script')} ${state.scriptBanner}`
+      : '';
+    this.globalScripts.setText(scriptBannerText);
     const showSummary = state.summarySelected || Boolean(state.customSummary);
     if (showSummary) {
       const summaryDivider = colors.line('─'.repeat(Math.max(4, state.width)));
@@ -657,6 +713,19 @@ function enableMarkdownWordWrap(markdown: Markdown): void {
   };
   patchTarget.wrapLine = wrap;
   patchTarget.wrapSingleLine = wrap;
+}
+
+function formatBannerWithCountdown(
+  banner: { text: string; expires: number; created: number; durationMs: number },
+  now: number
+): string {
+  const remainingMs = Math.max(0, banner.expires - now);
+  const remainingSec = Math.ceil(remainingMs / 1000);
+  const fraction = Math.max(0, Math.min(1, remainingMs / banner.durationMs));
+  const fading = fraction < 0.4;
+  const base = banner.text;
+  const display = fading ? colors.muted(`${base} (fading)`) : base;
+  return `${display} (${remainingSec}s)`;
 }
 
 class InputBridge implements Component {
