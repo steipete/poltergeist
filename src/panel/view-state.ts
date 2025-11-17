@@ -88,7 +88,7 @@ export const buildPanelViewState = (input: BuildViewStateInput): PanelViewState 
   const viewingCustomRow =
     selectedRowIndex >= customStart ? rowSummaries[selectedRowIndex - customStart] : undefined;
 
-  const controlsLine = renderControlsLine(width);
+  const controlsLine = renderControlsLine(width, snapshot.paused ?? false);
   const resolvedCustomSummary =
     viewingCustomRow ?? findSummaryByMode(summaryModes, resolvedSummaryMode) ?? undefined;
   const summaryInfo = computeSummaryLines(

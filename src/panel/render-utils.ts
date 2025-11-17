@@ -6,8 +6,10 @@ import type { TargetRow } from './target-tree.js';
 import { centerText, pad, truncateVisible, visibleWidth } from './text-utils.js';
 import type { PanelSnapshot, PanelStatusScriptResult, PanelSummaryScriptResult } from './types.js';
 
-export const CONTROLS_LINE =
-  'Controls: ↑/↓ move · ←/→ cycle logs · p pause · r resume/refresh · q quit';
+export const CONTROLS_LINE_RUNNING =
+  'Controls: ↑/↓ move · ←/→ cycle logs · p pause · r refresh · q quit';
+export const CONTROLS_LINE_PAUSED =
+  'Controls: ↑/↓ move · ←/→ cycle logs · p pause · r resume · q quit';
 
 const mono = process.env.POLTERGEIST_MONOCHROME === '1';
 
@@ -146,11 +148,15 @@ function formatUpstreamBadge(git: PanelSnapshot['git'], mode: HeaderMode): strin
   return `${colors.muted(label)} ${parts.join(' ')}`.trim();
 }
 
-export function renderControlsLine(width: number): string {
+export function renderControlsLine(width: number, paused: boolean): string {
   const base =
     width < 60
-      ? '↑/↓ move · ←/→ cycle · p pause · r resume/refresh · q quit'
-      : 'Controls: ↑/↓ move · ←/→ cycle logs · p pause · r resume/refresh · q quit';
+      ? paused
+        ? '↑/↓ move · ←/→ cycle · p pause · r resume · q quit'
+        : '↑/↓ move · ←/→ cycle · p pause · r refresh · q quit'
+      : paused
+        ? CONTROLS_LINE_PAUSED
+        : CONTROLS_LINE_RUNNING;
   const trimmed = base.length > width ? base.slice(0, Math.max(0, width)) : base;
   return trimmed; // Centering happens in formatFooter so we keep the raw text here.
 }
