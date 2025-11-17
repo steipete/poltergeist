@@ -86,11 +86,11 @@
   },
   "dependencies": {
     "@logtape/logtape": "^1.2.0",
-    "@mariozechner/pi-tui": "^0.7.10",
+    "@mariozechner/pi-tui": "^0.7.13",
     "arkregex": "^0.0.2",
     "chalk": "^5.6.2",
     "commander": "^14.0.2",
-    "es-toolkit": "^1.41.0",
+    "es-toolkit": "^1.42.0",
     "fb-watchman": "^2.0.2",
     "glob": "^11.0.3",
     "node-notifier": "^10.0.1",

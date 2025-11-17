@@ -12,8 +12,8 @@ importers:
         specifier: ^1.2.0
         version: 1.2.0
       '@mariozechner/pi-tui':
-        specifier: ^0.7.10
-        version: 0.7.10
+        specifier: ^0.7.13
+        version: 0.7.13
       arkregex:
         specifier: ^0.0.2
         version: 0.0.2
@@ -24,8 +24,8 @@ importers:
         specifier: ^14.0.2
         version: 14.0.2
       es-toolkit:
-        specifier: ^1.41.0
-        version: 1.41.0
+        specifier: ^1.42.0
+        version: 1.42.0
       fb-watchman:
         specifier: ^2.0.2
         version: 2.0.2
@@ -375,8 +375,8 @@ packages:
   '@logtape/logtape@1.2.0':
     resolution: {integrity: sha512-L7aXBYrxpSUQcsZm/hCuh5REN+dckxmPmH7x7eCROiLAHUSPzc7AhbsxsZLDsXMM4ggtbmS3sUQVa+blfF4sZA==}
 
-  '@mariozechner/pi-tui@0.7.10':
-    resolution: {integrity: sha512-nFz8VJUj/PA34KhYs/oQoEnrDRotuEf7wd2MKTEgLNZtWgKXntvuI4HCv7yBZR+sQ1nX1h8LNhmiXnGjcYCSGw==}
+  '@mariozechner/pi-tui@0.7.13':
+    resolution: {integrity: sha512-vFpdLO4J4zHaBgjuIuzx6z+P+b+K/p6OqbWsJAc0aDOCD8wxHziiAALIL2LHfvcr3XXfhAI46wBGJi1pDye5YQ==}
     engines: {node: '>=20.0.0'}
 
   '@napi-rs/wasm-runtime@0.2.12':
@@ -782,8 +782,8 @@ packages:
   es-module-lexer@1.7.0:
     resolution: {integrity: sha512-jEQoCwk8hyb2AZziIOLhDqpm5+2ww5uIE6lkO/6jcOCusfk6LhMHpXXfBLXTZ7Ydyt0j4VoUQv6uGNYbdW+kBA==}
 
-  es-toolkit@1.41.0:
-    resolution: {integrity: sha512-bDd3oRmbVgqZCJS6WmeQieOrzpl3URcWBUVDXxOELlUW2FuW+0glPOz1n0KnRie+PdyvUZcXz2sOn00c6pPRIA==}
+  es-toolkit@1.42.0:
+    resolution: {integrity: sha512-SLHIyY7VfDJBM8clz4+T2oquwTQxEzu263AyhVK4jREOAwJ+8eebaa4wM3nlvnAqhDrMm2EsA6hWHaQsMPQ1nA==}
 
   esbuild@0.25.12:
     resolution: {integrity: sha512-bbPBYYrtZbkt6Os6FiTLCTFxvq4tt3JKall1vRwshA3fdVztsLAatFaZobhkBC8/BrPetoa0oksYoKXoG4ryJg==}
@@ -1437,7 +1437,7 @@ snapshots:
 
   '@logtape/logtape@1.2.0': {}
 
-  '@mariozechner/pi-tui@0.7.10':
+  '@mariozechner/pi-tui@0.7.13':
     dependencies:
       '@types/mime-types': 2.1.4
       chalk: 5.6.2
@@ -1768,7 +1768,7 @@ snapshots:
 
   es-module-lexer@1.7.0: {}
 
-  es-toolkit@1.41.0: {}
+  es-toolkit@1.42.0: {}
 
   esbuild@0.25.12:
     optionalDependencies:
