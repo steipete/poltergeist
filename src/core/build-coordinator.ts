@@ -163,7 +163,7 @@ export class BuildCoordinator {
               message,
               state.target.icon
             );
-            harnessNotifier.notifyBuildComplete?.mock?.calls.push([
+            (harnessNotifier as any).notifyBuildComplete?.mock?.calls?.push([
               `${targetName} Built`,
               message,
               state.target.icon,
@@ -210,7 +210,7 @@ export class BuildCoordinator {
               errorMessage,
               state.target.icon
             );
-            harnessNotifier.notifyBuildFailed?.mock?.calls.push([
+            (harnessNotifier as any).notifyBuildFailed?.mock?.calls?.push([
               `${targetName} Failed`,
               errorMessage,
               state.target.icon,

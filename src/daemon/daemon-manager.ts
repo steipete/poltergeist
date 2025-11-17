@@ -1,4 +1,4 @@
-import { fork } from 'child_process';
+import { spawn } from 'child_process';
 import { createHash } from 'crypto';
 import { existsSync, openSync } from 'fs';
 import { mkdir, readFile, unlink, writeFile } from 'fs/promises';
@@ -354,12 +354,11 @@ export class DaemonManager {
         'ipc',
       ];
 
-      child = fork(daemonWorkerPath, [daemonArgs], {
+      child = spawn(process.execPath, [...spawnArgs, daemonWorkerPath, daemonArgs], {
         detached: true,
         stdio,
         env: { ...process.env },
         cwd: projectRoot,
-        execArgv: spawnArgs,
       });
 
       // Log output for debugging when explicitly requested

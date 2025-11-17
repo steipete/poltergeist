@@ -1,5 +1,4 @@
 import type { ChildProcess } from 'child_process';
-import { spawn } from 'child_process';
 import { createHash } from 'crypto';
 import { existsSync } from 'fs';
 import { mkdir, readFile, rm, writeFile } from 'fs/promises';
@@ -10,11 +9,13 @@ import { createLogger } from '../dist/logger.js';
 import type { PoltergeistConfig } from '../dist/types.js';
 import { FileSystemUtils } from '../dist/utils/filesystem.js';
 import { ProcessManager } from '../dist/utils/process-manager.js';
-
-// Mock child_process.spawn
-vi.mock('child_process', () => ({
-  spawn: vi.fn(),
-}));
+// Stable mocks for child_process so vi.mock hoists safely
+const { spawnMock, forkMock } = vi.hoisted(() => {
+  const s = vi.fn();
+  const f = vi.fn();
+  return { spawnMock: s, forkMock: f };
+});
+vi.mock('child_process', () => ({ spawn: spawnMock, fork: forkMock }));
 
 // Helper function to get project hash (same logic as DaemonManager)
 function getProjectHash(projectPath: string): string {
@@ -146,7 +147,7 @@ describe('DaemonManager', () => {
         kill: vi.fn(),
       };
 
-      vi.mocked(spawn).mockReturnValue(mockChild as ChildProcess);
+      spawnMock.mockReturnValue(mockChild as ChildProcess);
 
       const pid = await daemon.startDaemon(config, {
         projectRoot: testProjectPath,
@@ -154,7 +155,7 @@ describe('DaemonManager', () => {
       });
 
       expect(pid).toBe(12345);
-      expect(spawn).toHaveBeenCalledWith(
+      expect(spawnMock).toHaveBeenCalledWith(
         process.execPath,
         expect.arrayContaining([expect.stringContaining('daemon-worker.js')]),
         expect.objectContaining({
@@ -226,7 +227,7 @@ describe('DaemonManager', () => {
         kill: vi.fn(),
       };
 
-      vi.mocked(spawn).mockReturnValue(mockChild as ChildProcess);
+      spawnMock.mockReturnValue(mockChild as ChildProcess);
 
       await expect(
         daemon.startDaemon(config, {
@@ -253,7 +254,7 @@ describe('DaemonManager', () => {
         kill: vi.fn(),
       };
 
-      vi.mocked(spawn).mockReturnValue(mockChild as ChildProcess);
+      spawnMock.mockReturnValue(mockChild as ChildProcess);
 
       // Simulate timeout by not calling the message callback
       mockChild.once.mockImplementation((event, _callback) => {

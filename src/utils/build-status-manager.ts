@@ -242,7 +242,7 @@ export class BuildStatusManager {
       return status.errorSummary;
     }
 
-    const rawError = status.error;
+    const rawError: unknown = status.error;
 
     if (typeof rawError === 'string' && rawError.trim()) {
       return rawError;
