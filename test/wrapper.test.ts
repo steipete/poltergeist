@@ -62,11 +62,13 @@ describe('Poltergeist Wrapper Script', () => {
         reject(error);
       });
 
-      // Set timeout
+      // Set timeout. Under CI (especially ubuntu + Node 24) the wrapper can start
+      // a bit slower; allow extra headroom so the help test doesn’t flake.
+      const maxTimeout = process.env.CI ? Math.max(timeout, 10000) : timeout;
       setTimeout(() => {
         child.kill('SIGTERM');
-        reject(new Error(`Wrapper script timed out after ${timeout}ms`));
-      }, timeout);
+        reject(new Error(`Wrapper script timed out after ${maxTimeout}ms`));
+      }, maxTimeout);
     });
   }
 
