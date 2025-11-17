@@ -149,8 +149,8 @@ function formatUpstreamBadge(git: PanelSnapshot['git'], mode: HeaderMode): strin
 export function renderControlsLine(width: number): string {
   const base =
     width < 60
-      ? '↑/↓ move · ←/→ cycle · r refresh · q quit'
-      : 'Controls: ↑/↓ move · ←/→ cycle logs · r refresh · q quit';
+      ? '↑/↓ move · ←/→ cycle · p pause · r resume/refresh · q quit'
+      : 'Controls: ↑/↓ move · ←/→ cycle logs · p pause · r resume/refresh · q quit';
   const trimmed = base.length > width ? base.slice(0, Math.max(0, width)) : base;
   return trimmed; // Centering happens in formatFooter so we keep the raw text here.
 }
