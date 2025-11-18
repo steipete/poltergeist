@@ -32,6 +32,7 @@ export interface PanelViewState {
   rows: TargetRow[];
   selectedRowIndex: number;
   logLines: string[];
+  logBanner?: string;
   scriptBanner?: string;
   shouldShowLogs: boolean;
   controlsLine: string;
@@ -54,6 +55,7 @@ export interface BuildViewStateInput {
   rows?: TargetRow[];
   selectedRowIndex: number;
   logLines: string[];
+  logBanner?: string;
   scriptBanner?: string;
   logViewMode: 'all' | 'tests';
   summaryMode: string;
@@ -70,6 +72,7 @@ export const buildPanelViewState = (input: BuildViewStateInput): PanelViewState 
     rows: providedRows,
     selectedRowIndex,
     logLines,
+    logBanner,
     scriptBanner,
     logViewMode,
     summaryMode,
@@ -124,6 +127,7 @@ export const buildPanelViewState = (input: BuildViewStateInput): PanelViewState 
     rows,
     selectedRowIndex,
     logLines: clippedLogs,
+    logBanner,
     scriptBanner,
     shouldShowLogs,
     controlsLine,

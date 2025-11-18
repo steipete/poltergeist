@@ -151,7 +151,8 @@ class PanelView extends Container {
         state.logLines,
         state.width,
         state.logLimit,
-        state.logViewMode
+        state.logViewMode,
+        state.logBanner
       );
       this.logs.setText(logText);
     } else {
@@ -286,6 +287,7 @@ export class PanelApp {
         created: Date.now(),
         expires: Date.now() + 15000,
         durationMs: 15000,
+        targets: event.targets,
       };
       if (this.bannerTimeout) {
         clearTimeout(this.bannerTimeout);
@@ -529,6 +531,15 @@ export class PanelApp {
     return rows[this.selectedRowIndex]?.target;
   }
 
+  private shouldAttachBannerToSelected(
+    targets: string[] | undefined,
+    entry: TargetPanelEntry | undefined
+  ): boolean {
+    if (!entry) return false;
+    if (!targets || targets.length === 0) return true;
+    return targets.includes(entry.name);
+  }
+
   private getRows(): TargetRow[] {
     const version = this.snapshot.lastUpdated ?? Number.NaN;
     if (this.cachedRowsVersion === version) {
@@ -564,6 +575,10 @@ export class PanelApp {
       logViewMode: this.logViewMode,
       summaryMode: this.summaryMode,
       logChannelLabel: this.logChannelLabel,
+      logBanner:
+        activeScriptBanner && this.shouldAttachBannerToSelected(activeScriptBanner.targets, entry)
+          ? activeScriptBanner.text
+          : undefined,
       width,
       height,
       shouldShowLogs,

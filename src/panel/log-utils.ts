@@ -24,7 +24,8 @@ export function formatLogs(
   lines: string[],
   width: number,
   maxLines: number,
-  viewMode: 'all' | 'tests'
+  viewMode: 'all' | 'tests',
+  banner?: string
 ): string {
   const safeLines = Array.isArray(lines) ? lines : [];
   const targetName = entry?.name ?? 'Unknown';
@@ -54,5 +55,6 @@ export function formatLogs(
     limited.length > 0
       ? limited.map((line) => colors.accent(line)).join('\n')
       : colors.muted(centerText('(no logs)', Math.max(1, width - 2))); // Keep empty state visually balanced.
-  return `\n${header}\n${divider}\n${content}`;
+  const bannerBlock = banner ? `${colors.failure(banner)}\n` : '';
+  return `\n${header}\n${bannerBlock}${divider}\n${content}`;
 }
