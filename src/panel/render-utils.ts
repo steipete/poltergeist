@@ -115,10 +115,6 @@ function formatSummary(snapshot: PanelSnapshot, mode: HeaderMode = 'full'): stri
     mode === 'full' && snapshot.summary.running > 0
       ? formatDaemonSuffix(snapshot.summary.activeDaemons ?? [])
       : '';
-  const buildingText =
-    snapshot.summary.building > 0
-      ? colors.warning(`${snapshot.summary.building} building`)
-      : `${snapshot.summary.building} building`;
 
   const targetFailures = snapshot.summary.targetFailures ?? snapshot.summary.failures ?? 0;
   const scriptFailures = snapshot.summary.scriptFailures ?? 0;
@@ -135,12 +131,19 @@ function formatSummary(snapshot: PanelSnapshot, mode: HeaderMode = 'full'): stri
       : colors.failure(failureParts.join(' + '));
 
   const daemonText = `${snapshot.summary.running}/${snapshot.summary.totalTargets} ${daemonLabel}`;
+  const buildingText =
+    snapshot.summary.building > 0
+      ? colors.warning(`${snapshot.summary.building} building`)
+      : undefined;
 
   if (mode === 'narrow') {
-    return `${buildingText} · ${failureText} · ${daemonText}`;
+    const parts = [buildingText, failureText, daemonText].filter(Boolean);
+    return parts.join(' · ');
   }
 
-  return `${buildingText} · ${failureText} · ${daemonText}${daemonSuffix ? ` ${daemonSuffix}` : ''}`;
+  const parts = [buildingText, failureText, daemonText].filter(Boolean);
+  const summary = parts.join(' · ');
+  return `${summary}${daemonSuffix ? ` ${daemonSuffix}` : ''}`;
 }
 
 function formatUpstreamBadge(git: PanelSnapshot['git'], mode: HeaderMode): string | undefined {
@@ -480,7 +483,7 @@ function formatStatusDetails(
   return truncateVisible(badge, maxWidth);
 }
 
-function formatProgress(
+export function formatProgress(
   progress: import('../types.js').BuildProgress,
   maxWidth: number
 ): string | null {
