@@ -475,17 +475,36 @@ function formatProgress(
   progress: import('../types.js').BuildProgress,
   maxWidth: number
 ): string | null {
-  const { percent, current, total, label } = progress;
-  // Hide the bar when a build is effectively done or percent is invalid.
-  if (!Number.isFinite(percent) || percent >= 100) return null;
-  const barWidth = Math.max(10, Math.min(24, maxWidth - 18));
+  let { percent, current, total, label } = progress;
+  if (!Number.isFinite(percent) || percent >= 100 || percent < 0) return null;
+  // Round for display so the width math stays predictable.
+  percent = Math.max(0, Math.min(99, Math.round(percent)));
+  const percentText = `${percent}%`;
+  const countText = Number.isFinite(current) && Number.isFinite(total) ? `${current}/${total}` : '';
+  const labelText = label ? ` ${label}` : '';
+
+  // Reserve space for fixed parts; whatever remains is the bar width.
+  const reserved =
+    percentText.length +
+    (countText ? 1 + countText.length : 0) + // space + count
+    (labelText ? labelText.length : 0) +
+    4; // spaces + brackets
+  const barWidth = Math.max(4, Math.min(24, maxWidth - reserved));
   const bar = progressBar(percent, barWidth);
-  const parts = [`${percent}%`, bar, `${current}/${total}`];
-  if (label) {
-    parts.push(label);
-  }
+  const parts = [percentText, bar];
+  if (countText) parts.push(countText);
+  if (labelText) parts.push(labelText.trim());
   const text = parts.join(' ');
-  return truncateVisible(text, maxWidth);
+  // Avoid truncating mid-ANSI: if it won't fit, drop the label first, then count.
+  if (visibleWidth(text) > maxWidth) {
+    const noLabel = parts.slice(0, labelText ? -1 : parts.length).join(' ');
+    if (visibleWidth(noLabel) <= maxWidth) return noLabel;
+    if (countText) {
+      const stripped = [percentText, bar].join(' ');
+      return visibleWidth(stripped) <= maxWidth ? stripped : percentText;
+    }
+  }
+  return text;
 }
 
 export function progressBar(percent: number, width: number): string {
