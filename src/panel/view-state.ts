@@ -48,7 +48,6 @@ export interface PanelViewState {
   logChannel: string;
   logViewMode: 'all' | 'tests';
   summaryMode: string;
-  logBanner?: string;
 }
 
 export interface BuildViewStateInput {
@@ -65,7 +64,6 @@ export interface BuildViewStateInput {
   height: number;
   shouldShowLogs: boolean;
   logOverheadLines: number;
-  logBanner?: string;
 }
 
 export const buildPanelViewState = (input: BuildViewStateInput): PanelViewState => {

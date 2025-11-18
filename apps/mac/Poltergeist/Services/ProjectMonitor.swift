@@ -142,8 +142,10 @@ final class ProjectMonitor {
 
     private func setupFileWatcher() {
         fileWatcher = FileWatcher(path: poltergeistDirectory) { [weak self] in
-            // Debounce rapid file changes to avoid excessive scanning
-            self?.debouncedScanForProjects()
+            // Debounce rapid file changes to avoid excessive scanning on the main actor
+            Task { @MainActor in
+                self?.debouncedScanForProjects()
+            }
         }
         fileWatcher?.start()
     }
@@ -680,7 +682,9 @@ final class ProjectMonitor {
     }
 
     deinit {
-        stopMonitoring()
+        Task { @MainActor in
+            stopMonitoring()
+        }
     }
 }
 

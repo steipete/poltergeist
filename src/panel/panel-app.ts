@@ -202,7 +202,13 @@ export class PanelApp {
   private started = false;
   private resizeListenerAttached = false;
   private userNavigated = false;
-  private scriptBanner?: { text: string; expires: number; created: number; durationMs: number };
+  private scriptBanner?: {
+    text: string;
+    expires: number;
+    created: number;
+    durationMs: number;
+    targets?: string[];
+  };
   private bannerTimeout?: NodeJS.Timeout;
   // Left/right cycles through available log channels for the selected target.
   private readonly logChannelIndex = new Map<string, number>();
