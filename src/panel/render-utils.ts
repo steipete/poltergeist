@@ -83,14 +83,8 @@ export function formatHeader(snapshot: PanelSnapshot, width?: number): string {
   const branchLine = branchSegments.join(separator);
 
   const summaryLine = formatSummary(snapshot, mode);
-
-  const pausedLine = snapshot.paused
-    ? colors.warning('Auto-builds paused — press r to resume or run `poltergeist resume`')
-    : undefined;
-  // Order: project → branch/git → summary → paused notice (last, if present)
-  const lines = [projectLine, branchLine, summaryLine, pausedLine].filter((line): line is string =>
-    Boolean(line)
-  );
+  // Order: project → branch/git → summary
+  const lines = [projectLine, branchLine, summaryLine];
 
   const wrappedLines = lines.flatMap((line) =>
     wrapAnsi(line, widthValue - 2, {
@@ -112,6 +106,10 @@ export function formatHeader(snapshot: PanelSnapshot, width?: number): string {
 }
 
 function formatSummary(snapshot: PanelSnapshot, mode: HeaderMode = 'full'): string {
+  if (snapshot.paused) {
+    return colors.warning('Auto-builds paused — press r to resume or run `poltergeist resume`');
+  }
+
   const daemonLabel = snapshot.summary.running === 1 ? 'daemon' : 'daemons';
   const daemonSuffix =
     mode === 'full' && snapshot.summary.running > 0
