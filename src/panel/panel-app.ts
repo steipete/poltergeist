@@ -411,7 +411,11 @@ export class PanelApp {
       }
       if (lower === 'r') {
         if (this.snapshot.paused) {
-          void this.controller.resume();
+          void this.controller.resume().then(() => {
+            // Optimistically reflect resume immediately so the header updates.
+            this.snapshot = { ...this.snapshot, paused: false };
+            this.updateView('resume');
+          });
         } else {
           void this.controller.forceRefresh();
         }
