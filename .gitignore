@@ -13,6 +13,7 @@ apps/mac/.build/
 npm-debug.log*
 error
 debug
+debug*
 
 # Runtime data
 pids
