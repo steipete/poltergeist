@@ -49,7 +49,7 @@ export class StatusPanelController {
   private readonly statusPollMs: number;
   private scriptCache: Map<string, CachedStatusScript>;
   private summaryScriptCache: Map<string, CachedSummaryScript>;
-  private readonly gitSummaryMode: 'list' | 'ai';
+  protected readonly gitSummaryMode: 'list' | 'ai';
   private readonly profileEnabled: boolean;
 
   constructor(private readonly options: PanelControllerOptions) {

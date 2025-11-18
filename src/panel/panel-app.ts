@@ -12,7 +12,7 @@ import wrapAnsi from 'wrap-ansi';
 
 import type { Logger } from '../logger.js';
 import { cycleChannelIndex, DEFAULT_LOG_CHANNEL } from '../utils/log-channels.js';
-import { filterBuildLogs, filterTestLogs, formatLogs, LOG_OVERHEAD_LINES } from './log-utils.js';
+import { filterTestLogs, formatLogs, LOG_OVERHEAD_LINES } from './log-utils.js';
 import type { StatusPanelController } from './panel-controller.js';
 import {
   getDefaultSummaryMode,
@@ -41,6 +41,138 @@ import { buildPanelViewState, type PanelViewState } from './view-state.js';
 const LOG_FETCH_LIMIT = 40;
 const SUMMARY_FRACTION = 0.5; // summary gets half of remaining lines when selected
 
+class PanelView extends Container {
+  private readonly header = new Text('', 0, 0);
+  private readonly targets = new Text('', 0, 0);
+  private readonly globalScripts = new Text('', 0, 0);
+  private readonly dirtyFiles = new Text('', 0, 0);
+  private readonly aiHeader = new Text('', 0, 0);
+  private readonly aiMarkdown = createWordWrappedMarkdown();
+  private readonly logs = new Text('', 0, 0);
+  private readonly footer = new Text('', 0, 0);
+
+  constructor() {
+    super();
+    this.addChild(this.header);
+    this.addChild(new Spacer(1));
+    this.addChild(this.targets);
+    this.addChild(this.globalScripts);
+    this.addChild(this.dirtyFiles);
+    this.addChild(this.aiHeader);
+    this.addChild(this.aiMarkdown);
+    this.addChild(this.logs);
+    this.addChild(this.footer);
+  }
+
+  public update(state: PanelViewState): void {
+    const { snapshot } = state;
+    const { scriptsByTarget, globalScripts } = splitStatusScripts(snapshot.statusScripts ?? []);
+    const summaryIndex = state.summaryRowLabel ? state.rows.length : null;
+    const rowStart = summaryIndex !== null ? summaryIndex + 1 : state.rows.length;
+    const rowSummaries = state.rowSummaries.map((row, idx) => ({
+      ...row,
+      selected: state.selectedRowIndex === rowStart + idx,
+    }));
+    this.header.setText(formatHeader(snapshot, state.width));
+    this.targets.setText(
+      formatTargets(
+        state.rows,
+        state.selectedRowIndex,
+        scriptsByTarget,
+        state.width,
+        state.summaryRowLabel
+          ? { label: state.summaryRowLabel, selected: state.summarySelected }
+          : undefined,
+        rowSummaries,
+        state.summaryModes,
+        state.summarySelected ? state.activeSummaryKey : undefined,
+        snapshot,
+        globalScripts
+      )
+    );
+    const scriptBannerText = state.scriptBanner
+      ? `${colors.failure('Script')} ${state.scriptBanner}`
+      : '';
+    this.globalScripts.setText(scriptBannerText);
+    const showSummary = state.summarySelected || Boolean(state.customSummary);
+    if (showSummary) {
+      const summaryDivider = colors.line('─'.repeat(Math.max(4, state.width)));
+      if (state.customSummary) {
+        const headerText = colors.header(`\n${state.customSummary.label}:`);
+        this.aiHeader.setText(`${headerText}\n${summaryDivider}`);
+        const body = state.customSummary.lines.join('\n').trim();
+        const limitedBody = limitSummaryLines(
+          body || colors.muted('No output'),
+          Math.max(1, Math.floor(state.logLimit * SUMMARY_FRACTION))
+        );
+        this.dirtyFiles.setText('');
+        this.aiMarkdown.setText(limitedBody);
+      } else if (state.summaryMode === 'ai') {
+        const aiSummary = formatAiSummary(snapshot.git.summary ?? []);
+        if (aiSummary && aiSummary.body.trim().length > 0) {
+          this.dirtyFiles.setText('');
+          const headerText = aiSummary.header ?? colors.header('AI Summary of changed files:');
+          this.aiHeader.setText(`\n${headerText}\n${summaryDivider}`);
+          const limitedBody = limitSummaryLines(
+            aiSummary.body.trim(),
+            Math.max(1, Math.floor(state.logLimit * SUMMARY_FRACTION))
+          );
+          this.aiMarkdown.setText(limitedBody);
+        } else {
+          const limitedDirty = limitSummaryLines(
+            formatDirtyFiles(snapshot),
+            Math.max(1, Math.floor(state.logLimit * SUMMARY_FRACTION))
+          );
+          this.dirtyFiles.setText(limitedDirty);
+          this.aiHeader.setText('');
+          this.aiMarkdown.setText('');
+        }
+      } else {
+        const limitedDirty = limitSummaryLines(
+          formatDirtyFiles(snapshot),
+          Math.max(1, Math.floor(state.logLimit * SUMMARY_FRACTION))
+        );
+        const dirtyBody = limitedDirty.trim().length > 0 ? limitedDirty : colors.muted('Git clean');
+        const divider = colors.line('─'.repeat(Math.max(4, state.width)));
+        this.aiHeader.setText(`${colors.header('\nGit dirty files:')}\n${divider}`);
+        this.dirtyFiles.setText(`${dirtyBody}\n${summaryDivider}`);
+        this.aiMarkdown.setText('');
+      }
+    } else {
+      this.dirtyFiles.setText('');
+      this.aiHeader.setText('');
+      this.aiMarkdown.setText('');
+    }
+    if (state.shouldShowLogs) {
+      const entry = state.rows[state.selectedRowIndex]?.target;
+      const logText = formatLogs(
+        entry,
+        state.logChannel,
+        state.logLines,
+        state.width,
+        state.logLimit,
+        state.logViewMode
+      );
+      this.logs.setText(logText);
+    } else {
+      this.logs.setText('');
+    }
+    this.footer.setText(formatFooter(state.controlsLine, state.width));
+  }
+}
+
+class InputBridge implements Component {
+  constructor(private readonly handler: (input: string) => void) {}
+
+  render(): string[] {
+    return [];
+  }
+
+  handleInput(data: string): void {
+    this.handler(data);
+  }
+}
+
 interface PanelAppOptions {
   controller: StatusPanelController;
   logger: Logger;
@@ -51,6 +183,7 @@ export class PanelApp {
   private readonly logger: Logger;
   private readonly terminal = new ProcessTerminal();
   private readonly tui = new TUI(this.terminal);
+  // biome-ignore lint/correctness/noUnusedPrivateClassMembers: intentionally stored for focus + event wiring
   private readonly inputBridge = new InputBridge((input) => {
     this.handleInput(input);
   });
@@ -88,9 +221,12 @@ export class PanelApp {
   private logLines: string[] = [];
   private logChannelLabel: string = DEFAULT_LOG_CHANNEL;
   private readonly handleTerminalResize = () => {
-    if (!this.disposed) {
-      this.updateView('resize');
+    if (this.disposed) {
+      return;
     }
+
+    this.invalidateTuiCache();
+    this.updateView('resize');
   };
 
   constructor(options: PanelAppOptions) {
@@ -240,6 +376,7 @@ export class PanelApp {
     this.updateLogPolling();
   }
 
+  // biome-ignore lint/correctness/noUnusedPrivateClassMembers: invoked via InputBridge callback
   private handleInput(input: string): void {
     if (this.disposed || !input) return;
 
@@ -434,9 +571,24 @@ export class PanelApp {
     });
 
     this.summaryMode = viewState.summaryMode;
+    this.invalidateTuiCache();
     this.view.update(viewState);
     if (this.started) {
       this.tui.requestRender();
+    }
+  }
+
+  /**
+   * pi-tui keeps a diff cache (previousWidth/previousLines). When layout changes significantly,
+   * force a full redraw to avoid stale lines or duplicate rows.
+   */
+  private invalidateTuiCache(): void {
+    if (!this.tui) return;
+    if (typeof (this.tui as any).previousWidth === 'number') {
+      (this.tui as any).previousWidth = -1;
+    }
+    if (Array.isArray((this.tui as any).previousLines)) {
+      (this.tui as any).previousLines = [];
     }
   }
 
@@ -551,132 +703,6 @@ export class PanelApp {
   }
 }
 
-class PanelView extends Container {
-  private readonly header = new Text('', 0, 0);
-  private readonly targets = new Text('', 0, 0);
-  private readonly globalScripts = new Text('', 0, 0);
-  private readonly dirtyFiles = new Text('', 0, 0);
-  private readonly aiHeader = new Text('', 0, 0);
-  private readonly aiMarkdown = createWordWrappedMarkdown();
-  private readonly logs = new Text('', 0, 0);
-  private readonly footer = new Text('', 0, 0);
-  private readonly spacer = new Spacer(1);
-
-  constructor() {
-    super();
-    this.addChild(this.header);
-    this.addChild(this.spacer);
-    this.addChild(this.targets);
-    this.addChild(this.globalScripts);
-    this.addChild(this.dirtyFiles);
-    this.addChild(this.aiHeader);
-    this.addChild(this.aiMarkdown);
-    this.addChild(this.logs);
-    this.addChild(this.footer);
-  }
-
-  public update(state: PanelViewState): void {
-    const { snapshot } = state;
-    const { scriptsByTarget, globalScripts } = splitStatusScripts(snapshot.statusScripts ?? []);
-    const summaryIndex = state.summaryRowLabel ? state.rows.length : null;
-    const rowStart = summaryIndex !== null ? summaryIndex + 1 : state.rows.length;
-    const rowSummaries = state.rowSummaries.map((row, idx) => ({
-      ...row,
-      selected: state.selectedRowIndex === rowStart + idx,
-    }));
-    this.header.setText(formatHeader(snapshot, state.width));
-    this.targets.setText(
-      formatTargets(
-        state.rows,
-        state.selectedRowIndex,
-        scriptsByTarget,
-        state.width,
-        state.summaryRowLabel
-          ? { label: state.summaryRowLabel, selected: state.summarySelected }
-          : undefined,
-        rowSummaries,
-        state.summaryModes,
-        state.summarySelected ? state.activeSummaryKey : undefined,
-        snapshot,
-        globalScripts
-      )
-    );
-    const scriptBannerText = state.scriptBanner
-      ? `${colors.failure('Script')} ${state.scriptBanner}`
-      : '';
-    this.globalScripts.setText(scriptBannerText);
-    const showSummary = state.summarySelected || Boolean(state.customSummary);
-    if (showSummary) {
-      const summaryDivider = colors.line('─'.repeat(Math.max(4, state.width)));
-      if (state.customSummary) {
-        const headerText = colors.header(`\n${state.customSummary.label}:`);
-        this.aiHeader.setText(`${headerText}\n${summaryDivider}`);
-        const body = state.customSummary.lines.join('\n').trim();
-        const limitedBody = limitSummaryLines(
-          body || colors.muted('No output'),
-          Math.max(1, Math.floor(state.logLimit * SUMMARY_FRACTION))
-        );
-        this.dirtyFiles.setText('');
-        this.aiMarkdown.setText(limitedBody);
-      } else if (state.summaryMode === 'ai') {
-        const aiSummary = formatAiSummary(snapshot.git.summary ?? []);
-        if (aiSummary && aiSummary.body.trim().length > 0) {
-          this.dirtyFiles.setText('');
-          const headerText = aiSummary.header ?? colors.header('AI Summary of changed files:');
-          this.aiHeader.setText(`\n${headerText}\n${summaryDivider}`);
-          const limitedBody = limitSummaryLines(
-            aiSummary.body.trim(),
-            Math.max(1, Math.floor(state.logLimit * SUMMARY_FRACTION))
-          );
-          this.aiMarkdown.setText(limitedBody);
-        } else {
-          const limitedDirty = limitSummaryLines(
-            formatDirtyFiles(snapshot),
-            Math.max(1, Math.floor(state.logLimit * SUMMARY_FRACTION))
-          );
-          this.dirtyFiles.setText(limitedDirty);
-          this.aiHeader.setText('');
-          this.aiMarkdown.setText('');
-        }
-      } else {
-        const limitedDirty = limitSummaryLines(
-          formatDirtyFiles(snapshot),
-          Math.max(1, Math.floor(state.logLimit * SUMMARY_FRACTION))
-        );
-        const dirtyBody = limitedDirty.trim().length > 0 ? limitedDirty : colors.muted('Git clean');
-        const divider = colors.line('─'.repeat(Math.max(4, state.width)));
-        this.aiHeader.setText(`${colors.header('\nGit dirty files:')}\n${divider}`);
-        this.dirtyFiles.setText(`${dirtyBody}\n${summaryDivider}`);
-        this.aiMarkdown.setText('');
-      }
-    } else {
-      this.dirtyFiles.setText('');
-      this.aiHeader.setText('');
-      this.aiMarkdown.setText('');
-    }
-    if (state.shouldShowLogs) {
-      const entry = state.rows[state.selectedRowIndex]?.target;
-      const filteredLogs =
-        state.logViewMode === 'tests'
-          ? filterTestLogs(state.logLines)
-          : filterBuildLogs(state.logLines);
-      this.logs.setText(
-        formatLogs(
-          entry,
-          state.logChannel,
-          filteredLogs,
-          state.width,
-          state.logLimit,
-          state.logViewMode
-        )
-      );
-    } else {
-      this.logs.setText('');
-    }
-    this.footer.setText(formatFooter(state.controlsLine, state.width));
-  }
-}
-
 function createWordWrappedMarkdown(): Markdown {
   const markdown = new Markdown('');
   enableMarkdownWordWrap(markdown);
@@ -726,16 +752,4 @@ function formatBannerWithCountdown(
   const base = banner.text;
   const display = fading ? colors.muted(`${base} (fading)`) : base;
   return `${display} (${remainingSec}s)`;
-}
-
-class InputBridge implements Component {
-  constructor(private readonly handler: (input: string) => void) {}
-
-  render(): string[] {
-    return [];
-  }
-
-  handleInput(data: string): void {
-    this.handler(data);
-  }
 }

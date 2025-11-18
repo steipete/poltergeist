@@ -26,18 +26,22 @@ export function formatLogs(
   maxLines: number,
   viewMode: 'all' | 'tests'
 ): string {
-  if (!entry) {
-    return '';
-  }
+  const safeLines = Array.isArray(lines) ? lines : [];
+  const targetName = entry?.name ?? 'Unknown';
+  const statusLabel =
+    entry?.status?.lastBuild?.status ??
+    entry?.status?.status ??
+    entry?.status?.lastBuild?.status ??
+    '';
   const header = colors.header(
-    `Logs — ${entry.name}${
-      entry.status.lastBuild?.status ? ` (${entry.status.lastBuild.status})` : ''
-    } · ${channel}${viewMode === 'tests' ? ' [tests]' : ''}`
+    `Logs — ${targetName}${statusLabel ? ` (${statusLabel})` : ''} · ${channel}${
+      viewMode === 'tests' ? ' [tests]' : ''
+    }`
   );
   const divider = colors.line('─'.repeat(Math.max(4, width)));
   const wrapped: string[] = [];
   const wrapWidth = Math.max(1, width - 2);
-  for (const line of lines) {
+  for (const line of safeLines) {
     const logicalLines = String(line ?? '').split(/\r?\n/);
     for (const logical of logicalLines) {
       const segments = wrapAnsi(logical, wrapWidth, { hard: false, trim: false }).split('\n');

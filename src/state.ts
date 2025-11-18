@@ -461,7 +461,7 @@ export class StateManager implements IStateManager {
   /**
    * Update heartbeat for all active states (called by ProcessManager)
    */
-  private async updateHeartbeat(): Promise<void> {
+  protected async updateHeartbeat(): Promise<void> {
     for (const targetName of this.states.keys()) {
       await this.writeState(targetName);
     }

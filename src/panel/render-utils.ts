@@ -47,7 +47,8 @@ function getHeaderMode(width?: number): HeaderMode {
 }
 
 export function formatHeader(snapshot: PanelSnapshot, width?: number): string {
-  const mode = getHeaderMode(width);
+  const widthValue = Math.max(1, width ?? 80);
+  const mode = getHeaderMode(widthValue);
   const branch = snapshot.git.branch ?? 'unknown';
   const dirtyFiles = snapshot.git.hasRepo ? snapshot.git.dirtyFiles : Number.NaN;
   const insertions = snapshot.git.hasRepo ? snapshot.git.insertions : Number.NaN;
@@ -87,14 +88,28 @@ export function formatHeader(snapshot: PanelSnapshot, width?: number): string {
   const pausedLine = snapshot.paused
     ? colors.warning('Auto-builds paused — press r to resume or run `poltergeist resume`')
     : undefined;
-  const lines = [projectLine, pausedLine, branchLine, summaryLine].filter((line): line is string =>
+  // Order: project → branch/git → summary → paused notice (last, if present)
+  const lines = [projectLine, branchLine, summaryLine, pausedLine].filter((line): line is string =>
     Boolean(line)
   );
-  const wrapped = wrapAnsi(lines.join('\n'), Math.max(1, width ?? 80), {
-    hard: false,
-    trim: false,
-  });
-  return wrapped;
+
+  const wrappedLines = lines.flatMap((line) =>
+    wrapAnsi(line, widthValue - 2, {
+      hard: false,
+      trim: false,
+    }).split('\n')
+  );
+  const horizontal = colors.line('─'.repeat(Math.max(2, widthValue - 2)));
+  const top = colors.line(`┌${horizontal}┐`);
+  const bottom = colors.line(`└${horizontal}┘`);
+  const framed = wrappedLines
+    .map((line) => {
+      const centered = centerText(line, widthValue - 2);
+      const padded = pad(centered, widthValue - 2);
+      return `${colors.line('│')}${padded}${colors.line('│')}`;
+    })
+    .join('\n');
+  return [top, framed, bottom].join('\n');
 }
 
 function formatSummary(snapshot: PanelSnapshot, mode: HeaderMode = 'full'): string {
@@ -607,7 +622,14 @@ export function formatScriptLines(
   width = 80
 ): string[] {
   const scriptColor = scriptColorFromExitCode(script.exitCode);
-  const limit = Math.max(1, script.maxLines ?? script.lines.length);
+  const looksLikeSwiftLint = isSwiftLint(script.label, script.lines[0]);
+  const limit = Math.max(
+    1,
+    Math.min(
+      looksLikeSwiftLint ? 3 : Number.POSITIVE_INFINITY,
+      script.maxLines ?? script.lines.length
+    )
+  );
   const selectedLines = script.lines.slice(0, limit).map(stripAnsiCodes);
   const normalizedLines = selectedLines.map((line, index) =>
     normalizeScriptLine(line, script.label, script.exitCode, index === 0)
@@ -649,12 +671,7 @@ function normalizeScriptLine(
   exitCode: number | null,
   isFirstLine: boolean
 ): string {
-  const lowerLine = line.toLowerCase();
-  const lowerLabel = label.toLowerCase();
-  const looksLikeSwiftLint =
-    lowerLabel.includes('swiftlint') ||
-    lowerLine.startsWith('swiftlint') ||
-    lowerLine.includes('swiftlint:');
+  const looksLikeSwiftLint = isSwiftLint(label, line);
 
   if (looksLikeSwiftLint && isFirstLine && (exitCode ?? 0) === 0) {
     const zeroMatch = /swiftlint:\s*0\s+errors\s*\/\s*0\s+warnings/i;
@@ -664,4 +681,14 @@ function normalizeScriptLine(
   }
 
   return line;
+}
+
+function isSwiftLint(label: string, line?: string): boolean {
+  const lowerLabel = label.toLowerCase();
+  const lowerLine = line?.toLowerCase() ?? '';
+  return (
+    lowerLabel.includes('swiftlint') ||
+    lowerLine.startsWith('swiftlint') ||
+    lowerLine.includes('swiftlint:')
+  );
 }

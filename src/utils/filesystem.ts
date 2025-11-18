@@ -113,7 +113,7 @@ export class FileSystemUtils {
     }
   }
 
-  private static projectHash(projectRoot: string): string {
+  public static projectHash(projectRoot: string): string {
     return createHash('sha256').update(projectRoot).digest('hex').substring(0, 6);
   }
 

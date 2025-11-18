@@ -33,7 +33,7 @@ export class ConfigValidationError extends Error {
     this.validationErrors = detailedErrors;
   }
 
-  private static formatZodErrors(zodError: ZodError): string[] {
+  public static formatZodErrors(zodError: ZodError): string[] {
     return zodError.issues.map((error: ZodIssue) => {
       const path = error.path.length > 0 ? error.path.join('.') : 'root';
       return `❌ ${path}: ${error.message}`;
@@ -240,7 +240,7 @@ export class ConfigurationManager {
   /**
    * Generate helpful suggestions based on validation errors
    */
-  private static generateSuggestions(zodError: ZodError): string[] {
+  public static generateSuggestions(zodError: ZodError): string[] {
     const suggestions: string[] = [];
 
     for (const error of zodError.issues) {

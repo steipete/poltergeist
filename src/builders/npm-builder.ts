@@ -6,8 +6,8 @@ import type { NPMTarget } from '../types.js';
 import { BaseBuilder } from './base-builder.js';
 
 export class NPMBuilder extends BaseBuilder<NPMTarget> {
-  private packageManager: 'npm' | 'yarn' | 'pnpm' | 'bun';
-  private buildScript: string;
+  protected packageManager: 'npm' | 'yarn' | 'pnpm' | 'bun';
+  protected buildScript: string;
 
   constructor(target: NPMTarget, projectRoot: string, logger: any, stateManager: any) {
     super(target, projectRoot, logger, stateManager);
@@ -18,7 +18,7 @@ export class NPMBuilder extends BaseBuilder<NPMTarget> {
     this.target.buildCommand = `${runCommand} ${this.buildScript}`;
   }
 
-  private detectPackageManager(): 'npm' | 'yarn' | 'pnpm' | 'bun' {
+  protected detectPackageManager(): 'npm' | 'yarn' | 'pnpm' | 'bun' {
     // If explicitly specified and not 'auto', use that
     if (this.target.packageManager && this.target.packageManager !== 'auto') {
       return this.target.packageManager;
