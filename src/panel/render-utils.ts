@@ -8,8 +8,7 @@ import type { PanelSnapshot, PanelStatusScriptResult, PanelSummaryScriptResult }
 
 export const CONTROLS_LINE_RUNNING =
   'Controls: ↑/↓ move · ←/→ cycle logs · p pause · r refresh · q quit';
-export const CONTROLS_LINE_PAUSED =
-  'Controls: ↑/↓ move · ←/→ cycle logs · p pause · r resume · q quit';
+export const CONTROLS_LINE_PAUSED = 'Controls: ↑/↓ move · ←/→ cycle logs · r resume · q quit';
 
 const mono = process.env.POLTERGEIST_MONOCHROME === '1';
 
