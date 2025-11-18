@@ -257,12 +257,18 @@ export function formatTargets(
       const postColor = postBuildColor(result.status);
       const durationTag =
         result.durationMs !== undefined ? ` · ${formatDurationShort(result.durationMs)}` : '';
+      const hint = result.status === 'failure' ? failureHint(result.lines ?? []) : undefined;
       const summaryText =
         result.summary || `${result.name}: ${result.status ?? 'pending'}`.replace(/\s+/g, ' ');
-      const postLines = wrapAnsi(postColor(`  ${summaryText}${durationTag}`), Math.max(1, width), {
-        hard: false,
-        trim: false,
-      }).split('\n');
+      const enrichedSummary = hint ? `${summaryText} — ${hint}` : summaryText;
+      const postLines = wrapAnsi(
+        postColor(`  ${enrichedSummary}${durationTag}`),
+        Math.max(1, width),
+        {
+          hard: false,
+          trim: false,
+        }
+      ).split('\n');
       for (const line of postLines) {
         lines.push(line);
       }
@@ -597,6 +603,18 @@ function postBuildColor(status?: string): (value: string) => string {
     default:
       return colors.info;
   }
+}
+
+function failureHint(lines: string[]): string | undefined {
+  for (let i = lines.length - 1; i >= 0; i--) {
+    const raw = stripAnsiCodes(lines[i]).trim();
+    if (!raw) continue;
+    const exitMatch = raw.match(/exit code\s+(\d+)/i);
+    if (exitMatch) return `exit ${exitMatch[1]}`;
+    if (raw.length <= 80) return raw;
+    return truncateVisible(raw, 80);
+  }
+  return undefined;
 }
 
 function groupDirtyFiles(files: string[]): Array<{ dir: string; files: string[] }> {
