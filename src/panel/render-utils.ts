@@ -266,15 +266,18 @@ export function formatTargets(
       for (const line of postLines) {
         lines.push(line);
       }
-      result.lines?.forEach((line) => {
-        const wrapped = wrapAnsi(postColor(`    ${line}`), Math.max(1, width), {
-          hard: false,
-          trim: false,
-        }).split('\n');
-        for (const wrappedLine of wrapped) {
-          lines.push(wrappedLine);
-        }
-      });
+      // Compact success: skip detailed lines when the post-build succeeded.
+      if (result.status !== 'success') {
+        result.lines?.forEach((line) => {
+          const wrapped = wrapAnsi(postColor(`    ${line}`), Math.max(1, width), {
+            hard: false,
+            trim: false,
+          }).split('\n');
+          for (const wrappedLine of wrapped) {
+            lines.push(wrappedLine);
+          }
+        });
+      }
     });
   });
 
