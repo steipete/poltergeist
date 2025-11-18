@@ -250,8 +250,8 @@ describe('Build Improvements - Real-time Output & Error Capture', () => {
       logFile,
     });
 
-    // Wait a bit for file write to complete
-    await new Promise((resolve) => setTimeout(resolve, 50));
+    // Wait a bit for file write to complete (slower runners need a little padding)
+    await new Promise((resolve) => setTimeout(resolve, 150));
 
     // Verify log file was created and contains output
     expect(existsSync(logFile)).toBe(true);

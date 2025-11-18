@@ -682,8 +682,8 @@ final class ProjectMonitor {
     }
 
     deinit {
-        Task { @MainActor in
-            stopMonitoring()
+        Task { @MainActor [weak self] in
+            self?.stopMonitoring()
         }
     }
 }
