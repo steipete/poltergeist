@@ -48,6 +48,7 @@ export interface PanelViewState {
   logChannel: string;
   logViewMode: 'all' | 'tests';
   summaryMode: string;
+  logBanner?: string;
 }
 
 export interface BuildViewStateInput {
@@ -64,6 +65,7 @@ export interface BuildViewStateInput {
   height: number;
   shouldShowLogs: boolean;
   logOverheadLines: number;
+  logBanner?: string;
 }
 
 export const buildPanelViewState = (input: BuildViewStateInput): PanelViewState => {
@@ -116,6 +118,7 @@ export const buildPanelViewState = (input: BuildViewStateInput): PanelViewState 
     summaryIndex,
     rowSummaries,
     logOverheadLines,
+    logBanner,
     scriptBanner,
   });
   const logLimit = Math.max(0, logDisplayLimit);
@@ -158,6 +161,7 @@ function computeLogDisplayLimit({
   summaryIndex,
   rowSummaries,
   logOverheadLines,
+  logBanner,
   scriptBanner,
 }: {
   width: number;
@@ -171,6 +175,7 @@ function computeLogDisplayLimit({
   summaryIndex: number | null;
   rowSummaries: PanelSummaryScriptResult[];
   logOverheadLines: number;
+  logBanner?: string;
   scriptBanner?: string;
 }): number {
   const rows = buildTargetRows(snapshot.targets);
@@ -205,11 +210,13 @@ function computeLogDisplayLimit({
     summaryInfo.totalLines +
     countLines(footerText);
 
+  const bannerLines = logBanner ? 1 : 0;
+
   const remaining = height - nonLogLines;
-  if (remaining <= logOverheadLines) {
+  if (remaining <= logOverheadLines + bannerLines) {
     return 0;
   }
-  return Math.max(0, remaining - logOverheadLines);
+  return Math.max(0, remaining - logOverheadLines - bannerLines);
 }
 
 function computeSummaryLines(
