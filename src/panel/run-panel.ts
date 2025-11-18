@@ -23,7 +23,8 @@ export async function runStatusPanel(options: RunPanelOptions): Promise<void> {
   }
 
   // Default: keep the main screen so mouse scroll keeps working; opt-in via POLTERGEIST_PANEL_ALT=1
-  const useAltBuffer = process.env.POLTERGEIST_PANEL_ALT === '1';
+  // Switch to alt buffer by default for a clean, flicker-free view; opt out with POLTERGEIST_PANEL_ALT=0.
+  const useAltBuffer = process.env.POLTERGEIST_PANEL_ALT !== '0';
 
   const enterAlternateBuffer = () => {
     if (!useAltBuffer) return;
