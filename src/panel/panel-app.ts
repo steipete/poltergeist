@@ -562,16 +562,19 @@ export class PanelApp {
     if (this.scriptBanner && this.scriptBanner.expires <= Date.now()) {
       this.scriptBanner = undefined;
     }
+    const bannerAttachedToLogs =
+      activeScriptBanner &&
+      this.shouldAttachBannerToSelected(activeScriptBanner.targets, entry ?? undefined);
+    const scriptBannerText = activeScriptBanner
+      ? formatBannerWithCountdown(activeScriptBanner, Date.now())
+      : undefined;
 
     const viewState = buildPanelViewState({
       snapshot: this.snapshot,
       rows,
       selectedRowIndex: this.selectedRowIndex,
       logLines: this.logLines,
-      scriptBanner:
-        activeScriptBanner !== undefined
-          ? formatBannerWithCountdown(activeScriptBanner, Date.now())
-          : undefined,
+      scriptBanner: bannerAttachedToLogs ? undefined : scriptBannerText,
       logViewMode: this.logViewMode,
       summaryMode: this.summaryMode,
       logChannelLabel: this.logChannelLabel,
