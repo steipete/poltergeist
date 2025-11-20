@@ -171,6 +171,10 @@ function shortcut(label: string): string {
   return highlightHotkey(label);
 }
 
+function shortcutWord(word: string): string {
+  return highlightHotkey(word);
+}
+
 export function renderControlsLine(width: number, paused: boolean, running: boolean): string {
   const items: string[] = [
     `${shortcut('↑/↓')} move`,
@@ -179,18 +183,18 @@ export function renderControlsLine(width: number, paused: boolean, running: bool
 
   if (running) {
     if (paused) {
-      items.push(`${shortcut('r')} resume`);
+      items.push(shortcutWord('resume'));
     } else {
-      items.push(`${shortcut('p')} pause`);
-      items.push(`${shortcut('r')} refresh`);
+      items.push(shortcutWord('pause'));
+      items.push(shortcutWord('refresh'));
     }
-    items.push(`${shortcut('s')} stop`);
+    items.push(shortcutWord('stop'));
   } else {
-    items.push(`${shortcut('s')} start`);
-    items.push(`${shortcut('r')} refresh`);
+    items.push(shortcutWord('start'));
+    items.push(shortcutWord('refresh'));
   }
 
-  items.push(`${shortcut('q')} quit`);
+  items.push(shortcutWord('quit'));
 
   const base = items.join(' · ');
   const visible = visibleWidth(base);
