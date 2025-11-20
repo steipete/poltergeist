@@ -193,8 +193,9 @@ export function renderControlsLine(width: number, paused: boolean, running: bool
   items.push(`${shortcut('q')} quit`);
 
   const base = items.join(' · ');
-  const trimmed = base.length > width ? base.slice(0, Math.max(0, width)) : base;
-  return trimmed; // Centering happens in formatFooter so we keep the raw text here.
+  const visible = visibleWidth(base);
+  if (visible <= width) return base;
+  return truncateVisible(base, width);
 }
 
 export function formatFooter(controlsLine: string, width: number): string {
