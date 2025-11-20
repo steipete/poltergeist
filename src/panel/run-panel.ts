@@ -57,6 +57,8 @@ export async function runStatusPanel(options: RunPanelOptions): Promise<void> {
     projectRoot: options.projectRoot,
     logger: options.logger,
     fetchStatus: () => poltergeist.getStatus(),
+    startDaemon: () => poltergeist.start(),
+    stopDaemon: () => poltergeist.stop(),
     gitSummaryMode: options.gitSummaryMode,
     scriptEventSink: options.scriptEventsToStdout
       ? (event) => {

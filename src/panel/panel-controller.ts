@@ -217,6 +217,18 @@ export class StatusPanelController {
     await this.refreshStatusScripts(true);
   }
 
+  public async startDaemon(): Promise<void> {
+    if (!this.options.startDaemon) return;
+    await this.options.startDaemon();
+    await this.refreshStatus({ refreshGit: true, forceGit: true });
+  }
+
+  public async stopDaemon(): Promise<void> {
+    if (!this.options.stopDaemon) return;
+    await this.options.stopDaemon();
+    await this.refreshStatus({ refreshGit: true, forceGit: true });
+  }
+
   public async pause(): Promise<void> {
     FileSystemUtils.writePauseFlag(this.options.projectRoot, true);
     await this.refreshStatus({ refreshGit: false });

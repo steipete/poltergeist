@@ -62,6 +62,8 @@ export interface PanelControllerOptions {
   config: PoltergeistConfig;
   projectRoot: string;
   fetchStatus: () => Promise<StatusMap>;
+  startDaemon?: () => Promise<void>;
+  stopDaemon?: () => Promise<void>;
   logger: Logger;
   logReader?: {
     read: (target: string, channel?: string, limit?: number) => Promise<string[]>;

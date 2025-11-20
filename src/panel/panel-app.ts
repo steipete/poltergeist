@@ -415,6 +415,16 @@ export class PanelApp {
         i += 1;
         continue;
       }
+      if (lower === 's') {
+        // Start daemon if not running; otherwise stop it.
+        if ((this.snapshot.summary?.running ?? 0) > 0) {
+          void this.controller.stopDaemon();
+        } else {
+          void this.controller.startDaemon();
+        }
+        i += 1;
+        continue;
+      }
       if (lower === 'r') {
         if (this.snapshot.paused) {
           void this.controller.resume().then(() => {
