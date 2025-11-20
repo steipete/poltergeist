@@ -266,12 +266,7 @@ export function formatTargets(
     const badge = formatStatusBadge(status, statusLabel, color);
     const timePart = lastBuild && lastBuild !== '—' ? color(lastBuild) : '';
     const durationPart = duration && duration !== '—' ? colors.muted(duration) : '';
-    const progressText =
-      status === 'building' && entry.status.lastBuild?.progress
-        ? formatProgress(entry.status.lastBuild.progress, statusCol)
-        : null;
-    const statusDetails =
-      progressText ?? formatStatusDetails(statusCol, badge, timePart, durationPart);
+    const statusDetails = formatStatusDetails(statusCol, badge, timePart, durationPart);
 
     const rowLine = `${pad(`${targetName}${enabledLabel}`, targetCol)}${pad(statusDetails, statusCol)}`;
     lines.push(rowLine);
