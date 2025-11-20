@@ -598,9 +598,14 @@ export class PanelApp {
       logOverheadLines: LOG_OVERHEAD_LINES,
     });
 
-    this.summaryMode = viewState.summaryMode;
+    const fittedViewState = this.clampToViewport(viewState, width, height);
+    // Keep local state in sync with any clamped log lines so later renders don't overflow again.
+    if (fittedViewState.logLines !== this.logLines) {
+      this.logLines = fittedViewState.logLines;
+    }
+    this.summaryMode = fittedViewState.summaryMode;
     this.invalidateTuiCache();
-    this.view.update(viewState);
+    this.view.update(fittedViewState);
     if (this.started) {
       this.tui.requestRender();
     }
@@ -728,6 +733,51 @@ export class PanelApp {
     }
     this.queueLogRefresh();
     this.updateLogPolling();
+  }
+
+  /**
+   * Defensive viewport clamping: if the rendered view would exceed the terminal height
+   * (causing scroll that pushes the header off-screen even in alt-buffer mode),
+   * trim log lines until it fits. This keeps the header pinned and prevents duplicate
+   * sections from appearing when the terminal scrolls.
+   */
+  private clampToViewport(viewState: PanelViewState, width: number, height: number): PanelViewState {
+    // Fast path: render once; if it fits, keep as-is.
+    this.view.update(viewState);
+    let lines = this.view.render(width);
+    if (lines.length <= height) {
+      return viewState;
+    }
+
+    // If we overflow, progressively trim logs (the only expandable section)
+    // until the rendered output fits in the viewport.
+    let trimmedLogs = viewState.logLines;
+    let logLimit = viewState.logLimit;
+    const maxIterations = 3;
+    for (let i = 0; i < maxIterations && lines.length > height && trimmedLogs.length > 0; i += 1) {
+      const excess = lines.length - height;
+      const targetLength = Math.max(0, trimmedLogs.length - excess - 1); // leave a small buffer
+      trimmedLogs = trimmedLogs.slice(-targetLength);
+      logLimit = Math.min(logLimit, trimmedLogs.length);
+
+      const nextState: PanelViewState = {
+        ...viewState,
+        logLines: trimmedLogs,
+        logLimit,
+      };
+      this.view.update(nextState);
+      lines = this.view.render(width);
+      if (lines.length <= height) {
+        return nextState;
+      }
+    }
+
+    // If trimming didn't help (e.g., no logs to trim), return the current best effort.
+    return {
+      ...viewState,
+      logLines: trimmedLogs,
+      logLimit,
+    };
   }
 }
 

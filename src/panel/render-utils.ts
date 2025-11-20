@@ -6,10 +6,6 @@ import type { TargetRow } from './target-tree.js';
 import { centerText, pad, truncateVisible, visibleWidth } from './text-utils.js';
 import type { PanelSnapshot, PanelStatusScriptResult, PanelSummaryScriptResult } from './types.js';
 
-export const CONTROLS_LINE_RUNNING =
-  'Controls: ↑/↓ move · ←/→ cycle logs · p pause · r refresh · q quit';
-export const CONTROLS_LINE_PAUSED = 'Controls: ↑/↓ move · ←/→ cycle logs · r resume · q quit';
-
 const mono = process.env.POLTERGEIST_MONOCHROME === '1';
 
 const palette = {
@@ -163,15 +159,40 @@ function formatUpstreamBadge(git: PanelSnapshot['git'], mode: HeaderMode): strin
   return `${colors.muted(label)} ${parts.join(' ')}`.trim();
 }
 
-export function renderControlsLine(width: number, paused: boolean): string {
-  const base =
-    width < 60
-      ? paused
-        ? '↑/↓ move · ←/→ cycle · p pause · r resume · q quit'
-        : '↑/↓ move · ←/→ cycle · p pause · r refresh · q quit'
-      : paused
-        ? CONTROLS_LINE_PAUSED
-        : CONTROLS_LINE_RUNNING;
+function highlightHotkey(label: string): string {
+  if (!label) return label;
+  const first = label.slice(0, 1);
+  const rest = label.slice(1);
+  const hot = mono ? first : chalk.hex(palette.accent).bold(first);
+  return `${hot}${rest}`;
+}
+
+function shortcut(label: string): string {
+  return highlightHotkey(label);
+}
+
+export function renderControlsLine(width: number, paused: boolean, running: boolean): string {
+  const items: string[] = [
+    `${shortcut('↑/↓')} move`,
+    `${shortcut('←/→')} cycle logs`,
+  ];
+
+  if (running) {
+    if (paused) {
+      items.push(`${shortcut('r')} resume`);
+    } else {
+      items.push(`${shortcut('p')} pause`);
+      items.push(`${shortcut('r')} refresh`);
+    }
+    items.push(`${shortcut('s')} stop`);
+  } else {
+    items.push(`${shortcut('s')} start`);
+    items.push(`${shortcut('r')} refresh`);
+  }
+
+  items.push(`${shortcut('q')} quit`);
+
+  const base = items.join(' · ');
   const trimmed = base.length > width ? base.slice(0, Math.max(0, width)) : base;
   return trimmed; // Centering happens in formatFooter so we keep the raw text here.
 }
