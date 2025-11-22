@@ -222,6 +222,7 @@ export class PanelApp {
   private cachedRowsVersion: number | null = null;
   private cachedRows: TargetRow[] = [];
   private unsubscribeLogs?: () => void;
+  private lastHeaderText: string | null = null;
   private snapshot: PanelSnapshot;
   // Index within the flattened target list (tree order); may point to summary/custom rows.
   private selectedRowIndex: number;
@@ -614,6 +615,12 @@ export class PanelApp {
       this.logLines = fittedViewState.logLines;
     }
     this.summaryMode = fittedViewState.summaryMode;
+    const headerText = formatHeader(fittedViewState.snapshot, fittedViewState.width);
+    const rowsChanged = this.cachedRowsVersion !== fittedViewState.snapshot.lastUpdated;
+    if (headerText !== this.lastHeaderText || rowsChanged) {
+      this.invalidateTuiCache();
+      this.lastHeaderText = headerText;
+    }
     this.view.update(fittedViewState);
     if (this.started) {
       this.tui.requestRender();
