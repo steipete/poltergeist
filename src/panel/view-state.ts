@@ -251,7 +251,7 @@ function computeSummaryLines(
   }
 
   // Fallback to git-dirty list when AI summary is empty or git view was chosen.
-  const dirtyText = formatDirtyFiles(snapshot);
+  const dirtyText = formatDirtyFiles(snapshot, width);
   const bodyLines = countWrappedLines(dirtyText, width);
   return { headerLines: 0, bodyLines, totalLines: bodyLines };
 }

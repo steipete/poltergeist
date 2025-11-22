@@ -120,7 +120,7 @@ class PanelView extends Container {
           this.aiMarkdown.setText(limitedBody);
         } else {
           const limitedDirty = limitSummaryLines(
-            formatDirtyFiles(snapshot),
+            formatDirtyFiles(snapshot, state.width),
             Math.max(1, Math.floor(state.logLimit * SUMMARY_FRACTION))
           );
           this.dirtyFiles.setText(limitedDirty);
@@ -129,7 +129,7 @@ class PanelView extends Container {
         }
       } else {
         const limitedDirty = limitSummaryLines(
-          formatDirtyFiles(snapshot),
+          formatDirtyFiles(snapshot, state.width),
           Math.max(1, Math.floor(state.logLimit * SUMMARY_FRACTION))
         );
         const dirtyBody = limitedDirty.trim().length > 0 ? limitedDirty : colors.muted('Git clean');

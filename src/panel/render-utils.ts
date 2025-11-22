@@ -443,7 +443,7 @@ export function formatGlobalScripts(scripts: PanelStatusScriptResult[], width: n
   return `\n${header}\n${lines.join('\n')}`;
 }
 
-export function formatDirtyFiles(snapshot: PanelSnapshot): string {
+export function formatDirtyFiles(snapshot: PanelSnapshot, maxWidth?: number): string {
   const dirtyFiles = snapshot.git.dirtyFileNames ?? [];
   const totalDirty = snapshot.git.dirtyFiles ?? dirtyFiles.length;
   if (totalDirty === 0 && dirtyFiles.length === 0) {
@@ -465,7 +465,9 @@ export function formatDirtyFiles(snapshot: PanelSnapshot): string {
           ? group.files[0]
           : `${dir}/${group.files[0]}`
         : `${dir}: ${group.files.join(', ')}`;
-    lines.push(colors.muted(`• ${label}`));
+    const safeLabel =
+      maxWidth && maxWidth > 4 ? truncateVisible(label, Math.max(1, maxWidth - 2)) : label;
+    lines.push(colors.muted(`• ${safeLabel}`));
   });
   const remaining = totalDirty - visibleCount;
   if (remaining > 0) {
