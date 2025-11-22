@@ -322,6 +322,13 @@ export interface SummaryScriptConfig {
    */
   label: string;
   /**
+   * Optional badge override for the summary tab.
+   * - number: show that number in the tab badge
+   * - string: show the string in the badge (e.g. "v3.0.0 · 12")
+   * - null: suppress the badge entirely
+   */
+  countLabel?: string | number | null;
+  /**
    * Command to run. Should print one summary item per line.
    */
   command: string;
@@ -548,6 +555,7 @@ export const StatusScriptConfigSchema = z.object({
 
 export const SummaryScriptConfigSchema = z.object({
   label: z.string().min(1),
+  countLabel: z.union([z.string(), z.number(), z.null()]).optional(),
   command: z.string().min(1),
   placement: z.enum(['summary', 'row']).optional().default('summary'),
   refreshSeconds: z.number().min(30).default(1800),

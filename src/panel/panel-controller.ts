@@ -154,6 +154,7 @@ export class StatusPanelController {
         hasRepo: true,
         lastUpdated: Date.now(),
         summaryMode: this.gitSummaryMode,
+        isSubmodule: false,
       },
       projectName: options.projectRoot.split(/[\\/]/).pop() || options.projectRoot,
       projectRoot: options.projectRoot,

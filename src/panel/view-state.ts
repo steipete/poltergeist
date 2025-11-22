@@ -18,7 +18,7 @@ import {
   splitStatusScripts,
 } from './render-utils.js';
 import { buildTargetRows, type TargetRow } from './target-tree.js';
-import { countLines } from './text-utils.js';
+import { countWrappedLines } from './text-utils.js';
 import type { PanelSnapshot, PanelSummaryScriptResult } from './types.js';
 
 export interface SummaryRenderInfo {
@@ -101,7 +101,8 @@ export const buildPanelViewState = (input: BuildViewStateInput): PanelViewState 
     snapshot,
     viewingSummary || Boolean(viewingCustomRow),
     resolvedSummaryMode,
-    resolvedCustomSummary
+    resolvedCustomSummary,
+    width
   );
 
   const logDisplayLimit = computeLogDisplayLimit({
@@ -201,14 +202,14 @@ function computeLogDisplayLimit({
   const footerText = formatFooter(controlsLine, width); // Always render as the last block.
 
   const nonLogLines =
-    countLines(headerText) +
+    countWrappedLines(headerText, width) +
     1 + // spacer
-    countLines(targetsText) +
-    countLines(globalScriptsText) +
+    countWrappedLines(targetsText, width) +
+    countWrappedLines(globalScriptsText, width) +
     summaryInfo.totalLines +
-    countLines(footerText);
+    countWrappedLines(footerText, width);
 
-  const bannerLines = logBanner ? 1 : 0;
+  const bannerLines = logBanner ? countWrappedLines(logBanner, width) : 0;
 
   const remaining = height - nonLogLines;
   if (remaining <= logOverheadLines + bannerLines) {
@@ -221,7 +222,8 @@ function computeSummaryLines(
   snapshot: PanelSnapshot,
   viewingSummary: boolean,
   summaryMode: string,
-  customSummary?: PanelSummaryScriptResult | null
+  customSummary: PanelSummaryScriptResult | null | undefined,
+  width: number
 ): SummaryRenderInfo {
   if (!viewingSummary) {
     return { headerLines: 0, bodyLines: 0, totalLines: 0 };
@@ -229,8 +231,8 @@ function computeSummaryLines(
 
   if (customSummary) {
     const body = customSummary.lines.join('\n').trim();
-    const headerLines = body ? countLines(`\n${customSummary.label}:`) : 0;
-    const bodyLines = body ? countLines(body) : 0;
+    const headerLines = body ? countWrappedLines(`\n${customSummary.label}:`, width) : 0;
+    const bodyLines = body ? countWrappedLines(body, width) : 0;
     return { headerLines, bodyLines, totalLines: headerLines + bodyLines };
   }
 
@@ -238,18 +240,18 @@ function computeSummaryLines(
     const aiSummary = formatAiSummary(snapshot.git.summary ?? []);
     if (aiSummary && aiSummary.body.trim().length > 0) {
       const headerText = aiSummary.header ?? colors.header('AI Summary of changed files:');
-      const headerLines = countLines(`\n${headerText}`);
-      const bodyLines = countLines(aiSummary.body.trim());
+      const headerLines = countWrappedLines(`\n${headerText}`, width);
+      const bodyLines = countWrappedLines(aiSummary.body.trim(), width);
       return { headerLines, bodyLines, totalLines: headerLines + bodyLines };
     }
     // AI selected but not loaded yet: show loading placeholder centered in summary area.
     const placeholder = colors.muted('AI summary loading…');
-    const lines = countLines(placeholder);
+    const lines = countWrappedLines(placeholder, width);
     return { headerLines: 0, bodyLines: lines, totalLines: lines };
   }
 
   // Fallback to git-dirty list when AI summary is empty or git view was chosen.
   const dirtyText = formatDirtyFiles(snapshot);
-  const bodyLines = countLines(dirtyText);
+  const bodyLines = countWrappedLines(dirtyText, width);
   return { headerLines: 0, bodyLines, totalLines: bodyLines };
 }

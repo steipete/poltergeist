@@ -20,6 +20,10 @@ export interface GitMetrics {
   lastUpdated: number;
   summary?: string[];
   summaryMode?: 'list' | 'ai';
+  /** True when the current working tree is a git submodule of another repo. */
+  isSubmodule?: boolean;
+  /** Absolute path to the superproject root when inside a submodule. */
+  superprojectRoot?: string;
 }
 
 type GitCommandRunner = (args: string[], cwd: string) => Promise<string>;
@@ -97,6 +101,7 @@ export class GitMetricsCollector {
       );
       const { count: dirtyFiles, files: dirtyFileNames } = this.parseDirtyFiles(statusRaw);
       const branch = this.parseBranch(statusRaw);
+      const superprojectRoot = await this.detectSuperproject(projectRoot);
 
       const diffRaw = await this.runner(['diff', '--shortstat', 'HEAD'], projectRoot).catch(
         () => ''
@@ -119,6 +124,8 @@ export class GitMetricsCollector {
         lastUpdated: Date.now(),
         summary,
         summaryMode: this.summaryMode,
+        isSubmodule: Boolean(superprojectRoot),
+        superprojectRoot: superprojectRoot ?? undefined,
       };
 
       this.cache.set(projectRoot, metrics);
@@ -142,6 +149,7 @@ export class GitMetricsCollector {
         hasRepo: false,
         lastUpdated: Date.now(),
         summaryMode: this.summaryMode,
+        isSubmodule: false,
       };
       this.cache.set(projectRoot, fallback);
       return fallback;
@@ -234,6 +242,19 @@ export class GitMetricsCollector {
     }
     const segments = line.trim().split(/\s+/);
     return segments.length > 0 ? segments[segments.length - 1] : null;
+  }
+
+  private async detectSuperproject(projectRoot: string): Promise<string | null> {
+    try {
+      const output = await this.runner(
+        ['rev-parse', '--show-superproject-working-tree'],
+        projectRoot
+      );
+      const path = output.trim();
+      return path.length > 0 ? path : null;
+    } catch {
+      return null;
+    }
   }
 
   private parseBranch(raw: string): string | undefined {

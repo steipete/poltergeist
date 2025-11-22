@@ -53,7 +53,21 @@ export function formatHeader(snapshot: PanelSnapshot, width?: number): string {
   const deleteColor = !snapshot.git.hasRepo || deletions === 0 ? colors.info : colors.failure;
 
   const projectRoot = snapshot.projectRoot.replace(homedir(), '~');
-  const projectLine = `${colors.text(snapshot.projectName)} — ${colors.muted(projectRoot)}`;
+  const submoduleLabel = snapshot.git.isSubmodule
+    ? colors.warning(
+        snapshot.git.superprojectRoot
+          ? `submodule of ${snapshot.git.superprojectRoot.replace(homedir(), '~')}`
+          : 'submodule'
+      )
+    : undefined;
+  const projectName = snapshot.git.isSubmodule
+    ? `${snapshot.projectName} (subrepo)`
+    : snapshot.projectName;
+  const projectLineSegments = [colors.text(projectName)];
+  if (submoduleLabel) {
+    projectLineSegments.push(colors.muted('·'), submoduleLabel);
+  }
+  const projectLine = `${projectLineSegments.join(' ')} — ${colors.muted(projectRoot)}`;
   const branchLabel = 'Branch:';
   const dirtyLabel = mode === 'full' ? 'dirty files:' : 'dirty:';
   const deltaLabel = mode === 'full' ? 'ΔLOC:' : 'Δ:';
@@ -145,8 +159,23 @@ function formatSummary(snapshot: PanelSnapshot, mode: HeaderMode = 'full'): stri
 function formatUpstreamBadge(git: PanelSnapshot['git'], mode: HeaderMode): string | undefined {
   const ahead = git.ahead ?? 0;
   const behind = git.behind ?? 0;
+  const separator = mode === 'narrow' ? ' ' : ' · ';
+  const submoduleLabel = git.isSubmodule
+    ? colors.warning(
+        git.superprojectRoot
+          ? `submodule of ${git.superprojectRoot.replace(homedir(), '~')}`
+          : 'submodule'
+      )
+    : undefined;
   if (ahead === 0 && behind === 0) {
-    return mode === 'narrow' ? undefined : colors.success('✓ up to date');
+    const parts = [colors.success('✓ up to date')];
+    if (submoduleLabel) {
+      parts.push(submoduleLabel);
+    }
+    if (mode === 'narrow' && parts.length === 1) {
+      return undefined;
+    }
+    return parts.join(separator);
   }
   const parts: string[] = [];
   if (behind > 0) {
@@ -155,8 +184,11 @@ function formatUpstreamBadge(git: PanelSnapshot['git'], mode: HeaderMode): strin
   if (ahead > 0) {
     parts.push(colors.accent(`↑${ahead}`));
   }
+  if (submoduleLabel) {
+    parts.push(submoduleLabel);
+  }
   const label = mode === 'full' ? 'upstream' : 'up';
-  return `${colors.muted(label)} ${parts.join(' ')}`.trim();
+  return `${colors.muted(label)} ${parts.join(separator)}`.trim();
 }
 
 function highlightHotkey(label: string): string {
@@ -176,10 +208,7 @@ function shortcutWord(word: string): string {
 }
 
 export function renderControlsLine(width: number, paused: boolean, running: boolean): string {
-  const items: string[] = [
-    `${shortcut('↑/↓')} move`,
-    `${shortcut('←/→')} cycle logs`,
-  ];
+  const items: string[] = [`${shortcut('↑/↓')} move`, `${shortcut('←/→')} cycle logs`];
 
   if (running) {
     if (paused) {
@@ -354,7 +383,12 @@ export function formatSummaryChips(
 
   const parts = modes.map((mode) => {
     const count = summaryCount(mode, snapshot);
-    const suffix = count > 0 ? ` (${count})` : '';
+    let suffix = '';
+    if (typeof count === 'number') {
+      suffix = count > 0 ? ` (${count})` : '';
+    } else if (typeof count === 'string' && count.trim().length > 0) {
+      suffix = ` (${count})`;
+    }
     const label = mode.type === 'ai' ? 'AI Summary' : mode.label;
     const body = `${label}${suffix}`;
     return mode.key === activeSummaryKey ? colors.accent(body) : colors.muted(body);
@@ -364,15 +398,21 @@ export function formatSummaryChips(
   return center ? centerText(line, width) : line;
 }
 
-function summaryCount(mode: SummaryModeOption, snapshot: PanelSnapshot): number {
+function summaryCount(mode: SummaryModeOption, snapshot: PanelSnapshot): number | string | null {
   if (mode.type === 'ai') {
     return (snapshot.git.summary ?? []).filter((line) => line.trim().length > 0).length;
   }
   if (mode.type === 'git') {
     return snapshot.git.dirtyFileNames?.length ?? snapshot.git.dirtyFiles ?? 0;
   }
-  if (mode.summary?.lines) {
-    return mode.summary.lines.filter((line) => line.trim().length > 0).length;
+  const custom = mode.summary;
+  if (!custom) return 0;
+  if (custom.countLabel !== undefined) {
+    if (custom.countLabel === null) return null;
+    return custom.countLabel;
+  }
+  if (custom.lines) {
+    return custom.lines.filter((line) => line.trim().length > 0).length;
   }
   return 0;
 }

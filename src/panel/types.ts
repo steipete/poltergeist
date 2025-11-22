@@ -56,6 +56,7 @@ export interface PanelSummaryScriptResult {
   placement: 'summary' | 'row';
   maxLines?: number;
   formatter?: 'auto' | 'none' | 'swift' | 'ts';
+  countLabel?: string | number | null;
 }
 
 export interface PanelControllerOptions {

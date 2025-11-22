@@ -26,6 +26,7 @@ Custom summaries shown alongside AI/Git.
 
 Fields:
 - `label` (string): displayed title.
+- `countLabel` (string | number | null, optional): overrides the badge text shown next to the tab. Use a number for counts, a string for custom text like `v3.0.0 · 12`, or `null` to hide the badge.
 - `command` (string): executed in project root. Output lines become the summary body (10-line default cap).
 - `placement` (`"summary" | "row"`, default `"summary"`):
   - `summary`: adds a tab in the Summary row (cycle with ←/→).

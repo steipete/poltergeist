@@ -41,6 +41,22 @@ export function countLines(text: string): number {
   return text.split('\n').length;
 }
 
+/**
+ * Count how many terminal rows a block of text will occupy when wrapped to `maxWidth`.
+ * ANSI color codes are ignored for width calculations.
+ */
+export function countWrappedLines(text: string, maxWidth: number): number {
+  if (!text || maxWidth <= 0) {
+    return 0;
+  }
+  const width = Math.max(1, maxWidth);
+  return text.split('\n').reduce((acc, line) => {
+    const len = visibleWidth(line);
+    const wrapped = Math.max(1, Math.ceil(len / width));
+    return acc + wrapped;
+  }, 0);
+}
+
 export function limitSummaryLines(text: string, maxLines: number): string {
   if (maxLines <= 0) return '';
   const lines = text.split('\n');

@@ -86,13 +86,13 @@
   },
   "dependencies": {
     "@logtape/logtape": "^1.2.0",
-    "@mariozechner/pi-tui": "^0.7.16",
+    "@mariozechner/pi-tui": "^0.9.1",
     "arkregex": "^0.0.3",
     "chalk": "^5.6.2",
     "commander": "^14.0.2",
     "es-toolkit": "^1.42.0",
     "fb-watchman": "^2.0.2",
-    "glob": "^12.0.0",
+    "glob": "^13.0.0",
     "node-notifier": "^10.0.1",
     "ora": "^9.0.0",
     "picomatch": "^4.0.3",
@@ -101,7 +101,7 @@
     "zod": "^4.1.12"
   },
   "devDependencies": {
-    "@biomejs/biome": "^2.3.6",
+    "@biomejs/biome": "^2.3.7",
     "@prettier/plugin-oxc": "^0.0.5",
     "@steipete/oracle": "link:../oracle",
     "@types/fb-watchman": "^2.0.6",
@@ -109,14 +109,14 @@
     "@types/node-notifier": "^8.0.5",
     "@types/picomatch": "^4.0.2",
     "@types/write-file-atomic": "^4.0.3",
-    "@vitest/coverage-v8": "^4.0.10",
+    "@vitest/coverage-v8": "^4.0.13",
     "cross-env": "^10.1.0",
     "prettier": "^3.6.2",
     "tsx": "^4.20.6",
     "typedoc": "^0.28.14",
     "typedoc-plugin-mermaid": "^1.12.0",
     "typescript": "^5.9.3",
-    "vitest": "^4.0.10"
+    "vitest": "^4.0.13"
   },
   "engines": {
     "node": ">=22.0.0"

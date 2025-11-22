@@ -130,7 +130,7 @@ describe('NPMBuilder output paths', () => {
       stdio: ['inherit', 'pipe', 'pipe'],
     });
 
-    await new Promise((r) => setTimeout(r, 0));
+    await new Promise((r) => setTimeout(r, 10));
     const written = require('fs').readFileSync(logFile, 'utf-8');
     expect(written).toContain('out line');
     expect(written).toContain('err line');

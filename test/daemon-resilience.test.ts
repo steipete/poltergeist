@@ -6,10 +6,11 @@ import { DaemonManager } from '../src/daemon/daemon-manager.js';
 import { createLogger } from '../src/logger.js';
 import type { PoltergeistConfig } from '../src/types.js';
 
-// Mock child_process module
-vi.mock('child_process', () => ({
-  fork: vi.fn(),
-}));
+// Mock child_process module (Node path uses spawn with IPC)
+vi.mock('child_process', () => {
+  const spawn = vi.fn();
+  return { spawn };
+});
 
 // Mock ProcessManager
 vi.mock('../src/utils/process-manager.js', () => ({
@@ -19,15 +20,23 @@ vi.mock('../src/utils/process-manager.js', () => ({
 }));
 
 // Import after mocking
-import { fork } from 'child_process';
+import { spawn } from 'child_process';
 import { ProcessManager } from '../src/utils/process-manager.js';
 
-const mockFork: ReturnType<typeof vi.fn> = fork as ReturnType<typeof vi.fn>;
+const mockSpawn: ReturnType<typeof vi.fn> = spawn as ReturnType<typeof vi.fn>;
 const mockIsProcessAlive: ReturnType<typeof vi.fn> = ProcessManager.isProcessAlive as ReturnType<
   typeof vi.fn
 >;
 
 const skipLongRuns = process.env.CI === 'true' || process.env.POLTERGEIST_COVERAGE_MODE === 'true';
+const createMockChild = (pid = 12345) => ({
+  pid,
+  once: vi.fn(),
+  on: vi.fn(),
+  unref: vi.fn(),
+  disconnect: vi.fn(),
+  kill: vi.fn(),
+});
 
 describe.skipIf(skipLongRuns)('daemon resilience', () => {
   let testDir: string;
@@ -76,14 +85,9 @@ describe.skipIf(skipLongRuns)('daemon resilience', () => {
       vi.useFakeTimers();
 
       // Mock fork to simulate slow daemon startup
-      const mockChild = {
-        once: vi.fn(),
-        unref: vi.fn(),
-        disconnect: vi.fn(),
-        kill: vi.fn(),
-      };
+      const mockChild = createMockChild();
 
-      mockFork.mockReturnValue(mockChild as any);
+      mockSpawn.mockReturnValue(mockChild as any);
 
       // Set up the mock to not send a message (simulating timeout)
       mockChild.once.mockImplementation((event, _callback) => {
@@ -121,14 +125,9 @@ describe.skipIf(skipLongRuns)('daemon resilience', () => {
       process.env.POLTERGEIST_DAEMON_TIMEOUT = '5000';
 
       // Mock fork to simulate slow daemon startup
-      const mockChild = {
-        once: vi.fn(),
-        unref: vi.fn(),
-        disconnect: vi.fn(),
-        kill: vi.fn(),
-      };
+      const mockChild = createMockChild();
 
-      mockFork.mockReturnValue(mockChild as any);
+      mockSpawn.mockReturnValue(mockChild as any);
 
       // Set up the mock to not send a message (simulating timeout)
       mockChild.once.mockImplementation((event, _callback) => {
@@ -172,15 +171,10 @@ describe.skipIf(skipLongRuns)('daemon resilience', () => {
       let attemptCount = 0;
 
       // Mock fork to simulate failures then success
-      mockFork.mockImplementation(() => {
+      mockSpawn.mockImplementation(() => {
         attemptCount++;
 
-        const mockChild = {
-          once: vi.fn(),
-          unref: vi.fn(),
-          disconnect: vi.fn(),
-          kill: vi.fn(),
-        };
+        const mockChild = createMockChild();
 
         mockChild.once.mockImplementation((event, callback) => {
           if (event === 'message') {
@@ -219,16 +213,11 @@ describe.skipIf(skipLongRuns)('daemon resilience', () => {
       const attemptTimes: number[] = [];
 
       // Mock fork to simulate all failures
-      mockFork.mockImplementation(() => {
+      mockSpawn.mockImplementation(() => {
         attemptCount++;
         attemptTimes.push(Date.now());
 
-        const mockChild = {
-          once: vi.fn(),
-          unref: vi.fn(),
-          disconnect: vi.fn(),
-          kill: vi.fn(),
-        };
+        const mockChild = createMockChild();
 
         mockChild.once.mockImplementation((event, callback) => {
           if (event === 'message') {
@@ -276,14 +265,9 @@ describe.skipIf(skipLongRuns)('daemon resilience', () => {
   describe('concurrent startup handling', () => {
     it('should prevent concurrent daemon startups', async () => {
       // Mock fork to simulate successful startup
-      const mockChild = {
-        once: vi.fn(),
-        unref: vi.fn(),
-        disconnect: vi.fn(),
-        kill: vi.fn(),
-      };
+      const mockChild = createMockChild();
 
-      mockFork.mockReturnValue(mockChild as any);
+      mockSpawn.mockReturnValue(mockChild as any);
 
       const messageCallbacks: any[] = [];
       mockChild.once.mockImplementation((event, callback) => {
@@ -326,7 +310,7 @@ describe.skipIf(skipLongRuns)('daemon resilience', () => {
   describe('error handling', () => {
     it('should handle fork errors gracefully', async () => {
       // Mock fork to throw an error
-      mockFork.mockImplementation(() => {
+      mockSpawn.mockImplementation(() => {
         throw new Error('Fork failed: ENOMEM');
       });
 
@@ -350,13 +334,8 @@ describe.skipIf(skipLongRuns)('daemon resilience', () => {
 
     it('should handle daemon crash during startup', async () => {
       // Mock fork to simulate crash
-      mockFork.mockImplementation(() => {
-        const mockChild = {
-          once: vi.fn(),
-          unref: vi.fn(),
-          disconnect: vi.fn(),
-          kill: vi.fn(),
-        };
+      mockSpawn.mockImplementation(() => {
+        const mockChild = createMockChild();
 
         const errorCallbacks: any[] = [];
         mockChild.once.mockImplementation((event, callback) => {
@@ -395,13 +374,8 @@ describe.skipIf(skipLongRuns)('daemon resilience', () => {
       process.env.POLTERGEIST_DAEMON_TIMEOUT = '1000';
 
       // Mock fork to simulate slow startup
-      mockFork.mockImplementation(() => {
-        const mockChild = {
-          once: vi.fn(),
-          unref: vi.fn(),
-          disconnect: vi.fn(),
-          kill: vi.fn(),
-        };
+      mockSpawn.mockImplementation(() => {
+        const mockChild = createMockChild();
 
         mockChild.once.mockImplementation((_event, _callback) => {
           // Never call the callback to simulate timeout

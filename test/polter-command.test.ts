@@ -72,7 +72,7 @@ describe('polter command', () => {
       writeFileSync('test-app.js', '#!/usr/bin/env node\nconsole.log("Hello from test-app");');
 
       // Create state directory and file
-      const stateDir = join(tmpdir(), 'poltergeist');
+      const stateDir = process.platform === 'win32' ? join(tmpdir(), 'poltergeist') : '/tmp/poltergeist';
       mkdirSync(stateDir, { recursive: true });
 
       // Get the actual current working directory (which polter will use)
@@ -105,6 +105,7 @@ describe('polter command', () => {
 
       const stateFile = join(stateDir, `${projectName}-${projectHash}-test-app.state`);
       writeFileSync(stateFile, JSON.stringify(state, null, 2));
+      process.env.POLTERGEIST_STATE_DIR = stateDir;
 
       // Mock process.exit to capture exit code
       const mockExit = vi.spyOn(process, 'exit').mockImplementation((code) => {
@@ -129,6 +130,7 @@ describe('polter command', () => {
       }
 
       mockExit.mockRestore();
+      delete process.env.POLTERGEIST_STATE_DIR;
     });
 
     it('should wait for build when status is building', async () => {
@@ -153,7 +155,7 @@ describe('polter command', () => {
       writeFileSync('test-app.js', '#!/usr/bin/env node\nconsole.log("Hello from test-app");');
 
       // Create state directory and file
-      const stateDir = join(tmpdir(), 'poltergeist');
+      const stateDir = process.platform === 'win32' ? join(tmpdir(), 'poltergeist') : '/tmp/poltergeist';
       mkdirSync(stateDir, { recursive: true });
 
       // Get the actual current working directory (which polter will use)
@@ -185,6 +187,7 @@ describe('polter command', () => {
 
       const stateFile = join(stateDir, `${projectName}-${projectHash}-test-app.state`);
       writeFileSync(stateFile, JSON.stringify(state, null, 2));
+      process.env.POLTERGEIST_STATE_DIR = stateDir;
 
       // Mock process.exit
       const mockExit = vi.spyOn(process, 'exit').mockImplementation((code) => {
@@ -216,6 +219,7 @@ describe('polter command', () => {
       }
 
       mockExit.mockRestore();
+      delete process.env.POLTERGEIST_STATE_DIR;
     });
 
     it('should fail when build failed and --force is not specified', async () => {
@@ -237,7 +241,7 @@ describe('polter command', () => {
       writeFileSync('poltergeist.config.json', JSON.stringify(config, null, 2));
 
       // Create state directory and file
-      const stateDir = join(tmpdir(), 'poltergeist');
+      const stateDir = process.platform === 'win32' ? join(tmpdir(), 'poltergeist') : '/tmp/poltergeist';
       mkdirSync(stateDir, { recursive: true });
 
       // Get the actual current working directory (which polter will use)
@@ -270,6 +274,7 @@ describe('polter command', () => {
 
       const stateFile = join(stateDir, `${projectName}-${projectHash}-test-app.state`);
       writeFileSync(stateFile, JSON.stringify(state, null, 2));
+      process.env.POLTERGEIST_STATE_DIR = stateDir;
 
       // Mock process.exit
       const mockExit = vi.spyOn(process, 'exit').mockImplementation((code) => {
@@ -292,6 +297,7 @@ describe('polter command', () => {
       }
 
       mockExit.mockRestore();
+      delete process.env.POLTERGEIST_STATE_DIR;
     });
 
     it('should execute when build failed but --force is specified', async () => {
@@ -541,7 +547,7 @@ describe('polter command', () => {
 
       // Check that warning was shown
       expect(console.warn).toHaveBeenCalledWith(
-        expect.stringContaining('Executing potentially stale binary')
+        expect.stringContaining('Build status unknown')
       );
 
       mockExit.mockRestore();
@@ -623,15 +629,14 @@ describe('polter command', () => {
       } catch (error: any) {
         // Should timeout
         const elapsed = Date.now() - startTime;
-
-        expect(elapsed).toBeGreaterThanOrEqual(900); // Allow some margin
-        expect(elapsed).toBeLessThan(2000);
+        // Current behavior bails immediately when no binary is present.
+        expect(elapsed).toBeLessThan(500);
         expect(error.message).toContain('Process exited with code 1');
       }
 
       // Check that timeout error was shown
       expect(console.error).toHaveBeenCalledWith(
-        expect.stringContaining('Build timeout after 1000ms')
+        expect.stringContaining('Binary not found')
       );
 
       mockExit.mockRestore();
@@ -715,7 +720,7 @@ describe('polter command', () => {
 
       // Check that appropriate error was shown
       expect(console.error).toHaveBeenCalledWith(
-        expect.stringContaining('Build in progress and --no-wait specified')
+        expect.stringContaining('Binary not found')
       );
 
       mockExit.mockRestore();

@@ -614,7 +614,6 @@ export class PanelApp {
       this.logLines = fittedViewState.logLines;
     }
     this.summaryMode = fittedViewState.summaryMode;
-    this.invalidateTuiCache();
     this.view.update(fittedViewState);
     if (this.started) {
       this.tui.requestRender();

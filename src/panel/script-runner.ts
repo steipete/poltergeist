@@ -126,5 +126,6 @@ export async function runSummaryScript(
     placement: script.placement ?? 'summary',
     maxLines: result.maxLines,
     formatter: script.formatter,
+    countLabel: script.countLabel,
   };
 }
