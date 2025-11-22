@@ -117,15 +117,28 @@ export async function runSummaryScript(
     formatter: script.formatter,
   });
 
+  // Allow scripts to override the badge dynamically via a marker line.
+  // First non-empty line matching @count: or @badge: <text> becomes the badge and is stripped.
+  const lines = [...result.lines];
+  let dynamicCount: string | number | null | undefined = script.countLabel;
+  if (dynamicCount === undefined && lines.length > 0) {
+    const first = lines[0];
+    const match = first.match(/^@(?:count|badge):\s*(.+)$/i);
+    if (match) {
+      dynamicCount = match[1].trim();
+      lines.shift();
+    }
+  }
+
   return {
     label: script.label,
-    lines: result.lines,
+    lines,
     lastRun: result.lastRun,
     exitCode: result.exitCode,
     durationMs: result.durationMs,
     placement: script.placement ?? 'summary',
     maxLines: result.maxLines,
     formatter: script.formatter,
-    countLabel: script.countLabel,
+    countLabel: dynamicCount,
   };
 }

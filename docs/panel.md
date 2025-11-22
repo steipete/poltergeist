@@ -28,6 +28,7 @@ Fields:
 - `label` (string): displayed title.
 - `countLabel` (string | number | null, optional): overrides the badge text shown next to the tab. Use a number for counts, a string for custom text like `v3.0.0 · 12`, or `null` to hide the badge.
 - `command` (string): executed in project root. Output lines become the summary body (10-line default cap).
+- Dynamic badge shorthand: if the first non-empty output line is `@count: <text>` or `@badge: <text>`, Poltergeist will use `<text>` as the badge and remove that line from the body. Ignored when `countLabel` is set in config.
 - `placement` (`"summary" | "row"`, default `"summary"`):
   - `summary`: adds a tab in the Summary row (cycle with ←/→).
   - `row`: adds its own row directly below Summary; select it with `↓` to view.
