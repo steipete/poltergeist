@@ -618,6 +618,14 @@ export class PanelApp {
     const headerText = formatHeader(fittedViewState.snapshot, fittedViewState.width);
     const rowsChanged = this.cachedRowsVersion !== fittedViewState.snapshot.lastUpdated;
     if (headerText !== this.lastHeaderText || rowsChanged) {
+      // Force a full repaint from the top to avoid stacked frames when the header changes.
+      this.terminal.clearScreen();
+      const tuiAny = this.tui as any;
+      if (typeof tuiAny === 'object') {
+        tuiAny.previousWidth = fittedViewState.width;
+        tuiAny.previousLines = [];
+        tuiAny.cursorRow = 0;
+      }
       this.invalidateTuiCache();
       this.lastHeaderText = headerText;
     }
