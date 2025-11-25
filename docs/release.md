@@ -49,6 +49,7 @@ Steps
    - Create release for `v<ver>` with changelog notes.  
    - Title: `poltergeist <ver>` (no “v”).  
    - Upload `poltergeist-macos-universal-v<ver>.tar.gz` (plus optional per-platform Bun binaries).
+   - If Homebrew checksum mismatches later, regenerate the tarball with the correct binary names (`poltergeist` and `polter` at archive root), re-upload with `gh release upload --clobber`, and update the formula SHA accordingly.
 
 8) Verification (must pass)  
    - npx:  
