@@ -2,6 +2,9 @@
 
 Mirror the mcporter flow: no warnings, stop on any failure, and verify both npm (npx) and Homebrew installers.
 
+Communication
+- Do not bump versions, publish, tag, or create GitHub releases without explicit product-owner approval. If anything unexpected happens mid-release, pause and confirm before proceeding.
+
 1) Bump versions  
    - `package.json` `version`  
    - `src/cli/version.ts` (used by the CLI banner)
