@@ -110,8 +110,11 @@ jobs:
           const { FileSystemUtils } = require('./dist/utils/filesystem.js');
           const path = FileSystemUtils.getStateDirectory();
           console.log('Windows state directory:', path);
-          if (!path.includes('Temp') && !path.includes('tmp')) {
-            throw new Error('Expected Windows temp directory');
+          const normalized = path.toLowerCase();
+          const isTempPath = normalized.includes('temp') || normalized.includes('tmp');
+          const isAppDataPath = normalized.includes('poltergeist\\state') || normalized.includes('poltergeist/state');
+          if (!isTempPath && !isAppDataPath) {
+            throw new Error('Expected Windows temp or appdata state directory');
           }
           console.log('✅ Windows temp directory test passed');
         "

@@ -1,4 +1,4 @@
-import { existsSync, mkdirSync, rmSync, writeFileSync } from 'fs';
+import { existsSync, mkdirSync, mkdtempSync, rmSync, writeFileSync } from 'fs';
 import { tmpdir } from 'os';
 import path, { join } from 'path';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
@@ -8,6 +8,10 @@ import type { ExecutableTarget, PoltergeistConfig, PoltergeistState } from '../s
 describe('polter command', () => {
   let testDir: string;
   let originalCwd: string;
+  const makeStateDir = (): string =>
+    process.platform === 'win32'
+      ? mkdtempSync(join(tmpdir(), 'poltergeist-'))
+      : mkdtempSync('/tmp/poltergeist-');
 
   beforeEach(() => {
     // Create a temporary test directory
@@ -72,8 +76,7 @@ describe('polter command', () => {
       writeFileSync('test-app.js', '#!/usr/bin/env node\nconsole.log("Hello from test-app");');
 
       // Create state directory and file
-      const stateDir =
-        process.platform === 'win32' ? join(tmpdir(), 'poltergeist') : '/tmp/poltergeist';
+      const stateDir = makeStateDir();
       mkdirSync(stateDir, { recursive: true });
 
       // Get the actual current working directory (which polter will use)
@@ -156,8 +159,7 @@ describe('polter command', () => {
       writeFileSync('test-app.js', '#!/usr/bin/env node\nconsole.log("Hello from test-app");');
 
       // Create state directory and file
-      const stateDir =
-        process.platform === 'win32' ? join(tmpdir(), 'poltergeist') : '/tmp/poltergeist';
+      const stateDir = makeStateDir();
       mkdirSync(stateDir, { recursive: true });
 
       // Get the actual current working directory (which polter will use)
@@ -243,8 +245,7 @@ describe('polter command', () => {
       writeFileSync('poltergeist.config.json', JSON.stringify(config, null, 2));
 
       // Create state directory and file
-      const stateDir =
-        process.platform === 'win32' ? join(tmpdir(), 'poltergeist') : '/tmp/poltergeist';
+      const stateDir = makeStateDir();
       mkdirSync(stateDir, { recursive: true });
 
       // Get the actual current working directory (which polter will use)
@@ -325,7 +326,7 @@ describe('polter command', () => {
       writeFileSync('test-app.js', '#!/usr/bin/env node\nconsole.log("Hello from test-app");');
 
       // Create state directory and file
-      const stateDir = join(tmpdir(), 'poltergeist');
+      const stateDir = makeStateDir();
       mkdirSync(stateDir, { recursive: true });
 
       // Get the actual current working directory (which polter will use)
@@ -495,7 +496,7 @@ describe('polter command', () => {
       writeFileSync('test-app.js', '#!/usr/bin/env node\nconsole.log("Hello from test-app");');
 
       // Create state directory and file with old heartbeat (Poltergeist not running)
-      const stateDir = join(tmpdir(), 'poltergeist');
+      const stateDir = makeStateDir();
       mkdirSync(stateDir, { recursive: true });
 
       // Get the actual current working directory (which polter will use)
@@ -575,7 +576,7 @@ describe('polter command', () => {
       writeFileSync('poltergeist.config.json', JSON.stringify(config, null, 2));
 
       // Create state directory and file
-      const stateDir = join(tmpdir(), 'poltergeist');
+      const stateDir = makeStateDir();
       mkdirSync(stateDir, { recursive: true });
 
       // Get the actual current working directory (which polter will use)
@@ -660,7 +661,7 @@ describe('polter command', () => {
       writeFileSync('poltergeist.config.json', JSON.stringify(config, null, 2));
 
       // Create state directory and file
-      const stateDir = join(tmpdir(), 'poltergeist');
+      const stateDir = makeStateDir();
       mkdirSync(stateDir, { recursive: true });
 
       // Get the actual current working directory (which polter will use)
