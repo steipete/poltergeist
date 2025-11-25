@@ -13,7 +13,7 @@ importers:
         version: 1.2.0
       '@mariozechner/pi-tui':
         specifier: ^0.9.1
-        version: 0.9.1
+        version: 0.9.2
       arkregex:
         specifier: ^0.0.3
         version: 0.0.3
@@ -371,8 +371,8 @@ packages:
   '@logtape/logtape@1.2.0':
     resolution: {integrity: sha512-L7aXBYrxpSUQcsZm/hCuh5REN+dckxmPmH7x7eCROiLAHUSPzc7AhbsxsZLDsXMM4ggtbmS3sUQVa+blfF4sZA==}
 
-  '@mariozechner/pi-tui@0.9.1':
-    resolution: {integrity: sha512-Wtb02QTPeJquYbGhJ5OqBKNIErbgIkaJz+LsiMejX4/aK2oTvkvM7RhMS1kKSAIO9kt51yBX+kmgHUBmhSBYJA==}
+  '@mariozechner/pi-tui@0.9.2':
+    resolution: {integrity: sha512-FNQQ/PWKovRVj2xm01nY0HOsFKNlDOhvfw+3YZiDlpgcKpSqnhj078fLEdWMQGQYT/xLSNciDhV3wWYYkUs9yQ==}
     engines: {node: '>=20.0.0'}
 
   '@napi-rs/wasm-runtime@1.0.7':
@@ -893,9 +893,9 @@ packages:
     resolution: {integrity: sha512-aU5EJuIN2WDemCcAp2vFBfp/m4EAhWJnUNSSw0ixs7/kXbd6Pg64EmwJkNdFhB8aWt1sH2CTXrLxo/iAGV3oPQ==}
     engines: {node: '>= 0.6'}
 
-  mime-types@3.0.1:
-    resolution: {integrity: sha512-xRc4oEhT6eaBpU1XF7AjpOFD+xQmXNB5OVKwp4tqCuBpHLS/ZbBDrc07mYTDqVMg6PfxUjjNp85O6Cd2Z/5HWA==}
-    engines: {node: '>= 0.6'}
+  mime-types@3.0.2:
+    resolution: {integrity: sha512-Lbgzdk0h4juoQ9fCKXW4by0UJqj+nOOrI9MJ1sSj4nI8aI2eo1qmvQEie4VD1glsS250n15LsWsYtCugiStS5A==}
+    engines: {node: '>=18'}
 
   mimic-function@5.0.1:
     resolution: {integrity: sha512-VP79XUPxV2CigYP3jWwAUFSku2aKqBH7uTAapFWCBqutsbmDo96KY5o8uh6U+/YSIn5OxJnXp73beVkpqMIGhA==}
@@ -1367,12 +1367,12 @@ snapshots:
 
   '@logtape/logtape@1.2.0': {}
 
-  '@mariozechner/pi-tui@0.9.1':
+  '@mariozechner/pi-tui@0.9.2':
     dependencies:
       '@types/mime-types': 2.1.4
       chalk: 5.6.2
       marked: 15.0.12
-      mime-types: 3.0.1
+      mime-types: 3.0.2
       string-width: 8.1.0
 
   '@napi-rs/wasm-runtime@1.0.7':
@@ -1827,7 +1827,7 @@ snapshots:
 
   mime-db@1.54.0: {}
 
-  mime-types@3.0.1:
+  mime-types@3.0.2:
     dependencies:
       mime-db: 1.54.0
 
