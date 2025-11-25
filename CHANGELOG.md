@@ -4,6 +4,19 @@
 
 - Nothing yet.
 
+## [2.1.1] - 2025-11-25
+
+- Version reporting now matches the 2.1 line (CLI and binaries print 2.1.1).
+- Panel foundation (beta): rebuilt on `@mariozechner/pi-tui` with auto-refresh, scrollable per-target log tails, sticky controls, and git summaries via `--git-mode ai|list`, plus alt-screen default, tagline/home-path shortening, ahead/behind badges, compressed separators, and clean redraws.
+- Interactive controls: start/stop and pause/resume hotkeys with width-aware control lines; calmer launches that clear the screen and keep spacing tight on narrow terminals.
+- Progress + logs: build/Vitest/XCTest progress bars now ASCII-safe; script banners move inline, failure hints surface in logs, and dirty-file/log panes clamp to available width.
+- Project init: auto-detects Swift/mixed/CMake projects, runs the CMake analyzer with preset/generator support, and can auto-add inferred targets.
+- Smarter rebuild scheduling: debounced build scheduler, rebuild queue on scheduling changes, config-reload orchestrator, and watch-service refresh/re-subscribe when configs change.
+- CMake analyzer upgrades: split build query/parser helpers, improved target generation, and clearer error reporting for CMake users.
+- Resilience & wrapper: daemon state dir falls back to temp on Windows; detached daemon handling tightened; stale/lock recovery hints and improved “stale binary” guidance.
+- CLI registry & JSON: centralized command registry drives help text/option metadata; JSON output for `wait`/`clean`; descriptors tested and aligned across commands.
+- Tooling & docs: npm builder streams logs; Swift/XCTest progress parser hardened; notifier typing fixed; panel docs refreshed; AGENTS/tools blocks synced; dependency/workflow updates keep pnpm-first defaults.
+
 ## [2.1.0] - 2025-11-25
 
 - Panel foundation (beta): rebuilt on `@mariozechner/pi-tui` with auto-refresh, scrollable per-target log tails, sticky controls, and git summaries via `--git-mode ai|list`, plus alt-screen default, tagline/home-path shortening, ahead/behind badges, compressed separators, and clean redraws.
