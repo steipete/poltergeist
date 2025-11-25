@@ -34,6 +34,7 @@ Mirror the mcporter flow: no warnings, stop on any failure, and verify both npm 
 
 7) GitHub release  
    - Create release for `v<ver>` with changelog notes.  
+   - Title must be `poltergeist <ver>` (no “v” prefix) to match our release list style.  
    - Upload `poltergeist-macos-universal-v<ver>.tar.gz` (plus optional per-platform Bun binaries).
 
 8) Verification (must pass)  
@@ -53,4 +54,3 @@ Mirror the mcporter flow: no warnings, stop on any failure, and verify both npm 
 9) Post-release  
    - Add new “Unreleased” stub in `CHANGELOG.md` if needed.  
    - Deprecate the previous version in npm if it was bad (optional).
-
