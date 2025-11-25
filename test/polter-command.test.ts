@@ -72,7 +72,8 @@ describe('polter command', () => {
       writeFileSync('test-app.js', '#!/usr/bin/env node\nconsole.log("Hello from test-app");');
 
       // Create state directory and file
-      const stateDir = process.platform === 'win32' ? join(tmpdir(), 'poltergeist') : '/tmp/poltergeist';
+      const stateDir =
+        process.platform === 'win32' ? join(tmpdir(), 'poltergeist') : '/tmp/poltergeist';
       mkdirSync(stateDir, { recursive: true });
 
       // Get the actual current working directory (which polter will use)
@@ -155,7 +156,8 @@ describe('polter command', () => {
       writeFileSync('test-app.js', '#!/usr/bin/env node\nconsole.log("Hello from test-app");');
 
       // Create state directory and file
-      const stateDir = process.platform === 'win32' ? join(tmpdir(), 'poltergeist') : '/tmp/poltergeist';
+      const stateDir =
+        process.platform === 'win32' ? join(tmpdir(), 'poltergeist') : '/tmp/poltergeist';
       mkdirSync(stateDir, { recursive: true });
 
       // Get the actual current working directory (which polter will use)
@@ -241,7 +243,8 @@ describe('polter command', () => {
       writeFileSync('poltergeist.config.json', JSON.stringify(config, null, 2));
 
       // Create state directory and file
-      const stateDir = process.platform === 'win32' ? join(tmpdir(), 'poltergeist') : '/tmp/poltergeist';
+      const stateDir =
+        process.platform === 'win32' ? join(tmpdir(), 'poltergeist') : '/tmp/poltergeist';
       mkdirSync(stateDir, { recursive: true });
 
       // Get the actual current working directory (which polter will use)
@@ -546,9 +549,7 @@ describe('polter command', () => {
       }
 
       // Check that warning was shown
-      expect(console.warn).toHaveBeenCalledWith(
-        expect.stringContaining('Build status unknown')
-      );
+      expect(console.warn).toHaveBeenCalledWith(expect.stringContaining('Build status unknown'));
 
       mockExit.mockRestore();
     });
@@ -635,9 +636,7 @@ describe('polter command', () => {
       }
 
       // Check that timeout error was shown
-      expect(console.error).toHaveBeenCalledWith(
-        expect.stringContaining('Binary not found')
-      );
+      expect(console.error).toHaveBeenCalledWith(expect.stringContaining('Binary not found'));
 
       mockExit.mockRestore();
     });
@@ -719,9 +718,7 @@ describe('polter command', () => {
       }
 
       // Check that appropriate error was shown
-      expect(console.error).toHaveBeenCalledWith(
-        expect.stringContaining('Binary not found')
-      );
+      expect(console.error).toHaveBeenCalledWith(expect.stringContaining('Binary not found'));
 
       mockExit.mockRestore();
     });
