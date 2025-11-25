@@ -1,25 +1,37 @@
 # Changelog
 
-All notable changes to Poltergeist will be documented in this file.
-
 ## [Unreleased]
 
-- Panel polish: centered full-width header box with compressed separators on narrow terminals, home-path shortening, muted durations, and tighter SwiftLint success output now shown as a simple `SwiftLint ✓`.
-- Upstream awareness: branch line shows ahead/behind badge (`↑n/↓n`) and keeps the header calm when up to date.
-- Usability tweaks: panel clears the screen on launch to hide restart noise and preserves readability with minimal spacing; durations remain gray while status colors stay intact.
-- Stability fixes: guarded stale-build warning when the daemon state file is missing; tightened test formatter typing.
-- Dependency hygiene: pnpm lockfile regenerated after switching the local oracle dependency to a workspace link.
+- Nothing yet.
 
-## [2.1.0] - 2025-11-15
+## [2.1.0] - 2025-11-25
 
-- Rebuilt the `poltergeist panel` on top of `@mariozechner/pi-tui`, bringing auto-refresh, scrollable per-target log tails, sticky controls, and `--git-mode ai|list` git summaries (Claude dedupes dirty-file signatures) so the full-screen dashboard stays responsive when launched via `poltergeist panel`.
-- Panel rows now respect configurable `statusScripts` (cooldown, timeout, line caps) with exit-code coloring + durations, grouped dirty-file lists, and gated log panes so lint/test signals stay visible without flooding the viewport.
-- Targets now track pending-file queues and structured `postBuild` hooks; hooks can emit JSON or pipe through a formatter, and their summaries/durations/lines surface in `poltergeist status`, the panel, and the Status column’s new `+N queued` badges.
-- Introduced a dedicated `test` builder (`type: 'test'` with `testCommand`) so the daemon can schedule long-running suites without fake output paths or wrapper scripts.
-- `pnpm run poltergeist:haunt` now spawns the daemon, returns immediately after a ready signal, streams initial builds in the background, reruns builds after config reloads, and flips targets to `watching` even when only state files existed.
-- `poltergeist build <target>` explains when another build holds the lock, adds a `--force` override for stale locks, and automatic retries honor each target’s `maxRetries`/`backoffMultiplier` with capped exponential backoff plus logging.
-- `polter` inspects terminal capabilities (columns, colors, TERM, CI) before enabling the ora spinner/log stream so scripted runs stay quiet unless you set `POLTER_FORCE_TTY=1` or `POLTER_DISABLE_TTY=1`.
-- Added `POLTERGEIST_TEST_MODE` shims so CI can exercise start/status/stop flows (including `pnpm run poltergeist:haunt`) without spawning background daemons while real runs continue streaming via detached pipes.
+- Panel foundation (beta): rebuilt on `@mariozechner/pi-tui` with auto-refresh, scrollable per-target log tails, sticky controls, and git summaries via `--git-mode ai|list`, plus alt-screen default, tagline/home-path shortening, ahead/behind badges, compressed separators, and clean redraws.
+- Interactive controls: start/stop and pause/resume hotkeys with width-aware control lines; calmer launches that clear the screen and keep spacing tight on narrow terminals.
+- Progress + logs: build/Vitest/XCTest progress bars now ASCII-safe; script banners move inline, failure hints surface in logs, and dirty-file/log panes clamp to available width.
+- Project init: auto-detects Swift/mixed/CMake projects, runs the CMake analyzer with preset/generator support, and can auto-add inferred targets.
+- Smarter rebuild scheduling: debounced build scheduler, rebuild queue on scheduling changes, config-reload orchestrator, and watch-service refresh/re-subscribe when configs change.
+- CMake analyzer upgrades: split build query/parser helpers, improved target generation, and clearer error reporting for CMake users.
+- Resilience & wrapper: daemon state dir falls back to temp on Windows; detached daemon handling tightened; stale/lock recovery hints and improved “stale binary” guidance.
+- CLI registry & JSON: centralized command registry drives help text/option metadata; JSON output for `wait`/`clean`; descriptors tested and aligned across commands.
+- Tooling & docs: npm builder streams logs; Swift/XCTest progress parser hardened; notifier typing fixed; panel docs refreshed; AGENTS/tools blocks synced; dependency/workflow updates keep pnpm-first defaults.
+
+## [2.0.0] - 2025-11-06
+
+- Added hot-reload `polter --watch` flag with restart signal/delay options to keep executables fresh after successful builds
+- Introduced config-driven `autoRun` for executable targets so the daemon can relaunch binaries automatically after builds
+- Refactored launch handling into shared utilities and added regression tests covering watch mode parsing, launch prep, and the executable runner life cycle
+- Auto-detect Go `cmd/<name>/main.go` projects during `poltergeist init --auto`, generating runnable binaries in `dist/bin/`
+- Extend the TypeScript example harness to cover the new Go CLI project with tokenized rebuild verification
+- Documented hot reload workflows in README, covering daemon setup and multi-target tuning
+
+## [1.9.0] - 2025-11-06
+
+- Replaced the legacy example shell runner with a TypeScript harness that logs structured results to docs/test-e2e-report.json
+- Added brace-aware glob expansion so Watchman subscriptions fire reliably across mixed-language targets
+- Updated CLI defaults to emit enabled Node targets with separate TypeScript/JavaScript watch paths and aligned tests
+- Modernized the CMake builder to use ESM-friendly child_process imports and run library/executable builds without bailing
+- Introduced AGENTS.md guidance (symlinked from CLAUDE.md) and removed examples/run-all-examples.sh in favour of the new workflow
 
 ## [1.8.0] - 2025-08-09
 
@@ -93,23 +105,6 @@ All notable changes to Poltergeist will be documented in this file.
 - Fixed daemon detection with proper heartbeat checking
 - Binary discovery in subdirectories
 - Standardized CLI output and flag conventions
-
-## [2.0.0] - 2025-11-06
-
-- Added hot-reload `polter --watch` flag with restart signal/delay options to keep executables fresh after successful builds
-- Introduced config-driven `autoRun` for executable targets so the daemon can relaunch binaries automatically after builds
-- Refactored launch handling into shared utilities and added regression tests covering watch mode parsing, launch prep, and the executable runner life cycle
-- Auto-detect Go `cmd/<name>/main.go` projects during `poltergeist init --auto`, generating runnable binaries in `dist/bin/`
-- Extend the TypeScript example harness to cover the new Go CLI project with tokenized rebuild verification
-- Documented hot reload workflows in README, covering daemon setup and multi-target tuning
-
-## [1.9.0] - 2025-11-06
-
-- Replaced the legacy example shell runner with a TypeScript harness that logs structured results to docs/test-e2e-report.json
-- Added brace-aware glob expansion so Watchman subscriptions fire reliably across mixed-language targets
-- Updated CLI defaults to emit enabled Node targets with separate TypeScript/JavaScript watch paths and aligned tests
-- Modernized the CMake builder to use ESM-friendly child_process imports and run library/executable builds without bailing
-- Introduced AGENTS.md guidance (symlinked from CLAUDE.md) and removed examples/run-all-examples.sh in favour of the new workflow
 
 ## [1.5.1] - 2025-08-03
 
