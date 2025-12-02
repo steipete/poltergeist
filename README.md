@@ -24,7 +24,7 @@ Works on macOS, Linux, and Windows. Available as a standalone binary (no Node.js
 
 ```bash
 brew tap steipete/tap
-brew install poltergeist
+brew install steipete/tap/poltergeist
 ```
 
 ### npm (all platforms)

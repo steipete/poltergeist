@@ -85,8 +85,8 @@
     "oracle": "oracle"
   },
   "dependencies": {
-    "@logtape/logtape": "^1.2.0",
-    "@mariozechner/pi-tui": "^0.9.1",
+    "@logtape/logtape": "^1.2.2",
+    "@mariozechner/pi-tui": "^0.12.4",
     "arkregex": "^0.0.3",
     "chalk": "^5.6.2",
     "commander": "^14.0.2",
@@ -98,25 +98,25 @@
     "picomatch": "^4.0.3",
     "wrap-ansi": "^9.0.2",
     "write-file-atomic": "^7.0.0",
-    "zod": "^4.1.12"
+    "zod": "^4.1.13"
   },
   "devDependencies": {
-    "@biomejs/biome": "^2.3.7",
-    "@prettier/plugin-oxc": "^0.0.5",
+    "@biomejs/biome": "^2.3.8",
+    "@prettier/plugin-oxc": "^0.1.2",
     "@steipete/oracle": "link:../oracle",
     "@types/fb-watchman": "^2.0.6",
     "@types/node": "^24.10.1",
     "@types/node-notifier": "^8.0.5",
     "@types/picomatch": "^4.0.2",
     "@types/write-file-atomic": "^4.0.3",
-    "@vitest/coverage-v8": "^4.0.13",
+    "@vitest/coverage-v8": "^4.0.14",
     "cross-env": "^10.1.0",
-    "prettier": "^3.6.2",
-    "tsx": "^4.20.6",
-    "typedoc": "^0.28.14",
+    "prettier": "^3.7.3",
+    "tsx": "^4.21.0",
+    "typedoc": "^0.28.15",
     "typedoc-plugin-mermaid": "^1.12.0",
     "typescript": "^5.9.3",
-    "vitest": "^4.0.13"
+    "vitest": "^4.0.14"
   },
   "engines": {
     "node": ">=22.0.0"
