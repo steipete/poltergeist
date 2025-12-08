@@ -87,7 +87,7 @@
   "dependencies": {
     "@logtape/logtape": "^1.2.2",
     "@mariozechner/pi-tui": "^0.12.4",
-    "arkregex": "^0.0.3",
+    "arkregex": "^0.0.4",
     "chalk": "^5.6.2",
     "commander": "^14.0.2",
     "es-toolkit": "^1.42.0",
