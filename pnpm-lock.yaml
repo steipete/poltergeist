@@ -12,8 +12,8 @@ importers:
         specifier: ^1.2.2
         version: 1.2.2
       '@mariozechner/pi-tui':
-        specifier: ^0.12.4
-        version: 0.12.4
+        specifier: ^0.13.2
+        version: 0.13.2
       arkregex:
         specifier: ^0.0.3
         version: 0.0.3
@@ -527,8 +527,8 @@ packages:
   '@logtape/logtape@1.2.2':
     resolution: {integrity: sha512-yx4uj7NUXo5pOk2lljtAf7UN9oDBw9xfxSDC4jxdbfnGDGmq4iJhenWBbU9XV8ilm8AUUMYXq2nk+qvz8E21DA==}
 
-  '@mariozechner/pi-tui@0.12.4':
-    resolution: {integrity: sha512-buhljSc4jMj64BeK70CI1Wm6Xdb+vbgKvPuDs7BCasgNeE9+Wpji8gSeou/fkUg4QWYt9F7FuDP/Lz/mH9zKZg==}
+  '@mariozechner/pi-tui@0.13.2':
+    resolution: {integrity: sha512-sBApnbfonzoSa8M6llek5pBTm9nldxdkPSeT3HY2sTj3b9lk4W2esuKpwiLSJOHhR+sLeaivDfBcsqURdbNX5Q==}
     engines: {node: '>=20.0.0'}
 
   '@napi-rs/wasm-runtime@1.1.0':
@@ -1606,7 +1606,7 @@ snapshots:
 
   '@logtape/logtape@1.2.2': {}
 
-  '@mariozechner/pi-tui@0.12.4':
+  '@mariozechner/pi-tui@0.13.2':
     dependencies:
       '@types/mime-types': 2.1.4
       chalk: 5.6.2
