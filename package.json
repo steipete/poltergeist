@@ -105,7 +105,7 @@
     "@prettier/plugin-oxc": "^0.1.2",
     "@steipete/oracle": "link:../oracle",
     "@types/fb-watchman": "^2.0.6",
-    "@types/node": "^24.10.1",
+    "@types/node": "^25.0.2",
     "@types/node-notifier": "^8.0.5",
     "@types/picomatch": "^4.0.2",
     "@types/write-file-atomic": "^4.0.3",
