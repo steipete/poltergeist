@@ -13,6 +13,17 @@ vi.mock('child_process', () => ({
   execSync: vi.fn(() => 'abc123'),
 }));
 
+async function waitForState<T>(reader: () => Promise<T>, timeoutMs: number = 750): Promise<T> {
+  const deadline = Date.now() + timeoutMs;
+  let last: T;
+  while (true) {
+    last = await reader();
+    if (last) return last;
+    if (Date.now() >= deadline) return last;
+    await new Promise((resolve) => setTimeout(resolve, 25));
+  }
+}
+
 describe('Build Improvements - Real-time Output & Error Capture', () => {
   let tempDir: string;
   let projectRoot: string;
@@ -142,7 +153,7 @@ describe('Build Improvements - Real-time Output & Error Capture', () => {
     const result = await builder.build([]);
 
     // Wait for async operations to complete
-    await new Promise((resolve) => setTimeout(resolve, 50));
+    await new Promise((resolve) => setTimeout(resolve, 150));
 
     // console.log('Build result:', result);
 
@@ -201,8 +212,8 @@ describe('Build Improvements - Real-time Output & Error Capture', () => {
     expect(result.status).toBe('failure');
     expect(result.errorSummary).toBeDefined();
 
-    // Read state to verify error context was stored
-    const state = await stateManager.readState('test-app');
+    // Read state to verify error context was stored (allowing async persistence)
+    const state = await waitForState(() => stateManager.readState('test-app'));
     expect(state?.lastBuildError).toBeDefined();
     expect(state?.lastBuildError?.exitCode).toBe(127);
     expect(state?.lastBuildError?.errorOutput).toContain('Fatal error: Cannot find module');

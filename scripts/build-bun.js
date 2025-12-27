@@ -11,7 +11,8 @@ import { existsSync, mkdirSync, statSync } from "fs";
 
 const projectRoot = join(import.meta.dir, "..");
 const distDir = join(projectRoot, "dist-bun");
-const targets = ["darwin-x64", "darwin-arm64", "linux-x64", "linux-arm64", "windows-x64"];
+// Bun expects targets prefixed with "bun-" (e.g., bun-darwin-arm64)
+const targets = ["bun-darwin-x64", "bun-darwin-arm64", "bun-linux-x64", "bun-linux-arm64", "bun-windows-x64"];
 
 // Ensure dist directory exists
 if (!existsSync(distDir)) {

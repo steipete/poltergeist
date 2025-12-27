@@ -1,7 +1,7 @@
 <div align="center">
   <img src="assets/poltergeist-logo.png" alt="Poltergeist Logo" width="200">
   
-  # Poltergeist
+  # Poltergeist 👻 - The ghost that keeps your builds fresh—universal hot reload & file watcher
 
   <a href="https://nodejs.org"><img src="https://img.shields.io/badge/Node.js-22%2B-339933?style=for-the-badge&logo=node.js&logoColor=white" alt="Node.js 22+"></a>
   <a href="https://github.com/steipete/poltergeist"><img src="https://img.shields.io/badge/platforms-macOS%20%7C%20Linux%20%7C%20Windows-blue?style=for-the-badge" alt="Platforms"></a>
@@ -24,7 +24,7 @@ Works on macOS, Linux, and Windows. Available as a standalone binary (no Node.js
 
 ```bash
 brew tap steipete/tap
-brew install poltergeist
+brew install steipete/tap/poltergeist
 ```
 
 ### npm (all platforms)

@@ -21,11 +21,13 @@ export class FileSystemUtils {
    * Get the default state directory path (cross-platform)
    */
   public static getStateDirectory(): string {
+    const windowsTemp =
+      process.env.TEMP ?? process.env.TMP ?? (process.platform === 'win32' ? tmpdir() : undefined);
     const dir =
       process.env.POLTERGEIST_STATE_DIR ||
       // Explicit per-OS default to avoid per-process TMPDIR splits on macOS/Linux.
       (process.platform === 'win32'
-        ? join(process.env.LOCALAPPDATA || join(tmpdir(), 'poltergeist'), 'Poltergeist', 'state')
+        ? join(windowsTemp ?? tmpdir(), 'Poltergeist', 'state')
         : '/tmp/poltergeist');
     if (!existsSync(dir)) {
       try {

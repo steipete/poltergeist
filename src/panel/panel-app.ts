@@ -2,7 +2,9 @@ import { appendFileSync } from 'node:fs';
 import {
   type Component,
   Container,
+  type DefaultTextStyle,
   Markdown,
+  type MarkdownTheme,
   ProcessTerminal,
   Spacer,
   Text,
@@ -101,10 +103,11 @@ class PanelView extends Container {
         const headerText = colors.header(`\n${state.customSummary.label}:`);
         this.aiHeader.setText(`${headerText}\n${summaryDivider}`);
         const body = state.customSummary.lines.join('\n').trim();
-        const limitedBody = limitSummaryLines(
-          body || colors.muted('No output'),
-          Math.max(1, Math.floor(state.logLimit * SUMMARY_FRACTION))
-        );
+        const maxSummaryLines =
+          state.logLimit > 0
+            ? Math.max(state.logLimit, state.customSummary.maxLines ?? 50)
+            : (state.customSummary.maxLines ?? 50);
+        const limitedBody = limitSummaryLines(body || colors.muted('No output'), maxSummaryLines);
         this.dirtyFiles.setText('');
         this.aiMarkdown.setText(limitedBody);
       } else if (state.summaryMode === 'ai') {
@@ -165,8 +168,12 @@ class PanelView extends Container {
 class InputBridge implements Component {
   constructor(private readonly handler: (input: string) => void) {}
 
-  render(): string[] {
+  render(_width: number): string[] {
     return [];
+  }
+
+  invalidate(): void {
+    // no cached state to clear
   }
 
   handleInput(data: string): void {
@@ -184,7 +191,6 @@ export class PanelApp {
   private readonly logger: Logger;
   private readonly terminal = new ProcessTerminal();
   private readonly tui = new TUI(this.terminal);
-  // biome-ignore lint/correctness/noUnusedPrivateClassMembers: intentionally stored for focus + event wiring
   private readonly inputBridge = new InputBridge((input) => {
     this.handleInput(input);
   });
@@ -385,7 +391,6 @@ export class PanelApp {
     this.updateLogPolling();
   }
 
-  // biome-ignore lint/correctness/noUnusedPrivateClassMembers: invoked via InputBridge callback
   private handleInput(input: string): void {
     if (this.disposed || !input) return;
 
@@ -765,7 +770,11 @@ export class PanelApp {
    * trim log lines until it fits. This keeps the header pinned and prevents duplicate
    * sections from appearing when the terminal scrolls.
    */
-  private clampToViewport(viewState: PanelViewState, width: number, height: number): PanelViewState {
+  private clampToViewport(
+    viewState: PanelViewState,
+    width: number,
+    height: number
+  ): PanelViewState {
     // Fast path: render once; if it fits, keep as-is.
     this.view.update(viewState);
     let lines = this.view.render(width);
@@ -806,9 +815,34 @@ export class PanelApp {
 }
 
 function createWordWrappedMarkdown(): Markdown {
-  const markdown = new Markdown('');
+  const markdown = new Markdown('', 0, 0, getPanelMarkdownTheme(), getPanelMarkdownDefaultStyle());
   enableMarkdownWordWrap(markdown);
   return markdown;
+}
+
+function getPanelMarkdownTheme(): MarkdownTheme {
+  return {
+    heading: colors.header,
+    link: colors.accent,
+    linkUrl: colors.muted,
+    code: colors.accent,
+    codeBlock: colors.muted,
+    codeBlockBorder: colors.line,
+    quote: colors.muted,
+    quoteBorder: colors.line,
+    hr: colors.line,
+    listBullet: colors.accent,
+    bold: colors.header,
+    italic: colors.muted,
+    strikethrough: colors.muted,
+    underline: colors.accent,
+  };
+}
+
+function getPanelMarkdownDefaultStyle(): DefaultTextStyle {
+  return {
+    color: colors.text,
+  };
 }
 
 function enableMarkdownWordWrap(markdown: Markdown): void {

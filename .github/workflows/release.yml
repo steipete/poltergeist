@@ -46,7 +46,7 @@ jobs:
       run: pnpm pack
       
     - name: Upload CLI artifacts
-      uses: actions/upload-artifact@v5
+      uses: actions/upload-artifact@v6
       with:
         name: poltergeist-cli
         path: '*.tgz'
@@ -92,7 +92,7 @@ jobs:
         ditto -c -k --keepParent "$APP_PATH" "$ARCHIVE_NAME"
         
     - name: Upload macOS app artifacts
-      uses: actions/upload-artifact@v5
+      uses: actions/upload-artifact@v6
       with:
         name: poltergeist-macos
         path: |
@@ -108,13 +108,13 @@ jobs:
       uses: actions/checkout@v6
       
     - name: Download CLI artifacts
-      uses: actions/download-artifact@v6
+      uses: actions/download-artifact@v7
       with:
         name: poltergeist-cli
         path: ./cli/
         
     - name: Download macOS artifacts
-      uses: actions/download-artifact@v6
+      uses: actions/download-artifact@v7
       with:
         name: poltergeist-macos
         path: ./macos/
