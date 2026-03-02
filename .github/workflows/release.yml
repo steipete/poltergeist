@@ -162,19 +162,19 @@ jobs:
         uses: actions/checkout@v6
 
       - name: Download CLI artifacts
-        uses: actions/download-artifact@v7
+        uses: actions/download-artifact@v8
         with:
           name: poltergeist-cli
           path: ./cli/
 
       - name: Download macOS artifacts
-        uses: actions/download-artifact@v7
+        uses: actions/download-artifact@v8
         with:
           name: poltergeist-macos
           path: ./macos/
 
       - name: Download Homebrew artifacts
-        uses: actions/download-artifact@v7
+        uses: actions/download-artifact@v8
         with:
           name: poltergeist-homebrew
           path: ./homebrew/
