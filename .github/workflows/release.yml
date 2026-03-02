@@ -46,7 +46,7 @@ jobs:
         run: pnpm pack
 
       - name: Upload CLI artifacts
-        uses: actions/upload-artifact@v6
+        uses: actions/upload-artifact@v7
         with:
           name: poltergeist-cli
           path: "*.tgz"
@@ -92,7 +92,7 @@ jobs:
           ditto -c -k --keepParent "$APP_PATH" "$ARCHIVE_NAME"
 
       - name: Upload macOS app artifacts
-        uses: actions/upload-artifact@v6
+        uses: actions/upload-artifact@v7
         with:
           name: poltergeist-macos
           path: |
@@ -145,7 +145,7 @@ jobs:
           shasum -a 256 "poltergeist-macos-universal-v${version}.tar.gz" > "poltergeist-macos-universal-v${version}.tar.gz.sha256"
 
       - name: Upload Homebrew artifact
-        uses: actions/upload-artifact@v6
+        uses: actions/upload-artifact@v7
         with:
           name: poltergeist-homebrew
           path: |
