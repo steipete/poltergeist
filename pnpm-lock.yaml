@@ -52,7 +52,7 @@ importers:
         version: 7.0.1
       zod:
         specifier: ^4.4.2
-        version: 4.4.2
+        version: 4.4.3
     devDependencies:
       '@steipete/oracle':
         specifier: link:../oracle
@@ -322,6 +322,7 @@ packages:
   '@mariozechner/pi-tui@0.72.1':
     resolution: {integrity: sha512-KjeqzMQp4vafomfkvI8HKv5/52PqRP5BmlowGC8WKyOaB+u0UkkTdfM5U1Ui3ty2gA7FOfglVRiyvcitiWwvMQ==}
     engines: {node: '>=20.0.0'}
+    deprecated: please use @earendil-works/pi-tui instead going forward
 
   '@napi-rs/wasm-runtime@1.1.4':
     resolution: {integrity: sha512-3NQNNgA1YSlJb/kMH1ildASP9HW7/7kYnRI2szWJaofaS1hWmbGI4H+d3+22aGzXXN9IJ+n+GiFVcGipJP18ow==}
@@ -1402,8 +1403,8 @@ packages:
     resolution: {integrity: sha512-CzhO+pFNo8ajLM2d2IW/R93ipy99LWjtwblvC1RsoSUMZgyLbYFr221TnSNT7GjGdYui6P459mw9JH/g/zW2ug==}
     engines: {node: '>=18'}
 
-  zod@4.4.2:
-    resolution: {integrity: sha512-IynmDyxsEsb9RKzO3J9+4SxXnl2FTFSzNBaKKaMV6tsSk0rw9gYw9gs+JFCq/qk2LCZ78KDwyj+Z289TijSkUw==}
+  zod@4.4.3:
+    resolution: {integrity: sha512-ytENFjIJFl2UwYglde2jchW2Hwm4GJFLDiSXWdTrJQBIN9Fcyp7n4DhxJEiWNAJMV1/BqWfW/kkg71UDcHJyTQ==}
 
 snapshots:
 
@@ -2401,4 +2402,4 @@ snapshots:
 
   yoctocolors@2.1.2: {}
 
-  zod@4.4.2: {}
+  zod@4.4.3: {}
