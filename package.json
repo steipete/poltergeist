@@ -108,7 +108,7 @@
     "@types/node-notifier": "^8.0.5",
     "@types/picomatch": "^4.0.3",
     "@types/write-file-atomic": "^4.0.3",
-    "@typescript/native-preview": "7.0.0-dev.20260503.1",
+    "@typescript/native-preview": "7.0.0-dev.20260511.1",
     "@vitest/coverage-v8": "^4.1.5",
     "cross-env": "^10.1.0",
     "oxfmt": "^0.47.0",
