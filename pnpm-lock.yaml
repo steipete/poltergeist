@@ -15,8 +15,8 @@ importers:
         specifier: ^2.0.6
         version: 2.0.7
       '@mariozechner/pi-tui':
-        specifier: ^0.72.1
-        version: 0.72.1
+        specifier: ^0.73.1
+        version: 0.73.1
       arkregex:
         specifier: ^0.0.5
         version: 0.0.5
@@ -319,8 +319,8 @@ packages:
   '@logtape/logtape@2.0.7':
     resolution: {integrity: sha512-SUkjkEIfQ3zCadlLi8rfGfe4l/JRKNbp248bfLeowyUFs9KZME/k8y+5sugWYZet/gMYnmwCc9xa3J+kjDjSSQ==}
 
-  '@mariozechner/pi-tui@0.72.1':
-    resolution: {integrity: sha512-KjeqzMQp4vafomfkvI8HKv5/52PqRP5BmlowGC8WKyOaB+u0UkkTdfM5U1Ui3ty2gA7FOfglVRiyvcitiWwvMQ==}
+  '@mariozechner/pi-tui@0.73.1':
+    resolution: {integrity: sha512-ybVsRnUbzQRtbocltJ2OXb2QogrO67N2BlUyKjZz9BHcZYiDJtNkcKQockxDjsVvDc0uBCLDX6iZJoBElBd8fw==}
     engines: {node: '>=20.0.0'}
     deprecated: please use @earendil-works/pi-tui instead going forward
 
@@ -921,8 +921,8 @@ packages:
     engines: {node: ^8.16.0 || ^10.6.0 || >=11.0.0}
     os: [darwin]
 
-  get-east-asian-width@1.5.0:
-    resolution: {integrity: sha512-CQ+bEO+Tva/qlmw24dCejulK5pMzVnUOFOijVogd3KQs07HnRIgp8TGipvCCRT06xeYEbpbgwaCxglFyiuIcmA==}
+  get-east-asian-width@1.6.0:
+    resolution: {integrity: sha512-QRbvDIbx6YklUe6RxeTeleMR0yv3cYH6PsPZHcnVn7xv7zO1BHN8r0XETu8n6Ye3Q+ahtSarc3WgtNWmehIBfA==}
     engines: {node: '>=18'}
 
   get-tsconfig@4.14.0:
@@ -980,8 +980,8 @@ packages:
   js-tokens@10.0.0:
     resolution: {integrity: sha512-lM/UBzQmfJRo9ABXbPWemivdCW8V2G8FHaHdypQaIy523snUjog0W71ayWXTjiR+ixeMyVHN2XcpnTd/liPg/Q==}
 
-  koffi@2.16.1:
-    resolution: {integrity: sha512-0Ie6CfD026dNfWSosDw9dPxPzO9Rlyo0N8m5r05S8YjytIpuilzMFDMY4IDy/8xQsTwpuVinhncD+S8n3bcYZQ==}
+  koffi@2.16.2:
+    resolution: {integrity: sha512-owU0MRwv6xkrVqCd+33uw6BaYppkTRXbO/rVdJNI2dvZG0gzyRhYwW25eWtc5pauwK8TGh3AbkFONSezdykfSA==}
 
   lightningcss-android-arm64@1.32.0:
     resolution: {integrity: sha512-YK7/ClTt4kAK0vo6w3X+Pnm0D2cf2vPHbhOXdoNti1Ga0al1P4TBZhwjATvjNwLEBCnKvjJc2jQgHXH0NEwlAg==}
@@ -1545,15 +1545,15 @@ snapshots:
 
   '@logtape/logtape@2.0.7': {}
 
-  '@mariozechner/pi-tui@0.72.1':
+  '@mariozechner/pi-tui@0.73.1':
     dependencies:
       '@types/mime-types': 2.1.4
       chalk: 5.6.2
-      get-east-asian-width: 1.5.0
+      get-east-asian-width: 1.6.0
       marked: 15.0.12
       mime-types: 3.0.2
     optionalDependencies:
-      koffi: 2.16.1
+      koffi: 2.16.2
 
   '@napi-rs/wasm-runtime@1.1.4(@emnapi/core@1.10.0)(@emnapi/runtime@1.10.0)':
     dependencies:
@@ -1984,7 +1984,7 @@ snapshots:
   fsevents@2.3.3:
     optional: true
 
-  get-east-asian-width@1.5.0: {}
+  get-east-asian-width@1.6.0: {}
 
   get-tsconfig@4.14.0:
     dependencies:
@@ -2031,7 +2031,7 @@ snapshots:
 
   js-tokens@10.0.0: {}
 
-  koffi@2.16.1:
+  koffi@2.16.2:
     optional: true
 
   lightningcss-android-arm64@1.32.0:
@@ -2286,7 +2286,7 @@ snapshots:
 
   string-width@8.2.1:
     dependencies:
-      get-east-asian-width: 1.5.0
+      get-east-asian-width: 1.6.0
       strip-ansi: 7.2.0
 
   strip-ansi@7.2.0:
