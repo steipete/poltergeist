@@ -608,6 +608,12 @@ export class WatchmanConfigManager {
       } else if (pattern.startsWith("**/*.")) {
         // For patterns like **/*.log, use as-is
         pattern = exclusion;
+      } else if (/^\*\.[^/]+$/.test(pattern)) {
+        // For file-extension globs like *.log, match the file at any depth.
+        // Without this they fall through and become **/*.log/**, a directory
+        // glob that only matches inside a directory literally named "*.log",
+        // so the file is never actually excluded.
+        pattern = `**/${exclusion}`;
       } else if (!pattern.includes("**")) {
         // Add ** prefix if missing
         pattern = `**/${exclusion}/**`;
