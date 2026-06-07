@@ -12,11 +12,15 @@ import { WatchmanConfigManager } from "../src/watchman-config.js";
 
 const manager = new WatchmanConfigManager(process.cwd(), createLogger());
 
-function exclusionPatterns(projectType: PoltergeistConfig["projectType"]): string[] {
+function exclusionPatterns(
+  projectType: PoltergeistConfig["projectType"],
+  excludeDirs: string[] = [],
+): string[] {
   const config = {
     version: "1.0",
     projectType,
     targets: [],
+    watchman: { excludeDirs },
     // aggressive keeps the full exclusion set so file-extension patterns are present
     performance: { profile: "aggressive" },
   } as unknown as PoltergeistConfig;
@@ -102,6 +106,19 @@ describe("WatchmanConfigManager.createExclusionExpressions", () => {
     const matches = createMatcher(eggInfo as string);
     expect(matches("pkg.egg-info/PKG-INFO")).toBe(true);
     expect(matches("src/pkg.egg-info/SOURCES.txt")).toBe(true);
+  });
+
+  it("keeps custom extension-like excludeDirs as directory globs", () => {
+    const patterns = exclusionPatterns("node", ["*.dist-info", "*.xcframework"]);
+
+    for (const ext of ["dist-info", "xcframework"]) {
+      const pattern = findPattern(patterns, (p) => p === `**/*.${ext}/**`);
+      expect(pattern, `expected a custom directory pattern for *.${ext}`).toBeDefined();
+
+      const matches = createMatcher(pattern as string);
+      expect(matches(`pkg.${ext}/METADATA`)).toBe(true);
+      expect(matches(`nested/Foo.${ext}/Info.plist`)).toBe(true);
+    }
   });
 
   it("leaves directory globs with wildcards (cmake-build-*) as directory matches", () => {
