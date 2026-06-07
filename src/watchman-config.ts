@@ -5,6 +5,37 @@ import path from "path";
 import type { Logger } from "./logger.js";
 import type { PerformanceProfile, PoltergeistConfig, ProjectType } from "./types.js";
 
+const DIRECTORY_EXTENSION_GLOBS = new Set(["*.app", "*.dSYM", "*.egg-info", "*.framework"]);
+const FILE_EXTENSION_GLOBS = new Set([
+  "*.7z",
+  "*.a",
+  "*.crate",
+  "*.dll",
+  "*.dylib",
+  "*.exe",
+  "*.gz",
+  "*.ipa",
+  "*.lib",
+  "*.log",
+  "*.pyc",
+  "*.pyd",
+  "*.pyo",
+  "*.rar",
+  "*.rlib",
+  "*.rmeta",
+  "*.rs.bk",
+  "*.so",
+  "*.swiftdoc",
+  "*.swiftmodule",
+  "*.swiftsourceinfo",
+  "*.swo",
+  "*.swp",
+  "*.tar",
+  "*.temp",
+  "*.tmp",
+  "*.zip",
+]);
+
 /**
  * Project-specific exclusion sets optimized for each ecosystem
  */
@@ -608,6 +639,16 @@ export class WatchmanConfigManager {
       } else if (pattern.startsWith("**/*.")) {
         // For patterns like **/*.log, use as-is
         pattern = exclusion;
+      } else if (DIRECTORY_EXTENSION_GLOBS.has(pattern)) {
+        // Some directory globs look like file extensions; their contents must
+        // stay excluded.
+        pattern = `**/${exclusion}/**`;
+      } else if (FILE_EXTENSION_GLOBS.has(pattern)) {
+        // For file-extension globs like *.log, match the file at any depth.
+        // Without this they fall through and become **/*.log/**, a directory
+        // glob that only matches inside a directory literally named "*.log",
+        // so the file is never actually excluded.
+        pattern = `**/${exclusion}`;
       } else if (!pattern.includes("**")) {
         // Add ** prefix if missing
         pattern = `**/${exclusion}/**`;
