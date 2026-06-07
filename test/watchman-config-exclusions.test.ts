@@ -93,6 +93,17 @@ describe("WatchmanConfigManager.createExclusionExpressions", () => {
     }
   });
 
+  it("keeps Python egg-info globs matching package metadata contents", () => {
+    const patterns = exclusionPatterns("python");
+
+    const eggInfo = findPattern(patterns, (p) => p === "**/*.egg-info/**");
+    expect(eggInfo).toBeDefined();
+
+    const matches = createMatcher(eggInfo as string);
+    expect(matches("pkg.egg-info/PKG-INFO")).toBe(true);
+    expect(matches("src/pkg.egg-info/SOURCES.txt")).toBe(true);
+  });
+
   it("leaves directory globs with wildcards (cmake-build-*) as directory matches", () => {
     // cmake-build-* has a wildcard but is a directory pattern, so it must keep converting
     // to the directory glob form **/cmake-build-*/** and not be rewritten by the *.ext

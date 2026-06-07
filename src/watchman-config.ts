@@ -5,7 +5,7 @@ import path from "path";
 import type { Logger } from "./logger.js";
 import type { PerformanceProfile, PoltergeistConfig, ProjectType } from "./types.js";
 
-const BUNDLE_DIRECTORY_GLOBS = new Set(["*.app", "*.dSYM", "*.framework"]);
+const DIRECTORY_EXTENSION_GLOBS = new Set(["*.app", "*.dSYM", "*.egg-info", "*.framework"]);
 
 /**
  * Project-specific exclusion sets optimized for each ecosystem
@@ -610,9 +610,9 @@ export class WatchmanConfigManager {
       } else if (pattern.startsWith("**/*.")) {
         // For patterns like **/*.log, use as-is
         pattern = exclusion;
-      } else if (BUNDLE_DIRECTORY_GLOBS.has(pattern)) {
-        // Bundle globs look like file extensions but are directories whose
-        // contents must stay excluded.
+      } else if (DIRECTORY_EXTENSION_GLOBS.has(pattern)) {
+        // Some directory globs look like file extensions; their contents must
+        // stay excluded.
         pattern = `**/${exclusion}/**`;
       } else if (/^\*\.[^/]+$/.test(pattern)) {
         // For file-extension globs like *.log, match the file at any depth.
