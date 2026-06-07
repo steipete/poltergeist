@@ -80,6 +80,19 @@ describe("WatchmanConfigManager.createExclusionExpressions", () => {
     expect(matches("crates/x/target/release/lib.rlib")).toBe(true);
   });
 
+  it("keeps Swift bundle globs matching bundle contents", () => {
+    const patterns = exclusionPatterns("swift");
+
+    for (const ext of ["app", "framework", "dSYM"]) {
+      const pattern = findPattern(patterns, (p) => p === `**/*.${ext}/**`);
+      expect(pattern, `expected a directory pattern for *.${ext}`).toBeDefined();
+
+      const matches = createMatcher(pattern as string);
+      expect(matches(`Build/Debug/Foo.${ext}/Contents/Info.plist`)).toBe(true);
+      expect(matches(`Products/Foo.${ext}/nested/file`)).toBe(true);
+    }
+  });
+
   it("leaves directory globs with wildcards (cmake-build-*) as directory matches", () => {
     // cmake-build-* has a wildcard but is a directory pattern, so it must keep converting
     // to the directory glob form **/cmake-build-*/** and not be rewritten by the *.ext
