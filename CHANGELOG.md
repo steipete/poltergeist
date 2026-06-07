@@ -2,7 +2,7 @@
 
 ## [Unreleased]
 
-- Nothing yet.
+- Fixed Watchman exclusion conversion so file-extension globs like `*.log` match files at any depth instead of directory contents. Thanks @devYRPauli.
 
 ## [2.1.1] - 2025-11-25
 
