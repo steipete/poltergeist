@@ -13,7 +13,7 @@ importers:
     dependencies:
       '@logtape/logtape':
         specifier: ^2.1.1
-        version: 2.1.1
+        version: 2.1.2
       '@mariozechner/pi-tui':
         specifier: ^0.73.1
         version: 0.73.1
@@ -316,8 +316,8 @@ packages:
   '@jridgewell/trace-mapping@0.3.31':
     resolution: {integrity: sha512-zzNR+SdQSDJzc8joaeP8QQoCQr8NuYx2dIIytl1QeBEZHJ9uW6hebsrYgbz8hJwUQao3TWCMtmfV8Nu1twOLAw==}
 
-  '@logtape/logtape@2.1.1':
-    resolution: {integrity: sha512-aULbCqUQGerfOsZ3CMvcKtueKzmdchluXYUd3bIHKmOIS93fx1ko0+hyRQ4flloGZ8EiyRPydZXiy8n1J/eAQA==}
+  '@logtape/logtape@2.1.2':
+    resolution: {integrity: sha512-Qx+WVzN8V8IUF+VzOFrX9C5vxocpiS8YoE63EZtv9vZViMY3cDASSzwerNqjl2xqJqUZnn9nrcCL5QroqEEqcg==}
 
   '@mariozechner/pi-tui@0.73.1':
     resolution: {integrity: sha512-ybVsRnUbzQRtbocltJ2OXb2QogrO67N2BlUyKjZz9BHcZYiDJtNkcKQockxDjsVvDc0uBCLDX6iZJoBElBd8fw==}
@@ -1551,7 +1551,7 @@ snapshots:
       '@jridgewell/resolve-uri': 3.1.2
       '@jridgewell/sourcemap-codec': 1.5.5
 
-  '@logtape/logtape@2.1.1': {}
+  '@logtape/logtape@2.1.2': {}
 
   '@mariozechner/pi-tui@0.73.1':
     dependencies:
