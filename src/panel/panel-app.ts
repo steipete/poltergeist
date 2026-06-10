@@ -9,7 +9,7 @@ import {
   Spacer,
   Text,
   TUI,
-} from "@mariozechner/pi-tui";
+} from "@earendil-works/pi-tui";
 import wrapAnsi from "wrap-ansi";
 
 import type { Logger } from "../logger.js";
@@ -846,7 +846,7 @@ function getPanelMarkdownDefaultStyle(): DefaultTextStyle {
 }
 
 function enableMarkdownWordWrap(markdown: Markdown): void {
-  // TODO: Upstream a proper word-wrapping option to @mariozechner/pi-tui's Markdown component.
+  // TODO: Upstream a proper word-wrapping option to @earendil-works/pi-tui's Markdown component.
 
   const patchTarget = markdown as unknown as {
     wrapLine?: (line: string, width: number) => string[];

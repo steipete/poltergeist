@@ -1,9 +1,9 @@
 # pi-tui Migration Plan
 
 ## Objectives
-- Replace the Ink + Ink Markdown panel implementation with `@mariozechner/pi-tui` while maintaining the existing feature set (targets table, git + dirty summaries, AI markdown output, log tailing, controls).
+- Replace the Ink + Ink Markdown panel implementation with `@earendil-works/pi-tui` while maintaining the existing feature set (targets table, git + dirty summaries, AI markdown output, log tailing, controls).
 - Ensure all textual blocks use pi-tui’s `Text` component so the renderer manages wrapping and padding.
-- Consume the published npm release of `@mariozechner/pi-tui` (no local file dependency) and remove the Ink/React stack entirely.
+- Consume the published npm release of `@earendil-works/pi-tui` (no local file dependency) and remove the Ink/React stack entirely.
 
 ## Constraints & Notes
 - Only the AI summary requires Markdown rendering; everything else stays plain text.
@@ -16,10 +16,10 @@
    Catalog required Ink components/features and how they’re used: project header, target rows, per-target status scripts, dirty files fallback, AI summary, logs panel, footer, resize handling, keybindings, controller polling.
 
 2. **pi-tui Capability Study (Completed)**  
-   Review `@mariozechner/pi-tui` sources (`Text`, `Markdown`, `Container`, `TUI`, `ProcessTerminal`) to map equivalents for every Ink construct and verify they meet wrapping + markdown needs.
+   Review `@earendil-works/pi-tui` sources (`Text`, `Markdown`, `Container`, `TUI`, `ProcessTerminal`) to map equivalents for every Ink construct and verify they meet wrapping + markdown needs.
 
 3. **Dependency Migration**  
-   Remove `ink`, `react`, related typings, and add `@mariozechner/pi-tui` to `dependencies`. Update build artifacts (`tsconfig`, lint ignores, etc.) to point at the new entry.
+   Remove `ink`, `react`, related typings, and add `@earendil-works/pi-tui` to `dependencies`. Update build artifacts (`tsconfig`, lint ignores, etc.) to point at the new entry.
 
 4. **Panel UI Rewrite**  
    - Rebuild `panel-app` as a pi-tui component tree (containers + text blocks for each section).  

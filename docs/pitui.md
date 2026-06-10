@@ -24,5 +24,5 @@
 - Keep `statusScripts.maxLines` narrow to limit diff size and render cost for long outputs.
 
 ## Follow-ups to consider
-- Upstream a word-wrap option to `@mariozechner/pi-tui`’s Markdown (currently patched locally).
+- Upstream a word-wrap option to `@earendil-works/pi-tui`’s Markdown (currently patched locally).
 - Expose a render duration hook from pi-tui to measure actual paint time vs. string assembly.
