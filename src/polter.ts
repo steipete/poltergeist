@@ -7,14 +7,12 @@ import {
   parsePolterOptions,
   setupPolterErrorHandling,
 } from "./cli-shared/polter-command.js";
+import { PACKAGE_INFO } from "./cli/version.js";
 import { runWrapperWithDefaults } from "./polter/runner.js";
 import { isMainModule } from "./utils/paths.js";
 
 export { isBinaryFresh, resolveBinaryPath } from "./polter/binaries.js";
 export { runWrapper } from "./polter/runner.js";
-
-// Hardcoded version for compiled binary consistency
-const packageJson = { version: "2.1.0", name: "@steipete/poltergeist" };
 
 if (
   process.argv[1] &&
@@ -30,7 +28,7 @@ if (
   const polterCommand = program
     .name("polter")
     .description(getPolterDescription())
-    .version(packageJson.version, "-v, --version", "output the version number")
+    .version(PACKAGE_INFO.version, "-v, --version", "output the version number")
     .argument("[target]", "Name of the target to run")
     .argument("[args...]", "Arguments to pass to the target executable")
     .helpOption(false)

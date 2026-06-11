@@ -10,6 +10,18 @@ export interface BuildQueryResult {
   errors: CMakeProbeError[];
 }
 
+const CMAKE_BUILT_IN_TARGETS = new Set([
+  "all",
+  "clean",
+  "depend",
+  "edit_cache",
+  "help",
+  "install",
+  "list_install_components",
+  "rebuild_cache",
+  "test",
+]);
+
 export async function queryBuildSystem(
   projectRoot: string,
   runner: CommandRunner,
@@ -86,8 +98,9 @@ function parseTargetList(output: string): CMakeTarget[] {
     }
 
     if (inTargetSection && line.startsWith("... ")) {
-      const targetName = line.substring(4).trim();
-      if (targetName && !targetName.includes("/")) {
+      // Makefile generators annotate built-in targets after the target name.
+      const targetName = line.substring(4).trim().split(/\s+/, 1)[0];
+      if (targetName && !targetName.includes("/") && !CMAKE_BUILT_IN_TARGETS.has(targetName)) {
         targets.push({
           name: targetName,
           type: "custom",

@@ -23,13 +23,19 @@ describe("cmake-build-query", () => {
 
     const stdout = `
 The following are some of the valid targets
+... all (the default if no target is provided)
+... clean
+... depend
+... edit_cache
+... rebuild_cache
+... test
 ... app
 ... libfoo
 `;
 
     const result = await queryBuildSystem(dir, new FakeRunner(stdout), true);
     expect(result.generator).toBe("Ninja");
-    expect(result.targets.map((t) => t.name)).toContain("app");
+    expect(result.targets.map((t) => t.name)).toEqual(["app", "libfoo"]);
     expect(result.buildDirectory).toBe("build");
 
     rmSync(dir, { recursive: true, force: true });

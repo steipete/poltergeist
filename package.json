@@ -1,6 +1,6 @@
 {
   "name": "@steipete/poltergeist",
-  "version": "2.1.1",
+  "version": "2.1.2",
   "description": "The ghost that keeps your builds fresh - a universal file watcher with auto-rebuild for any language or build system",
   "keywords": [
     "automation",
@@ -43,6 +43,7 @@
   },
   "files": [
     "dist/**/*",
+    "!dist/**/.DS_Store",
     "README.md",
     "LICENSE"
   ],

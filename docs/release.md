@@ -7,7 +7,7 @@ Communication (shared rule)
 
 Shared release rules to upstream
 - Title format: GitHub release title must be `projectname <version>` (no “v” prefix).
-- Version sources: bump both `package.json` and the CLI-reported version file (`src/cli/version.ts`).
+- Version sources: bump both `package.json` and the shared CLI version file (`src/cli/version.ts`), which powers `poltergeist` and `polter`.
 - No-warning gate: lint/test/build must finish clean (treat warnings as failures).
 - Artifacts + checksums: build platform binaries, produce macOS universal tarball, and record sha256 alongside.
 - Installer verification: run `npx <pkg>@<ver> --version` from a clean temp dir after publish.
@@ -17,7 +17,7 @@ Steps
 
 1) Bump versions  
    - `package.json` `version`  
-   - `src/cli/version.ts` (CLI banner)
+   - `src/cli/version.ts` (`poltergeist` and `polter` banners)
 
 2) Clean gates  
    - `pnpm run lint`  
