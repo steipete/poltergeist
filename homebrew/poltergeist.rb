@@ -1,10 +1,10 @@
 class Poltergeist < Formula
   desc "Universal file watcher with auto-rebuild for any language or build system"
   homepage "https://github.com/steipete/poltergeist"
-  url "https://github.com/steipete/poltergeist/releases/download/v2.1.1/poltergeist-macos-universal-v2.1.1.tar.gz"
-  sha256 "a654108db074415ed463b53765d85f019b0063fe66d06d44d56120326f9e964f"
+  url "https://github.com/steipete/poltergeist/releases/download/v2.1.2/poltergeist-macos-universal-v2.1.2.tar.gz"
+  version "2.1.2"
+  sha256 "b7ef7e0af2966049c42b6043c870eb1ecb73980a64b8680527e65e67b4f1ce89"
   license "MIT"
-  version "2.1.1"
 
   depends_on "watchman"
 
@@ -32,19 +32,20 @@ class Poltergeist < Formula
         4. Use 'polter <target>' to run your binaries
 
       Watchman is required and has been installed as a dependency.
-      
+
       Documentation: https://github.com/steipete/poltergeist
     EOS
   end
 
   test do
     # Test that the binary runs and returns version
-    assert_match "2.1.1", shell_output("#{bin}/poltergeist --version")
-    
+    assert_match version.to_s, shell_output("#{bin}/poltergeist --version")
+
     # Test polter wrapper
     assert_match "Poltergeist", shell_output("#{bin}/polter --help")
-    
-    # Test that watchman dependency is available
-    assert_match "version", shell_output("watchman version")
+
+    # Keep Watchman state inside Homebrew's writable test sandbox.
+    ENV["WATCHMAN_STATE_DIR"] = testpath.to_s
+    assert_match "version", shell_output("#{Formula["watchman"].opt_bin}/watchman version")
   end
 end
