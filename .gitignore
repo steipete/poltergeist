@@ -4,6 +4,7 @@ node_modules/
 # Build output
 dist/
 dist-bun/
+.*.bun-build
 *.tsbuildinfo
 apps/mac/.build/
 

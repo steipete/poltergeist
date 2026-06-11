@@ -135,8 +135,16 @@ jobs:
 
           bun build src/cli.ts --compile --target=bun-darwin-arm64 --outfile dist-homebrew/poltergeist-arm64 --minify
           bun build src/cli.ts --compile --target=bun-darwin-x64 --outfile dist-homebrew/poltergeist-x64 --minify
-          bun build src/polter.ts --compile --target=bun-darwin-arm64 --outfile dist-homebrew/polter-arm64 --minify
-          bun build src/polter.ts --compile --target=bun-darwin-x64 --outfile dist-homebrew/polter-x64 --minify
+          bun build scripts/polter-bun.ts --compile --target=bun-darwin-arm64 --outfile dist-homebrew/polter-arm64 --minify
+          bun build scripts/polter-bun.ts --compile --target=bun-darwin-x64 --outfile dist-homebrew/polter-x64 --minify
+
+          case "$(uname -m)" in
+            arm64) native_arch="arm64" ;;
+            x86_64) native_arch="x64" ;;
+            *) echo "Unsupported runner architecture: $(uname -m)" >&2; exit 1 ;;
+          esac
+          test "$(dist-homebrew/poltergeist-${native_arch} --version)" = "${version}"
+          test "$(dist-homebrew/polter-${native_arch} --version)" = "${version}"
 
           lipo -create dist-homebrew/poltergeist-arm64 dist-homebrew/poltergeist-x64 -output dist-homebrew/poltergeist
           lipo -create dist-homebrew/polter-arm64 dist-homebrew/polter-x64 -output dist-homebrew/polter

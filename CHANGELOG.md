@@ -5,6 +5,7 @@
 - Fixed Watchman exclusion conversion so file-extension globs like `*.log` match files at any depth instead of directory contents. Thanks @devYRPauli.
 - Fixed CMake project discovery so generated build-system utility targets and annotated default targets are not treated as project targets.
 - Fixed standalone `polter` version reporting by sharing the CLI's compile-time package metadata.
+- Fixed compiled `polter` packaging so the Homebrew binary runs, with release smoke tests for both CLI executables.
 - Excluded nested macOS metadata files from published npm tarballs.
 - Updated runtime dependencies and build/release tooling, including the maintained `pi-tui` package, Node.js 24 baseline, tsgo, oxlint/oxfmt, and automated Homebrew tap updates.
 

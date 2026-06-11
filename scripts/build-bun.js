@@ -82,7 +82,7 @@ async function buildPolterBinary(bytecode = false) {
   
   const buildArgs = [
     "build",
-    join(projectRoot, "src/polter.ts"),
+    join(projectRoot, "scripts/polter-bun.ts"),
     "--compile",
     "--outfile", outputPath,
     "--minify"
@@ -159,10 +159,13 @@ async function buildAll() {
   
   // Test the native binary
   if (process.argv.includes("--test")) {
-    console.log("\n🧪 Testing native binary...");
-    const result = spawnSync(nativeBinary, ["--version"], { encoding: "utf8" });
-    if (result.stdout) {
-      console.log(`Version output: ${result.stdout}`);
+    console.log("\n🧪 Testing native binaries...");
+    for (const [name, binary] of [["poltergeist", nativeBinary], ["polter", polterBinary]]) {
+      const result = spawnSync(binary, ["--version"], { encoding: "utf8" });
+      if (result.status !== 0 || !result.stdout.trim()) {
+        throw new Error(`${name} smoke test failed`);
+      }
+      console.log(`${name} version output: ${result.stdout.trim()}`);
     }
   }
 }
