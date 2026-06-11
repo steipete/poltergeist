@@ -79,12 +79,12 @@ jobs:
       - name: Build macOS app (Release)
         run: |
           cd apps/mac
-          xcodebuild -project Poltergeist.xcodeproj -scheme Poltergeist -configuration Release CLEAN_BUILD=YES CODE_SIGNING_ALLOWED=NO CODE_SIGNING_REQUIRED=NO CODE_SIGN_IDENTITY="" build
+          xcodebuild -project Poltergeist.xcodeproj -scheme Poltergeist -configuration Release -derivedDataPath build CLEAN_BUILD=YES CODE_SIGNING_ALLOWED=NO CODE_SIGNING_REQUIRED=NO CODE_SIGN_IDENTITY="" build
 
       - name: Package macOS app
         run: |
           cd apps/mac
-          APP_PATH="build/Release/Poltergeist.app"
+          APP_PATH="build/Build/Products/Release/Poltergeist.app"
           if [ ! -d "$APP_PATH" ]; then
             echo "App not found at $APP_PATH"
             exit 1
