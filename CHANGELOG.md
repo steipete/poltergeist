@@ -2,7 +2,8 @@
 
 ## [Unreleased]
 
-- Nothing yet.
+- Fixed native `polter` argument handling with current Bun standalone binaries.
+- Updated compatible runtime, Node.js type, and pnpm tooling dependencies.
 
 ## [2.1.2] - 2026-06-11
 
