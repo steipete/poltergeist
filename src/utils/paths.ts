@@ -7,6 +7,22 @@
 import { dirname } from "path";
 
 /**
+ * Ensure Commander sees a script path at argv[1] for the standalone polter entrypoint.
+ * Older Bun binaries omit it, while current Bun binaries expose a virtual bunfs path.
+ */
+export function normalizePolterArgv(argv: string[]): string[] {
+  const invocationPath = argv[1] || "";
+  const hasBunVirtualScriptPath =
+    invocationPath.includes("$bunfs") && /(?:^|[\\/])polter(?:\.(?:js|ts))?$/.test(invocationPath);
+
+  if (hasBunVirtualScriptPath) {
+    return argv;
+  }
+
+  return [argv[0] || "polter", "/polter", ...argv.slice(1)];
+}
+
+/**
  * Get the directory name of the current module
  * Works around import.meta.url issues in Bun compiled binaries
  */

@@ -92,7 +92,7 @@
     "arkregex": "^0.0.5",
     "chalk": "^5.6.2",
     "commander": "^15.0.0",
-    "es-toolkit": "^1.47.0",
+    "es-toolkit": "^1.47.1",
     "fb-watchman": "^2.0.2",
     "glob": "^13.0.6",
     "node-notifier": "^10.0.1",
@@ -105,7 +105,7 @@
   "devDependencies": {
     "@steipete/oracle": "link:../oracle",
     "@types/fb-watchman": "^2.0.6",
-    "@types/node": "^25.9.2",
+    "@types/node": "^25.9.3",
     "@types/node-notifier": "^8.0.5",
     "@types/picomatch": "^4.0.3",
     "@types/write-file-atomic": "^4.0.3",
@@ -125,5 +125,5 @@
   "engines": {
     "node": ">=24.0.0"
   },
-  "packageManager": "pnpm@10.33.2"
+  "packageManager": "pnpm@10.34.3"
 }
