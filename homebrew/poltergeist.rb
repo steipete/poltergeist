@@ -15,8 +15,8 @@ class Poltergeist < Formula
 
   def post_install
     # Ensure binaries are executable
-    chmod 0755, "#{bin}/poltergeist"
-    chmod 0755, "#{bin}/polter"
+    chmod 0755, bin/"poltergeist"
+    chmod 0755, bin/"polter"
   end
 
   def caveats

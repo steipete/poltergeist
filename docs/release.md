@@ -60,8 +60,8 @@ Steps
    - Homebrew (only if applicable and after assets propagate):  
      ```bash
      brew uninstall poltergeist || true
-     brew tap steipete/poltergeist || true
-     brew install steipete/poltergeist/poltergeist
+     brew tap steipete/tap || true
+     brew install steipete/tap/poltergeist
      poltergeist --version
      brew uninstall poltergeist
      ```
