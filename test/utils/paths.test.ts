@@ -1,5 +1,12 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { getDirname, getFilename, isCompiledBinary, isMainModule } from "../../src/utils/paths.js";
+import {
+  getDirname,
+  getFilename,
+  isCompiledBinary,
+  isMainModule,
+  isPolterEntrypoint,
+  normalizePolterArgv,
+} from "../../src/utils/paths.js";
 
 describe.sequential("paths utilities", () => {
   const originalArgv = process.argv.slice();
@@ -38,6 +45,38 @@ describe.sequential("paths utilities", () => {
     process.argv = ["/tmp/$bunfs/poltergeist", ...originalArgv.slice(1)];
 
     expect(isCompiledBinary()).toBe(true);
+  });
+
+  it("preserves current Bun standalone polter argv", () => {
+    const argv = ["/tmp/polter", "/$bunfs/root/polter", "demo"];
+
+    expect(normalizePolterArgv(argv)).toBe(argv);
+  });
+
+  it.each(["polter-arm64", "polter-x64"])(
+    "preserves Bun Homebrew slice argv for %s",
+    (sliceName) => {
+      const argv = ["/tmp/polter", `/$bunfs/root/${sliceName}`, "demo"];
+
+      expect(normalizePolterArgv(argv)).toBe(argv);
+      expect(isPolterEntrypoint(argv[1])).toBe(true);
+    },
+  );
+
+  it("adds the missing polter script path for older Bun argv", () => {
+    expect(normalizePolterArgv(["/tmp/polter", "demo"])).toEqual([
+      "/tmp/polter",
+      "/polter",
+      "demo",
+    ]);
+  });
+
+  it("does not mistake an older Bun target named polter for a script path", () => {
+    expect(normalizePolterArgv(["/tmp/polter", "polter"])).toEqual([
+      "/tmp/polter",
+      "/polter",
+      "polter",
+    ]);
   });
 
   it("treats non-bun execPath as compiled binary", () => {

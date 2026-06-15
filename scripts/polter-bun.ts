@@ -1,6 +1,8 @@
 #!/usr/bin/env bun
 
-// Bun compiled binaries use argv[1] for the first user argument, so provide the
-// script path expected by the shared Node/Bun entrypoint guard.
-process.argv.splice(1, 0, "/polter");
+import { normalizePolterArgv } from "../src/utils/paths.js";
+
+// Older Bun binaries use argv[1] for the first user argument. Current binaries
+// provide a virtual bunfs script path, which must not be duplicated.
+process.argv = normalizePolterArgv(process.argv);
 await import("../src/polter.js");
