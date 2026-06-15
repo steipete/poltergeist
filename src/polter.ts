@@ -9,20 +9,12 @@ import {
 } from "./cli-shared/polter-command.js";
 import { PACKAGE_INFO } from "./cli/version.js";
 import { runWrapperWithDefaults } from "./polter/runner.js";
-import { isMainModule } from "./utils/paths.js";
+import { isMainModule, isPolterEntrypoint } from "./utils/paths.js";
 
 export { isBinaryFresh, resolveBinaryPath } from "./polter/binaries.js";
 export { runWrapper } from "./polter/runner.js";
 
-if (
-  process.argv[1] &&
-  (isMainModule() ||
-    process.argv[1].endsWith("/polter") ||
-    process.argv[1].endsWith("/polter.js") ||
-    process.argv[1].endsWith("/polter.ts") ||
-    process.argv[1].endsWith("\\polter.js") ||
-    process.argv[1].endsWith("\\polter.ts"))
-) {
+if (process.argv[1] && (isMainModule() || isPolterEntrypoint(process.argv[1]))) {
   const program = new Command();
 
   const polterCommand = program

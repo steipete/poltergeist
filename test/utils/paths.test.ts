@@ -4,6 +4,7 @@ import {
   getFilename,
   isCompiledBinary,
   isMainModule,
+  isPolterEntrypoint,
   normalizePolterArgv,
 } from "../../src/utils/paths.js";
 
@@ -51,6 +52,16 @@ describe.sequential("paths utilities", () => {
 
     expect(normalizePolterArgv(argv)).toBe(argv);
   });
+
+  it.each(["polter-arm64", "polter-x64"])(
+    "preserves Bun Homebrew slice argv for %s",
+    (sliceName) => {
+      const argv = ["/tmp/polter", `/$bunfs/root/${sliceName}`, "demo"];
+
+      expect(normalizePolterArgv(argv)).toBe(argv);
+      expect(isPolterEntrypoint(argv[1])).toBe(true);
+    },
+  );
 
   it("adds the missing polter script path for older Bun argv", () => {
     expect(normalizePolterArgv(["/tmp/polter", "demo"])).toEqual([
