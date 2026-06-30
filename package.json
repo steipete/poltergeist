@@ -105,7 +105,7 @@
   "devDependencies": {
     "@steipete/oracle": "link:../oracle",
     "@types/fb-watchman": "^2.0.6",
-    "@types/node": "^25.9.3",
+    "@types/node": "^26.0.1",
     "@types/node-notifier": "^8.0.5",
     "@types/picomatch": "^4.0.3",
     "@types/write-file-atomic": "^4.0.3",
