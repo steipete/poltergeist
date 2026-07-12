@@ -405,7 +405,7 @@ export class PanelApp {
     }
 
     // Byte-by-byte handling (mirrors working pitui loop).
-    for (let i = 0; i < input.length; ) {
+    for (let i = 0; i < input.length;) {
       const char = input[i];
 
       const lower = char.toLowerCase();
