@@ -41,9 +41,6 @@ importers:
       ora:
         specifier: ^9.4.0
         version: 9.4.1
-      picomatch:
-        specifier: ^4.0.4
-        version: 4.0.4
       wrap-ansi:
         specifier: ^10.0.0
         version: 10.0.0
@@ -66,9 +63,6 @@ importers:
       '@types/node-notifier':
         specifier: ^8.0.5
         version: 8.0.5
-      '@types/picomatch':
-        specifier: ^4.0.3
-        version: 4.0.3
       '@types/write-file-atomic':
         specifier: ^4.0.3
         version: 4.0.3
@@ -715,9 +709,6 @@ packages:
 
   '@types/node@26.0.1':
     resolution: {integrity: sha512-fc3KiUoBt6kie0N9bIW3E47vZsuaMf0PM2AaUpLCLT0s/LvX1nxAim6Fc049cNxODPpGm6qRAuUOB86SkRuPQw==}
-
-  '@types/picomatch@4.0.3':
-    resolution: {integrity: sha512-iG0T6+nYJ9FAPmx9SsUlnwcq1ZVRuCXcVEvWnntoPlrOpwtSTKNDC9uVAxTsC3PUvJ+99n4RpAcNgBbHX3JSnQ==}
 
   '@types/unist@3.0.3':
     resolution: {integrity: sha512-ko/gIFJRv177XgZsZcBwnqJN5x/Gien8qNOn0D5bQU/zAzVf9Zt3BlcUiLqhV9y4ARk0GbT3tnUiPNgnTXzc/Q==}
@@ -1761,8 +1752,6 @@ snapshots:
   '@types/node@26.0.1':
     dependencies:
       undici-types: 8.3.0
-
-  '@types/picomatch@4.0.3': {}
 
   '@types/unist@3.0.3': {}
 
