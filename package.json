@@ -107,7 +107,7 @@
     "@types/node": "^26.0.1",
     "@types/node-notifier": "^8.0.5",
     "@types/write-file-atomic": "^4.0.3",
-    "@typescript/native-preview": "7.0.0-dev.20260706.1",
+    "@typescript/native-preview": "7.0.0-dev.20260707.2",
     "@vitest/coverage-v8": "^4.1.8",
     "cross-env": "^10.1.0",
     "oxfmt": "^0.58.0",
