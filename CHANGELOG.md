@@ -1,9 +1,22 @@
 # Changelog
 
-## [Unreleased]
+## [2.1.3] - 2026-07-17
 
-- Fixed native `polter` argument handling with current Bun standalone binaries.
-- Updated compatible runtime, Node.js type, and pnpm tooling dependencies.
+### Highlights
+
+- Restored native `polter` argument handling for current Bun standalone binaries and Homebrew slices.
+- Refreshed the panel runtime and release toolchain for current dependency releases.
+
+### Fixed
+
+- Normalized `polter` entrypoint detection across Node.js, older Bun binaries, current Bun virtual paths, and architecture-suffixed Homebrew slices.
+- Stabilized build-error persistence coverage so asynchronous state writes are verified reliably.
+
+### Maintenance
+
+- Updated compatible runtime dependencies, including `pi-tui`, LogTape, arkregex, es-toolkit, and ora, and removed obsolete Picomatch packages.
+- Updated development tooling, including Node.js types, tsgo, Oxfmt, Oxlint, PostCSS, tsx, TypeDoc, Vite, and pnpm.
+- Updated GitHub Actions checkout and Node.js setup actions, aligned Homebrew tap references, and added an explicit Oxfmt configuration for warning-free checks.
 
 ## [2.1.2] - 2026-06-11
 
