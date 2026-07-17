@@ -188,9 +188,19 @@ jobs:
           name: poltergeist-homebrew
           path: ./homebrew/
 
+      - name: Resolve release version
+        id: release-version
+        shell: bash
+        run: |
+          set -euo pipefail
+          version="${GITHUB_REF_NAME#v}"
+          test -n "$version"
+          echo "version=$version" >> "$GITHUB_OUTPUT"
+
       - name: Create Release
         uses: softprops/action-gh-release@v3
         with:
+          name: poltergeist ${{ steps.release-version.outputs.version }}
           files: |
             cli/*.tgz
             macos/*.zip

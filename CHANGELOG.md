@@ -16,7 +16,7 @@
 
 - Updated compatible runtime dependencies, including `pi-tui`, LogTape, arkregex, es-toolkit, and ora, and removed obsolete Picomatch packages.
 - Updated development tooling, including Node.js types, tsgo, Oxfmt, Oxlint, PostCSS, tsx, TypeDoc, Vite, and pnpm.
-- Updated GitHub Actions checkout and Node.js setup actions, aligned Homebrew tap references, and added an explicit Oxfmt configuration for warning-free checks.
+- Updated GitHub Actions checkout and Node.js setup actions, standardized release titles, aligned Homebrew tap references, and added an explicit Oxfmt configuration for warning-free checks.
 
 ## [2.1.2] - 2026-06-11
 
