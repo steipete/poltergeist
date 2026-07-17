@@ -205,7 +205,11 @@ struct StatusBarMenuView: View {
             }
         }
         .frame(
-            minWidth: 420, idealWidth: 480, maxWidth: 540, minHeight: 180, idealHeight: 400,
+            minWidth: 420,
+            idealWidth: 480,
+            maxWidth: 540,
+            minHeight: 180,
+            idealHeight: 400,
             maxHeight: 700
         )
         .background(

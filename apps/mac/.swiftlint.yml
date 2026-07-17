@@ -113,6 +113,8 @@ disabled_rules:
   - file_header # Disable file header requirement for now
   - attributes # Disable strict attribute positioning
   - multiline_arguments_brackets # Disable multiline argument bracket requirements
+  - trailing_comma # swift-format requires trailing commas in multiline literals
+  - closure_parameter_position # swift-format wraps long closure captures onto the next line
   - opening_brace # Disable opening brace spacing enforcement
   - function_body_length # Disable function body length temporarily
   - type_body_length # Disable type body length temporarily
@@ -150,6 +152,13 @@ nesting:
     error: 10
 
 # Configuration for rules
+
+# These files intentionally group closely related SwiftUI view types.
+file_name:
+  excluded:
+    - BuildQueueViews.swift
+    - BuildStatisticsViews.swift
+    - ProjectRowViews.swift
 
 # Note: Removed type_name and identifier_name configurations since those rules are disabled
 

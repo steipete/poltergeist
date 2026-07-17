@@ -81,7 +81,7 @@ final class ProjectMonitor {
     private let debounceInterval: TimeInterval = 1.0
 
     // Build state debouncing to prevent UI flicker
-    private var lastBuildQueueUpdate: Date = Date.distantPast
+    private var lastBuildQueueUpdate = Date.distantPast
     private let buildStateDebounceInterval: TimeInterval = 2.0
     private var previousBuildQueue: BuildQueueInfo?
 

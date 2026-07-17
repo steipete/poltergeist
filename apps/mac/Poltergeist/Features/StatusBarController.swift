@@ -58,6 +58,7 @@ final class StatusBarController: NSObject {
 
     private func loadStatusBarIcon() async -> NSImage? {
         // Try custom icon first
+        // swiftlint:disable:next object_literal
         if let image = NSImage(named: "StatusBarIcon") {
             image.isTemplate = true
             logger.debug("✅ Loaded custom StatusBarIcon")
@@ -273,5 +274,4 @@ final class StatusBarController: NSObject {
         }
         statusItem = nil
     }
-
 }
