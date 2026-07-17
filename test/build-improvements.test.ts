@@ -13,12 +13,16 @@ vi.mock("child_process", () => ({
   execSync: vi.fn(() => "abc123"),
 }));
 
-async function waitForState<T>(reader: () => Promise<T>, timeoutMs: number = 750): Promise<T> {
+async function waitForState<T>(
+  reader: () => Promise<T>,
+  isReady: (value: T) => boolean,
+  timeoutMs: number = 750,
+): Promise<T> {
   const deadline = Date.now() + timeoutMs;
   let last: T;
   while (true) {
     last = await reader();
-    if (last) return last;
+    if (isReady(last)) return last;
     if (Date.now() >= deadline) return last;
     await new Promise((resolve) => setTimeout(resolve, 25));
   }
@@ -213,7 +217,10 @@ describe("Build Improvements - Real-time Output & Error Capture", () => {
     expect(result.errorSummary).toBeDefined();
 
     // Read state to verify error context was stored (allowing async persistence)
-    const state = await waitForState(() => stateManager.readState("test-app"));
+    const state = await waitForState(
+      () => stateManager.readState("test-app"),
+      (value) => value?.lastBuildError !== undefined,
+    );
     expect(state?.lastBuildError).toBeDefined();
     expect(state?.lastBuildError?.exitCode).toBe(127);
     expect(state?.lastBuildError?.errorOutput).toContain("Fatal error: Cannot find module");
