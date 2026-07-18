@@ -164,6 +164,12 @@ jobs:
           cd apps/mac
           xcodebuild -project Poltergeist.xcodeproj -scheme Poltergeist -configuration Debug build CODE_SIGN_IDENTITY="" CODE_SIGNING_REQUIRED=NO
 
+      - name: Validate macOS release scripts
+        run: |
+          bash -n apps/mac/scripts/build-release.sh
+          bash -n apps/mac/scripts/notarize-release.sh
+          bash -n apps/mac/scripts/verify-release.sh
+
       - name: Run SwiftLint
         run: |
           cd apps/mac

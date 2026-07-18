@@ -1,5 +1,9 @@
 # Changelog
 
+## Unreleased
+
+- Fixed macOS release packaging to seal the complete app with the personal Developer ID identity, hardened runtime, notarization, stapling, stable designated-requirement checks, and Gatekeeper verification before publication.
+
 ## [2.1.3] - 2026-07-17
 
 ### Highlights

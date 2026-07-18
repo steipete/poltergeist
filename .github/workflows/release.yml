@@ -56,6 +56,7 @@ jobs:
     runs-on: macos-15
     env:
       POLTERGEIST_TEST_MODE: "true"
+      POLTERGEIST_CODESIGN_IDENTITY: "Developer ID Application: Peter Steinberger (Y5PE65HELJ)"
 
     steps:
       - name: Checkout code
@@ -76,10 +77,61 @@ jobs:
           cd apps/mac
           ./scripts/lint.sh
 
-      - name: Build macOS app (Release)
+      - name: Import personal Developer ID certificate
+        env:
+          MACOS_DEVELOPER_ID_P12: ${{ secrets.MACOS_DEVELOPER_ID_P12 }}
+          MACOS_DEVELOPER_ID_P12_PASSWORD: ${{ secrets.MACOS_DEVELOPER_ID_P12_PASSWORD }}
         run: |
-          cd apps/mac
-          xcodebuild -project Poltergeist.xcodeproj -scheme Poltergeist -configuration Release -derivedDataPath build CLEAN_BUILD=YES CODE_SIGNING_ALLOWED=NO CODE_SIGNING_REQUIRED=NO CODE_SIGN_IDENTITY="" build
+          set -euo pipefail
+          test -n "$MACOS_DEVELOPER_ID_P12"
+          test -n "$MACOS_DEVELOPER_ID_P12_PASSWORD"
+
+          certificate_path="$RUNNER_TEMP/poltergeist-developer-id.p12"
+          keychain_path="$RUNNER_TEMP/poltergeist-signing.keychain-db"
+          ephemeral_keychain_passphrase="$(openssl rand -base64 32)"
+
+          printf '%s' "$MACOS_DEVELOPER_ID_P12" | base64 --decode > "$certificate_path"
+          security create-keychain -p "$ephemeral_keychain_passphrase" "$keychain_path"
+          security set-keychain-settings -lut 3600 "$keychain_path"
+          security unlock-keychain -p "$ephemeral_keychain_passphrase" "$keychain_path"
+          security import "$certificate_path" \
+            -k "$keychain_path" \
+            -P "$MACOS_DEVELOPER_ID_P12_PASSWORD" \
+            -T /usr/bin/codesign \
+            -T /usr/bin/security
+          rm -f "$certificate_path"
+          security set-key-partition-list \
+            -S apple-tool:,apple:,codesign: \
+            -s \
+            -k "$ephemeral_keychain_passphrase" \
+            "$keychain_path"
+          security list-keychains -d user -s "$keychain_path"
+          security find-identity -v -p codesigning "$keychain_path" | \
+            grep -F '"Developer ID Application: Peter Steinberger (Y5PE65HELJ)"'
+          echo "POLTERGEIST_CI_KEYCHAIN=$keychain_path" >> "$GITHUB_ENV"
+
+      - name: Build and sign macOS app (Release)
+        env:
+          POLTERGEIST_VERSION: ${{ github.ref_name }}
+          POLTERGEIST_BUILD_NUMBER: ${{ github.run_number }}
+        run: |
+          set -euo pipefail
+          export POLTERGEIST_VERSION="${POLTERGEIST_VERSION#v}"
+          apps/mac/scripts/build-release.sh
+
+      - name: Notarize and staple macOS app
+        env:
+          APPLE_API_KEY_ID: ${{ secrets.APPLE_API_KEY_ID }}
+          APPLE_API_ISSUER_ID: ${{ secrets.APPLE_API_ISSUER_ID }}
+          APPLE_API_PRIVATE_KEY: ${{ secrets.APPLE_API_PRIVATE_KEY }}
+        run: |
+          apps/mac/scripts/notarize-release.sh \
+            apps/mac/build/Build/Products/Release/Poltergeist.app
+
+      - name: Verify Developer ID signature and Gatekeeper acceptance
+        run: |
+          apps/mac/scripts/verify-release.sh \
+            apps/mac/build/Build/Products/Release/Poltergeist.app
 
       - name: Package macOS app
         run: |
@@ -91,6 +143,13 @@ jobs:
           fi
           ARCHIVE_NAME="Poltergeist-${{ github.ref_name }}-macOS.zip"
           ditto -c -k --keepParent "$APP_PATH" "$ARCHIVE_NAME"
+
+      - name: Remove temporary signing keychain
+        if: always()
+        run: |
+          if [[ -n "${POLTERGEIST_CI_KEYCHAIN:-}" ]]; then
+            security delete-keychain "$POLTERGEIST_CI_KEYCHAIN" || true
+          fi
 
       - name: Upload macOS app artifacts
         uses: actions/upload-artifact@v7

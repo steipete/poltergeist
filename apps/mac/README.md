@@ -84,6 +84,18 @@ make run
 ./distribute.sh
 ```
 
+### Release Signing
+
+Tag builds use `scripts/build-release.sh` to replace Xcode's linker ad-hoc signature with the personal Developer ID Application identity for team `Y5PE65HELJ`. The script seals the complete app bundle, enables the hardened runtime, and rejects any other signer or bundle identifier.
+
+GitHub Actions requires these repository secrets:
+
+- `MACOS_DEVELOPER_ID_P12`: base64-encoded PKCS#12 export containing `Developer ID Application: Peter Steinberger (Y5PE65HELJ)` and its private key.
+- `MACOS_DEVELOPER_ID_P12_PASSWORD`: password for that PKCS#12 export.
+- `APPLE_API_KEY_ID`, `APPLE_API_ISSUER_ID`, and `APPLE_API_PRIVATE_KEY`: App Store Connect API credentials accepted by `notarytool`.
+
+The release job imports the certificate into an ephemeral keychain, signs the app, submits it to Apple's notary service, staples the ticket, and only then creates the published zip. `scripts/verify-release.sh` enforces the stable bundle identifier and Developer ID designated requirement, checks the hardened runtime, runs strict deep signature verification, and requires local Gatekeeper acceptance.
+
 The app uses modern Xcode file system synchronized groups, so any files added to the `Poltergeist/` folder will automatically be included in the project.
 
 ## Usage
