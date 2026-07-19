@@ -1,5 +1,9 @@
 # Changelog
 
+## [Unreleased]
+
+- Nothing yet.
+
 ## [2.1.4] - 2026-07-19
 
 ### Highlights
