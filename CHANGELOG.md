@@ -1,8 +1,19 @@
 # Changelog
 
-## Unreleased
+## [2.1.4] - 2026-07-19
 
-- Fixed macOS release packaging to seal the complete app with the personal Developer ID identity, hardened runtime, notarization, stapling, stable designated-requirement checks, and Gatekeeper verification before publication.
+### Highlights
+
+- Restored trusted macOS app distribution with Developer ID signing, hardened runtime, notarization, stapling, and fail-closed release verification.
+
+### Fixed
+
+- Repaired the tag workflow so the complete app bundle is sealed with the personal Developer ID identity instead of retaining the linker-generated ad-hoc signature shipped in v2.1.3.
+- Added pre-publication checks for the bundle identifier, signing authority, team, hardened runtime, stable designated requirement, strict resource seal, notarization ticket, and Gatekeeper acceptance.
+
+### Maintenance
+
+- Documented the release certificate and App Store Connect credential contract and added shell and workflow lint coverage for the signing path.
 
 ## [2.1.3] - 2026-07-17
 
