@@ -2,7 +2,8 @@
 
 ## [Unreleased]
 
-- Nothing yet.
+- Fixed target names containing hyphens being truncated to the last segment when reading state files, which made targets like `app-bundle` and `test-bundle` collide in `discoverStates()`
+- Fixed `Poltergeist.listAllStates()` always returning an empty array; it rebuilt state paths through a `StateManager` rooted at `/` instead of reading the discovered files
 
 ## [2.1.4] - 2026-07-19
 

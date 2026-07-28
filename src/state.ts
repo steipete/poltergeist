@@ -498,8 +498,10 @@ export class StateManager implements IStateManager {
         try {
           const content = readFileSync(join(this.stateDir, file), "utf-8");
           const state = JSON.parse(content) as PoltergeistState;
-          const targetName = file.replace(".state", "").split("-").pop() || "";
-          states[targetName] = state;
+          // Take the target from the state itself. State file names are
+          // {projectName}-{pathHash}-{targetName}.state, so splitting on "-"
+          // truncates any target whose name contains a hyphen.
+          states[state.target] = state;
         } catch (error) {
           this.logger.debug(`Failed to read state file ${file}: ${error}`);
         }

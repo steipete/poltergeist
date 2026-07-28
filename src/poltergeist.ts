@@ -1,3 +1,5 @@
+import { readFileSync } from "node:fs";
+import { join } from "node:path";
 import { IntelligentBuildQueue } from "./build-queue.js";
 import { BuildCoordinator } from "./core/build-coordinator.js";
 import { ConfigReloadOrchestrator } from "./core/config-reload-orchestrator.js";
@@ -14,7 +16,7 @@ import type {
   IWatchmanConfigManager,
   PoltergeistDependencies,
 } from "./interfaces.js";
-import { createLogger, type Logger } from "./logger.js";
+import type { Logger } from "./logger.js";
 import { BuildNotifier } from "./notifier.js";
 import { PostBuildRunner } from "./post-build/post-build-runner.js";
 import { PriorityEngine } from "./priority-engine.js";
@@ -901,14 +903,16 @@ export class Poltergeist {
     const stateFiles = await StateManager.listAllStates();
     const states: PoltergeistState[] = [];
 
+    const stateDir = FileSystemUtils.getStateDirectory();
+
     for (const file of stateFiles) {
       try {
-        const stateManager = new StateManager("/", createLogger());
-        const targetName = file.replace(".state", "").split("-").pop() || "";
-        const state = await stateManager.readState(targetName);
-        if (state) {
-          states.push(state);
-        }
+        // Read each file directly. Deriving a target name from the file name
+        // and re-reading through a StateManager rooted at "/" rebuilt a path
+        // ("unknown-{hash of /}-{target}.state") that never matches a real
+        // state file, so this always returned an empty list.
+        const content = readFileSync(join(stateDir, file), "utf-8");
+        states.push(JSON.parse(content) as PoltergeistState);
       } catch {
         // Ignore invalid state files
       }
