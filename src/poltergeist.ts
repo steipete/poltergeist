@@ -42,6 +42,28 @@ export interface PoltergeistStartOptions {
   waitForInitialBuilds?: boolean;
 }
 
+function isPoltergeistState(value: unknown): value is PoltergeistState {
+  if (typeof value !== "object" || value === null || Array.isArray(value)) {
+    return false;
+  }
+
+  const state = value as Partial<PoltergeistState>;
+  return (
+    typeof state.version === "string" &&
+    typeof state.projectPath === "string" &&
+    typeof state.projectName === "string" &&
+    typeof state.target === "string" &&
+    state.target.length > 0 &&
+    typeof state.targetType === "string" &&
+    typeof state.configPath === "string" &&
+    typeof state.process?.pid === "number" &&
+    typeof state.process.hostname === "string" &&
+    typeof state.process.isActive === "boolean" &&
+    typeof state.process.startTime === "string" &&
+    typeof state.process.lastHeartbeat === "string"
+  );
+}
+
 export class Poltergeist {
   private config: PoltergeistConfig;
   private projectRoot: string;
@@ -912,7 +934,10 @@ export class Poltergeist {
         // ("unknown-{hash of /}-{target}.state") that never matches a real
         // state file, so this always returned an empty list.
         const content = readFileSync(join(stateDir, file), "utf-8");
-        states.push(JSON.parse(content) as PoltergeistState);
+        const state: unknown = JSON.parse(content);
+        if (isPoltergeistState(state)) {
+          states.push(state);
+        }
       } catch {
         // Ignore invalid state files
       }

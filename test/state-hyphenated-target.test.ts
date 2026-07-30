@@ -28,6 +28,7 @@ function stateFor(target: string): PoltergeistState {
     configPath: join(PROJECT_ROOT, "poltergeist.config.json"),
     process: {
       pid: process.pid,
+      hostname: "localhost",
       isActive: true,
       startTime: new Date().toISOString(),
       lastHeartbeat: new Date().toISOString(),
@@ -81,11 +82,12 @@ describe.skipIf(process.platform === "win32")("state files with hyphenated targe
     expect(Object.keys(states).sort()).toEqual(["app-bundle", "test-bundle"]);
   });
 
-  it("returns states from Poltergeist.listAllStates", async () => {
+  it("returns valid states and skips corrupted state files", async () => {
     writeFileSync(
       join(testDir, "myapp-aafbde62-app-bundle.state"),
       JSON.stringify(stateFor("app-bundle")),
     );
+    writeFileSync(join(testDir, "myapp-aafbde62-corrupted.state"), "null");
 
     const states = await Poltergeist.listAllStates();
 
