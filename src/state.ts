@@ -59,6 +59,28 @@ export interface PoltergeistState {
   postBuildResults?: Record<string, PostBuildResult>;
 }
 
+export function isPoltergeistState(value: unknown): value is PoltergeistState {
+  if (typeof value !== "object" || value === null || Array.isArray(value)) {
+    return false;
+  }
+
+  const state = value as Partial<PoltergeistState>;
+  return (
+    typeof state.version === "string" &&
+    typeof state.projectPath === "string" &&
+    typeof state.projectName === "string" &&
+    typeof state.target === "string" &&
+    state.target.length > 0 &&
+    typeof state.targetType === "string" &&
+    typeof state.configPath === "string" &&
+    typeof state.process?.pid === "number" &&
+    typeof state.process.hostname === "string" &&
+    typeof state.process.isActive === "boolean" &&
+    typeof state.process.startTime === "string" &&
+    typeof state.process.lastHeartbeat === "string"
+  );
+}
+
 export class StateManager implements IStateManager {
   private logger: Logger;
   private projectRoot: string;
@@ -497,7 +519,11 @@ export class StateManager implements IStateManager {
       if (file.endsWith(".state")) {
         try {
           const content = readFileSync(join(this.stateDir, file), "utf-8");
-          const state = JSON.parse(content) as PoltergeistState;
+          const state: unknown = JSON.parse(content);
+          if (!isPoltergeistState(state)) {
+            this.logger.debug(`Skipping invalid state file ${file}`);
+            continue;
+          }
           // Take the target from the state itself. State file names are
           // {projectName}-{pathHash}-{targetName}.state, so splitting on "-"
           // truncates any target whose name contains a hyphen.

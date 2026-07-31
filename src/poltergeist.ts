@@ -21,7 +21,7 @@ import { BuildNotifier } from "./notifier.js";
 import { PostBuildRunner } from "./post-build/post-build-runner.js";
 import { PriorityEngine } from "./priority-engine.js";
 import { ExecutableRunner } from "./runners/executable-runner.js";
-import { type PoltergeistState, StateManager } from "./state.js";
+import { isPoltergeistState, type PoltergeistState, StateManager } from "./state.js";
 import type {
   BuildRequest,
   BuildSchedulingConfig,
@@ -40,28 +40,6 @@ import { WatchmanConfigManager } from "./watchman-config.js";
 
 export interface PoltergeistStartOptions {
   waitForInitialBuilds?: boolean;
-}
-
-function isPoltergeistState(value: unknown): value is PoltergeistState {
-  if (typeof value !== "object" || value === null || Array.isArray(value)) {
-    return false;
-  }
-
-  const state = value as Partial<PoltergeistState>;
-  return (
-    typeof state.version === "string" &&
-    typeof state.projectPath === "string" &&
-    typeof state.projectName === "string" &&
-    typeof state.target === "string" &&
-    state.target.length > 0 &&
-    typeof state.targetType === "string" &&
-    typeof state.configPath === "string" &&
-    typeof state.process?.pid === "number" &&
-    typeof state.process.hostname === "string" &&
-    typeof state.process.isActive === "boolean" &&
-    typeof state.process.startTime === "string" &&
-    typeof state.process.lastHeartbeat === "string"
-  );
 }
 
 export class Poltergeist {

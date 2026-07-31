@@ -93,4 +93,21 @@ describe.skipIf(process.platform === "win32")("state files with hyphenated targe
 
     expect(states.map((s) => s.target)).toEqual(["app-bundle"]);
   });
+
+  it("does not key discoverStates by 'undefined' for an incomplete state file", async () => {
+    // A syntactically valid but incomplete object (e.g. "{}") does not throw
+    // on JSON.parse, so state.target is undefined and, without validation,
+    // gets stored under the literal key "undefined".
+    writeFileSync(
+      join(testDir, "myapp-aafbde62-app-bundle.state"),
+      JSON.stringify(stateFor("app-bundle")),
+    );
+    writeFileSync(join(testDir, "myapp-aafbde62-empty.state"), "{}");
+
+    const stateManager = new StateManager(PROJECT_ROOT, mockLogger);
+    const states = await stateManager.discoverStates();
+
+    expect(Object.keys(states).sort()).toEqual(["app-bundle"]);
+    expect(states.undefined).toBeUndefined();
+  });
 });
