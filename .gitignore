@@ -7,6 +7,11 @@ dist-bun/
 .*.bun-build
 *.tsbuildinfo
 apps/mac/.build/
+/test-cmake/build/
+
+# Python bytecode
+__pycache__/
+*.py[cod]
 
 # Logs
 .poltergeist.log
@@ -15,6 +20,8 @@ npm-debug.log*
 error
 debug
 debug*
+info
+/test-manual/output.txt
 
 # Runtime data
 pids
