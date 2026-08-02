@@ -1,5 +1,5 @@
 import { spawn } from "child_process";
-import { existsSync, mkdirSync, readFileSync, rmSync, writeFileSync } from "fs";
+import { existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "fs";
 import { tmpdir } from "os";
 import { join } from "path";
 import { afterAll, afterEach, beforeEach, describe, expect, it, vi } from "vitest";
@@ -40,7 +40,7 @@ describe("Build Improvements - Real-time Output & Error Capture", () => {
     vi.clearAllMocks();
 
     // Create temp directory
-    tempDir = join(tmpdir(), `poltergeist-test-${Date.now()}`);
+    tempDir = mkdtempSync(join(tmpdir(), "poltergeist-build-improvements-"));
     projectRoot = join(tempDir, "project");
     mkdirSync(projectRoot, { recursive: true });
 
