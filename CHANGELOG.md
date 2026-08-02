@@ -4,6 +4,7 @@
 
 - Corrected the exported `discoverStates()` map-key contract to use full stored target names, preventing hyphenated targets such as `app-bundle` and `test-bundle` from truncating and colliding. Thanks @devYRPauli.
 - Fixed `Poltergeist.listAllStates()` always returning an empty array; it rebuilt state paths through a `StateManager` rooted at `/` instead of reading the discovered files
+- Updated runtime and development dependencies, including Chalk 6, pi-tui 0.83, LogTape 2.3, Vite 8.2, pnpm 11, and current Oxc tooling.
 
 ## [2.1.4] - 2026-07-19
 
