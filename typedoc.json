@@ -1,4 +1,6 @@
 {
+  // 2026-08-02: Keep TypeScript on 6.x until TypeDoc supports the TS 7 compiler API.
+  // Tracking: https://github.com/TypeStrong/typedoc/discussions/3068
   "entryPoints": ["src/index.ts", "src/types.ts", "src/interfaces.ts"],
   "out": "docs/api/typescript",
   "readme": "README.md",
@@ -47,18 +49,12 @@
     "Reference"
   ],
   "theme": "default",
-  "customCss": "docs/api/custom.css",
   "plugin": ["typedoc-plugin-mermaid"],
   "gitRevision": "main",
   "gitRemote": "origin",
   "sourceLinkTemplate": "https://github.com/steipete/poltergeist/blob/{gitRevision}/{path}#L{line}",
   "navigationLinks": {
-    "GitHub": "https://github.com/steipete/poltergeist",
-    "Architecture": "../architecture.html"
-  },
-  "sidebarLinks": {
-    "Architecture Diagrams": "../architecture.html",
-    "CLI Documentation": "../CLI.html"
+    "GitHub": "https://github.com/steipete/poltergeist"
   },
   "validation": {
     "notExported": true,

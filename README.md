@@ -161,15 +161,15 @@ Configuration tips:
 
 ## Designed for Humans and Agents
 
-Poltergeist rebuilds in the background from the moment files change, so humans and coding agents can rely on `polter <target>` to run fresh binaries without bespoke scripting. Aliases (`start`/`haunt`), fuzzy target matching, and inline error reporting keep command usage predictable. For detailed agent playbooks, timeout strategies, and log streaming tips, see [docs/agent-workflows.md](docs/agent-workflows.md).
+Poltergeist rebuilds in the background from the moment files change, so humans and coding agents can rely on `polter <target>` to run fresh binaries without bespoke scripting. Aliases (`start`/`haunt`), fuzzy target matching, and inline error reporting keep command usage predictable. For live status workflows, runtime controls, and log streaming tips, see the [panel guide](docs/panel.md).
 
 ## Learn More
 
-- [CLI reference](docs/cli-reference.md)
-- [Configuration guide](docs/configuration.md)
-- [Agent workflows](docs/agent-workflows.md)
-- [Architecture overview](docs/architecture.md)
-- [Examples & E2E notes](docs/test-e2e.md)
+- [CLI quick start](#basic-usage)
+- [Hot-reload recipes](#hot-reload-for-apps)
+- [Panel guide](docs/panel.md)
+- [Pause and resume controls](docs/pause-resume.md)
+- [Project structure](#project-structure)
 
 ## Development
 
