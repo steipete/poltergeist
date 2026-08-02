@@ -1,9 +1,14 @@
 # Changelog
 
-## [Unreleased]
+## [2.1.5] - 2026-08-02
+
+### Fixed
 
 - Corrected the exported `discoverStates()` map-key contract to use full stored target names, preventing hyphenated targets such as `app-bundle` and `test-bundle` from truncating and colliding. Thanks @devYRPauli.
-- Fixed `Poltergeist.listAllStates()` always returning an empty array; it rebuilt state paths through a `StateManager` rooted at `/` instead of reading the discovered files
+- Fixed `Poltergeist.listAllStates()` always returning an empty array; it rebuilt state paths through a `StateManager` rooted at `/` instead of reading the discovered files.
+
+### Maintenance
+
 - Stabilized universal Bun binary packaging by stripping cross-compiled ad-hoc signatures before `lipo` assembly and re-signing the combined binaries.
 - Updated runtime and development dependencies, including Chalk 6, pi-tui 0.83, LogTape 2.3, Vite 8.2, pnpm 11, and current Oxc tooling.
 

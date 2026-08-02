@@ -21,8 +21,8 @@ Steps
 
 2) Clean gates  
    - `pnpm run lint`  
-   - `pnpm run test`  
    - `pnpm run build`
+   - `pnpm run test`
 
 3) Build Bun binaries  
    - `pnpm run build:bun:all`  
