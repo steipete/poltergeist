@@ -166,6 +166,7 @@ jobs:
 
       - name: Validate macOS release scripts
         run: |
+          bash -n scripts/package-macos-universal.sh
           bash -n apps/mac/scripts/build-release.sh
           bash -n apps/mac/scripts/notarize-release.sh
           bash -n apps/mac/scripts/verify-release.sh

@@ -26,12 +26,15 @@ Steps
 
 3) Build Bun binaries  
    - `pnpm run build:bun:all`  
-   - Create universal macOS bundle:  
+   - Build the Homebrew slices and create the universal macOS bundle:
      ```bash
-     lipo -create dist-bun/poltergeist-bun-darwin-x64 dist-bun/poltergeist-bun-darwin-arm64 -output dist-bun/poltergeist-macos-universal
-     lipo -create dist-bun/polter-bun-darwin-x64 dist-bun/polter-bun-darwin-arm64 -output dist-bun/polter-macos-universal
-     tar -czf dist-bun/poltergeist-macos-universal-v<ver>.tar.gz -C dist-bun poltergeist-macos-universal polter-macos-universal
-     shasum -a 256 dist-bun/poltergeist-macos-universal-v<ver>.tar.gz
+     version=<ver>
+     mkdir -p dist-homebrew
+     bun build src/cli.ts --compile --target=bun-darwin-arm64 --outfile dist-homebrew/poltergeist-arm64 --minify
+     bun build src/cli.ts --compile --target=bun-darwin-x64 --outfile dist-homebrew/poltergeist-x64 --minify
+     bun build scripts/polter-bun.ts --compile --target=bun-darwin-arm64 --outfile dist-homebrew/polter-arm64 --minify
+     bun build scripts/polter-bun.ts --compile --target=bun-darwin-x64 --outfile dist-homebrew/polter-x64 --minify
+     scripts/package-macos-universal.sh dist-homebrew "$version"
      ```
 
 4) Homebrew (only if this project ships a formula)  
