@@ -5,7 +5,7 @@
 </p>
 
 [![CI](https://img.shields.io/github/actions/workflow/status/steipete/poltergeist/ci.yml?branch=main&style=flat-square&label=ci)](https://github.com/steipete/poltergeist/actions/workflows/ci.yml)
-[![npm](https://img.shields.io/npm/v/@steipete/poltergeist?style=flat-square)](https://registry.npmjs.org/@steipete%2Fpoltergeist/latest)
+[![npm](https://img.shields.io/npm/v/@steipete/poltergeist?style=flat-square)](https://www.npmjs.com/package/@steipete/poltergeist)
 [![Node](https://img.shields.io/node/v/@steipete/poltergeist?style=flat-square)](https://nodejs.org/)
 [![Platforms](https://img.shields.io/badge/platforms-macOS%20%7C%20Linux%20%7C%20Windows-blue?style=flat-square)](https://github.com/steipete/poltergeist/actions/workflows/ci.yml)
 [![License](https://img.shields.io/github/license/steipete/poltergeist?style=flat-square)](LICENSE)
