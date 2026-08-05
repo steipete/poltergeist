@@ -1,7 +1,7 @@
 // Comprehensive tests for CLI commands
 
 import { cloneDeep, mergeWith } from "es-toolkit/object";
-import { existsSync, mkdirSync, rmSync, writeFileSync } from "fs";
+import { existsSync, mkdirSync, mkdtempSync, readdirSync, rmSync, writeFileSync } from "fs";
 import { tmpdir } from "os";
 import { join } from "path";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
@@ -143,7 +143,8 @@ vi.mock("../src/poltergeist.js", () => ({
   ),
 }));
 
-vi.mock("../src/state.js", () => ({
+vi.mock("../src/state.js", async (importOriginal) => ({
+  ...(await importOriginal<typeof import("../src/state.js")>()),
   StateManager: mockStateManager,
 }));
 
@@ -768,94 +769,78 @@ describe("CLI Commands", () => {
   });
 
   describe("clean command", () => {
+    // clean reads the state directory directly, so give each test its own.
+    let cleanStateDir: string;
+
+    beforeEach(() => {
+      cleanStateDir = mkdtempSync(join(tmpdir(), "poltergeist-cli-clean-"));
+      process.env.POLTERGEIST_STATE_DIR = cleanStateDir;
+      // state.js is mocked module-wide, so point the listing at the real directory.
+      mockStateManager.listAllStates = vi.fn(async () =>
+        readdirSync(cleanStateDir).filter((f) => f.endsWith(".state")),
+      );
+    });
+
+    afterEach(() => {
+      delete process.env.POLTERGEIST_STATE_DIR;
+      rmSync(cleanStateDir, { recursive: true, force: true });
+    });
+
+    const writeStateFile = (fileName: string, projectName: string, ageInDays: number) => {
+      writeFileSync(
+        join(cleanStateDir, fileName),
+        JSON.stringify({
+          version: "1.0",
+          projectPath: `/tmp/${projectName}`,
+          projectName,
+          target: fileName.replace(/^.*-([0-9a-f]{8})-/, "").replace(/\.state$/, ""),
+          targetType: "executable",
+          configPath: `/tmp/${projectName}/.poltergeist.json`,
+          process: {
+            pid: 999999,
+            hostname: "test-host",
+            isActive: ageInDays === 0,
+            startTime: new Date(0).toISOString(),
+            lastHeartbeat: new Date(Date.now() - ageInDays * 24 * 60 * 60 * 1000).toISOString(),
+          },
+        }),
+      );
+    };
+
     it("should clean stale state files", async () => {
       createTestConfig();
 
-      // Mock StateManager static method
-      mockStateManager.listAllStates = vi.fn(async () => ["old-state.state", "new-state.state"]);
-
-      // Mock StateManager instances
-      const oldStateManager = {
-        readState: vi.fn().mockResolvedValueOnce({
-          projectName: "old-project",
-          target: "old-target",
-          process: {
-            isActive: false,
-            lastHeartbeat: new Date(Date.now() - 10 * 24 * 60 * 60 * 1000).toISOString(), // 10 days old
-          },
-        }),
-        removeState: vi.fn().mockResolvedValue(undefined),
-      };
-
-      const newStateManager = {
-        readState: vi.fn().mockResolvedValueOnce({
-          projectName: "new-project",
-          target: "new-target",
-          process: {
-            isActive: true,
-            lastHeartbeat: new Date().toISOString(),
-          },
-        }),
-        removeState: vi.fn().mockResolvedValue(undefined),
-      };
-
-      // Mock the StateManager constructor to return different instances
-      mockStateManager
-        .mockImplementationOnce(() => oldStateManager)
-        .mockImplementationOnce(() => newStateManager);
+      writeStateFile("old-project-11111111-old-target.state", "old-project", 10);
+      writeStateFile("new-project-22222222-new-target.state", "new-project", 0);
 
       const result = await runCLI(["clean"]);
-      expect(mockStateManager).toHaveBeenCalled();
-      const _usedStateManager = mockStateManager.mock.results.at(-1)?.value as {
-        removeState?: ReturnType<typeof vi.fn>;
-      };
 
       expect(result.exitCode).toBe(0);
       expect(mockConsoleLog).toHaveBeenCalledWith(
         expect.stringContaining("Cleaning up state files"),
       );
       expect(mockConsoleLog).toHaveBeenCalledWith(expect.stringContaining("Removed"));
+      // The stale file goes, the active one stays.
+      expect(existsSync(join(cleanStateDir, "old-project-11111111-old-target.state"))).toBe(false);
+      expect(existsSync(join(cleanStateDir, "new-project-22222222-new-target.state"))).toBe(true);
     });
 
     it("should support dry-run mode", async () => {
       createTestConfig();
 
-      // Mock some state files
-      mockStateManager.listAllStates = vi.fn(async () => ["test.state"]);
-      mockStateManager.mockImplementationOnce(() => ({
-        readState: vi.fn().mockResolvedValueOnce({
-          projectName: "test-project",
-          target: "test-target",
-          process: {
-            isActive: false,
-            lastHeartbeat: new Date(Date.now() - 10 * 24 * 60 * 60 * 1000).toISOString(),
-          },
-        }),
-        removeState: vi.fn().mockResolvedValue(undefined),
-      }));
+      writeStateFile("test-project-33333333-test-target.state", "test-project", 10);
 
       const result = await runCLI(["clean", "--dry-run"]);
 
       expect(result.exitCode).toBe(0);
       expect(mockConsoleLog).toHaveBeenCalledWith(expect.stringContaining("Would remove"));
+      expect(existsSync(join(cleanStateDir, "test-project-33333333-test-target.state"))).toBe(true);
     });
 
     it("should clean all state files with --all flag", async () => {
       createTestConfig();
 
-      // Mock some state files
-      mockStateManager.listAllStates = vi.fn(async () => ["test.state"]);
-      mockStateManager.mockImplementationOnce(() => ({
-        readState: vi.fn().mockResolvedValueOnce({
-          projectName: "test-project",
-          target: "test-target",
-          process: {
-            isActive: true,
-            lastHeartbeat: new Date().toISOString(),
-          },
-        }),
-        removeState: vi.fn().mockResolvedValue(undefined),
-      }));
+      writeStateFile("test-project-44444444-test-target.state", "test-project", 0);
 
       const result = await runCLI(["clean", "--all", "--dry-run"]);
 
@@ -866,24 +851,12 @@ describe("CLI Commands", () => {
     it("should support custom days threshold", async () => {
       createTestConfig();
 
-      // Mock some state files
-      mockStateManager.listAllStates = vi.fn(async () => ["test.state"]);
-      mockStateManager.mockImplementationOnce(() => ({
-        readState: vi.fn().mockResolvedValueOnce({
-          projectName: "test-project",
-          target: "test-target",
-          process: {
-            isActive: false,
-            lastHeartbeat: new Date(Date.now() - 35 * 24 * 60 * 60 * 1000).toISOString(), // 35 days old
-          },
-        }),
-        removeState: vi.fn().mockResolvedValue(undefined),
-      }));
+      writeStateFile("test-project-55555555-test-target.state", "test-project", 35);
 
       const result = await runCLI(["clean", "--days", "30", "--dry-run"]);
 
       expect(result.exitCode).toBe(0);
-      // Would check for 30 days threshold in real implementation
+      expect(mockConsoleLog).toHaveBeenCalledWith(expect.stringContaining("30+ days"));
     });
   });
 

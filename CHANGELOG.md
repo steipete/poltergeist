@@ -8,6 +8,7 @@
 
 ### Fixed
 
+- Fixed `clean` resolving every state file through a `StateManager` rooted at the current project, so files belonging to other projects were skipped and, when target names collided, the current project's file was removed while the output named a different one.
 - Restored TypeDoc API generation after the legacy documentation prune, repaired stale README links, and documented the TypeScript 6.x compatibility pin pending TypeDoc support for the TypeScript 7 compiler API.
 
 ## [2.1.5] - 2026-08-02

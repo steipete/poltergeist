@@ -1,6 +1,6 @@
 import chalk from "chalk";
 import type { Command } from "commander";
-import { existsSync, writeFileSync } from "fs";
+import { existsSync, readFileSync, unlinkSync, writeFileSync } from "fs";
 import path, { join } from "path";
 import { createLogger } from "../../logger.js";
 import type { AppBundleTarget, PoltergeistConfig, ProjectType, Target } from "../../types.js";
@@ -14,7 +14,6 @@ import {
   generateDefaultConfig,
   guessBundleId,
 } from "../init-helpers.js";
-import { instantiateStateManager } from "../loaders.js";
 import { applyConfigOption } from "../options.js";
 import { exitWithError, loadConfigOrExit } from "../shared.js";
 
@@ -271,7 +270,7 @@ export const registerProjectCommands = (program: Command): void => {
       try {
         console.log(chalk.gray(poltergeistMessage("info", "Cleaning up state files...")));
 
-        const { StateManager } = await import("../../state.js");
+        const { StateManager, isPoltergeistState } = await import("../../state.js");
         const stateFiles = await StateManager.listAllStates();
 
         if (stateFiles.length === 0) {
@@ -279,11 +278,10 @@ export const registerProjectCommands = (program: Command): void => {
           return;
         }
 
-        const logger = createLogger();
         const msPerDay = 24 * 60 * 60 * 1000;
         const daysThreshold = Number.parseInt(options.days, 10);
         const ageThreshold = Date.now() - daysThreshold * msPerDay;
-        const fallbackProjectRoot = FileSystemUtils.findProjectRoot(process.cwd()) || process.cwd();
+        const stateDir = FileSystemUtils.getStateDirectory();
         let removedCount = 0;
         let candidateCount = 0;
         const jsonReport: Array<Record<string, unknown>> = [];
@@ -301,26 +299,22 @@ export const registerProjectCommands = (program: Command): void => {
           return fileName.replace(/\.state$/i, "");
         };
 
-        const readStateForFile = async (
-          manager: any,
-          file: string,
-          targetName: string,
-        ): Promise<any> => {
-          let state = await manager.readState(targetName);
-          if (!state) {
-            const fallbackName = file.replace(/\.state$/i, "");
-            if (fallbackName && fallbackName !== targetName) {
-              state = await manager.readState(fallbackName);
-            }
+        // Read the file being processed directly. Resolving it through a
+        // StateManager rooted at the current project would rebuild the path from
+        // that project root, so every file would resolve to the current
+        // project's state regardless of which file is being cleaned.
+        const readStateForFile = (file: string) => {
+          try {
+            const state: unknown = JSON.parse(readFileSync(join(stateDir, file), "utf-8"));
+            return isPoltergeistState(state) ? state : null;
+          } catch {
+            return null;
           }
-          return state;
         };
-
-        const stateManager = await instantiateStateManager(fallbackProjectRoot, logger);
 
         for (const file of stateFiles) {
           const targetName = deriveTargetName(file);
-          const state = await readStateForFile(stateManager, file, targetName);
+          const state = readStateForFile(file);
 
           if (!state) {
             continue;
@@ -382,8 +376,7 @@ export const registerProjectCommands = (program: Command): void => {
           console.log();
 
           if (!options.dryRun) {
-            const removalKey = state.target || targetName;
-            await stateManager.removeState(removalKey);
+            unlinkSync(join(stateDir, file));
             removedCount++;
           }
 
