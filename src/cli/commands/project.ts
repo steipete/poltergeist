@@ -7,6 +7,7 @@ import type { AppBundleTarget, PoltergeistConfig, ProjectType, Target } from "..
 import { CMakeProjectAnalyzer } from "../../utils/cmake-analyzer.js";
 import { FileSystemUtils } from "../../utils/filesystem.js";
 import { ghost, poltergeistMessage } from "../../utils/ghost.js";
+import { ProcessManager } from "../../utils/process-manager.js";
 import { WatchmanConfigManager } from "../../watchman-config.js";
 import {
   augmentConfigWithDetectedTargets,
@@ -306,7 +307,16 @@ export const registerProjectCommands = (program: Command): void => {
         const readStateForFile = (file: string) => {
           try {
             const state: unknown = JSON.parse(readFileSync(join(stateDir, file), "utf-8"));
-            return isPoltergeistState(state) ? state : null;
+            if (!isPoltergeistState(state)) {
+              return null;
+            }
+            // Refresh liveness from the recorded pid, as StateManager.readState()
+            // does. A process that died without updating its own state file still
+            // has isActive true on disk, and would never be treated as stale.
+            if (state.process.pid !== process.pid) {
+              state.process.isActive = ProcessManager.isProcessAlive(state.process.pid);
+            }
+            return state;
           } catch {
             return null;
           }
@@ -376,8 +386,17 @@ export const registerProjectCommands = (program: Command): void => {
           console.log();
 
           if (!options.dryRun) {
-            unlinkSync(join(stateDir, file));
-            removedCount++;
+            // A concurrent clean, or the owning process shutting down, can remove
+            // the file between the read above and here. That must not abort the
+            // rest of the pass, which is what removeState() used to absorb.
+            try {
+              unlinkSync(join(stateDir, file));
+              removedCount++;
+            } catch (error) {
+              if ((error as NodeJS.ErrnoException).code !== "ENOENT") {
+                throw error;
+              }
+            }
           }
 
           jsonReport.push({
