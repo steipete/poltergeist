@@ -42,7 +42,7 @@ Steps
    - Push formula change (or open tap PR) after assets are live.
 
 5) Commit & tag  
-   - `./scripts/committer "release: v<ver>" …`  
+   - Stage the release files and run `git commit -m "release: v<ver>"`.
    - `git tag v<ver>` and push branch+tag.
 
 6) Publish npm  

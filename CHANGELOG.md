@@ -2,6 +2,8 @@
 
 ## [Unreleased]
 
+- Removed the obsolete scoped-commit helper and allowed standard Git commands in isolated worktrees.
+
 ### Documentation
 
 - Reworked the README around installation, first-run success, and progressive links to focused CLI and configuration guidance.

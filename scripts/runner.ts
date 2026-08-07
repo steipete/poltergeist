@@ -1,7 +1,7 @@
 #!/usr/bin/env bun
 /**
  * Sweetistics runner wrapper: enforces timeouts, git policy, and trash-safe deletes before dispatching any repo command.
- * When you tweak its behavior, add a short note to AGENTS.md via `./scripts/committer "docs: update AGENTS for runner" "AGENTS.md"` so other agents know the new expectations.
+ * When you tweak its behavior, add a short note to AGENTS.md so other agents know the new expectations.
  */
 
 import { type ChildProcess, spawn } from 'node:child_process';
@@ -757,13 +757,6 @@ function enforceGitPolicies(gitContext: GitExecutionContext) {
   if (gitContext.subcommand === 'rebase' && !hasConsentOverride) {
     console.error(
       'git rebase requires the user to explicitly type "rebase" in chat. Once they do, rerun with RUNNER_THE_USER_GAVE_ME_CONSENT=1 in the same command (e.g. RUNNER_THE_USER_GAVE_ME_CONSENT=1 ./runner git rebase --continue).'
-    );
-    process.exit(1);
-  }
-
-  if (evaluation.requiresCommitHelper) {
-    console.error(
-      'Direct git add/commit is disabled. Use ./scripts/committer "chore(runner): describe change" "scripts/runner.ts" instead—see AGENTS.md and ./scripts/committer for details. The helper auto-stashes unrelated files before committing.'
     );
     process.exit(1);
   }

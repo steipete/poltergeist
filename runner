@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Guardrail shim that wraps every command with the Bun runner; when behavior changes, record the note via ./scripts/committer \"docs: update AGENTS for runner\" \"AGENTS.md\" so fellow agents keep pace.
+# Guardrail shim that wraps every command with the Bun runner; when behavior changes, record the note in AGENTS.md so fellow agents keep pace.
 set -euo pipefail
 
 ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
