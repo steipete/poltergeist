@@ -87,7 +87,7 @@
     "oracle": "oracle"
   },
   "dependencies": {
-    "@earendil-works/pi-tui": "^0.83.0",
+    "@earendil-works/pi-tui": "^0.84.1",
     "@logtape/logtape": "^2.3.0",
     "arkregex": "^0.0.8",
     "chalk": "^6.0.0",
@@ -104,20 +104,20 @@
   "devDependencies": {
     "@steipete/oracle": "link:../oracle",
     "@types/fb-watchman": "^2.0.6",
-    "@types/node": "^26.1.2",
+    "@types/node": "^26.2.0",
     "@types/node-notifier": "^8.0.5",
     "@types/write-file-atomic": "^4.0.3",
     "@typescript/native-preview": "7.0.0-dev.20260707.2",
     "@vitest/coverage-v8": "^4.1.10",
     "cross-env": "^10.1.0",
-    "oxfmt": "^0.61.0",
-    "oxlint": "^1.76.0",
-    "postcss": "^8.5.25",
-    "tsx": "^4.23.1",
+    "oxfmt": "^0.62.0",
+    "oxlint": "^1.77.0",
+    "postcss": "^8.5.26",
+    "tsx": "^4.23.11",
     "typedoc": "^0.28.20",
     "typedoc-plugin-mermaid": "^1.12.0",
     "typescript": "^6.0.3",
-    "vite": "^8.2.0",
+    "vite": "^8.2.1",
     "vitest": "^4.1.10"
   },
   "engines": {

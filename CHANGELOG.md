@@ -14,6 +14,10 @@
 - Waited for captured build logs to flush before reporting build completion so immediate readers do not observe empty or truncated files.
 - Restored TypeDoc API generation after the legacy documentation prune, repaired stale README links, and documented the TypeScript 6.x compatibility pin pending TypeDoc support for the TypeScript 7 compiler API.
 
+### Maintenance
+
+- Updated compatible runtime and development dependencies, including pi-tui, Node.js types, Oxfmt, Oxlint, PostCSS, tsx, and Vite.
+
 ## [2.1.5] - 2026-08-02
 
 ### Fixed

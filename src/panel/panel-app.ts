@@ -8,7 +8,7 @@ import {
   ProcessTerminal,
   Spacer,
   Text,
-  TUI,
+  TuiMainScreen,
 } from "@earendil-works/pi-tui";
 import wrapAnsi from "wrap-ansi";
 
@@ -190,7 +190,7 @@ export class PanelApp {
   private readonly controller: StatusPanelController;
   private readonly logger: Logger;
   private readonly terminal = new ProcessTerminal();
-  private readonly tui = new TUI(this.terminal);
+  private readonly tui = new TuiMainScreen(this.terminal);
   private readonly inputBridge = new InputBridge((input) => {
     this.handleInput(input);
   });
