@@ -179,6 +179,16 @@ export abstract class BaseBuilder<T extends Target = Target> {
       const throttleMs = 300;
       let testCurrent = 0;
       let testTotal = 0;
+      const finishLogStream = async (): Promise<void> => {
+        const stream = logStream;
+        logStream = null;
+        if (!stream) return;
+
+        await new Promise<void>((resolve) => {
+          stream.once("error", resolve);
+          stream.end(resolve);
+        });
+      };
       const updateProgress = (progress: BuildProgress) => {
         const now = Date.now();
         if (progress.percent === lastProgressPercent && now - lastProgressUpdate < throttleMs) {
@@ -327,9 +337,7 @@ export abstract class BaseBuilder<T extends Target = Target> {
       }
 
       this.currentProcess.on("close", async (code) => {
-        if (logStream) {
-          logStream.end();
-        }
+        await finishLogStream();
         this.currentProcess = undefined;
 
         if (code === 0) {
@@ -362,9 +370,7 @@ export abstract class BaseBuilder<T extends Target = Target> {
       });
 
       this.currentProcess.on("error", async (error) => {
-        if (logStream) {
-          logStream.end();
-        }
+        await finishLogStream();
         this.currentProcess = undefined;
 
         // Store error context
