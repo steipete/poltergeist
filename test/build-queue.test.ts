@@ -214,6 +214,52 @@ describe("IntelligentBuildQueue", () => {
       completeBackend();
     });
 
+    it("should serialize CMake targets that share a build tree", async () => {
+      const cmakeApp: Target = {
+        name: "cmake-app",
+        type: "cmake-executable",
+        targetName: "cmake-app",
+        watchPaths: ["src/**/*.cpp"],
+      };
+      const cmakeLibrary: Target = {
+        name: "cmake-library",
+        type: "cmake-library",
+        targetName: "cmake-library",
+        libraryType: "static",
+        watchPaths: ["src/**/*.cpp"],
+      };
+
+      const app = createControllableMockBuilder(cmakeApp.name);
+      const library = createControllableMockBuilder(cmakeLibrary.name);
+      const frontend = createControllableMockBuilder(targets[0].name);
+
+      buildQueue.registerTarget(cmakeApp, app.builder);
+      buildQueue.registerTarget(cmakeLibrary, library.builder);
+      buildQueue.registerTarget(targets[0], frontend.builder);
+
+      await buildQueue.queueTargetBuild(cmakeApp);
+      await buildQueue.queueTargetBuild(cmakeLibrary);
+      await buildQueue.queueTargetBuild(targets[0]);
+
+      expect(buildQueue.getQueueStatus()).toMatchObject({
+        running: expect.arrayContaining([
+          expect.objectContaining({ target: "cmake-app" }),
+          expect.objectContaining({ target: "frontend" }),
+        ]),
+        pending: [expect.objectContaining({ target: "cmake-library" })],
+      });
+
+      app.complete();
+      await waitForAsync();
+
+      expect(buildQueue.getQueueStatus().running).toEqual(
+        expect.arrayContaining([expect.objectContaining({ target: "cmake-library" })]),
+      );
+
+      library.complete();
+      frontend.complete();
+    });
+
     it("should process builds in priority order", async () => {
       const frontendBuilder = createMockBuilder("frontend");
       const backendBuilder = createMockBuilder("backend");

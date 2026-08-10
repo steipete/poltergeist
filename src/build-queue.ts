@@ -194,11 +194,30 @@ export class IntelligentBuildQueue {
    */
   private processQueue(): void {
     while (this.pendingQueue.length > 0 && this.runningBuilds.size < this.config.parallelization) {
-      const request = this.pendingQueue.shift();
-      if (request) {
-        this.startBuild(request);
-      }
+      const requestIndex = this.pendingQueue.findIndex((request) => this.canStartBuild(request));
+      if (requestIndex === -1) break;
+
+      const [request] = this.pendingQueue.splice(requestIndex, 1);
+      this.startBuild(request);
     }
+  }
+
+  private canStartBuild(request: QueuedBuild): boolean {
+    if (!this.isCMakeTarget(request.target)) return true;
+
+    // Every CMake target in a project writes through the same generated build tree.
+    // Separate cmake --build processes can otherwise corrupt shared outputs.
+    return !Array.from(this.runningBuilds.values()).some((build) =>
+      this.isCMakeTarget(build.request.target),
+    );
+  }
+
+  private isCMakeTarget(target: Target): boolean {
+    return (
+      target.type === "cmake-executable" ||
+      target.type === "cmake-library" ||
+      target.type === "cmake-custom"
+    );
   }
 
   /**

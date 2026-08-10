@@ -2,6 +2,10 @@
 
 ## [Unreleased]
 
+### Fixed
+
+- Serialized CMake targets that share a generated build tree so concurrent builds no longer corrupt common outputs.
+
 ## [2.1.6] - 2026-08-08
 
 - Removed the obsolete scoped-commit helper and allowed standard Git commands in isolated worktrees.
