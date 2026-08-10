@@ -1,6 +1,6 @@
 // Tests for polter's generic lock detection behavior
 
-import { mkdirSync, rmSync, writeFileSync } from "fs";
+import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from "fs";
 import { tmpdir } from "os";
 import { join } from "path";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
@@ -12,7 +12,7 @@ describe("Polter Generic Lock Detection", () => {
   let projectRoot: string;
 
   beforeEach(() => {
-    testDir = join(tmpdir(), `poltergeist-test-${Date.now()}`);
+    testDir = mkdtempSync(join(tmpdir(), "poltergeist-test-"));
     projectRoot = join(testDir, "test-project");
     mkdirSync(projectRoot, { recursive: true });
     process.env.POLTERGEIST_STATE_DIR = join(testDir, "state");
