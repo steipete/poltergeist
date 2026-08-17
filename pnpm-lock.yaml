@@ -13,7 +13,7 @@ importers:
     dependencies:
       '@earendil-works/pi-tui':
         specifier: ^0.84.1
-        version: 0.84.1
+        version: 0.84.2
       '@logtape/logtape':
         specifier: ^2.3.1
         version: 2.3.1
@@ -129,8 +129,8 @@ packages:
     resolution: {integrity: sha512-6zABk/ECA/QYSCQ1NGiVwwbQerUCZ+TQbp64Q3AgmfNvurHH0j8TtXa1qbShXA6qqkpAj4V5W8pP6mLe1mcMqA==}
     engines: {node: '>=18'}
 
-  '@earendil-works/pi-tui@0.84.1':
-    resolution: {integrity: sha512-udeXFbgEhJ6JiB0uguwNVNkDy2FENfmtQwPcY+/iJ8GWeq18wkal1tKqa5YyeH0IqtX1vG0cGh8zfSYzyzVuLA==}
+  '@earendil-works/pi-tui@0.84.2':
+    resolution: {integrity: sha512-ds2TLihOnM5sLJB3VpXV6y0uR5efVuHf4MN7yDpsty6hA2DUO/EDVzjp/0od0G2JslzVLMjT8T8zavtxVb+qbg==}
     engines: {node: '>=22.19.0'}
 
   '@epic-web/invariant@1.0.0':
@@ -1385,7 +1385,7 @@ snapshots:
 
   '@bcoe/v8-coverage@1.0.2': {}
 
-  '@earendil-works/pi-tui@0.84.1':
+  '@earendil-works/pi-tui@0.84.2':
     dependencies:
       get-east-asian-width: 1.6.0
       marked: 18.0.5
