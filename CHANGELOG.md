@@ -8,6 +8,9 @@
 
 ### Maintenance
 
+- Updated compatible CLI and example dependencies, pnpm, and the UUID override while retaining TypeScript 6 for TypeDoc compatibility.
+- Removed stale Swift package pins from the macOS app, which no longer declares external packages.
+- Removed package-manager and TypeScript loader startup from CLI smoke-test timing to avoid cold-start timeouts.
 - Updated LogTape, Oxfmt, Oxlint, tsx, and their compatible transitive dependencies.
 
 ## [2.1.6] - 2026-08-08

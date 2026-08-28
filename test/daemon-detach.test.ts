@@ -40,9 +40,10 @@ describe("daemon start detaches promptly", () => {
   it("haunt/start exits within a couple seconds", () => {
     const startedAt = Date.now();
 
+    // Measure daemon detachment, not package-manager and TypeScript loader startup.
     const result = spawnSync(
-      "pnpm",
-      ["exec", "tsx", "src/cli.ts", "haunt", "--config", configPath],
+      process.execPath,
+      [join(process.cwd(), "dist", "cli.js"), "haunt", "--config", configPath],
       {
         cwd: process.cwd(),
         env: { ...process.env, POLTERGEIST_TEST_MODE: "true" },
