@@ -87,41 +87,41 @@
     "oracle": "oracle"
   },
   "dependencies": {
-    "@earendil-works/pi-tui": "^0.84.1",
-    "@logtape/logtape": "^2.3.1",
+    "@earendil-works/pi-tui": "^0.84.3",
+    "@logtape/logtape": "^2.3.2",
     "arkregex": "^0.0.8",
     "chalk": "^6.0.0",
     "commander": "^15.0.0",
-    "es-toolkit": "^1.50.0",
+    "es-toolkit": "^1.51.0",
     "fb-watchman": "^2.0.2",
     "glob": "^13.0.6",
     "node-notifier": "^10.0.1",
     "ora": "^9.4.1",
-    "wrap-ansi": "^10.0.0",
+    "wrap-ansi": "^10.0.1",
     "write-file-atomic": "^8.0.0",
     "zod": "^4.4.3"
   },
   "devDependencies": {
     "@steipete/oracle": "link:../oracle",
     "@types/fb-watchman": "^2.0.6",
-    "@types/node": "^26.2.0",
+    "@types/node": "^26.4.0",
     "@types/node-notifier": "^8.0.5",
     "@types/write-file-atomic": "^4.0.3",
     "@typescript/native-preview": "7.0.0-dev.20260707.2",
-    "@vitest/coverage-v8": "^4.1.10",
+    "@vitest/coverage-v8": "^4.1.11",
     "cross-env": "^10.1.0",
-    "oxfmt": "^0.63.0",
-    "oxlint": "^1.78.0",
+    "oxfmt": "^0.65.0",
+    "oxlint": "^1.80.0",
     "postcss": "^8.5.26",
     "tsx": "^4.23.12",
     "typedoc": "^0.28.20",
     "typedoc-plugin-mermaid": "^1.12.0",
     "typescript": "^6.0.3",
-    "vite": "^8.2.1",
-    "vitest": "^4.1.10"
+    "vite": "^8.2.2",
+    "vitest": "^4.1.11"
   },
   "engines": {
     "node": ">=24.0.0"
   },
-  "packageManager": "pnpm@11.21.0"
+  "packageManager": "pnpm@11.24.0"
 }

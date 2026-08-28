@@ -29,14 +29,10 @@ describe("Poltergeist Wrapper Script", () => {
     exitCode: number;
   }> {
     return new Promise((resolve, reject) => {
-      // Use platform-specific command
-      const isWindows = process.platform === "win32";
-      const npxCmd = isWindows ? "npx.cmd" : "npx";
-
-      const child = spawn(npxCmd, ["tsx", wrapperScript, ...args], {
+      // Node 24 can run this wrapper directly without a cold tsx startup.
+      const child = spawn(process.execPath, [wrapperScript, ...args], {
         stdio: "pipe",
         timeout,
-        shell: isWindows, // Use shell on Windows
       });
 
       let stdout = "";
@@ -51,6 +47,7 @@ describe("Poltergeist Wrapper Script", () => {
       });
 
       child.on("close", (code) => {
+        clearTimeout(timeoutId);
         resolve({
           stdout: stdout.trim(),
           stderr: stderr.trim(),
@@ -59,13 +56,14 @@ describe("Poltergeist Wrapper Script", () => {
       });
 
       child.on("error", (error) => {
+        clearTimeout(timeoutId);
         reject(error);
       });
 
       // Set timeout. Under CI (especially ubuntu + Node 24) the wrapper can start
       // a bit slower; allow extra headroom so the help test doesn’t flake.
       const maxTimeout = process.env.CI ? Math.max(timeout, 15000) : timeout;
-      setTimeout(() => {
+      const timeoutId = setTimeout(() => {
         child.kill("SIGTERM");
         reject(new Error(`Wrapper script timed out after ${maxTimeout}ms`));
       }, maxTimeout);

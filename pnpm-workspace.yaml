@@ -1,4 +1,4 @@
 allowBuilds:
   esbuild: false
 overrides:
-  uuid@<14.0.0: 14.0.0
+  uuid@<14.0.2: 14.0.2
