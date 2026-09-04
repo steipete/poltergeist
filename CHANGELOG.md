@@ -8,6 +8,8 @@
 
 ### Maintenance
 
+- Updated es-toolkit, pi-tui, Zod, Node.js types, Oxfmt, Oxlint, tsx, and pnpm; aligned contributor setup with Node.js 24 and pnpm. Thanks @dependabot for the es-toolkit update.
+- Made the no-target daemon integration tests own and stop a real foreground daemon, isolate their state, and verify hot reload produces a build artifact.
 - Updated compatible CLI and example dependencies, pnpm, and the UUID override while retaining TypeScript 6 for TypeDoc compatibility.
 - Removed stale Swift package pins from the macOS app, which no longer declares external packages.
 - Removed package-manager and TypeScript loader startup from CLI smoke-test timing to avoid cold-start timeouts.

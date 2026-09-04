@@ -6,7 +6,7 @@ Thank you for your interest in contributing to Poltergeist! This guide covers bo
 
 ### Prerequisites
 
-- **Node.js 22+** for CLI development
+- **Node.js 24+** and **pnpm 11** for CLI development
 - **Xcode 15+** with Command Line Tools for macOS app development
 - **Watchman** installed (`brew install watchman`)
 - **SwiftLint** and **swift-format** for Swift code quality (`brew install swiftlint swift-format`)
@@ -19,13 +19,13 @@ git clone https://github.com/steipete/poltergeist.git
 cd poltergeist
 
 # Install CLI dependencies
-npm install
+pnpm install
 
 # Build CLI
-npm run build
+pnpm run build
 
 # Verify setup
-npm test
+pnpm test
 ```
 
 For macOS app development:
@@ -64,11 +64,11 @@ Before submitting any PR, ensure all quality checks pass:
 
 #### CLI/Node.js Checks
 ```bash
-npm run build           # TypeScript compilation
-npm test               # Test suite
-npm run lint           # Biome linting
-npm run typecheck      # Type validation
-npm run format:check   # Code formatting
+pnpm run build         # TypeScript compilation
+pnpm test              # Test suite
+pnpm run lint          # Oxfmt formatting and Oxlint linting
+pnpm run typecheck     # Type validation
+pnpm run format:check  # Code formatting
 ```
 
 #### macOS App Checks
@@ -182,7 +182,7 @@ Types: `feat`, `fix`, `refactor`, `test`, `docs`, `ci`, `chore`
 3. **Quality Checks**
    ```bash
    # CLI checks
-   npm run build && npm test && npm run lint && npm run typecheck
+   pnpm run build && pnpm test --run && pnpm run lint && pnpm run typecheck
    
    # macOS app checks (if applicable)
    cd apps/mac && ./scripts/lint.sh && ./scripts/format.sh
@@ -211,13 +211,13 @@ Types: `feat`, `fix`, `refactor`, `test`, `docs`, `ci`, `chore`
 
 ```bash
 # Run specific test files
-npm test -- priority-engine.test.ts
+pnpm test --run priority-engine.test.ts
 
 # Run with coverage
-npm test -- --coverage
+pnpm run test:coverage
 
 # Watch mode for development
-npm test -- --watch
+pnpm test --watch
 ```
 
 ### macOS App Testing
@@ -293,9 +293,9 @@ log stream --predicate 'subsystem BEGINSWITH "com.poltergeist"'
 Our CI/CD pipeline automatically validates all contributions:
 
 ### Automated Checks
-- **Multi-platform testing**: Node.js 22/24 on Ubuntu and macOS
+- **Multi-platform testing**: Node.js 24 on Ubuntu, macOS, and Windows
 - **Swift 6 compilation**: Strict concurrency and type checking
-- **Code quality**: SwiftLint, swift-format, Biome, TypeScript validation
+- **Code quality**: SwiftLint, swift-format, Oxfmt, Oxlint, TypeScript validation
 - **Test coverage**: Comprehensive coverage reporting
 - **Security scanning**: Dependency vulnerability checks
 
