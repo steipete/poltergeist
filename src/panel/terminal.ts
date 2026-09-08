@@ -1,3 +1,4 @@
+import { execFileSync } from "node:child_process";
 import {
   closeSync,
   constants,
@@ -22,6 +23,18 @@ export function createPanelTui(terminal: Terminal, logDirectory: string): TuiMai
   return tui;
 }
 
+function rejectDarwinAcl(path: string): void {
+  if (process.platform !== "darwin") return;
+  // Unlike POSIX ACL masks, Darwin ACL grants can bypass the mode bits.
+  const listing = execFileSync("/bin/ls", ["-lde", path], {
+    encoding: "utf8",
+    env: { ...process.env, LC_ALL: "C" },
+  });
+  if (/^\s*\d+: /m.test(listing)) {
+    throw new Error(`Panel log path has an extended ACL; move it aside before starting: ${path}`);
+  }
+}
+
 // pi-tui writes these paths itself, so secure them before starting the renderer.
 export function preparePanelLogs(directory: string): void {
   if (process.platform === "win32") {
@@ -40,6 +53,7 @@ export function preparePanelLogs(directory: string): void {
       `Panel log directory must be owned by the current user and not a symlink: ${directory}`,
     );
   }
+  rejectDarwinAcl(directory);
   if (process.platform !== "win32") {
     const fd = openSync(
       directory,
@@ -74,6 +88,7 @@ export function preparePanelLogs(directory: string): void {
       if (!stat.isFile() || stat.nlink !== 1 || (uid !== undefined && stat.uid !== uid)) {
         throw new Error(`Panel log must be a regular file owned by the current user: ${file}`);
       }
+      rejectDarwinAcl(file);
       // chmod cannot revoke descriptors another user opened before startup.
       if (process.platform !== "win32" && (stat.mode & 0o077) !== 0) {
         throw new Error(

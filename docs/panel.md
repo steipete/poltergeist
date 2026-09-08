@@ -73,7 +73,7 @@ Behavior:
 ## Terminal settings and diagnostics
 - `PI_HARDWARE_CURSOR=1` enables the hardware cursor when a component supplies a cursor position.
 - `PI_CLEAR_ON_SHRINK=1` clears trailing content when a panel frame becomes shorter. Both settings remain disabled when unset or set to any value other than `1`.
-- Renderer crash diagnostics are stored in `~/.poltergeist-panel/pi-tui-crash.log`. The directory and files are restricted to the current user (0700/0600 on POSIX; an explicit current-user-only ACL on Windows); unsafe existing paths stop panel startup instead of falling back to shared temporary storage. Crash dumps can include displayed build logs, so inspect them before sharing.
+- Renderer crash diagnostics are stored in `~/.poltergeist-panel/pi-tui-crash.log`. The directory and files are restricted to the current user (0700/0600 on POSIX; an explicit current-user-only ACL on Windows); unsafe existing paths, including macOS paths with extended ACLs, stop panel startup instead of falling back to shared temporary storage. Crash dumps can include displayed build logs, so inspect them before sharing.
 - `PI_TUI_DEBUG_REDRAW=1` records renderer redraw diagnostics in the same private directory.
 
 ## Troubleshooting

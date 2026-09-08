@@ -47,6 +47,21 @@ describe("panel terminal compatibility", () => {
 });
 
 describe("private panel logs", () => {
+  it.skipIf(process.platform !== "darwin").each(["directory", "file"])(
+    "rejects a Darwin %s ACL even when mode bits are private",
+    (kind) => {
+      const { directory } = fixture();
+      preparePanelLogs(directory);
+      const path = kind === "directory" ? directory : join(directory, "pi-tui-crash.log");
+      execFileSync("/bin/chmod", [
+        "+a",
+        "everyone allow read,readattr,readextattr,readsecurity",
+        path,
+      ]);
+      expect(lstatSync(path).mode & 0o777).toBe(kind === "directory" ? 0o700 : 0o600);
+      expect(() => preparePanelLogs(directory)).toThrow("extended ACL");
+    },
+  );
   it.skipIf(process.platform !== "win32")(
     "creates private Windows ACLs and rejects previously permissive paths",
     () => {
