@@ -1,5 +1,7 @@
 # Changelog
 
+## [Unreleased]
+
 ## [2.1.7] - 2026-09-07
 
 **Highlights:** Configuration edits reliably update executable builds and auto-run restarts, including overlapping saves and delayed shutdowns.
