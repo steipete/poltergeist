@@ -453,6 +453,22 @@ describe("artifact-owned restarts", () => {
     await runner.stop();
   });
 
+  it("waits through timer-sized chunks for a long restart delay", async () => {
+    const { runner, children } = setup();
+    await runner.onBuildSuccess(target("A"));
+    const b = target("B");
+    b.autoRun!.restartDelayMs = 2_147_483_648;
+    await runner.updateTarget(b);
+    await runner.onBuildSuccess(b);
+    await vi.advanceTimersByTimeAsync(1);
+    expect(children[0].kill).not.toHaveBeenCalled();
+    await vi.advanceTimersByTimeAsync(2_147_483_646);
+    expect(children[0].kill).not.toHaveBeenCalled();
+    await vi.advanceTimersByTimeAsync(1);
+    expect(vi.mocked(spawn).mock.calls.map(([command]) => command)).toEqual(["run-A", "run-B"]);
+    await runner.stop();
+  });
+
   it("does not strand a build success arriving as a restart finishes", async () => {
     const { runner } = setup();
     const createChild = vi.mocked(spawn).getMockImplementation()!;

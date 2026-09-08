@@ -13,6 +13,8 @@ interface PendingLaunch {
   readyAt: number;
 }
 
+const MAX_TIMER_DELAY_MS = 2_147_483_647;
+
 export class ExecutableRunner {
   private child: ChildProcess | null = null;
   private pendingLaunch?: PendingLaunch;
@@ -83,7 +85,11 @@ export class ExecutableRunner {
 
   private scheduleRestart(): void {
     if (!this.pendingLaunch) return;
-    const restartDelay = Math.max(0, this.pendingLaunch.readyAt - performance.now());
+    // Node turns larger timeouts into 1 ms timers; preserve long delays in bounded chunks.
+    const restartDelay = Math.min(
+      MAX_TIMER_DELAY_MS,
+      Math.max(0, this.pendingLaunch.readyAt - performance.now()),
+    );
     if (restartDelay === 0) {
       void this.performRestart();
       return;
@@ -97,6 +103,10 @@ export class ExecutableRunner {
     this.restartTimer = null;
     const pending = this.pendingLaunch;
     if (!pending || this.restarting) return;
+    if (pending.readyAt > performance.now()) {
+      this.scheduleRestart();
+      return;
+    }
     this.restarting = true;
     try {
       await this.stopChild((pending.target.autoRun?.restartSignal as NodeJS.Signals) ?? "SIGINT");
