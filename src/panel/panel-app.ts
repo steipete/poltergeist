@@ -8,7 +8,6 @@ import {
   ProcessTerminal,
   Spacer,
   Text,
-  TuiMainScreen,
 } from "@earendil-works/pi-tui";
 import wrapAnsi from "wrap-ansi";
 
@@ -36,6 +35,7 @@ import {
   splitStatusScripts,
 } from "./render-utils.js";
 import { buildTargetRows, type TargetRow } from "./target-tree.js";
+import { createPanelTui, getPanelLogDirectory, preparePanelLogs } from "./terminal.js";
 import { limitSummaryLines } from "./text-utils.js";
 import type { PanelSnapshot, TargetPanelEntry } from "./types.js";
 import { buildPanelViewState, type PanelViewState } from "./view-state.js";
@@ -190,7 +190,8 @@ export class PanelApp {
   private readonly controller: StatusPanelController;
   private readonly logger: Logger;
   private readonly terminal = new ProcessTerminal();
-  private readonly tui = new TuiMainScreen(this.terminal);
+  private readonly logDirectory = getPanelLogDirectory();
+  private readonly tui = createPanelTui(this.terminal, this.logDirectory);
   private readonly inputBridge = new InputBridge((input) => {
     this.handleInput(input);
   });
@@ -273,6 +274,8 @@ export class PanelApp {
     if (this.exitPromise) {
       return this.exitPromise;
     }
+
+    preparePanelLogs(this.logDirectory);
 
     this.exitPromise = new Promise((resolve) => {
       this.exitResolver = resolve;
