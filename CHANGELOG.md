@@ -1,12 +1,13 @@
 # Changelog
 
-## [Unreleased]
+## [2.1.7] - 2026-09-07
 
 **Highlights:** Configuration edits reliably update executable builds and auto-run restarts, including overlapping saves and delayed shutdowns.
 
 - Fixed executable configuration reloads retaining old build commands, environment, output paths, and auto-run settings; each successful artifact now retains its launch settings through queued restarts. Thanks @devYRPauli for the original report and reproductions.
 - Serialized configuration reloads and preserved the configuration watch across target refreshes so rapid or repeated edits keep the latest subscriptions.
 - Kept scheduled retries on the latest target definition, replaced specialized builders when target types change, and preserved each completed build's output description.
+- Hardened panel crash diagnostics with private per-user storage and preserved hardware-cursor and clear-on-shrink settings while upgrading pi-tui to 0.85.1. Thanks @dependabot.
 - Serialized CMake targets sharing a generated build tree to prevent concurrent builds from corrupting common outputs.
 - Fixed forced termination of auto-run children that ignore graceful shutdown signals.
 - Updated compatible runtime and development dependencies, including LogTape, PostCSS, es-toolkit, pi-tui, Zod, Node.js types, Oxfmt, Oxlint, and tsx; refreshed pnpm and the UUID override. Thanks @dependabot.
