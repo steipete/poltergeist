@@ -87,7 +87,7 @@
     "oracle": "oracle"
   },
   "dependencies": {
-    "@earendil-works/pi-tui": "^0.84.4",
+    "@earendil-works/pi-tui": "^0.85.1",
     "@logtape/logtape": "^2.3.3",
     "arkregex": "^0.0.8",
     "chalk": "^6.0.0",
