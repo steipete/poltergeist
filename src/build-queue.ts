@@ -1,6 +1,7 @@
 // Intelligent Build Queue with Priority Management
 
 import type { BaseBuilder } from "./builders/index.js";
+import { outputForBuild } from "./core/build-context.js";
 import type { Logger } from "./logger.js";
 import type { BuildNotifier } from "./notifier.js";
 import type { PriorityEngine } from "./priority-engine.js";
@@ -10,6 +11,7 @@ import { FileSystemUtils } from "./utils/filesystem.js";
 
 interface QueuedBuild extends BuildRequest {
   builder: BaseBuilder;
+  registration: symbol;
   startTime?: number;
   retryCount: number;
 }
@@ -34,6 +36,7 @@ export class IntelligentBuildQueue {
   private pendingChangeFiles: Map<string, string[]> = new Map();
   private targetBuilders: Map<string, BaseBuilder> = new Map();
   private targets: Map<string, Target> = new Map();
+  private registrationIds = new Map<string, symbol>();
 
   // Statistics
   private queueStats = {
@@ -62,9 +65,27 @@ export class IntelligentBuildQueue {
    * Register a target with its builder
    */
   public registerTarget(target: Target, builder: BaseBuilder): void {
+    if (!this.registrationIds.has(target.name)) {
+      this.registrationIds.set(target.name, Symbol(target.name));
+    }
     this.targetBuilders.set(target.name, builder);
     this.targets.set(target.name, target);
+    for (const request of this.pendingQueue) {
+      if (request.target.name === target.name) {
+        request.target = target;
+        request.builder = builder;
+      }
+    }
     this.logger.debug(`Registered target: ${target.name}`);
+  }
+
+  public unregisterTarget(name: string): void {
+    this.cancelPendingBuilds(name);
+    this.pendingRebuilds.delete(name);
+    this.pendingChangeFiles.delete(name);
+    this.targetBuilders.delete(name);
+    this.targets.delete(name);
+    this.registrationIds.delete(name);
   }
 
   /**
@@ -175,6 +196,7 @@ export class IntelligentBuildQueue {
         triggeringFiles,
         id: this.generateRequestId(),
         builder,
+        registration: this.registrationIds.get(targetName)!,
         retryCount: 0,
       };
 
@@ -330,7 +352,7 @@ export class IntelligentBuildQueue {
           // eslint-disable-next-line no-console
           console.log("notify success", targetName, result);
         }
-        const outputInfo = builder?.getOutputInfo();
+        const outputInfo = outputForBuild(result, () => builder?.getOutputInfo());
         const message = BuildStatusManager.formatNotificationMessage(result, outputInfo);
         if (process.env.DEBUG_WAITS) {
           // eslint-disable-next-line no-console
@@ -517,9 +539,18 @@ export class IntelligentBuildQueue {
       `Retrying ${target.name} (attempt ${attemptNumber}/${maxRetries}) in ${delay}ms due to failure${errorMessage ? `: ${errorMessage}` : ""}`,
     );
 
+    const registration = request.registration;
     setTimeout(() => {
+      // Updates retain identity; removing and re-adding a name starts a new lifetime.
+      if (this.registrationIds.get(target.name) !== registration) return;
+      const currentTarget = this.targets.get(target.name);
+      const currentBuilder = this.targetBuilders.get(target.name);
+      if (!currentTarget || !currentBuilder || (currentTarget.maxRetries ?? 0) < attemptNumber)
+        return;
       const retryRequest: QueuedBuild = {
         ...request,
+        target: currentTarget,
+        builder: currentBuilder,
         id: this.generateRequestId(),
         timestamp: Date.now(),
         retryCount: attemptNumber,

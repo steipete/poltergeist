@@ -8,37 +8,54 @@ export interface ExecutableRunnerOptions {
   logger: Logger;
 }
 
+interface PendingLaunch {
+  target: ExecutableTarget;
+  readyAt: number;
+}
+
+const MAX_TIMER_DELAY_MS = 2_147_483_647;
+
 export class ExecutableRunner {
   private child: ChildProcess | null = null;
-  private pendingRestart = false;
+  private pendingLaunch?: PendingLaunch;
+  private restarting = false;
   private restartTimer: NodeJS.Timeout | null = null;
-  private readonly restartSignal: NodeJS.Signals;
-  private readonly restartDelay: number;
-  private readonly args: string[];
-  private readonly env?: Record<string, string>;
-  private readonly customCommand?: string;
   private shuttingDown = false;
 
   constructor(
-    private readonly target: ExecutableTarget,
+    private target: ExecutableTarget,
     private readonly options: ExecutableRunnerOptions,
-  ) {
-    const cfg = target.autoRun ?? {};
-    const restartSignal = cfg.restartSignal as NodeJS.Signals | undefined;
-    this.restartSignal = restartSignal ?? "SIGINT";
-    this.restartDelay = Math.max(0, cfg.restartDelayMs ?? 250);
-    this.args = Array.isArray(cfg.args) ? cfg.args : [];
-    this.env = cfg.env;
-    this.customCommand = cfg.command;
+  ) {}
+
+  public async updateTarget(target: ExecutableTarget): Promise<void> {
+    this.target = target;
+    if (!target.autoRun?.enabled) {
+      this.cancelPendingLaunch();
+      await this.stopChild("SIGTERM");
+    }
   }
 
-  public async onBuildSuccess(): Promise<void> {
-    if (!this.target.autoRun?.enabled) {
+  public async onBuildSuccess(builtTarget = this.target): Promise<void> {
+    if (!this.target.autoRun?.enabled || !builtTarget.autoRun?.enabled || this.shuttingDown) {
       return;
     }
-    if (!this.child) {
-      await this.launch("initial-success");
+    if (!this.child && !this.restarting && !this.pendingLaunch) {
+      this.launch("initial-success", builtTarget);
       return;
+    }
+    // Keep ordinary rebuild coalescing, but give each new configuration its own deadline.
+    const previous = this.pendingLaunch;
+    this.pendingLaunch = {
+      target: builtTarget,
+      readyAt:
+        previous?.target === builtTarget
+          ? previous.readyAt
+          : performance.now() + Math.max(0, builtTarget.autoRun?.restartDelayMs ?? 250),
+    };
+    if (this.restarting) return;
+    if (this.restartTimer) {
+      clearTimeout(this.restartTimer);
+      this.restartTimer = null;
     }
     this.scheduleRestart();
   }
@@ -53,42 +70,65 @@ export class ExecutableRunner {
   }
 
   public async stop(): Promise<void> {
+    this.shuttingDown = true;
+    this.cancelPendingLaunch();
+    await this.stopChild("SIGTERM");
+  }
+
+  private cancelPendingLaunch(): void {
     if (this.restartTimer) {
       clearTimeout(this.restartTimer);
       this.restartTimer = null;
     }
-    this.pendingRestart = false;
-    this.shuttingDown = true;
-    await this.stopChild("SIGTERM");
+    this.pendingLaunch = undefined;
   }
 
   private scheduleRestart(): void {
-    if (this.pendingRestart) {
-      return;
-    }
-    this.pendingRestart = true;
-    if (this.restartDelay === 0) {
+    if (!this.pendingLaunch) return;
+    // Node turns larger timeouts into 1 ms timers; preserve long delays in bounded chunks.
+    const restartDelay = Math.min(
+      MAX_TIMER_DELAY_MS,
+      Math.max(0, this.pendingLaunch.readyAt - performance.now()),
+    );
+    if (restartDelay === 0) {
       void this.performRestart();
       return;
     }
     this.restartTimer = setTimeout(() => {
       void this.performRestart();
-    }, this.restartDelay);
+    }, restartDelay);
   }
 
   private async performRestart(): Promise<void> {
-    this.pendingRestart = false;
     this.restartTimer = null;
-    await this.stopChild(this.restartSignal);
-    await this.launch("rebuild");
+    const pending = this.pendingLaunch;
+    if (!pending || this.restarting) return;
+    if (pending.readyAt > performance.now()) {
+      this.scheduleRestart();
+      return;
+    }
+    this.restarting = true;
+    try {
+      await this.stopChild((pending.target.autoRun?.restartSignal as NodeJS.Signals) ?? "SIGINT");
+    } finally {
+      this.restarting = false;
+    }
+    const latest = this.pendingLaunch;
+    if (!latest) return;
+    if (latest.readyAt > performance.now()) {
+      this.scheduleRestart();
+      return;
+    }
+    this.pendingLaunch = undefined;
+    this.launch("rebuild", latest.target);
   }
 
-  private async launch(reason: string): Promise<void> {
+  private launch(reason: string, target: ExecutableTarget): void {
     if (!this.target.autoRun?.enabled || this.shuttingDown) {
       return;
     }
     try {
-      const launchInfo = this.resolveLaunchInfo();
+      const launchInfo = this.resolveLaunchInfo(target);
       this.options.logger.info(
         `[${this.target.name}] Auto-run starting (${reason}) · ${launchInfo.command} ${launchInfo.commandArgs.join(" ")}`,
       );
@@ -96,16 +136,12 @@ export class ExecutableRunner {
       this.child = spawn(launchInfo.command, launchInfo.commandArgs, {
         cwd: this.options.projectRoot,
         stdio: "inherit",
-        env: this.env ? { ...process.env, ...this.env } : process.env,
+        env: target.autoRun?.env ? { ...process.env, ...target.autoRun.env } : process.env,
       });
 
-      this.child.on("exit", (code, signal) => {
-        if (this.restartTimer) {
-          clearTimeout(this.restartTimer);
-          this.restartTimer = null;
-        }
-        this.pendingRestart = false;
-        this.child = null;
+      const child = this.child;
+      child.on("exit", (code, signal) => {
+        if (this.child === child) this.child = null;
         if (!this.shuttingDown) {
           const status = signal ? `signal ${signal}` : `code ${code}`;
           this.options.logger.info(
@@ -136,15 +172,16 @@ export class ExecutableRunner {
     }
   }
 
-  private resolveLaunchInfo() {
-    if (this.customCommand) {
+  private resolveLaunchInfo(target: ExecutableTarget) {
+    const args = target.autoRun?.args ?? [];
+    if (target.autoRun?.command) {
       return {
-        command: this.customCommand,
-        commandArgs: this.args,
-        binaryPath: this.customCommand,
+        command: target.autoRun.command,
+        commandArgs: args,
+        binaryPath: target.autoRun.command,
       };
     }
-    return prepareLaunchInfo(this.target, this.options.projectRoot, this.args);
+    return prepareLaunchInfo(target, this.options.projectRoot, args);
   }
 
   private stopChild(signal: NodeJS.Signals): Promise<void> {
@@ -164,7 +201,7 @@ export class ExecutableRunner {
       };
 
       const forceKillTimer = setTimeout(() => {
-        if (!child.killed) {
+        if (child.exitCode === null && child.signalCode === null) {
           child.kill("SIGKILL");
         }
       }, 5000);

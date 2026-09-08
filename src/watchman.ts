@@ -28,6 +28,7 @@ export class WatchmanClient extends EventEmitter {
   private watchRoot?: string;
   private logger: Logger;
   private subscriptions: Map<string, string> = new Map();
+  private subscriptionHandlers = new Map<string, (data: unknown) => void>();
   private clock?: string; // Track the clock for incremental updates
 
   constructor(logger: Logger) {
@@ -258,6 +259,9 @@ export class WatchmanClient extends EventEmitter {
           }
 
           this.logger.debug(`Subscription response: ${JSON.stringify(resp)}`);
+          const previousHandler = this.subscriptionHandlers.get(subscriptionName);
+          if (previousHandler) this.client.removeListener("subscription", previousHandler);
+          this.subscriptionHandlers.set(subscriptionName, handler);
           this.subscriptions.set(subscriptionName, projectRoot);
           this.logger.info(`Subscription created: ${subscriptionName}`);
           this.logger.debug(
@@ -282,6 +286,9 @@ export class WatchmanClient extends EventEmitter {
             this.logger.warn(`Failed to unsubscribe ${subscriptionName}: ${error.message}`);
           }
           this.subscriptions.delete(subscriptionName);
+          const handler = this.subscriptionHandlers.get(subscriptionName);
+          if (handler) this.client.removeListener("subscription", handler);
+          this.subscriptionHandlers.delete(subscriptionName);
           resolve();
         },
       );

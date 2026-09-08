@@ -63,7 +63,7 @@ export class TargetLifecycleManager {
       }
 
       const runner =
-        target.type === "executable" && target.autoRun?.enabled
+        target.type === "executable"
           ? new ExecutableRunner(target as ExecutableTarget, {
               projectRoot: this.projectRoot,
               logger: this.logger,
@@ -145,36 +145,64 @@ export class TargetLifecycleManager {
   public async updateTargets(
     modifications: Array<{ name: string; newTarget: Target }>,
     buildQueue?: IntelligentBuildQueue,
+    targetStates = this.targetStates,
   ): Promise<void> {
     for (const mod of modifications) {
-      if (mod.newTarget.type !== "executable") {
+      const previous = targetStates.get(mod.name);
+      const typeChanged = previous && previous.target.type !== mod.newTarget.type;
+      if (mod.newTarget.type !== "executable" && !typeChanged) {
         this.logger.info(`ℹ️ Skipping non-executable target update: ${mod.name}`);
         continue;
       }
       this.logger.info(`♻️ Updating target: ${mod.name}`);
-      const previous = this.targetStates.get(mod.name);
-      const builder = previous?.builder
-        ? previous.builder
-        : this.builderFactory.createBuilder(
-            mod.newTarget,
-            this.projectRoot,
-            this.logger,
-            this.stateManager,
-          );
-      const runner = previous?.runner
-        ? previous.runner
-        : new ExecutableRunner(mod.newTarget as ExecutableTarget, {
-            projectRoot: this.projectRoot,
-            logger: this.logger,
-          });
-      this.targetStates.set(mod.name, {
+      const builder =
+        previous?.builder && !typeChanged
+          ? previous.builder
+          : this.builderFactory.createBuilder(
+              mod.newTarget,
+              this.projectRoot,
+              this.logger,
+              this.stateManager,
+            );
+      if (typeChanged) await builder.validate();
+      const runner =
+        mod.newTarget.type === "executable"
+          ? (!typeChanged && previous?.runner) ||
+            new ExecutableRunner(mod.newTarget, {
+              projectRoot: this.projectRoot,
+              logger: this.logger,
+            })
+          : undefined;
+      const postBuildRunner = typeChanged
+        ? mod.newTarget.postBuild?.length
+          ? new PostBuildRunner({
+              targetName: mod.name,
+              hooks: mod.newTarget.postBuild,
+              projectRoot: this.projectRoot,
+              stateManager: this.stateManager,
+              logger: this.logger,
+            })
+          : undefined
+        : previous?.postBuildRunner;
+      if (typeChanged) {
+        await previous.runner?.stop();
+        await previous.postBuildRunner?.stop();
+        previous.builder.stop();
+      } else {
+        previous?.builder.updateTarget(mod.newTarget);
+        if (mod.newTarget.type === "executable") {
+          await previous?.runner?.updateTarget(mod.newTarget);
+        }
+      }
+      const updatedState = {
         target: mod.newTarget,
         builder,
         watching: previous?.watching ?? false,
         pendingFiles: previous?.pendingFiles ?? new Set(),
         runner,
-        postBuildRunner: previous?.postBuildRunner,
-      });
+        postBuildRunner,
+      };
+      targetStates.set(mod.name, Object.assign(previous ?? {}, updatedState));
 
       if (buildQueue) {
         buildQueue.registerTarget(mod.newTarget, builder);

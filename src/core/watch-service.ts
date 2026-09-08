@@ -20,7 +20,7 @@ interface WatchServiceDeps {
  */
 export class WatchService {
   private readonly projectRoot: string;
-  private readonly config: PoltergeistConfig;
+  private config: PoltergeistConfig;
   private readonly logger: Logger;
   private watchman?: IWatchmanClient;
   private readonly watchmanConfigManager: IWatchmanConfigManager;
@@ -131,10 +131,28 @@ export class WatchService {
     this.watchman = undefined;
   }
 
-  public async refreshTargets(targetStates: Map<string, TargetState>): Promise<void> {
+  public async refreshTargets(
+    targetStates: Map<string, TargetState>,
+    config = this.config,
+  ): Promise<void> {
     if (!this.watchman) return;
-    await this.unsubscribeAll();
+    this.config = config;
+    const previous = [...this.subscriptions.keys()];
+    const wanted = new Set(["poltergeist_config"]);
+    for (const state of targetStates.values()) {
+      for (const pattern of state.target.watchPaths) {
+        const normalized = this.watchmanConfigManager.normalizeWatchPattern(pattern);
+        wanted.add(`poltergeist_${normalized.replace(/[^a-zA-Z0-9]/g, "_")}`);
+      }
+    }
+    // Watchman replaces matching names atomically; keep old watches until replacements exist.
     await this.subscribeTargets(targetStates);
+    for (const name of previous) {
+      if (!wanted.has(name)) {
+        await this.watchman.unsubscribe(name);
+        this.subscriptions.delete(name);
+      }
+    }
   }
 
   public async unsubscribeTargets(targetNames: string[]): Promise<void> {
@@ -142,10 +160,11 @@ export class WatchService {
     const toRemove: string[] = [];
 
     for (const [subscription, targets] of this.subscriptions.entries()) {
+      if (subscription === "poltergeist_config") continue;
       for (const target of targetNames) {
         targets.delete(target);
       }
-      if (targets.size === 0 || subscription === "poltergeist_config") {
+      if (targets.size === 0) {
         toRemove.push(subscription);
       }
     }
