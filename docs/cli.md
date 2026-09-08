@@ -122,6 +122,12 @@ Use `--restart-signal` and `--restart-delay` when the process needs a particular
 
 For app bundles, backend frameworks, simulators, or devices, keep the daemon responsible for building and put relaunch or deployment work in the target's build or post-build commands. Per-target `settlingDelay` and `debounceInterval` values can reduce duplicate work after large file changes.
 
+Saving the configuration updates an existing executable target's build command, environment, output path, watch paths, and auto-run settings. An active build finishes with the settings it started with; subsequent builds and scheduled retries use the latest configuration. Changing a target's type replaces its specialized builder. Each successful build retains its output description and carries its own launch settings through a delayed restart, so a newer failed build cannot redirect that launch. Disabling auto-run cancels queued restarts and stops its child process. Configuration saves are applied in order, including saves made while a child is shutting down.
+
+Changes to post-build hook definitions or to settings of an existing non-executable target still require restarting the daemon.
+
+Repeated successful builds with the same target configuration coalesce into one pending restart. A successful build with a new configuration starts a fresh restart delay, even when the delay value is unchanged.
+
 ## Troubleshooting
 
 - Run `watchman --version` if the daemon cannot start watching.

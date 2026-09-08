@@ -585,6 +585,87 @@ describe("IntelligentBuildQueue", () => {
   });
 
   describe("Error Handling", () => {
+    it("retries with the current target and builder after a configuration reload", async () => {
+      const original = { ...targets[0], maxRetries: 1 };
+      const failedBuilder = createMockBuilder("frontend");
+      vi.mocked(failedBuilder.build).mockResolvedValue({
+        status: "failure",
+        targetName: "frontend",
+        timestamp: "test",
+        error: "old command failed",
+      });
+      buildQueue.registerTarget(original, failedBuilder);
+      await buildQueue.queueTargetBuild(original);
+      await vi.advanceTimersByTimeAsync(0);
+      const corrected = { ...original, buildCommand: "corrected build" };
+      const correctedBuilder = createMockBuilder("frontend");
+      vi.mocked(correctedBuilder.build).mockResolvedValue({
+        status: "success",
+        targetName: "frontend",
+        timestamp: "test",
+      });
+      buildQueue.registerTarget(corrected, correctedBuilder);
+      await vi.advanceTimersByTimeAsync(1000);
+      expect(failedBuilder.build).toHaveBeenCalledTimes(1);
+      expect(correctedBuilder.build).toHaveBeenCalledTimes(1);
+    });
+
+    it("does not retry a target that was unregistered during backoff", async () => {
+      const target = { ...targets[0], maxRetries: 1 };
+      const builder = createMockBuilder("frontend");
+      vi.mocked(builder.build).mockResolvedValue({
+        status: "failure",
+        targetName: "frontend",
+        timestamp: "test",
+        error: "failed",
+      });
+      buildQueue.registerTarget(target, builder);
+      await buildQueue.queueTargetBuild(target);
+      await vi.advanceTimersByTimeAsync(0);
+      buildQueue.unregisterTarget(target.name);
+      await vi.advanceTimersByTimeAsync(1000);
+      expect(builder.build).toHaveBeenCalledTimes(1);
+    });
+
+    it("does not transfer a removed target's retry to a new registration with the same name", async () => {
+      const target = { ...targets[0], maxRetries: 1 };
+      const builder = createMockBuilder("frontend");
+      vi.mocked(builder.build).mockResolvedValue({
+        status: "failure",
+        targetName: "frontend",
+        timestamp: "test",
+        error: "failed",
+      });
+      buildQueue.registerTarget(target, builder);
+      await buildQueue.queueTargetBuild(target);
+      await vi.advanceTimersByTimeAsync(0);
+      buildQueue.unregisterTarget(target.name);
+      const replacement = createMockBuilder("frontend");
+      buildQueue.registerTarget({ ...target }, replacement);
+      await vi.advanceTimersByTimeAsync(1000);
+      expect(replacement.build).not.toHaveBeenCalled();
+    });
+
+    it("keeps retry ownership when a completion callback removes and re-adds a target", async () => {
+      const target = { ...targets[0], maxRetries: 1 };
+      const original = createMockBuilder("frontend");
+      const replacement = createMockBuilder("frontend");
+      vi.mocked(original.build).mockResolvedValue({
+        status: "failure",
+        targetName: "frontend",
+        timestamp: "test",
+        error: "failed",
+      });
+      const queue = new IntelligentBuildQueue(config, logger, priorityEngine, undefined, () => {
+        queue.unregisterTarget(target.name);
+        queue.registerTarget({ ...target }, replacement);
+      });
+      queue.registerTarget(target, original);
+      await queue.queueTargetBuild(target);
+      await vi.advanceTimersByTimeAsync(1000);
+      expect(replacement.build).not.toHaveBeenCalled();
+    });
+
     it("should handle missing builders gracefully", async () => {
       // Don't register any builders
       await buildQueue.onFileChanged(["frontend/src/app.ts"], [targets[0]]);

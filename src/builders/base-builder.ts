@@ -2,6 +2,8 @@
 import { type ChildProcess, execSync, spawn } from "child_process";
 import { createWriteStream, mkdirSync } from "fs";
 import { dirname } from "path";
+import { AsyncLocalStorage } from "node:async_hooks";
+import { recordBuildOutput, recordBuildTarget } from "../core/build-context.js";
 import type { Logger } from "../logger.js";
 import type { StateManager } from "../state.js";
 import type { BuildProgress, BuildStatus, Target } from "../types.js";
@@ -39,14 +41,21 @@ export interface BuildOptions {
 }
 
 export abstract class BaseBuilder<T extends Target = Target> {
-  protected target: T;
+  private configuredTarget: T;
+  private readonly buildContext = new AsyncLocalStorage<T>();
+  protected get target(): T {
+    return this.buildContext.getStore() ?? this.configuredTarget;
+  }
+  protected set target(target: T) {
+    this.configuredTarget = target;
+  }
   protected projectRoot: string;
   protected logger: Logger;
   protected stateManager: StateManager;
   protected currentProcess?: ChildProcess;
 
   constructor(target: T, projectRoot: string, logger: Logger, stateManager: StateManager) {
-    this.target = target;
+    this.configuredTarget = target;
     this.projectRoot = projectRoot;
     this.logger = logger;
     this.stateManager = stateManager;
@@ -57,6 +66,20 @@ export abstract class BaseBuilder<T extends Target = Target> {
   }
 
   public async build(changedFiles: string[], options: BuildOptions = {}): Promise<BuildStatus> {
+    const target = this.configuredTarget;
+    return this.buildContext.run(target, async () => {
+      return recordBuildTarget(await this.buildCurrentTarget(changedFiles, options), target);
+    });
+  }
+
+  public updateTarget(target: T): void {
+    this.configuredTarget = target;
+  }
+
+  private async buildCurrentTarget(
+    changedFiles: string[],
+    options: BuildOptions,
+  ): Promise<BuildStatus> {
     // Format file list for logging
     const fileListText = this.formatChangedFiles(changedFiles);
     this.logger.info(
@@ -115,6 +138,7 @@ export abstract class BaseBuilder<T extends Target = Target> {
 
       // Update app info if available
       const outputInfo = this.getOutputInfo();
+      recordBuildOutput(successStatus, outputInfo);
       if (outputInfo) {
         await this.stateManager.updateAppInfo(this.target.name, {
           outputPath: outputInfo,

@@ -1,6 +1,7 @@
 import { readFileSync } from "node:fs";
 import { join } from "node:path";
 import { IntelligentBuildQueue } from "./build-queue.js";
+import type { BaseBuilder } from "./builders/index.js";
 import { BuildCoordinator } from "./core/build-coordinator.js";
 import { ConfigReloadOrchestrator } from "./core/config-reload-orchestrator.js";
 import { DebouncedBuildScheduler } from "./core/debounced-build-scheduler.js";
@@ -21,6 +22,7 @@ import { BuildNotifier } from "./notifier.js";
 import { PostBuildRunner } from "./post-build/post-build-runner.js";
 import { PriorityEngine } from "./priority-engine.js";
 import { ExecutableRunner } from "./runners/executable-runner.js";
+import { outputForBuild, targetForBuild } from "./core/build-context.js";
 import { isPoltergeistState, type PoltergeistState, StateManager } from "./state.js";
 import type {
   BuildRequest,
@@ -68,6 +70,7 @@ export class Poltergeist {
   > = [];
   private watchService?: WatchService;
   private buildCoordinator?: BuildCoordinator;
+  private reloadTail: Promise<void> = Promise.resolve();
   private statusPresenter: StatusPresenter;
   private debouncedScheduler: DebouncedBuildScheduler;
   private lifecycle: TargetLifecycleManager;
@@ -170,7 +173,7 @@ export class Poltergeist {
           if (last) {
             const message = BuildStatusManager.formatNotificationMessage(
               last,
-              state.builder.getOutputInfo?.(),
+              outputForBuild(last, () => state.builder.getOutputInfo?.()),
             );
             await this.deps.notifier.notifyBuildComplete(
               `${name} Built`,
@@ -329,7 +332,7 @@ export class Poltergeist {
         this.priorityEngine,
         this.notifier,
         async (result: BuildStatus, request: BuildRequest) => {
-          await this.handleQueuedBuildResult(result, { target: request.target });
+          await this.handleQueuedBuildResult(result, request);
           for (const hook of this.buildQueueHooks) {
             await hook(result, request);
           }
@@ -344,7 +347,7 @@ export class Poltergeist {
       this.priorityEngine,
       this.notifier,
       async (result: BuildStatus, request: BuildRequest) => {
-        await this.handleQueuedBuildResult(result, { target: request.target });
+        await this.handleQueuedBuildResult(result, request);
         for (const hook of this.buildQueueHooks) {
           await hook(result, request);
         }
@@ -543,6 +546,11 @@ export class Poltergeist {
     const configChanged = files.some((f) => f.name === "poltergeist.config.json" && f.exists);
     if (!configChanged || !this.configPath) return;
 
+    this.reloadTail = this.reloadTail.then(() => this.reloadConfiguration());
+    await this.reloadTail;
+  }
+
+  private async reloadConfiguration(): Promise<void> {
     this.logger.info("🔄 Configuration file changed, reloading...");
 
     try {
@@ -603,11 +611,12 @@ export class Poltergeist {
 
   private async handleQueuedBuildResult(
     result: BuildStatus,
-    _request: { target: Target },
+    _request: { target: Target; builder?: BaseBuilder },
   ): Promise<void> {
     const targetName = result.targetName ?? _request.target.name;
     const state = this.targetStates.get(targetName);
     if (!state) return;
+    if (_request.builder && _request.builder !== state.builder) return;
 
     state.lastBuild = result;
     state.pendingFiles.clear();
@@ -618,7 +627,10 @@ export class Poltergeist {
 
     if (state.runner) {
       if (BuildStatusManager.isSuccess(result)) {
-        await state.runner.onBuildSuccess();
+        const builtTarget = targetForBuild(result, _request.target);
+        if (builtTarget.type === "executable") {
+          await state.runner.onBuildSuccess(builtTarget);
+        }
       } else if (BuildStatusManager.isFailure(result)) {
         state.runner.onBuildFailure(result);
       }
@@ -633,7 +645,7 @@ export class Poltergeist {
       );
       const message = BuildStatusManager.formatNotificationMessage(
         result,
-        state.builder.getOutputInfo?.(),
+        outputForBuild(result, () => state.builder.getOutputInfo?.()),
       );
       for (const notifier of notifierSet) {
         await notifier.notifyBuildComplete(`${targetName} Built`, message, state.target.icon);
@@ -735,6 +747,12 @@ export class Poltergeist {
     for (const name of changes.targetsRemoved) {
       try {
         this.logger.info(`➖ Removing target: ${name}`);
+        const state = this.targetStates.get(name);
+        if (state?.buildTimer) clearTimeout(state.buildTimer);
+        this.buildQueue?.unregisterTarget(name);
+        await state?.runner?.stop();
+        await state?.postBuildRunner?.stop();
+        state?.builder.stop();
         this.targetStates.delete(name);
         await this.stateManager.removeState(name);
       } catch (error) {
@@ -796,41 +814,7 @@ export class Poltergeist {
       }
     }
 
-    // Handle target modifications (simplified: replace definitions)
-    for (const mod of changes.targetsModified) {
-      if (mod.newTarget.type !== "executable") {
-        this.logger.info(`ℹ️ Skipping non-executable target update: ${mod.name}`);
-        continue;
-      }
-      this.logger.info(`♻️ Updating target: ${mod.name}`);
-      const previous = this.targetStates.get(mod.name);
-      const builder = previous?.builder
-        ? previous.builder
-        : this.builderFactory.createBuilder(
-            mod.newTarget,
-            this.projectRoot,
-            this.logger,
-            this.stateManager,
-          );
-      const runner = previous?.runner
-        ? previous.runner
-        : new ExecutableRunner(mod.newTarget as ExecutableTarget, {
-            projectRoot: this.projectRoot,
-            logger: this.logger,
-          });
-      this.targetStates.set(mod.name, {
-        target: mod.newTarget,
-        builder,
-        watching: previous?.watching ?? false,
-        pendingFiles: previous?.pendingFiles ?? new Set(),
-        runner,
-        postBuildRunner: previous?.postBuildRunner,
-      });
-
-      if (this.buildQueue) {
-        this.buildQueue.registerTarget(mod.newTarget, builder);
-      }
-    }
+    await this.lifecycle.updateTargets(changes.targetsModified, this.buildQueue, this.targetStates);
 
     // Apply other config changes
     if (changes.notificationsChanged) {
@@ -892,7 +876,7 @@ export class Poltergeist {
       if (changes.targetsRemoved.length > 0) {
         await this.watchService.unsubscribeTargets(changes.targetsRemoved);
       }
-      await this.watchService.refreshTargets(this.targetStates);
+      await this.watchService.refreshTargets(this.targetStates, newConfig);
     }
   }
 

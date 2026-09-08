@@ -103,7 +103,7 @@ describe.skipIf(skipLongRuns)("Daemon with no enabled targets", () => {
     await writeFile(configPath, JSON.stringify(config, null, 2));
     await expect
       .poll(() => daemonOutput, { timeout: 10_000 })
-      .toContain("Configuration reloaded successfully");
+      .toContain("Watching 1 target(s): **/*.js");
     await writeFile(join(testDir, "trigger.js"), "// trigger the newly enabled target\n");
 
     await expect

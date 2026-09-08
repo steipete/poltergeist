@@ -5,6 +5,7 @@ import type { Target } from "../types.js";
 import { BuildStatusManager } from "../utils/build-status-manager.js";
 import { FileSystemUtils } from "../utils/filesystem.js";
 import type { TargetState } from "./target-state.js";
+import { outputForBuild, targetForBuild } from "./build-context.js";
 
 interface BuildCoordinatorDeps {
   projectRoot: string;
@@ -62,6 +63,8 @@ export class BuildCoordinator {
   ): Promise<void> {
     const state = targetStates.get(targetName);
     if (!state) return;
+    const requestedTarget = state.target;
+    const builder = state.builder;
 
     const changedFiles = Array.from(state.pendingFiles);
     state.pendingFiles.clear();
@@ -75,7 +78,7 @@ export class BuildCoordinator {
         // eslint-disable-next-line no-console
         console.log(`coordinator build start ${targetName}`);
       }
-      const buildPromise = state.builder.build(changedFiles, buildOptions);
+      const buildPromise = builder.build(changedFiles, buildOptions);
       const maybeVi = (
         globalThis as {
           vi?: { runAllTimersAsync?: () => Promise<void>; isFakeTimers?: () => boolean };
@@ -85,6 +88,7 @@ export class BuildCoordinator {
         await maybeVi.runAllTimersAsync();
       }
       const status = await buildPromise;
+      if (targetStates.get(targetName) !== state || state.builder !== builder) return;
       if (process.env.VITEST && process.env.DEBUG_WAITS) {
         // eslint-disable-next-line no-console
         console.log("coordinator status", status.status, status.errorSummary ?? status.error);
@@ -97,7 +101,10 @@ export class BuildCoordinator {
 
       if (state.runner) {
         if (BuildStatusManager.isSuccess(status)) {
-          await state.runner.onBuildSuccess();
+          const builtTarget = targetForBuild(status, requestedTarget);
+          if (builtTarget.type === "executable") {
+            await state.runner.onBuildSuccess(builtTarget);
+          }
         } else if (BuildStatusManager.isFailure(status)) {
           state.runner.onBuildFailure(status);
         }
@@ -142,7 +149,7 @@ export class BuildCoordinator {
                 ?.calls,
             });
           }
-          const outputInfo = state.builder.getOutputInfo();
+          const outputInfo = outputForBuild(status, () => state.builder.getOutputInfo());
           const message = BuildStatusManager.formatNotificationMessage(status, outputInfo);
           for (const notifier of notifierSet) {
             await notifier.notifyBuildComplete(`${targetName} Built`, message, state.target.icon);
@@ -237,6 +244,7 @@ export class BuildCoordinator {
         this.lastNotified.set(targetName, dedupeKey);
       }
     } catch (error) {
+      if (targetStates.get(targetName) !== state || state.builder !== builder) return;
       const logMessage = error instanceof Error ? error.toString() : String(error);
       const notifyMessage = error instanceof Error ? error.message : String(error);
       this.logger.error(`Build failed for ${targetName}: ${logMessage}`);
