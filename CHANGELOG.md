@@ -2,18 +2,16 @@
 
 ## [Unreleased]
 
-### Fixed
+**Highlights:** Configuration edits reliably update executable builds and auto-run restarts, including overlapping saves and delayed shutdowns.
 
-- Serialized CMake targets that share a generated build tree so concurrent builds no longer corrupt common outputs.
-
-### Maintenance
-
-- Updated es-toolkit, pi-tui, Zod, Node.js types, Oxfmt, Oxlint, tsx, and pnpm; aligned contributor setup with Node.js 24 and pnpm. Thanks @dependabot for the es-toolkit update.
-- Made the no-target daemon integration tests own and stop a real foreground daemon, isolate their state, and verify hot reload produces a build artifact.
-- Updated compatible CLI and example dependencies, pnpm, and the UUID override while retaining TypeScript 6 for TypeDoc compatibility.
-- Removed stale Swift package pins from the macOS app, which no longer declares external packages.
-- Removed package-manager and TypeScript loader startup from CLI smoke-test timing to avoid cold-start timeouts.
-- Updated LogTape, Oxfmt, Oxlint, tsx, and their compatible transitive dependencies.
+- Fixed executable configuration reloads retaining old build commands, environment, output paths, and auto-run settings; each successful artifact now retains its launch settings through queued restarts. Thanks @devYRPauli for the original report and reproductions.
+- Serialized configuration reloads and preserved the configuration watch across target refreshes so rapid or repeated edits keep the latest subscriptions.
+- Kept scheduled retries on the latest target definition, replaced specialized builders when target types change, and preserved each completed build's output description.
+- Serialized CMake targets sharing a generated build tree to prevent concurrent builds from corrupting common outputs.
+- Fixed forced termination of auto-run children that ignore graceful shutdown signals.
+- Updated compatible runtime and development dependencies, including LogTape, PostCSS, es-toolkit, pi-tui, Zod, Node.js types, Oxfmt, Oxlint, and tsx; refreshed pnpm and the UUID override. Thanks @dependabot.
+- Stabilized CLI smoke and foreground-daemon integration tests, including a real hot-reload build artifact, and aligned contributor setup with Node.js 24 and pnpm.
+- Removed obsolete macOS Swift package pins while retaining TypeScript 6 for TypeDoc compatibility.
 
 ## [2.1.6] - 2026-08-08
 
