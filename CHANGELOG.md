@@ -2,6 +2,7 @@
 
 ## [Unreleased]
 
+- Fixed daemon crashes on post-build hook or formatter launch errors and broken formatter input pipes; drain formatter stderr so verbose formatters cannot stall the hook queue.
 - Fixed duplicate build notifications, notifications leaking between Poltergeist instances, and missing error notifications for additional recipients.
 
 ## [2.1.7] - 2026-09-07
