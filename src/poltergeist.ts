@@ -96,8 +96,6 @@ export class Poltergeist {
     this.logger = logger;
 
     this.originalNotifier = deps.notifier;
-    // Expose notifier for tests/debugging to keep spy references aligned
-    (globalThis as any).__harnessNotifierRef = deps.notifier;
 
     if (this.deps?.notifier) {
       this.notifier = this.deps.notifier;
