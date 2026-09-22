@@ -2,6 +2,8 @@
 
 ## [Unreleased]
 
+- Fixed duplicate build notifications, notifications leaking between Poltergeist instances, and missing error notifications for additional recipients.
+
 ## [2.1.7] - 2026-09-07
 
 **Highlights:** Configuration edits reliably update executable builds and auto-run restarts, including overlapping saves and delayed shutdowns.

@@ -46,6 +46,8 @@ Supported target types are `executable`, `app-bundle`, `library`, `framework`, `
 
 Changes to `poltergeist.config.json` reload while the daemon is running. Target settings include environment variables, retry behavior, notification icons, post-build commands, log channels, and per-target settling or debounce intervals.
 
+Build notifications stay local to each Poltergeist instance. Each distinct notifier receives a result once, including when a build throws an error; repeated identical results are suppressed.
+
 ## Daemon and build commands
 
 | Command | Purpose |
