@@ -128,6 +128,8 @@ Saving the configuration updates an existing executable target's build command, 
 
 Changes to post-build hook definitions or to settings of an existing non-executable target still require restarting the daemon.
 
+Post-build hook launch errors are recorded as failed hook results, and later hooks still run. Formatter launch or input errors produce a warning without terminating the daemon; when formatting fails, the hook's normal output remains available.
+
 Repeated successful builds with the same target configuration coalesce into one pending restart. A successful build with a new configuration starts a fresh restart delay, even when the delay value is unchanged.
 
 ## Troubleshooting

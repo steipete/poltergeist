@@ -168,6 +168,10 @@ export class PostBuildRunner {
       });
 
       let timedOut = false;
+      let executionError: string | undefined;
+      child.on("error", (error: Error) => {
+        executionError = error.message;
+      });
       if (hook.timeoutSeconds && hook.timeoutSeconds > 0) {
         this.timeoutHandle = setTimeout(() => {
           timedOut = true;
@@ -184,8 +188,8 @@ export class PostBuildRunner {
         resolve({
           stdout: stdoutChunks.join(""),
           stderr: stderrChunks.join(""),
-          exitCode: timedOut ? -1 : code,
-          executionNote: timedOut ? "timeout" : undefined,
+          exitCode: timedOut || executionError ? -1 : code,
+          executionNote: timedOut ? "timeout" : executionError,
         });
       });
     });
@@ -285,6 +289,18 @@ export class PostBuildRunner {
       let output = "";
       formatter.stdout?.on("data", (chunk) => {
         output += chunk.toString();
+      });
+      formatter.stderr?.resume();
+      formatter.on("error", (error: Error) => {
+        this.options.logger.warn(
+          `[PostBuild] ${this.options.targetName}/${hook.name} formatter failed: ${error.message}`,
+        );
+        resolve(undefined);
+      });
+      formatter.stdin?.on("error", (error: Error) => {
+        this.options.logger.warn(
+          `[PostBuild] ${this.options.targetName}/${hook.name} formatter input failed: ${error.message}`,
+        );
       });
 
       formatter.stdin?.write(stdout);
