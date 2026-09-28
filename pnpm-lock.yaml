@@ -16,7 +16,7 @@ importers:
         version: 0.86.1
       '@logtape/logtape':
         specifier: ^2.3.6
-        version: 2.3.6
+        version: 2.3.7
       arkregex:
         specifier: ^0.0.8
         version: 0.0.8
@@ -305,8 +305,8 @@ packages:
   '@jridgewell/trace-mapping@0.3.31':
     resolution: {integrity: sha512-zzNR+SdQSDJzc8joaeP8QQoCQr8NuYx2dIIytl1QeBEZHJ9uW6hebsrYgbz8hJwUQao3TWCMtmfV8Nu1twOLAw==}
 
-  '@logtape/logtape@2.3.6':
-    resolution: {integrity: sha512-1ajI6YRkq+gIpgYVhOcJ4Mn5QUarSvWnnuj8SNMjwrjIcOy1ANEIcZyaLN+vPtL2MCa845D8ghXR8xDA+c3Khg==}
+  '@logtape/logtape@2.3.7':
+    resolution: {integrity: sha512-y0X4Liaj9voRRn0aAffCw2HCRpZEibOdmHiOgwsAT0hgHS8MaDKHl9cQGZ8r8uZR+b+yN9qznNYru6z9oOEMVw==}
 
   '@oxc-project/types@0.150.0':
     resolution: {integrity: sha512-rDS5/31E9HfPl/CIzGrn0DOlvBbXFseQ5URJ9sYMfstbKLD/c6Gm9vmRzRGDdAXyOIL4zmO37lc9RIwYqVruZw==}
@@ -1493,7 +1493,7 @@ snapshots:
       '@jridgewell/resolve-uri': 3.1.2
       '@jridgewell/sourcemap-codec': 1.5.5
 
-  '@logtape/logtape@2.3.6': {}
+  '@logtape/logtape@2.3.7': {}
 
   '@oxc-project/types@0.150.0': {}
 
