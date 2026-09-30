@@ -2,6 +2,7 @@
 
 ## [Unreleased]
 
+- Updated transitive brace-expansion and markdown-it dependencies to include upstream security fixes. Thanks @dependabot.
 - Updated pi-tui, LogTape, arkregex, Chalk, Vite, Oxfmt, Oxlint, and Node.js types to current compatible releases. Thanks @dependabot.
 - Fixed daemon crashes on post-build hook or formatter launch errors and broken formatter input pipes; drain formatter stderr so verbose formatters cannot stall the hook queue.
 - Fixed duplicate build notifications, notifications leaking between Poltergeist instances, and missing error notifications for additional recipients.
