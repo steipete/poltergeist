@@ -1,9 +1,9 @@
 class Poltergeist < Formula
   desc "Universal file watcher with auto-rebuild for any language or build system"
   homepage "https://github.com/steipete/poltergeist"
-  url "https://github.com/steipete/poltergeist/releases/download/v2.1.2/poltergeist-macos-universal-v2.1.2.tar.gz"
-  version "2.1.2"
-  sha256 "b7ef7e0af2966049c42b6043c870eb1ecb73980a64b8680527e65e67b4f1ce89"
+  url "https://github.com/steipete/poltergeist/releases/download/v2.1.8/poltergeist-macos-universal-v2.1.8.tar.gz"
+  version "2.1.8"
+  sha256 "ea062a83929749acdf59cc6e39505e9da73d7c001057111905c84a7689bfae02"
   license "MIT"
 
   depends_on "watchman"
@@ -44,8 +44,7 @@ class Poltergeist < Formula
     # Test polter wrapper
     assert_match "Poltergeist", shell_output("#{bin}/polter --help")
 
-    # Keep Watchman state inside Homebrew's writable test sandbox.
-    ENV["WATCHMAN_STATE_DIR"] = testpath.to_s
-    assert_match "version", shell_output("#{Formula["watchman"].opt_bin}/watchman version")
+    # Check the dependency without starting a daemon outside the test sandbox.
+    system Formula["watchman"].opt_bin/"watchman", "--version"
   end
 end
