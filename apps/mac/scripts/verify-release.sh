@@ -22,6 +22,9 @@ fi
 APP_PATH="$1"
 [[ -d "$APP_PATH" ]] || { echo "App not found: $APP_PATH" >&2; exit 1; }
 
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+node "$SCRIPT_DIR/../../../scripts/verify-macos-target.mjs" "$APP_PATH/Contents/MacOS/Poltergeist" 15.0
+
 BUNDLE_ID="$(plutil -extract CFBundleIdentifier raw "$APP_PATH/Contents/Info.plist")"
 if [[ "$BUNDLE_ID" != "$EXPECTED_BUNDLE_ID" ]]; then
     echo "Unexpected bundle identifier: $BUNDLE_ID" >&2

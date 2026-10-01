@@ -43,6 +43,9 @@ jobs:
       - name: Run TypeScript type check
         run: pnpm run typecheck
 
+      - name: Test release guards
+        run: node --test scripts/test-release.mjs
+
       - name: Run CLI tests
         run: |
           if [ "${{ matrix.os }}" = "windows-latest" ]; then
@@ -167,6 +170,8 @@ jobs:
       - name: Validate macOS release scripts
         run: |
           bash -n scripts/package-macos-universal.sh
+          bash -n scripts/import-signing-certificate.sh
+          bash -n scripts/notarize-cli.sh
           bash -n apps/mac/scripts/build-release.sh
           bash -n apps/mac/scripts/notarize-release.sh
           bash -n apps/mac/scripts/verify-release.sh

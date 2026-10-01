@@ -24,7 +24,7 @@ The daemon handles builds in the background; `polter` waits for a successful bui
 
 ### Homebrew
 
-On macOS, the standalone build needs neither Node.js nor a separate Watchman install:
+On macOS 13 or newer, the standalone build needs neither Node.js nor a separate Watchman install:
 
 ```sh
 brew install steipete/tap/poltergeist

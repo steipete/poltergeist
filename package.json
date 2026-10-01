@@ -1,6 +1,6 @@
 {
   "name": "@steipete/poltergeist",
-  "version": "2.1.7",
+  "version": "2.1.8",
   "description": "The ghost that keeps your builds fresh - a universal file watcher with auto-rebuild for any language or build system",
   "keywords": [
     "automation",
@@ -87,8 +87,8 @@
     "oracle": "oracle"
   },
   "dependencies": {
-    "@earendil-works/pi-tui": "^0.87.1",
-    "@logtape/logtape": "^2.3.7",
+    "@earendil-works/pi-tui": "^0.99.1",
+    "@logtape/logtape": "^2.3.10",
     "arkregex": "^0.0.10",
     "chalk": "^6.0.1",
     "commander": "^15.0.0",

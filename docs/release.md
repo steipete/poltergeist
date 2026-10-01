@@ -1,74 +1,62 @@
 # Release Checklist (poltergeist)
 
-Mirror the mcporter flow: no warnings, stop on any failure. Verify npm (npx) every time; verify Homebrew only if this project ships a formula.
+Releases require explicit product-owner approval. Stop on failed gates; fix the cause before proceeding. Never move an existing tag or publish unverified artifacts.
 
-Communication (shared rule)
-- Do not bump versions, publish, tag, or create GitHub releases without explicit product-owner approval. If anything unexpected happens mid-release, pause and confirm before proceeding.
+## Prepare
 
-Shared release rules to upstream
-- Title format: GitHub release title must be `projectname <version>` (no “v” prefix).
-- Version sources: bump both `package.json` and the shared CLI version file (`src/cli/version.ts`), which powers `poltergeist` and `polter`.
-- No-warning gate: lint/test/build must finish clean (treat warnings as failures).
-- Artifacts + checksums: build platform binaries, produce macOS universal tarball, and record sha256 alongside.
-- Installer verification: run `npx <pkg>@<ver> --version` from a clean temp dir after publish.
-- Conditional Homebrew section (below) only if the project ships a tap formula.
+1. Update compatible dependencies without raising the Node.js 24 floor. Keep TypeScript 6 until TypeDoc supports the TypeScript 7 compiler API.
+2. Bump both `package.json` and `src/cli/version.ts`.
+3. Move every unreleased changelog bullet into the new version section, with a one-line `**Highlights:**` first. Preserve an empty `Unreleased` section.
+4. Run the clean gates:
+   ```sh
+   pnpm install --frozen-lockfile
+   pnpm run lint
+   pnpm run build
+   pnpm run typecheck
+   pnpm vitest --config vitest.config.ci.ts
+   pnpm run test:coverage
+   node --test scripts/test-release.mjs
+   pnpm run build:bun:all
+   ```
+5. Review and merge the release preparation PR only after exact-head CI is green. Confirm the merged default-branch CI before tagging.
 
-Steps
+## Build a draft
 
-1) Bump versions  
-   - `package.json` `version`  
-   - `src/cli/version.ts` (`poltergeist` and `polter` banners)
+Create a signed `v<version>` tag at the verified release commit using the configured Git signing setup, then push the tag. The tag workflow builds the npm tarball, companion app, and universal Homebrew CLI archive, and creates a **draft** GitHub Release named `poltergeist <version>`. Its body comes directly from the version's changelog section via `scripts/release-notes.mjs`.
 
-2) Clean gates  
-   - `pnpm run lint`  
-   - `pnpm run build`
-   - `pnpm run test`
+The macOS jobs use an ephemeral CI keychain and the personal Developer ID identity. The companion app targets macOS 15.0; the Bun CLI binaries target macOS 13.0. `scripts/verify-macos-target.mjs` checks every architecture before packaging, requires both arm64 and x86_64, and rejects a deployment target above the documented floor. Never override a failed check without restoring compatibility.
 
-3) Build Bun binaries  
-   - `pnpm run build:bun:all`  
-   - Build the Homebrew slices and create the universal macOS bundle:
-     ```bash
-     version=<ver>
-     mkdir -p dist-homebrew
-     bun build src/cli.ts --compile --target=bun-darwin-arm64 --outfile dist-homebrew/poltergeist-arm64 --minify
-     bun build src/cli.ts --compile --target=bun-darwin-x64 --outfile dist-homebrew/poltergeist-x64 --minify
-     bun build scripts/polter-bun.ts --compile --target=bun-darwin-arm64 --outfile dist-homebrew/polter-arm64 --minify
-     bun build scripts/polter-bun.ts --compile --target=bun-darwin-x64 --outfile dist-homebrew/polter-x64 --minify
-     scripts/package-macos-universal.sh dist-homebrew "$version"
-     ```
+The app is signed, notarized, stapled, and verified by `apps/mac/scripts/{build,notarize,verify}-release.sh`. The Homebrew job builds four Bun slices and calls `scripts/package-macos-universal.sh`, which assembles, signs, verifies, smoke-tests, and notarizes both executables before writing the archive and SHA-256. The CLI notarization receipt is a separate release asset because bare executables cannot carry stapled tickets.
 
-4) Homebrew (only if this project ships a formula)  
-   - Update `homebrew/poltergeist.rb` URL, SHA256, version, and version check.  
-   - Push formula change (or open tap PR) after assets are live.
+For a local signing recovery, invoke the existing `release-mac-app` skill's `mac-release codesign-run --with-package-secrets -- <repo script>` with the managed keychain configuration. Wait for its shared keychain lock; never sign outside that helper. Prefer resuming the failed workflow for the same version when possible. Do not delete or replace a published tag.
 
-5) Commit & tag  
-   - Stage the release files and run `git commit -m "release: v<ver>"`.
-   - `git tag v<ver>` and push branch+tag.
+## Verify and publish
 
-6) Publish npm  
-   - `pnpm publish --access public`
+Download **every** draft asset before publishing. Inspect the extracted app and both CLI executables:
 
-7) GitHub release  
-   - Create release for `v<ver>` with changelog notes.  
-   - Title: `poltergeist <ver>` (no “v”).  
-   - Upload `poltergeist-macos-universal-v<ver>.tar.gz` (plus optional per-platform Bun binaries).
-   - If Homebrew checksum mismatches later, regenerate the tarball with the correct binary names (`poltergeist` and `polter` at archive root), re-upload with `gh release upload --clobber`, and update the formula SHA accordingly.
+```sh
+node scripts/verify-macos-target.mjs Poltergeist.app/Contents/MacOS/Poltergeist 15.0
+node scripts/verify-macos-target.mjs poltergeist 13.0
+node scripts/verify-macos-target.mjs polter 13.0
+apps/mac/scripts/verify-release.sh Poltergeist.app
+xcrun stapler validate Poltergeist.app
+codesign --verify --strict --all-architectures poltergeist
+codesign --verify --strict --all-architectures polter
+```
 
-8) Verification (must pass)  
-   - npx:  
-     ```bash
-     rm -rf /tmp/poltergeist-npx && mkdir /tmp/poltergeist-npx && cd /tmp/poltergeist-npx
-     npx @steipete/poltergeist@<ver> --version
-     ```  
-   - Homebrew (only if applicable and after assets propagate):  
-     ```bash
-     brew uninstall poltergeist || true
-     brew tap steipete/tap || true
-     brew install steipete/tap/poltergeist
-     poltergeist --version
-     brew uninstall poltergeist
-     ```
+Verify the CLI receipt says `Accepted`, compare the archive's SHA-256 with its checksum asset, and run both binaries with `--version` plus a real command in a synthetic project. Check that all package versions match the tag and that the draft release body equals the changelog section.
 
-9) Post-release  
-   - Add new “Unreleased” stub in `CHANGELOG.md` if needed.  
-   - Deprecate a bad npm version if necessary.
+Publish npm through the npm skill's `publish-package.sh` helper in its shared 1Password tmux session. Extract the verified npm tarball into a clean directory and run the helper there with `npm_config_ignore_scripts=true`; the package is already built and tested by CI, so publishing must not rebuild or alter those bytes. Verify with:
+
+```sh
+npm view @steipete/poltergeist@<version> version dist-tags.latest dist.tarball dist.integrity time --json
+npx --yes @steipete/poltergeist@<version> --version
+```
+
+Run the npx smoke test from a clean temporary directory. Then publish the verified GitHub draft. The `release: published` workflow dispatches the Homebrew tap update only after assets are public.
+
+## Close out
+
+Read back `repos/steipete/poltergeist/releases/tags/v<version>` and verify it is public, complete, and has the exact changelog body. Download every public asset by URL and compare the verified bytes. Read `steipete/homebrew-tap/Formula/poltergeist.rb` and confirm its version and SHA-256 match the downloaded universal CLI archive. Smoke-test a clean Homebrew installation in an isolated prefix; preserve the user's installation. Update this repository's `homebrew/poltergeist.rb` mirror after the asset checksum is known.
+
+Keep the empty `Unreleased` stub. Report registry integrity and publish time, CI/release URLs, asset checks, signing/notarization results, deployment targets, and installer smoke results. Poltergeist does not ship a Go module or Sparkle appcast.
