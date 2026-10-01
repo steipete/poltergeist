@@ -2,10 +2,16 @@
 
 ## [Unreleased]
 
-- Updated transitive brace-expansion and markdown-it dependencies to include upstream security fixes. Thanks @dependabot.
-- Updated pi-tui, LogTape, arkregex, Chalk, Vite, Oxfmt, Oxlint, and Node.js types to current compatible releases. Thanks @dependabot.
+## [2.1.8] - 2026-10-01
+
+**Highlights:** Build hooks no longer crash the daemon, notifications stay scoped to each instance, and standalone macOS executables are signed and notarized.
+
 - Fixed daemon crashes on post-build hook or formatter launch errors and broken formatter input pipes; drain formatter stderr so verbose formatters cannot stall the hook queue.
 - Fixed duplicate build notifications, notifications leaking between Poltergeist instances, and missing error notifications for additional recipients.
+- Signed and notarized both standalone macOS CLI executables, enforced macOS 13 CLI / macOS 15 app deployment targets, and staged release artifacts for verification before publication.
+- Updated transitive brace-expansion and markdown-it dependencies to include upstream security fixes. Thanks @dependabot.
+- Updated pi-tui, LogTape, arkregex, Chalk, Vite, Oxfmt, Oxlint, and Node.js types to current compatible releases. Thanks @dependabot.
+- Updated pi-tui to 0.99.1 and refreshed compatible dependency resolutions while retaining the Node.js 24 runtime floor.
 
 ## [2.1.7] - 2026-09-07
 
