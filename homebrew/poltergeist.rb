@@ -44,8 +44,7 @@ class Poltergeist < Formula
     # Test polter wrapper
     assert_match "Poltergeist", shell_output("#{bin}/polter --help")
 
-    # Keep Watchman state inside Homebrew's writable test sandbox.
-    ENV["WATCHMAN_STATE_DIR"] = testpath.to_s
-    assert_match "version", shell_output("#{Formula["watchman"].opt_bin}/watchman version")
+    # Check the dependency without starting a daemon outside the test sandbox.
+    system Formula["watchman"].opt_bin/"watchman", "--version"
   end
 end
