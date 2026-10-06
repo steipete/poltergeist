@@ -28,6 +28,7 @@ interface FormattedResult {
 export class PostBuildRunner {
   private queue: QueueEntry[] = [];
   private processing = false;
+  private processingTask?: Promise<void>;
   private stopped = false;
   private currentChild?: ChildProcess;
   private timeoutHandle?: NodeJS.Timeout;
@@ -42,7 +43,7 @@ export class PostBuildRunner {
     }
 
     this.queue.push(...eligible.map((hook) => ({ hook, trigger: status })));
-    void this.processQueue();
+    if (!this.processing) this.processingTask = this.processQueue();
   }
 
   public async stop(): Promise<void> {
@@ -52,8 +53,66 @@ export class PostBuildRunner {
       clearTimeout(this.timeoutHandle);
       this.timeoutHandle = undefined;
     }
-    if (this.currentChild) {
-      this.currentChild.kill("SIGTERM");
+    const child = this.currentChild;
+    let deadline: NodeJS.Timeout | undefined;
+    try {
+      await Promise.race([
+        Promise.all([this.processingTask, child ? this.retireOwnedChild(child) : undefined]),
+        new Promise<never>((_, reject) => {
+          deadline = setTimeout(
+            () =>
+              reject(
+                new Error(
+                  `Post-build runner ${this.options.targetName} did not stop within 2 seconds`,
+                ),
+              ),
+            2000,
+          );
+        }),
+      ]);
+    } finally {
+      if (deadline) clearTimeout(deadline);
+    }
+  }
+
+  private async retireOwnedChild(child: ChildProcess): Promise<void> {
+    this.signalOwnedChild(child, "SIGTERM");
+    const started = Date.now();
+    let escalated = false;
+    while (this.ownedChildAlive(child)) {
+      if (!escalated && Date.now() - started >= 1000) {
+        this.signalOwnedChild(child, "SIGKILL");
+        escalated = true;
+      }
+      if (Date.now() - started >= 2000) {
+        throw new Error(`Post-build process group for ${this.options.targetName} did not retire`);
+      }
+      await new Promise<void>((resolve) => setTimeout(resolve, 10));
+    }
+  }
+
+  private ownedChildAlive(child: ChildProcess): boolean {
+    if (!child.pid) return false;
+    if (process.platform === "win32") return child.exitCode === null && child.signalCode === null;
+    try {
+      process.kill(-child.pid, 0);
+      return true;
+    } catch (error) {
+      if ((error as NodeJS.ErrnoException).code === "ESRCH") return false;
+      throw error;
+    }
+  }
+
+  private signalOwnedChild(child: ChildProcess, signal: NodeJS.Signals): void {
+    if (!child.pid) return;
+    if (process.platform === "win32") {
+      if (child.exitCode === null && child.signalCode === null) child.kill(signal);
+      return;
+    }
+    try {
+      process.kill(-child.pid, signal);
+    } catch (error) {
+      if ((error as NodeJS.ErrnoException).code !== "ESRCH") throw error;
     }
   }
 
@@ -108,7 +167,15 @@ export class PostBuildRunner {
       trigger,
     });
 
-    if (this.stopped) return;
+    if (this.stopped) {
+      await this.options.stateManager.updatePostBuildResult(this.options.targetName, hook.name, {
+        status: "failure",
+        summary: `${hook.name}: cancelled before execution`,
+        completedAt: new Date().toISOString(),
+        durationMs: Date.now() - startedAt.getTime(),
+      });
+      return;
+    }
     const result = await this.executeCommand(hook);
     const formatted = await this.formatResult(hook, result.stdout, result.stderr, result.exitCode);
     const success = result.exitCode === 0;
@@ -158,6 +225,7 @@ export class PostBuildRunner {
         cwd,
         env,
         shell: true,
+        detached: process.platform !== "win32",
         stdio: ["ignore", "pipe", "pipe"],
       });
 
@@ -288,6 +356,7 @@ export class PostBuildRunner {
           POLTERGEIST_POSTBUILD_STDERR: stderr,
         },
         shell: true,
+        detached: process.platform !== "win32",
         stdio: ["pipe", "pipe", "pipe"],
       });
 
