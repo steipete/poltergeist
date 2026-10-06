@@ -8,6 +8,7 @@ import { DebouncedBuildScheduler } from "./core/debounced-build-scheduler.js";
 import { LifecycleHooks } from "./core/lifecycle-hooks.js";
 import { StatusPresenter } from "./core/status-presenter.js";
 import { TargetLifecycleManager } from "./core/target-lifecycle.js";
+import { completeCleanup, stopAllTargets, stopTargetResources } from "./core/target-cleanup.js";
 import type { TargetState } from "./core/target-state.js";
 import { WatchService } from "./core/watch-service.js";
 import type {
@@ -455,39 +456,37 @@ export class Poltergeist {
   public async stop(targetName?: string): Promise<void> {
     this.logger.info("👻 [Poltergeist] Putting Poltergeist to rest...");
 
+    const steps: Array<() => void | Promise<void>> = [];
     if (targetName) {
-      // Stop specific target
       const state = this.targetStates.get(targetName);
       if (state) {
-        await state.runner?.stop();
-        await state.postBuildRunner?.stop();
-        state.builder.stop();
-        this.targetStates.delete(targetName);
-        await this.stateManager.removeState(targetName);
+        steps.push(
+          () => stopTargetResources(state),
+          () => {
+            this.targetStates.delete(targetName);
+          },
+          () => this.stateManager.removeState(targetName),
+        );
       }
     } else {
-      // Stop all targets
-      for (const state of this.targetStates.values()) {
-        await state.runner?.stop();
-        await state.postBuildRunner?.stop();
-        state.builder.stop();
-      }
-      this.targetStates.clear();
-
-      await this.watchService?.stop();
-      this.watchService = undefined;
-      this.watchman = undefined;
-
-      // Cleanup state manager
-      await this.stateManager.cleanup();
-
-      this.isRunning = false;
+      steps.push(
+        () => stopAllTargets(this.targetStates),
+        () => this.watchService?.stop(),
+        () => {
+          this.watchService = undefined;
+          this.watchman = undefined;
+        },
+        () => this.stateManager.cleanup(),
+        () => {
+          this.isRunning = false;
+        },
+      );
     }
-
-    if (this.pausePoll) {
-      clearInterval(this.pausePoll);
+    steps.push(() => {
+      if (this.pausePoll) clearInterval(this.pausePoll);
       this.pausePoll = undefined;
-    }
+    });
+    await completeCleanup(steps, "Poltergeist shutdown cleanup failed");
 
     this.logger.info("👻 [Poltergeist] Poltergeist is now at rest");
   }
@@ -746,13 +745,19 @@ export class Poltergeist {
       try {
         this.logger.info(`➖ Removing target: ${name}`);
         const state = this.targetStates.get(name);
-        if (state?.buildTimer) clearTimeout(state.buildTimer);
-        this.buildQueue?.unregisterTarget(name);
-        await state?.runner?.stop();
-        await state?.postBuildRunner?.stop();
-        state?.builder.stop();
-        this.targetStates.delete(name);
-        await this.stateManager.removeState(name);
+        await completeCleanup(
+          [
+            () => {
+              this.buildQueue?.unregisterTarget(name);
+            },
+            () => (state ? stopTargetResources(state) : undefined),
+            () => {
+              this.targetStates.delete(name);
+            },
+            () => this.stateManager.removeState(name),
+          ],
+          `Failed to remove target ${name}`,
+        );
       } catch (error) {
         this.logger.error(
           `❌ Failed to remove target ${name}: ${error instanceof Error ? error.message : error}`,

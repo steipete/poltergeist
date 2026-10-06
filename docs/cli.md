@@ -130,6 +130,8 @@ Changes to post-build hook definitions or to settings of an existing non-executa
 
 Post-build hook launch errors are recorded as failed hook results, and later hooks still run. Formatter launch or input errors produce a warning without terminating the daemon; when formatting fails, the hook's normal output remains available.
 
+If a post-build hook cannot retire within its shutdown deadline or signaling fails, shutdown still attempts the remaining builders, targets, watcher and state cleanup. It then reports the retirement errors; a failed shutdown does not claim the hook process has exited. Removing a target follows the same cleanup ordering and logs the failure.
+
 Repeated successful builds with the same target configuration coalesce into one pending restart. A successful build with a new configuration starts a fresh restart delay, even when the delay value is unchanged.
 
 ## Troubleshooting

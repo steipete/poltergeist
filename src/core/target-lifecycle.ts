@@ -7,6 +7,7 @@ import type { ExecutableTarget, Target } from "../types.js";
 import { BuildStatusManager } from "../utils/build-status-manager.js";
 import { expandGlobPatterns } from "../utils/glob-utils.js";
 import type { TargetState } from "./target-state.js";
+import { completeCleanup, stopAllTargets, stopTargetResources } from "./target-cleanup.js";
 
 interface TargetLifecycleDeps {
   projectRoot: string;
@@ -185,9 +186,7 @@ export class TargetLifecycleManager {
           : undefined
         : previous?.postBuildRunner;
       if (typeChanged) {
-        await previous.runner?.stop();
-        await previous.postBuildRunner?.stop();
-        previous.builder.stop();
+        await stopTargetResources(previous);
       } else {
         previous?.builder.updateTarget(mod.newTarget);
         if (mod.newTarget.type === "executable") {
@@ -228,21 +227,22 @@ export class TargetLifecycleManager {
     if (targetName) {
       const state = this.targetStates.get(targetName);
       if (state) {
-        await state.runner?.stop();
-        await state.postBuildRunner?.stop();
-        state.builder.stop();
-        this.targetStates.delete(targetName);
-        await this.stateManager.removeState(targetName);
+        await completeCleanup(
+          [
+            () => stopTargetResources(state),
+            () => {
+              this.targetStates.delete(targetName);
+            },
+            () => this.stateManager.removeState(targetName),
+          ],
+          `Failed to stop target ${targetName}`,
+        );
       }
       return;
     }
-
-    for (const state of this.targetStates.values()) {
-      await state.runner?.stop();
-      await state.postBuildRunner?.stop();
-      state.builder.stop();
-    }
-    this.targetStates.clear();
-    await this.stateManager.cleanup();
+    await completeCleanup(
+      [() => stopAllTargets(this.targetStates), () => this.stateManager.cleanup()],
+      "Target shutdown cleanup failed",
+    );
   }
 }
