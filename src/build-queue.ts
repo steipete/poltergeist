@@ -163,11 +163,6 @@ export class IntelligentBuildQueue {
     const existingIndex = this.pendingQueue.findIndex((req) => req.target.name === targetName);
 
     if (existingIndex >= 0) {
-      this.pendingRebuilds.add(targetName);
-      const existingPending = this.pendingChangeFiles.get(targetName) ?? [];
-      this.pendingChangeFiles.set(targetName, [
-        ...new Set([...existingPending, ...triggeringFiles]),
-      ]);
       // Build deduplication: merge multiple change events for same target
       // Update priority and combine triggering files
       const existing = this.pendingQueue[existingIndex];
