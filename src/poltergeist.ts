@@ -1,5 +1,5 @@
 import { readFileSync } from "node:fs";
-import { join } from "node:path";
+import { join, relative, sep } from "node:path";
 import { IntelligentBuildQueue } from "./build-queue.js";
 import type { BaseBuilder } from "./builders/index.js";
 import { BuildCoordinator } from "./core/build-coordinator.js";
@@ -541,8 +541,10 @@ export class Poltergeist {
    * Handle configuration file changes for automatic reloading
    */
   private async handleConfigChange(files: Array<{ name: string; exists: boolean }>): Promise<void> {
-    const configChanged = files.some((f) => f.name === "poltergeist.config.json" && f.exists);
-    if (!configChanged || !this.configPath) return;
+    if (!this.configPath) return;
+    const configName = relative(this.projectRoot, this.configPath).split(sep).join("/");
+    const configChanged = files.some((f) => f.name === configName && f.exists);
+    if (!configChanged) return;
 
     this.reloadTail = this.reloadTail.then(() => this.reloadConfiguration());
     await this.reloadTail;
