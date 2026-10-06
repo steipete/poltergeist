@@ -28,12 +28,14 @@ interface FormattedResult {
 export class PostBuildRunner {
   private queue: QueueEntry[] = [];
   private processing = false;
+  private stopped = false;
   private currentChild?: ChildProcess;
   private timeoutHandle?: NodeJS.Timeout;
 
   constructor(private readonly options: PostBuildRunnerOptions) {}
 
   public onBuildResult(status: Trigger): void {
+    if (this.stopped) return;
     const eligible = this.options.hooks.filter((hook) => this.shouldRun(hook, status));
     if (eligible.length === 0) {
       return;
@@ -44,6 +46,8 @@ export class PostBuildRunner {
   }
 
   public async stop(): Promise<void> {
+    this.stopped = true;
+    this.queue.length = 0;
     if (this.timeoutHandle) {
       clearTimeout(this.timeoutHandle);
       this.timeoutHandle = undefined;
@@ -76,7 +80,7 @@ export class PostBuildRunner {
     }
     this.processing = true;
 
-    while (this.queue.length > 0) {
+    while (!this.stopped && this.queue.length > 0) {
       const job = this.queue.shift();
       if (!job) {
         break;
@@ -104,6 +108,7 @@ export class PostBuildRunner {
       trigger,
     });
 
+    if (this.stopped) return;
     const result = await this.executeCommand(hook);
     const formatted = await this.formatResult(hook, result.stdout, result.stderr, result.exitCode);
     const success = result.exitCode === 0;
@@ -203,7 +208,7 @@ export class PostBuildRunner {
   ): Promise<FormattedResult | undefined> {
     let parsed = this.tryParseJsonResult(stdout);
 
-    if (!parsed && hook.formatter) {
+    if (!parsed && hook.formatter && !this.stopped) {
       parsed = await this.runFormatter(hook, stdout, stderr, exitCode ?? -1);
     }
 
@@ -286,6 +291,7 @@ export class PostBuildRunner {
         stdio: ["pipe", "pipe", "pipe"],
       });
 
+      this.currentChild = formatter;
       let output = "";
       formatter.stdout?.on("data", (chunk) => {
         output += chunk.toString();
@@ -307,6 +313,7 @@ export class PostBuildRunner {
       formatter.stdin?.end();
 
       formatter.on("close", (code) => {
+        if (this.currentChild === formatter) this.currentChild = undefined;
         if (code !== 0) {
           resolve(undefined);
           return;
