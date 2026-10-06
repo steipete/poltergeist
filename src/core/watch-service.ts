@@ -86,7 +86,7 @@ export class WatchService {
           },
           exclusionExpressions,
         );
-        this.subscriptions.set(subscriptionName, new Set(targetNames));
+        this.subscriptions.set(subscriptionName, targetNames);
         targetNames.forEach((targetName) => {
           const state = targetStates.get(targetName);
           if (state) state.watching = true;

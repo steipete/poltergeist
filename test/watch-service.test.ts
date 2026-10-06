@@ -96,3 +96,32 @@ describe("WatchService", () => {
     expect(watchman.unsubscribe).toHaveBeenCalledWith("poltergeist_lib_ts");
   });
 });
+
+it("routes shared subscription events only to surviving targets", async () => {
+  const config = createTestConfig(),
+    watchman = makeMockWatchman(),
+    changed = vi.fn();
+  const service = new WatchService({
+    projectRoot: "/project",
+    config,
+    logger: noopLogger,
+    watchman,
+    watchmanConfigManager: mockWatchmanConfigManager,
+    onFilesChanged: changed,
+  });
+  await service.subscribeTargets(
+    new Map([
+      ["a", makeTargetState(config, "src.ts")],
+      ["b", makeTargetState(config, "src.ts")],
+    ]),
+  );
+  const handler = watchman.subscribe.mock.calls[0]?.[3] as (
+    files: Array<{ name: string; exists: boolean }>,
+  ) => void;
+  await service.unsubscribeTargets(["a"]);
+  handler([{ name: "src.ts", exists: true }]);
+  expect(changed).toHaveBeenCalledWith([{ name: "src.ts", exists: true }], ["b"]);
+  expect(watchman.unsubscribe).not.toHaveBeenCalled();
+  await service.unsubscribeTargets(["b"]);
+  expect(watchman.unsubscribe).toHaveBeenCalledTimes(1);
+});
