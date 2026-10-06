@@ -248,7 +248,11 @@ export class PostBuildRunner {
       if (hook.timeoutSeconds && hook.timeoutSeconds > 0) {
         this.timeoutHandle = setTimeout(() => {
           timedOut = true;
-          child.kill("SIGKILL");
+          try {
+            this.signalOwnedChild(child, "SIGKILL");
+          } catch (error) {
+            executionError = error instanceof Error ? error.message : String(error);
+          }
         }, hook.timeoutSeconds * 1000);
       }
 

@@ -82,6 +82,70 @@ describe.skipIf(process.platform === "win32")("native post-build cancellation", 
       rmSync(dir, { recursive: true, force: true });
     }
   });
+  it("times out a shell command together with its pipe-holding descendant", async () => {
+    const dir = mkdtempSync(join(tmpdir(), "poltergeist-hook-timeout-"));
+    const prior = process.env.POLTERGEIST_STATE_DIR;
+    process.env.POLTERGEIST_STATE_DIR = join(dir, "states");
+    const ready = join(dir, "child-pid");
+    writeFileSync(
+      join(dir, "child.cjs"),
+      `require('node:fs').writeFileSync(${JSON.stringify(ready)},String(process.pid));setInterval(()=>{},1000)`,
+    );
+    const hooks: PostBuildCommandConfig[] = [
+      {
+        name: "check",
+        command: `${quote(process.execPath)} ${quote(join(dir, "child.cjs"))} & wait`,
+        timeoutSeconds: 0.1,
+      },
+    ];
+    const logger = new SimpleLogger(undefined, "error");
+    const state = new StateManager(dir, logger);
+    const runner = new PostBuildRunner({
+      targetName: "app",
+      hooks,
+      projectRoot: dir,
+      stateManager: state,
+      logger,
+    });
+    let pid: number | undefined;
+    const alive = () => {
+      try {
+        process.kill(pid!, 0);
+        return true;
+      } catch {
+        return false;
+      }
+    };
+    try {
+      await state.initializeState({
+        name: "app",
+        type: "executable",
+        buildCommand: "echo unused",
+        outputPath: "unused",
+        watchPaths: [],
+      });
+      runner.onBuildResult("success");
+      await waitFor(() => existsSync(ready));
+      pid = Number(readFileSync(ready, "utf8"));
+      await waitFor(async () =>
+        Boolean((await state.readState("app"))?.postBuildResults?.check?.completedAt),
+      );
+      await waitFor(() => !alive());
+      expect((await state.readState("app"))?.postBuildResults?.check).toMatchObject({
+        status: "failure",
+        exitCode: -1,
+        formatterError: "timeout",
+      });
+    } finally {
+      if (pid && alive()) process.kill(pid, "SIGKILL");
+      await runner.stop();
+      await state.cleanup();
+      if (prior === undefined) delete process.env.POLTERGEIST_STATE_DIR;
+      else process.env.POLTERGEIST_STATE_DIR = prior;
+      rmSync(dir, { recursive: true, force: true });
+    }
+  });
+
   it.each([false, true])(
     "terminates an active formatter with redirected stdio=%s when stopped",
     async (redirected) => {
