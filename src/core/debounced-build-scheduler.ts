@@ -36,10 +36,11 @@ export class DebouncedBuildScheduler {
 
       const delay = state.target.settlingDelay || this.defaultDelayMs;
 
-      state.buildTimer = setTimeout(async () => {
+      const timer = setTimeout(async () => {
+        if (state.buildTimer === timer) state.buildTimer = undefined;
         await this.buildTarget(targetName, Array.from(state.pendingFiles), state);
-        state.buildTimer = undefined;
       }, delay);
+      state.buildTimer = timer;
     }
   }
 }
