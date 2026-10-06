@@ -126,7 +126,7 @@ For app bundles, backend frameworks, simulators, or devices, keep the daemon res
 
 Saving the configuration updates an existing executable target's build command, environment, output path, watch paths, and auto-run settings. An active build finishes with the settings it started with; subsequent builds and scheduled retries use the latest configuration. Changing a target's type replaces its specialized builder. Each successful build retains its output description and carries its own launch settings through a delayed restart, so a newer failed build cannot redirect that launch. Disabling auto-run cancels queued restarts and stops its child process. Configuration saves are applied in order, including saves made while a child is shutting down.
 
-Changes to post-build hook definitions or to settings of an existing non-executable target still require restarting the daemon.
+Saving the configuration reloads added, removed, or changed post-build hook definitions for an existing executable target. Changes to settings, including post-build hook definitions, of an existing non-executable target still require restarting the daemon.
 
 Post-build hook launch errors are recorded as failed hook results, and later hooks still run. Formatter launch or input errors produce a warning without terminating the daemon; when formatting fails, the hook's normal output remains available.
 
