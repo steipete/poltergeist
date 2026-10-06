@@ -464,6 +464,8 @@ export class IntelligentBuildQueue {
     const initialLength = this.pendingQueue.length;
     this.pendingQueue = this.pendingQueue.filter((req) => req.target.name !== targetName);
     const cancelled = initialLength - this.pendingQueue.length;
+    this.pendingRebuilds.delete(targetName);
+    this.pendingChangeFiles.delete(targetName);
 
     if (cancelled > 0) {
       this.logger.info(`Cancelled ${cancelled} pending builds for ${targetName}`);
@@ -479,6 +481,7 @@ export class IntelligentBuildQueue {
     const cancelled = this.pendingQueue.length;
     this.pendingQueue = [];
     this.pendingRebuilds.clear();
+    this.pendingChangeFiles.clear();
 
     this.logger.info(`Cleared queue (${cancelled} builds cancelled)`);
   }
