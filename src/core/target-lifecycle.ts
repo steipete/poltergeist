@@ -150,6 +150,9 @@ export class TargetLifecycleManager {
     for (const mod of modifications) {
       const previous = targetStates.get(mod.name);
       const typeChanged = previous && previous.target.type !== mod.newTarget.type;
+      const hooksChanged =
+        JSON.stringify(previous?.target.postBuild ?? []) !==
+        JSON.stringify(mod.newTarget.postBuild ?? []);
       if (mod.newTarget.type !== "executable" && !typeChanged) {
         this.logger.info(`ℹ️ Skipping non-executable target update: ${mod.name}`);
         continue;
@@ -173,22 +176,24 @@ export class TargetLifecycleManager {
               logger: this.logger,
             })
           : undefined;
-      const postBuildRunner = typeChanged
-        ? mod.newTarget.postBuild?.length
-          ? new PostBuildRunner({
-              targetName: mod.name,
-              hooks: mod.newTarget.postBuild,
-              projectRoot: this.projectRoot,
-              stateManager: this.stateManager,
-              logger: this.logger,
-            })
-          : undefined
-        : previous?.postBuildRunner;
+      const postBuildRunner =
+        typeChanged || hooksChanged
+          ? mod.newTarget.postBuild?.length
+            ? new PostBuildRunner({
+                targetName: mod.name,
+                hooks: mod.newTarget.postBuild,
+                projectRoot: this.projectRoot,
+                stateManager: this.stateManager,
+                logger: this.logger,
+              })
+            : undefined
+          : previous?.postBuildRunner;
       if (typeChanged) {
         await previous.runner?.stop();
         await previous.postBuildRunner?.stop();
         previous.builder.stop();
       } else {
+        if (hooksChanged) await previous?.postBuildRunner?.stop();
         previous?.builder.updateTarget(mod.newTarget);
         if (mod.newTarget.type === "executable") {
           await previous?.runner?.updateTarget(mod.newTarget);
