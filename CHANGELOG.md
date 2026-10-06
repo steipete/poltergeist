@@ -2,6 +2,8 @@
 
 ## [Unreleased]
 
+- Watch the actual configured JSON path, including literal glob characters.
+
 ## [2.1.8] - 2026-10-01
 
 **Highlights:** Build hooks no longer crash the daemon, notifications stay scoped to each instance, and standalone macOS executables are signed and notarized.

@@ -1,3 +1,4 @@
+import path from "node:path";
 import type { IWatchmanClient, IWatchmanConfigManager } from "../interfaces.js";
 import type { Logger } from "../logger.js";
 import type { PoltergeistConfig } from "../types.js";
@@ -110,7 +111,11 @@ export class WatchService {
         this.projectRoot,
         "poltergeist_config",
         {
-          expression: ["match", "poltergeist.config.json", "wholename"],
+          expression: [
+            "name",
+            path.relative(this.projectRoot, configPath).split(path.sep).join("/"),
+            "wholename",
+          ],
           fields: ["name", "exists", "type"],
         },
         (files) => onChange(files),

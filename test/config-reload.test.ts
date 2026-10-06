@@ -133,7 +133,7 @@ describe("Configuration Reloading", () => {
   });
 
   test("should handle config file watching setup", async () => {
-    const configPath = "/test/poltergeist.config.json";
+    const configPath = "/test/project/poltergeist.config.json";
 
     // Create enhanced mocks with watchman config manager
     const enhancedMocks = {
@@ -167,7 +167,7 @@ describe("Configuration Reloading", () => {
 
     expect(configSubscriptionCall).toBeDefined();
     expect(configSubscriptionCall[2].expression).toEqual([
-      "match",
+      "name",
       "poltergeist.config.json",
       "wholename",
     ]);

@@ -96,3 +96,24 @@ describe("WatchService", () => {
     expect(watchman.unsubscribe).toHaveBeenCalledWith("poltergeist_lib_ts");
   });
 });
+
+it.each(["custom[dev].json", "configs/custom.json", "poltergeist.config.json"])(
+  "subscribes to literal configured path %s",
+  async (relative) => {
+    const config = createTestConfig(),
+      watchman = makeMockWatchman();
+    const service = new WatchService({
+      projectRoot: "/project",
+      config,
+      logger: noopLogger,
+      watchman,
+      watchmanConfigManager: mockWatchmanConfigManager,
+      onFilesChanged: vi.fn(),
+    });
+    await service.subscribeConfig(`/project/${relative}`, vi.fn());
+    expect(watchman.subscribe.mock.calls[0]?.[2]).toEqual({
+      expression: ["name", relative, "wholename"],
+      fields: ["name", "exists", "type"],
+    });
+  },
+);
