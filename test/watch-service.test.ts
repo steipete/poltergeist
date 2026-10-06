@@ -89,10 +89,37 @@ describe("WatchService", () => {
     );
 
     await service.unsubscribeTargets(["t1"]);
-    expect(watchman.unsubscribe).toHaveBeenCalledWith("poltergeist_src_ts");
-    expect(watchman.unsubscribe).not.toHaveBeenCalledWith("poltergeist_lib_ts");
+    const sourceName = watchman.subscribe.mock.calls[0]?.[1];
+    const libraryName = watchman.subscribe.mock.calls[1]?.[1];
+    expect(watchman.unsubscribe).toHaveBeenCalledWith(sourceName);
+    expect(watchman.unsubscribe).not.toHaveBeenCalledWith(libraryName);
 
     await service.unsubscribeTargets(["t2"]);
-    expect(watchman.unsubscribe).toHaveBeenCalledWith("poltergeist_lib_ts");
+    expect(watchman.unsubscribe).toHaveBeenCalledWith(libraryName);
   });
+});
+
+it("keeps sanitized-name collisions distinct through refresh", async () => {
+  const config = createTestConfig(),
+    watchman = makeMockWatchman();
+  const service = new WatchService({
+    projectRoot: "/project",
+    config,
+    logger: noopLogger,
+    watchman,
+    watchmanConfigManager: mockWatchmanConfigManager,
+    onFilesChanged: vi.fn(),
+  });
+  const a = makeTargetState(config, "foo-bar/*.ts"),
+    b = makeTargetState(config, "foo_bar/*.ts");
+  const states = new Map([
+    ["a", a],
+    ["b", b],
+  ]);
+  await service.subscribeTargets(states);
+  const first = watchman.subscribe.mock.calls.map((c) => c[1]);
+  expect(new Set(first).size).toBe(2);
+  await service.refreshTargets(states);
+  expect(watchman.subscribe.mock.calls.slice(2).map((c) => c[1])).toEqual(first);
+  expect(watchman.unsubscribe).not.toHaveBeenCalled();
 });

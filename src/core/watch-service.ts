@@ -1,3 +1,4 @@
+import { createHash } from "node:crypto";
 import type { IWatchmanClient, IWatchmanConfigManager } from "../interfaces.js";
 import type { Logger } from "../logger.js";
 import type { PoltergeistConfig } from "../types.js";
@@ -69,7 +70,7 @@ export class WatchService {
         const normalizedPattern = this.watchmanConfigManager.normalizeWatchPattern(pattern);
         this.watchmanConfigManager.validateWatchPattern(normalizedPattern);
 
-        const subscriptionName = `poltergeist_${normalizedPattern.replace(/[^a-zA-Z0-9]/g, "_")}`;
+        const subscriptionName = this.subscriptionName(normalizedPattern);
         const exclusionExpressions = this.watchmanConfigManager.createExclusionExpressions(
           this.config,
         );
@@ -142,7 +143,7 @@ export class WatchService {
     for (const state of targetStates.values()) {
       for (const pattern of state.target.watchPaths) {
         const normalized = this.watchmanConfigManager.normalizeWatchPattern(pattern);
-        wanted.add(`poltergeist_${normalized.replace(/[^a-zA-Z0-9]/g, "_")}`);
+        wanted.add(this.subscriptionName(normalized));
       }
     }
     // Watchman replaces matching names atomically; keep old watches until replacements exist.
@@ -179,6 +180,10 @@ export class WatchService {
       }
       this.subscriptions.delete(subscription);
     }
+  }
+
+  private subscriptionName(pattern: string): string {
+    return `poltergeist_${pattern.replace(/[^a-zA-Z0-9]/g, "_")}_${createHash("sha256").update(pattern).digest("hex")}`;
   }
 
   private async unsubscribeAll(): Promise<void> {
