@@ -2,6 +2,8 @@
 
 ## [Unreleased]
 
+- Updated pi-tui, LogTape, arkregex, Node.js types, Vite, Oxfmt, Oxlint, and PostCSS within the release-age policy; retained TypeScript 6 and the Node.js 24 runtime floor. Thanks @dependabot.
+
 - Fixed duplicate builds for coalesced queued changes, cancellation of deferred rebuilds, and debounce timers losing newer pending work. Thanks @rudycelekli.
 - Fixed colliding watch subscription names, removed targets receiving shared watch events, and concurrent Watchman initialization. Thanks @rudycelekli.
 - Fixed hot reload for custom and nested configuration filenames, including literal glob characters. Thanks @rudycelekli.
