@@ -104,7 +104,7 @@ describe("Configuration Reloading", () => {
   });
 
   test("should detect watchman configuration changes", async () => {
-    const configPath = "/test/poltergeist.config.json";
+    const configPath = "/test/project/poltergeist.config.json";
     const poltergeist = new (await import("../src/poltergeist.js")).Poltergeist(
       baseConfig,
       "/test/project",
@@ -133,7 +133,7 @@ describe("Configuration Reloading", () => {
   });
 
   test("should handle config file watching setup", async () => {
-    const configPath = "/test/poltergeist.config.json";
+    const configPath = "/test/project/poltergeist.config.json";
 
     // Create enhanced mocks with watchman config manager
     const enhancedMocks = {
@@ -167,7 +167,7 @@ describe("Configuration Reloading", () => {
 
     expect(configSubscriptionCall).toBeDefined();
     expect(configSubscriptionCall[2].expression).toEqual([
-      "match",
+      "name",
       "poltergeist.config.json",
       "wholename",
     ]);
@@ -209,7 +209,7 @@ describe("Configuration Reloading", () => {
 
   describe("Configuration Change Application", () => {
     test("should properly apply target additions", async () => {
-      const configPath = "/test/poltergeist.config.json";
+      const configPath = "/test/project/poltergeist.config.json";
       const enhancedMocks = {
         ...harness.mocks,
         watchmanConfigManager: {
@@ -258,7 +258,7 @@ describe("Configuration Reloading", () => {
     });
 
     test("should properly handle target removal", async () => {
-      const configPath = "/test/poltergeist.config.json";
+      const configPath = "/test/project/poltergeist.config.json";
       const enhancedMocks = {
         ...harness.mocks,
         watchmanConfigManager: {
@@ -300,7 +300,7 @@ describe("Configuration Reloading", () => {
     });
 
     test("should handle notification configuration changes", async () => {
-      const configPath = "/test/poltergeist.config.json";
+      const configPath = "/test/project/poltergeist.config.json";
       const enhancedMocks = {
         ...harness.mocks,
         watchmanConfigManager: {
@@ -339,7 +339,7 @@ describe("Configuration Reloading", () => {
     });
 
     test("should handle build scheduling configuration changes", async () => {
-      const configPath = "/test/poltergeist.config.json";
+      const configPath = "/test/project/poltergeist.config.json";
       const enhancedMocks = {
         ...harness.mocks,
         watchmanConfigManager: {
@@ -384,7 +384,7 @@ describe("Configuration Reloading", () => {
 
   describe("Error Handling", () => {
     test("should handle configuration loading errors gracefully", async () => {
-      const configPath = "/test/poltergeist.config.json";
+      const configPath = "/test/project/poltergeist.config.json";
       const enhancedMocks = {
         ...harness.mocks,
         watchmanConfigManager: {
@@ -426,7 +426,7 @@ describe("Configuration Reloading", () => {
     });
 
     test("should handle builder creation failures during config reload", async () => {
-      const configPath = "/test/poltergeist.config.json";
+      const configPath = "/test/project/poltergeist.config.json";
       const enhancedMocks = {
         ...harness.mocks,
         watchmanConfigManager: {
@@ -486,7 +486,7 @@ describe("Configuration Reloading", () => {
     });
 
     test("should handle watchman subscription failures gracefully", async () => {
-      const configPath = "/test/poltergeist.config.json";
+      const configPath = "/test/project/poltergeist.config.json";
       const enhancedMocks = {
         ...harness.mocks,
         watchmanConfigManager: {
@@ -530,7 +530,7 @@ describe("Configuration Reloading", () => {
 
   describe("File Change Simulation", () => {
     test("should trigger config reload when config file changes", async () => {
-      const configPath = "/test/poltergeist.config.json";
+      const configPath = "/test/project/poltergeist.config.json";
       const enhancedMocks = {
         ...harness.mocks,
         watchmanConfigManager: {
@@ -614,7 +614,7 @@ describe("Configuration Reloading", () => {
     });
 
     test("should ignore non-config file changes", async () => {
-      const configPath = "/test/poltergeist.config.json";
+      const configPath = "/test/project/poltergeist.config.json";
       const enhancedMocks = {
         ...harness.mocks,
         watchmanConfigManager: {
@@ -662,7 +662,7 @@ describe("Configuration Reloading", () => {
     });
 
     test("should ignore config file deletion", async () => {
-      const configPath = "/test/poltergeist.config.json";
+      const configPath = "/test/project/poltergeist.config.json";
       const enhancedMocks = {
         ...harness.mocks,
         watchmanConfigManager: {

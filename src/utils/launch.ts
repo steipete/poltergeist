@@ -41,7 +41,7 @@ export function prepareLaunchInfo(target: Target, projectRoot: string, args: str
   let command: string;
   let commandArgs: string[];
 
-  if (ext.endsWith(".js") || ext.endsWith(".mjs")) {
+  if (ext.endsWith(".js") || ext.endsWith(".mjs") || ext.endsWith(".cjs")) {
     command = "node";
     commandArgs = [binaryPath, ...args];
   } else if (ext.endsWith(".py")) {

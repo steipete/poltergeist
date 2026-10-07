@@ -4,6 +4,7 @@
 //
 
 import * as crypto from "node:crypto";
+import * as fsSync from "node:fs";
 import { promises as fs } from "node:fs";
 import * as path from "node:path";
 
@@ -104,7 +105,6 @@ export function writeFileAtomicSync(
   const basename = path.basename(normalizedPath);
 
   // Ensure directory exists
-  const fsSync = require("node:fs");
   fsSync.mkdirSync(dir, { recursive: true });
 
   // Generate temp filename

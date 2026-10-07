@@ -31,19 +31,18 @@ export type WatchmanCallback = (error: Error | null, resp?: any) => void;
 class WatchmanClientWrapper {
   private clientModule: any = null;
   private client: any = null;
-  private loadAttempted = false;
+  private loadPromise?: Promise<any>;
 
   /**
    * Lazily loads the fb-watchman module and creates a client.
    * Falls back gracefully if the module is not available.
    */
   private async loadWatchman(): Promise<any> {
-    if (this.loadAttempted) {
-      return this.client;
-    }
+    this.loadPromise ??= this.initializeWatchman();
+    return this.loadPromise;
+  }
 
-    this.loadAttempted = true;
-
+  private async initializeWatchman(): Promise<any> {
     try {
       // Dynamic import of CommonJS module
       // This allows Bun to compile without the dependency

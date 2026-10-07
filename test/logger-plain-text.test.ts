@@ -1,5 +1,6 @@
 // Tests for plain text logging functionality
 
+import { randomUUID } from "node:crypto";
 import { mkdirSync, rmSync } from "fs";
 import { tmpdir } from "os";
 import { join } from "path";
@@ -13,7 +14,7 @@ describe("Plain Text Logging", () => {
 
   beforeEach(() => {
     // Create a test directory for log files
-    testDir = join(tmpdir(), `poltergeist-test-${Date.now()}`);
+    testDir = join(tmpdir(), `poltergeist-test-${randomUUID()}`);
     mkdirSync(testDir, { recursive: true });
     process.env.POLTERGEIST_STATE_DIR = testDir;
   });

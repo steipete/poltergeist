@@ -1,5 +1,6 @@
 // Tests for polter's wait-for-build functionality
 
+import { randomUUID } from "node:crypto";
 import { mkdirSync, rmSync, writeFileSync } from "fs";
 import { tmpdir } from "os";
 import { join } from "path";
@@ -12,7 +13,7 @@ describe("Polter Wait for Build", () => {
   let projectRoot: string;
 
   beforeEach(() => {
-    testDir = join(tmpdir(), `poltergeist-test-${Date.now()}`);
+    testDir = join(tmpdir(), `poltergeist-test-${randomUUID()}`);
     projectRoot = join(testDir, "test-project");
     mkdirSync(projectRoot, { recursive: true });
     process.env.POLTERGEIST_STATE_DIR = join(testDir, "state");

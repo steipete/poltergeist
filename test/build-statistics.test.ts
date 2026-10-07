@@ -1,5 +1,6 @@
 // Tests for build statistics tracking functionality
 
+import { randomUUID } from "node:crypto";
 import { tmpdir } from "os";
 import { join } from "path";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
@@ -14,7 +15,7 @@ describe("Build Statistics", () => {
 
   beforeEach(() => {
     // Create a unique temp directory for each test
-    tempDir = join(tmpdir(), `poltergeist-test-${Date.now()}`);
+    tempDir = join(tmpdir(), `poltergeist-test-${randomUUID()}`);
 
     // Mock logger
     logger = {

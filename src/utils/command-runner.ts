@@ -1,4 +1,5 @@
 import { spawn } from "child_process";
+import { constants } from "node:os";
 
 export interface RunOptions {
   cwd?: string;
@@ -37,10 +38,14 @@ export class ChildProcessRunner implements CommandRunner {
         stderr += data.toString();
       });
 
-      child.on("close", (code) => {
-        const exitCode = code ?? 0;
+      child.on("close", (code, signal) => {
+        const exitCode = code ?? (signal ? 128 + (constants.signals[signal] ?? 0) : 1);
         if (exitCode !== 0 && !allowNonZeroExit) {
-          reject(new Error(`Command failed: ${command} ${args.join(" ")}\n${stderr}`));
+          reject(
+            new Error(
+              `Command failed${signal ? ` (${signal})` : ""}: ${command} ${args.join(" ")}\n${stderr}`,
+            ),
+          );
           return;
         }
         resolve({ stdout, stderr, exitCode });

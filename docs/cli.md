@@ -44,7 +44,7 @@ An executable target identifies its build command, output, and watched files:
 
 Supported target types are `executable`, `app-bundle`, `library`, `framework`, `test`, `docker`, `custom`, `npm`, `cmake-executable`, `cmake-library`, and `cmake-custom`. The files in [`examples/`](../examples/) show complete configurations for common project layouts.
 
-Changes to `poltergeist.config.json` reload while the daemon is running. Target settings include environment variables, retry behavior, notification icons, post-build commands, log channels, and per-target settling or debounce intervals.
+Changes to the selected configuration file reload while the daemon is running, including custom filenames and nested paths inside the watched project root. Filenames are matched literally, so characters such as `[` and `]` are supported. Target settings include environment variables, retry behavior, notification icons, post-build commands, log channels, and per-target settling or debounce intervals.
 
 Build notifications stay local to each Poltergeist instance. Each distinct notifier receives a result once, including when a build throws an error; repeated identical results are suppressed.
 
@@ -64,7 +64,7 @@ Build notifications stay local to each Poltergeist instance. Each distinct notif
 
 ## Fresh execution with `polter`
 
-Run an executable target through `polter` instead of invoking its output directly:
+Run an executable target through `polter` instead of invoking its output directly. JavaScript outputs (`.js`, `.mjs`, and `.cjs`) run through Node.js and do not need executable permissions:
 
 ```sh
 polter app -- --help
@@ -126,9 +126,11 @@ For app bundles, backend frameworks, simulators, or devices, keep the daemon res
 
 Saving the configuration updates an existing executable target's build command, environment, output path, watch paths, and auto-run settings. An active build finishes with the settings it started with; subsequent builds and scheduled retries use the latest configuration. Changing a target's type replaces its specialized builder. Each successful build retains its output description and carries its own launch settings through a delayed restart, so a newer failed build cannot redirect that launch. Disabling auto-run cancels queued restarts and stops its child process. Configuration saves are applied in order, including saves made while a child is shutting down.
 
-Changes to post-build hook definitions or to settings of an existing non-executable target still require restarting the daemon.
+Configuration saves reload added, removed, or changed post-build hooks on existing executable targets. The previous hooks and formatter finish cancellation before replacement hooks become available. Settings and hooks on existing non-executable targets still require a daemon restart.
 
 Post-build hook launch errors are recorded as failed hook results, and later hooks still run. Formatter launch or input errors produce a warning without terminating the daemon; when formatting fails, the hook's normal output remains available.
+
+Stopping a target discards queued hooks and stops the active hook or formatter. On macOS and Linux, shutdown signals the owned process group and escalates to SIGKILL after one second if needed. If a hook cannot retire within two seconds or signaling fails, shutdown still attempts the remaining builders, targets, watcher, and state cleanup, then reports the errors. Configuration events arriving during shutdown do not create new targets.
 
 Repeated successful builds with the same target configuration coalesce into one pending restart. A successful build with a new configuration starts a fresh restart delay, even when the delay value is unchanged.
 

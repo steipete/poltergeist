@@ -163,11 +163,6 @@ export class IntelligentBuildQueue {
     const existingIndex = this.pendingQueue.findIndex((req) => req.target.name === targetName);
 
     if (existingIndex >= 0) {
-      this.pendingRebuilds.add(targetName);
-      const existingPending = this.pendingChangeFiles.get(targetName) ?? [];
-      this.pendingChangeFiles.set(targetName, [
-        ...new Set([...existingPending, ...triggeringFiles]),
-      ]);
       // Build deduplication: merge multiple change events for same target
       // Update priority and combine triggering files
       const existing = this.pendingQueue[existingIndex];
@@ -464,6 +459,8 @@ export class IntelligentBuildQueue {
     const initialLength = this.pendingQueue.length;
     this.pendingQueue = this.pendingQueue.filter((req) => req.target.name !== targetName);
     const cancelled = initialLength - this.pendingQueue.length;
+    this.pendingRebuilds.delete(targetName);
+    this.pendingChangeFiles.delete(targetName);
 
     if (cancelled > 0) {
       this.logger.info(`Cancelled ${cancelled} pending builds for ${targetName}`);
@@ -479,6 +476,7 @@ export class IntelligentBuildQueue {
     const cancelled = this.pendingQueue.length;
     this.pendingQueue = [];
     this.pendingRebuilds.clear();
+    this.pendingChangeFiles.clear();
 
     this.logger.info(`Cleared queue (${cancelled} builds cancelled)`);
   }
