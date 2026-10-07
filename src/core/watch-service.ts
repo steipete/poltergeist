@@ -1,3 +1,5 @@
+import { createHash } from "node:crypto";
+import path from "node:path";
 import type { IWatchmanClient, IWatchmanConfigManager } from "../interfaces.js";
 import type { Logger } from "../logger.js";
 import type { PoltergeistConfig } from "../types.js";
@@ -69,7 +71,7 @@ export class WatchService {
         const normalizedPattern = this.watchmanConfigManager.normalizeWatchPattern(pattern);
         this.watchmanConfigManager.validateWatchPattern(normalizedPattern);
 
-        const subscriptionName = `poltergeist_${normalizedPattern.replace(/[^a-zA-Z0-9]/g, "_")}`;
+        const subscriptionName = this.subscriptionName(normalizedPattern);
         const exclusionExpressions = this.watchmanConfigManager.createExclusionExpressions(
           this.config,
         );
@@ -86,7 +88,7 @@ export class WatchService {
           },
           exclusionExpressions,
         );
-        this.subscriptions.set(subscriptionName, new Set(targetNames));
+        this.subscriptions.set(subscriptionName, targetNames);
         targetNames.forEach((targetName) => {
           const state = targetStates.get(targetName);
           if (state) state.watching = true;
@@ -110,7 +112,11 @@ export class WatchService {
         this.projectRoot,
         "poltergeist_config",
         {
-          expression: ["match", "poltergeist.config.json", "wholename"],
+          expression: [
+            "name",
+            path.relative(this.projectRoot, configPath).split(path.sep).join("/"),
+            "wholename",
+          ],
           fields: ["name", "exists", "type"],
         },
         (files) => onChange(files),
@@ -142,7 +148,7 @@ export class WatchService {
     for (const state of targetStates.values()) {
       for (const pattern of state.target.watchPaths) {
         const normalized = this.watchmanConfigManager.normalizeWatchPattern(pattern);
-        wanted.add(`poltergeist_${normalized.replace(/[^a-zA-Z0-9]/g, "_")}`);
+        wanted.add(this.subscriptionName(normalized));
       }
     }
     // Watchman replaces matching names atomically; keep old watches until replacements exist.
@@ -179,6 +185,10 @@ export class WatchService {
       }
       this.subscriptions.delete(subscription);
     }
+  }
+
+  private subscriptionName(pattern: string): string {
+    return `poltergeist_${pattern.replace(/[^a-zA-Z0-9]/g, "_")}_${createHash("sha256").update(pattern).digest("hex")}`;
   }
 
   private async unsubscribeAll(): Promise<void> {

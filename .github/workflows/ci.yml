@@ -107,6 +107,9 @@ jobs:
       - name: Build CLI project
         run: pnpm run build
 
+      - name: Test Windows hook process-tree shutdown
+        run: pnpm exec vitest run test/post-build-stop-windows.test.ts
+
       - name: Test Windows temp directory handling
         run: |
           node -e "

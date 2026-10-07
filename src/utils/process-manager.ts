@@ -222,7 +222,7 @@ export class ProcessManager {
     childProcess: ChildProcess,
     timeoutMs: number = this.options.shutdownTimeout,
   ): Promise<void> {
-    if (!childProcess.pid || childProcess.killed) {
+    if (!childProcess.pid || childProcess.exitCode !== null || childProcess.signalCode !== null) {
       return;
     }
 
@@ -231,11 +231,13 @@ export class ProcessManager {
 
     return new Promise((resolve) => {
       const timeout = setTimeout(() => {
-        if (!childProcess.killed) {
+        if (childProcess.exitCode === null && childProcess.signalCode === null) {
           this.logger?.warn(`Force killing process ${childProcess.pid} after timeout`);
-          childProcess.kill("SIGKILL");
+          // killed means a signal was sent, not that the child exited.
+          if (!childProcess.kill("SIGKILL")) resolve();
+        } else {
+          resolve();
         }
-        resolve();
       }, effectiveTimeout);
 
       childProcess.on("exit", () => {
@@ -282,7 +284,11 @@ export class ProcessManager {
       this.stopHeartbeat();
       // Synchronous cleanup only
       for (const managed of this.managedProcesses.values()) {
-        if (managed.process.pid && !managed.process.killed) {
+        if (
+          managed.process.pid &&
+          managed.process.exitCode === null &&
+          managed.process.signalCode === null
+        ) {
           managed.process.kill("SIGKILL");
         }
       }

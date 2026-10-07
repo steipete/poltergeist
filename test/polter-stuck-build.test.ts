@@ -1,5 +1,6 @@
 // Tests for polter's handling of stuck builds and lock detection
 
+import { randomUUID } from "node:crypto";
 import { mkdirSync, readFileSync, rmSync, writeFileSync } from "fs";
 import { tmpdir } from "os";
 import { join } from "path";
@@ -32,7 +33,7 @@ describe("Polter Stuck Build Detection", () => {
 
   beforeEach(() => {
     // Create test directories
-    testDir = join(tmpdir(), `poltergeist-test-${Date.now()}`);
+    testDir = join(tmpdir(), `poltergeist-test-${randomUUID()}`);
     projectRoot = join(testDir, "test-project");
     mkdirSync(testDir, { recursive: true });
     mkdirSync(projectRoot, { recursive: true });

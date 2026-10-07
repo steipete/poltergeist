@@ -1,5 +1,5 @@
 import { readFileSync } from "node:fs";
-import { join } from "node:path";
+import { join, relative, sep } from "node:path";
 import { IntelligentBuildQueue } from "./build-queue.js";
 import type { BaseBuilder } from "./builders/index.js";
 import { BuildCoordinator } from "./core/build-coordinator.js";
@@ -8,6 +8,7 @@ import { DebouncedBuildScheduler } from "./core/debounced-build-scheduler.js";
 import { LifecycleHooks } from "./core/lifecycle-hooks.js";
 import { StatusPresenter } from "./core/status-presenter.js";
 import { TargetLifecycleManager } from "./core/target-lifecycle.js";
+import { completeCleanup, stopAllTargets, stopTargetResources } from "./core/target-cleanup.js";
 import type { TargetState } from "./core/target-state.js";
 import { WatchService } from "./core/watch-service.js";
 import type {
@@ -60,6 +61,7 @@ export class Poltergeist {
   private watchmanConfigManager: IWatchmanConfigManager;
   private targetStates: Map<string, TargetState> = new Map();
   private isRunning = false;
+  private stopping = false;
 
   // Intelligent build scheduling
   private buildQueue?: IntelligentBuildQueue;
@@ -212,6 +214,7 @@ export class Poltergeist {
       throw new Error("Poltergeist is already running");
     }
 
+    this.stopping = false;
     this.isRunning = true;
     this.logger.info("Starting Poltergeist...");
 
@@ -419,6 +422,7 @@ export class Poltergeist {
     files: Array<{ name: string; exists: boolean; type?: string }>,
     targetNames: string[],
   ): void {
+    if (this.stopping) return;
     const changedFiles = files.filter((f) => f.exists && f.type !== "d").map((f) => f.name);
 
     if (changedFiles.length === 0) return;
@@ -455,39 +459,42 @@ export class Poltergeist {
   public async stop(targetName?: string): Promise<void> {
     this.logger.info("👻 [Poltergeist] Putting Poltergeist to rest...");
 
+    const steps: Array<() => void | Promise<void>> = [];
+    if (!targetName) {
+      this.stopping = true;
+      this.buildQueue?.clearQueue();
+      steps.push(() => this.reloadTail);
+    }
     if (targetName) {
-      // Stop specific target
       const state = this.targetStates.get(targetName);
       if (state) {
-        await state.runner?.stop();
-        await state.postBuildRunner?.stop();
-        state.builder.stop();
-        this.targetStates.delete(targetName);
-        await this.stateManager.removeState(targetName);
+        steps.push(
+          () => stopTargetResources(state),
+          () => {
+            this.targetStates.delete(targetName);
+          },
+          () => this.stateManager.removeState(targetName),
+        );
       }
     } else {
-      // Stop all targets
-      for (const state of this.targetStates.values()) {
-        await state.runner?.stop();
-        await state.postBuildRunner?.stop();
-        state.builder.stop();
-      }
-      this.targetStates.clear();
-
-      await this.watchService?.stop();
-      this.watchService = undefined;
-      this.watchman = undefined;
-
-      // Cleanup state manager
-      await this.stateManager.cleanup();
-
-      this.isRunning = false;
+      steps.push(
+        () => stopAllTargets(this.targetStates),
+        () => this.watchService?.stop(),
+        () => {
+          this.watchService = undefined;
+          this.watchman = undefined;
+        },
+        () => this.stateManager.cleanup(),
+        () => {
+          this.isRunning = false;
+        },
+      );
     }
-
-    if (this.pausePoll) {
-      clearInterval(this.pausePoll);
+    steps.push(() => {
+      if (this.pausePoll) clearInterval(this.pausePoll);
       this.pausePoll = undefined;
-    }
+    });
+    await completeCleanup(steps, "Poltergeist shutdown cleanup failed");
 
     this.logger.info("👻 [Poltergeist] Poltergeist is now at rest");
   }
@@ -541,19 +548,22 @@ export class Poltergeist {
    * Handle configuration file changes for automatic reloading
    */
   private async handleConfigChange(files: Array<{ name: string; exists: boolean }>): Promise<void> {
-    const configChanged = files.some((f) => f.name === "poltergeist.config.json" && f.exists);
-    if (!configChanged || !this.configPath) return;
+    if (this.stopping || !this.configPath) return;
+    const configName = relative(this.projectRoot, this.configPath).split(sep).join("/");
+    const configChanged = files.some((f) => f.name === configName && f.exists);
+    if (!configChanged) return;
 
     this.reloadTail = this.reloadTail.then(() => this.reloadConfiguration());
     await this.reloadTail;
   }
 
   private async reloadConfiguration(): Promise<void> {
+    if (this.stopping) return;
     this.logger.info("🔄 Configuration file changed, reloading...");
 
     try {
       const result = await this.configReload.reloadConfig(this.config);
-      if (!result) return;
+      if (!result || this.stopping) return;
       await this.applyConfigChanges(result.config, result.changes);
       this.config = result.config;
       this.logger.info("✅ Configuration reloaded successfully");
@@ -746,13 +756,19 @@ export class Poltergeist {
       try {
         this.logger.info(`➖ Removing target: ${name}`);
         const state = this.targetStates.get(name);
-        if (state?.buildTimer) clearTimeout(state.buildTimer);
-        this.buildQueue?.unregisterTarget(name);
-        await state?.runner?.stop();
-        await state?.postBuildRunner?.stop();
-        state?.builder.stop();
-        this.targetStates.delete(name);
-        await this.stateManager.removeState(name);
+        await completeCleanup(
+          [
+            () => {
+              this.buildQueue?.unregisterTarget(name);
+            },
+            () => (state ? stopTargetResources(state) : undefined),
+            () => {
+              this.targetStates.delete(name);
+            },
+            () => this.stateManager.removeState(name),
+          ],
+          `Failed to remove target ${name}`,
+        );
       } catch (error) {
         this.logger.error(
           `❌ Failed to remove target ${name}: ${error instanceof Error ? error.message : error}`,

@@ -1,3 +1,4 @@
+import { randomUUID } from "node:crypto";
 import { existsSync, mkdirSync, rmSync, writeFileSync } from "fs";
 import { tmpdir } from "os";
 import { join } from "path";
@@ -12,7 +13,7 @@ describe("Smart Defaults Integration", () => {
     // Save original directory
     originalDir = process.cwd();
     // Create a unique temp directory for each test
-    tempDir = join(tmpdir(), `poltergeist-test-${Date.now()}`);
+    tempDir = join(tmpdir(), `poltergeist-test-${randomUUID()}`);
     mkdirSync(tempDir, { recursive: true });
     process.chdir(tempDir);
   });

@@ -1,5 +1,6 @@
-import { type ChildProcess, spawn } from "child_process";
+import { type ChildProcess, execFile, spawn } from "child_process";
 import path from "path";
+import { hasMacOSGroupMember, hasRunningGroupMember } from "./process-group.js";
 import type { IStateManager } from "../interfaces.js";
 import type { Logger } from "../logger.js";
 import type { PostBuildCommandConfig } from "../types.js";
@@ -28,28 +29,115 @@ interface FormattedResult {
 export class PostBuildRunner {
   private queue: QueueEntry[] = [];
   private processing = false;
+  private processingTask?: Promise<void>;
+  private stopped = false;
   private currentChild?: ChildProcess;
   private timeoutHandle?: NodeJS.Timeout;
 
   constructor(private readonly options: PostBuildRunnerOptions) {}
 
   public onBuildResult(status: Trigger): void {
+    if (this.stopped) return;
     const eligible = this.options.hooks.filter((hook) => this.shouldRun(hook, status));
     if (eligible.length === 0) {
       return;
     }
 
     this.queue.push(...eligible.map((hook) => ({ hook, trigger: status })));
-    void this.processQueue();
+    if (!this.processing) this.processingTask = this.processQueue();
   }
 
   public async stop(): Promise<void> {
+    this.stopped = true;
+    this.queue.length = 0;
     if (this.timeoutHandle) {
       clearTimeout(this.timeoutHandle);
       this.timeoutHandle = undefined;
     }
-    if (this.currentChild) {
-      this.currentChild.kill("SIGTERM");
+    const child = this.currentChild;
+    let deadline: NodeJS.Timeout | undefined;
+    try {
+      await Promise.race([
+        Promise.all([this.processingTask, child ? this.retireOwnedChild(child) : undefined]),
+        new Promise<never>((_, reject) => {
+          deadline = setTimeout(
+            () =>
+              reject(
+                new Error(
+                  `Post-build runner ${this.options.targetName} did not stop within 2 seconds`,
+                ),
+              ),
+            2000,
+          );
+        }),
+      ]);
+    } finally {
+      if (deadline) clearTimeout(deadline);
+    }
+  }
+
+  private async retireOwnedChild(child: ChildProcess): Promise<void> {
+    await this.signalOwnedChild(child, "SIGTERM");
+    const started = Date.now();
+    let escalated = false;
+    while (await this.ownedChildAlive(child)) {
+      if (!escalated && Date.now() - started >= 1000) {
+        await this.signalOwnedChild(child, "SIGKILL");
+        escalated = true;
+      }
+      if (Date.now() - started >= 2000) {
+        throw new Error(`Post-build process group for ${this.options.targetName} did not retire`);
+      }
+      await new Promise<void>((resolve) => setTimeout(resolve, 10));
+    }
+  }
+
+  private async ownedChildAlive(child: ChildProcess): Promise<boolean> {
+    if (!child.pid) return false;
+    if (process.platform === "win32") return child.exitCode === null && child.signalCode === null;
+    try {
+      process.kill(-child.pid, 0);
+      return process.platform === "linux" ? await hasRunningGroupMember(child.pid) : true;
+    } catch (error) {
+      const code = (error as NodeJS.ErrnoException).code;
+      if (code === "ESRCH") return false;
+      if (code === "EPERM" && process.platform === "darwin") return hasMacOSGroupMember(child.pid);
+      throw error;
+    }
+  }
+
+  private async signalOwnedChild(child: ChildProcess, signal: NodeJS.Signals): Promise<void> {
+    if (!child.pid) return;
+    if (process.platform === "win32") {
+      await new Promise<void>((resolve, reject) => {
+        execFile(
+          "taskkill",
+          ["/PID", String(child.pid), "/T", "/F"],
+          { windowsHide: true, timeout: 1500 },
+          (error) => {
+            if (
+              error &&
+              !(child.exitCode !== null && child.stdout?.destroyed && child.stderr?.destroyed)
+            )
+              reject(error);
+            else resolve();
+          },
+        );
+      });
+      return;
+    }
+    try {
+      process.kill(-child.pid, signal);
+    } catch (error) {
+      const code = (error as NodeJS.ErrnoException).code;
+      if (code === "ESRCH") return;
+      if (
+        code === "EPERM" &&
+        process.platform === "darwin" &&
+        !(await hasMacOSGroupMember(child.pid))
+      )
+        return;
+      throw error;
     }
   }
 
@@ -76,7 +164,7 @@ export class PostBuildRunner {
     }
     this.processing = true;
 
-    while (this.queue.length > 0) {
+    while (!this.stopped && this.queue.length > 0) {
       const job = this.queue.shift();
       if (!job) {
         break;
@@ -104,6 +192,15 @@ export class PostBuildRunner {
       trigger,
     });
 
+    if (this.stopped) {
+      await this.options.stateManager.updatePostBuildResult(this.options.targetName, hook.name, {
+        status: "failure",
+        summary: `${hook.name}: cancelled before execution`,
+        completedAt: new Date().toISOString(),
+        durationMs: Date.now() - startedAt.getTime(),
+      });
+      return;
+    }
     const result = await this.executeCommand(hook);
     const formatted = await this.formatResult(hook, result.stdout, result.stderr, result.exitCode);
     const success = result.exitCode === 0;
@@ -153,6 +250,7 @@ export class PostBuildRunner {
         cwd,
         env,
         shell: true,
+        detached: process.platform !== "win32",
         stdio: ["ignore", "pipe", "pipe"],
       });
 
@@ -175,7 +273,9 @@ export class PostBuildRunner {
       if (hook.timeoutSeconds && hook.timeoutSeconds > 0) {
         this.timeoutHandle = setTimeout(() => {
           timedOut = true;
-          child.kill("SIGKILL");
+          void this.signalOwnedChild(child, "SIGKILL").catch((error: unknown) => {
+            executionError = error instanceof Error ? error.message : String(error);
+          });
         }, hook.timeoutSeconds * 1000);
       }
 
@@ -203,7 +303,7 @@ export class PostBuildRunner {
   ): Promise<FormattedResult | undefined> {
     let parsed = this.tryParseJsonResult(stdout);
 
-    if (!parsed && hook.formatter) {
+    if (!parsed && hook.formatter && !this.stopped) {
       parsed = await this.runFormatter(hook, stdout, stderr, exitCode ?? -1);
     }
 
@@ -283,9 +383,11 @@ export class PostBuildRunner {
           POLTERGEIST_POSTBUILD_STDERR: stderr,
         },
         shell: true,
+        detached: process.platform !== "win32",
         stdio: ["pipe", "pipe", "pipe"],
       });
 
+      this.currentChild = formatter;
       let output = "";
       formatter.stdout?.on("data", (chunk) => {
         output += chunk.toString();
@@ -307,6 +409,7 @@ export class PostBuildRunner {
       formatter.stdin?.end();
 
       formatter.on("close", (code) => {
+        if (this.currentChild === formatter) this.currentChild = undefined;
         if (code !== 0) {
           resolve(undefined);
           return;

@@ -2,6 +2,13 @@
 
 ## [Unreleased]
 
+- Fixed duplicate builds for coalesced queued changes, cancellation of deferred rebuilds, and debounce timers losing newer pending work. Thanks @rudycelekli.
+- Fixed colliding watch subscription names, removed targets receiving shared watch events, and concurrent Watchman initialization. Thanks @rudycelekli.
+- Fixed hot reload for custom and nested configuration filenames, including literal glob characters. Thanks @rudycelekli.
+- Reloaded changed executable post-build hooks, cancelled obsolete hook queues, and awaited hook/formatter retirement before replacement; kept independent shutdown cleanup running after errors. Thanks @rudycelekli.
+- Fixed managed child termination returning before exit and signal-terminated commands being reported as successful. Thanks @rudycelekli.
+- Fixed synchronous atomic writes in ESM and launching non-executable CommonJS artifacts through Node.js. Thanks @rudycelekli.
+
 ## [2.1.8] - 2026-10-01
 
 **Highlights:** Build hooks no longer crash the daemon, notifications stay scoped to each instance, and standalone macOS executables are signed and notarized.
