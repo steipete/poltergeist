@@ -2,7 +2,7 @@
 
 ## [Unreleased]
 
-- Preserve trailing empty brace alternatives in watch patterns, so `src/{nested/,}*.ts` watches both nested and root files.
+- Preserve trailing empty brace alternatives in watch patterns, so `src/{nested/,}*.ts` watches both nested and root files. Ignore globally empty expansions and honor escaped separators without broadening watch patterns.
 
 - Updated the remaining source-map-js dependency to 1.2.2 for its indexed source-map denial-of-service fix, plus eligible pi-tui, LogTape, arkregex, and Vite releases. Thanks @dependabot.
 - Updated pi-tui, LogTape, arkregex, Node.js types, Vite, Oxfmt, Oxlint, and PostCSS within the release-age policy; retained TypeScript 6 and the Node.js 24 runtime floor. Thanks @dependabot.
