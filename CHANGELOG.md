@@ -2,6 +2,7 @@
 
 ## [Unreleased]
 
+- Updated the remaining source-map-js dependency to 1.2.2 for its indexed source-map denial-of-service fix, plus eligible pi-tui, LogTape, arkregex, and Vite releases. Thanks @dependabot.
 - Updated pi-tui, LogTape, arkregex, Node.js types, Vite, Oxfmt, Oxlint, and PostCSS within the release-age policy; retained TypeScript 6 and the Node.js 24 runtime floor. Thanks @dependabot.
 
 - Fixed duplicate builds for coalesced queued changes, cancellation of deferred rebuilds, and debounce timers losing newer pending work. Thanks @rudycelekli.
