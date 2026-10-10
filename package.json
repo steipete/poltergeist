@@ -87,9 +87,9 @@
     "oracle": "oracle"
   },
   "dependencies": {
-    "@earendil-works/pi-tui": "^1.0.4",
-    "@logtape/logtape": "^2.3.11",
-    "arkregex": "^0.0.12",
+    "@earendil-works/pi-tui": "^1.1.0",
+    "@logtape/logtape": "^2.4.0",
+    "arkregex": "^0.0.13",
     "chalk": "^6.0.1",
     "commander": "^15.0.0",
     "es-toolkit": "^1.52.0",
@@ -117,7 +117,7 @@
     "typedoc": "^0.28.20",
     "typedoc-plugin-mermaid": "^1.12.0",
     "typescript": "^6.0.3",
-    "vite": "^8.3.2",
+    "vite": "^8.3.4",
     "vitest": "^4.1.11"
   },
   "engines": {
