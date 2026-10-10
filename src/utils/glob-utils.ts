@@ -12,7 +12,7 @@ function splitBraceContent(content: string): string[] {
       current += char;
     }
   }
-  if (current.length > 0) {
+  if (current.length > 0 || content.endsWith(",")) {
     parts.push(current);
   }
   return parts;
