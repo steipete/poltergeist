@@ -54,6 +54,11 @@ export const resolveLogPath = (input: ResolveLogPathOptions): ResolvedLogPath =>
 
   const candidateLogFiles: Array<string | undefined> = [];
 
+  // Explicit channel logs take precedence over legacy build-only paths.
+  if (target && channel !== DEFAULT_LOG_CHANNEL) {
+    candidateLogFiles.push(FileSystemUtils.getLogFilePath(projectRoot, target, channel));
+  }
+
   const targetLogPath = resolveConfigLogPath();
   if (target && targetLogPath) {
     candidateLogFiles.push(
