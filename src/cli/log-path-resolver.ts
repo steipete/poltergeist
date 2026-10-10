@@ -2,7 +2,11 @@ import { existsSync } from "fs";
 import path from "path";
 import type { PoltergeistConfig, Target } from "../types.js";
 import { FileSystemUtils } from "../utils/filesystem.js";
-import { DEFAULT_LOG_CHANNEL, sanitizeLogChannel } from "../utils/log-channels.js";
+import {
+  DEFAULT_LOG_CHANNEL,
+  normalizeLogChannels,
+  sanitizeLogChannel,
+} from "../utils/log-channels.js";
 
 export interface ResolveLogPathOptions {
   config: PoltergeistConfig;
@@ -54,9 +58,27 @@ export const resolveLogPath = (input: ResolveLogPathOptions): ResolvedLogPath =>
 
   const candidateLogFiles: Array<string | undefined> = [];
 
+  // Existing filenames hyphen-join target and channel, so app/test can alias
+  // app-test/build (or another target's declared channel). Such a path cannot
+  // identify the requested stream; keep same-target/global fallbacks instead.
+  const channelLogPath = target
+    ? FileSystemUtils.getLogFilePath(projectRoot, target, channel)
+    : undefined;
+  const channelPathCollides =
+    channel !== DEFAULT_LOG_CHANNEL &&
+    config.targets.some(
+      (other) =>
+        other.name !== target &&
+        normalizeLogChannels(other.logChannels).some(
+          (otherChannel) =>
+            FileSystemUtils.getLogFilePath(projectRoot, other.name, otherChannel) ===
+            channelLogPath,
+        ),
+    );
+
   // Explicit channel logs take precedence over legacy build-only paths.
-  if (target && channel !== DEFAULT_LOG_CHANNEL) {
-    candidateLogFiles.push(FileSystemUtils.getLogFilePath(projectRoot, target, channel));
+  if (target && channel !== DEFAULT_LOG_CHANNEL && !channelPathCollides) {
+    candidateLogFiles.push(channelLogPath);
   }
 
   const targetLogPath = resolveConfigLogPath();
@@ -71,7 +93,7 @@ export const resolveLogPath = (input: ResolveLogPathOptions): ResolvedLogPath =>
   }
 
   if (target) {
-    candidateLogFiles.push(FileSystemUtils.getLogFilePath(projectRoot, target, channel));
+    if (!channelPathCollides) candidateLogFiles.push(channelLogPath);
     candidateLogFiles.push(path.join(projectRoot, `${target}.log`));
     candidateLogFiles.push(path.join(projectRoot, `.poltergeist-${target}.log`));
   }
