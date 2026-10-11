@@ -2,8 +2,15 @@ function splitBraceContent(content: string): string[] {
   const parts: string[] = [];
   let current = "";
   let depth = 0;
+  let escaped = false;
   for (const char of content) {
-    if (char === "," && depth === 0) {
+    if (escaped) {
+      current += char;
+      escaped = false;
+    } else if (char === "\\") {
+      current += char;
+      escaped = true;
+    } else if (char === "," && depth === 0) {
       parts.push(current);
       current = "";
     } else {
@@ -12,14 +19,21 @@ function splitBraceContent(content: string): string[] {
       current += char;
     }
   }
-  if (current.length > 0) {
-    parts.push(current);
-  }
+  // Preserve empty arms here: a surrounding prefix or suffix may fill them.
+  parts.push(current);
   return parts;
 }
 
 function expandPattern(pattern: string): string[] {
-  const braceIndex = pattern.indexOf("{");
+  let braceIndex = -1;
+  for (let i = 0; i < pattern.length; i++) {
+    if (pattern[i] === "\\") {
+      i++;
+    } else if (pattern[i] === "{") {
+      braceIndex = i;
+      break;
+    }
+  }
   if (braceIndex === -1) {
     return [pattern];
   }
@@ -28,7 +42,9 @@ function expandPattern(pattern: string): string[] {
   let endIndex = -1;
   for (let i = braceIndex; i < pattern.length; i++) {
     const char = pattern[i];
-    if (char === "{") {
+    if (char === "\\") {
+      i++;
+    } else if (char === "{") {
       depth++;
     } else if (char === "}") {
       depth--;
@@ -68,7 +84,7 @@ function expandPattern(pattern: string): string[] {
 }
 
 export function expandGlobPattern(pattern: string): string[] {
-  return Array.from(new Set(expandPattern(pattern)));
+  return Array.from(new Set(expandPattern(pattern).filter((expanded) => expanded.length > 0)));
 }
 
 export function expandGlobPatterns(patterns: string[]): string[] {
