@@ -2,6 +2,8 @@
 
 ## [Unreleased]
 
+- Fixed empty alternatives and escaped separators in watch globs, and selected log channels being masked by legacy or other targets' logs. Thanks @rudycelekli.
+
 - Updated the remaining source-map-js dependency to 1.2.2 for its indexed source-map denial-of-service fix, plus eligible pi-tui, LogTape, arkregex, and Vite releases. Thanks @dependabot.
 - Updated pi-tui, LogTape, arkregex, Node.js types, Vite, Oxfmt, Oxlint, and PostCSS within the release-age policy; retained TypeScript 6 and the Node.js 24 runtime floor. Thanks @dependabot.
 

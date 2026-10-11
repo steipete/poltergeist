@@ -15,6 +15,8 @@ This doc covers how the `polter panel` TUI is populated, how summaries (AI/Git/c
 - `r` forces an immediate refresh of targets, Git, status scripts, and summary scripts.
 - `q` / `Ctrl+C` exits.
 
+Selected non-build channels take precedence over legacy build logs. When the selected channel has no unambiguous log file, the panel falls back to the target's legacy log, then the project log. A channel path that also belongs to another configured target is skipped to avoid displaying that target's output. The default build channel keeps its existing log precedence.
+
 ## Configuration (poltergeist.config.json)
 
 ### statusScripts (unchanged)

@@ -46,6 +46,8 @@ Supported target types are `executable`, `app-bundle`, `library`, `framework`, `
 
 Changes to the selected configuration file reload while the daemon is running, including custom filenames and nested paths inside the watched project root. Filenames are matched literally, so characters such as `[` and `]` are supported. Target settings include environment variables, retry behavior, notification icons, post-build commands, log channels, and per-target settling or debounce intervals.
 
+Watch patterns support brace alternatives, including empty alternatives: `src/{nested/,}*.ts` watches both `src/nested/*.ts` and `src/*.ts`. Escape literal commas or braces with a backslash (written as `\\` inside JSON strings). Empty expansions are ignored.
+
 Build notifications stay local to each Poltergeist instance. Each distinct notifier receives a result once, including when a build throws an error; repeated identical results are suppressed.
 
 ## Daemon and build commands
