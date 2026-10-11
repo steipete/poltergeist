@@ -2,19 +2,20 @@
 
 ## [Unreleased]
 
-- Updated fb-watchman and Node.js types, plus compatible BSER, Chai, Nano ID, and tinyrainbow dependencies; retained Node.js 24, TypeScript 6, and Vitest 4.
+## [2.1.9] - 2026-10-11
+
+**Highlights:** Watch globs and selected log channels behave correctly, rebuilds and shutdowns retire stale work reliably, and source-map dependencies include denial-of-service security fixes.
 
 - Fixed empty alternatives and escaped separators in watch globs, and selected log channels being masked by legacy or other targets' logs. Thanks @rudycelekli.
-
-- Updated the remaining source-map-js dependency to 1.2.2 for its indexed source-map denial-of-service fix, plus eligible pi-tui, LogTape, arkregex, and Vite releases. Thanks @dependabot.
-- Updated pi-tui, LogTape, arkregex, Node.js types, Vite, Oxfmt, Oxlint, and PostCSS within the release-age policy; retained TypeScript 6 and the Node.js 24 runtime floor. Thanks @dependabot.
-
 - Fixed duplicate builds for coalesced queued changes, cancellation of deferred rebuilds, and debounce timers losing newer pending work. Thanks @rudycelekli.
 - Fixed colliding watch subscription names, removed targets receiving shared watch events, and concurrent Watchman initialization. Thanks @rudycelekli.
 - Fixed hot reload for custom and nested configuration filenames, including literal glob characters. Thanks @rudycelekli.
 - Reloaded changed executable post-build hooks, cancelled obsolete hook queues, and awaited hook/formatter retirement before replacement; kept independent shutdown cleanup running after errors. Thanks @rudycelekli.
 - Fixed managed child termination returning before exit and signal-terminated commands being reported as successful. Thanks @rudycelekli.
 - Fixed synchronous atomic writes in ESM and launching non-executable CommonJS artifacts through Node.js. Thanks @rudycelekli.
+- Updated the remaining source-map-js dependency to 1.2.2 for its indexed source-map denial-of-service fix, plus eligible pi-tui, LogTape, arkregex, and Vite releases. Thanks @dependabot.
+- Updated fb-watchman and Node.js types, plus compatible BSER, Chai, Nano ID, and tinyrainbow dependencies; retained Node.js 24, TypeScript 6, and Vitest 4.
+- Updated pi-tui, LogTape, arkregex, Node.js types, Vite, Oxfmt, Oxlint, and PostCSS within the release-age policy; retained TypeScript 6 and the Node.js 24 runtime floor. Thanks @dependabot.
 
 ## [2.1.8] - 2026-10-01
 
