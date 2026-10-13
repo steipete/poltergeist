@@ -95,7 +95,7 @@
     "es-toolkit": "^1.52.0",
     "fb-watchman": "^2.0.4",
     "glob": "^13.0.6",
-    "node-notifier": "^10.0.1",
+    "node-notifier": "^11.0.0",
     "ora": "^9.4.1",
     "wrap-ansi": "^10.0.2",
     "write-file-atomic": "^8.0.0",
