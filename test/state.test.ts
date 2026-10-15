@@ -1,6 +1,7 @@
 // Tests for unified state management
 
-import { existsSync, rmSync } from "fs";
+import { existsSync, mkdtempSync, rmSync } from "fs";
+import { tmpdir } from "os";
 import { join } from "path";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import type { Logger } from "../src/logger.js";
@@ -19,24 +20,19 @@ const mockLogger: Logger = {
 
 describe("StateManager", () => {
   const projectRoot = "/Users/test/Projects/test-app";
-  const stateDir = "/tmp/poltergeist";
+  let stateDir: string;
   let stateManager: StateManager;
 
   beforeEach(() => {
+    stateDir = mkdtempSync(join(tmpdir(), "poltergeist-state-test-"));
+    vi.stubEnv("POLTERGEIST_STATE_DIR", stateDir);
     stateManager = new StateManager(projectRoot, mockLogger);
   });
 
-  afterEach(async () => {
-    // Cleanup any test state files
+  afterEach(() => {
     stateManager.stopHeartbeat();
-    const stateFiles = await StateManager.listAllStates();
-    for (const file of stateFiles) {
-      if (file.includes("test-app")) {
-        try {
-          rmSync(join(stateDir, file));
-        } catch {}
-      }
-    }
+    rmSync(stateDir, { recursive: true, force: true });
+    vi.unstubAllEnvs();
   });
 
   describe("State File Naming", () => {

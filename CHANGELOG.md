@@ -2,6 +2,9 @@
 
 ## [Unreleased]
 
+- Updated compatible LogTape, terminal UI, Zod, PostCSS, and lint/format tooling dependencies while preserving Node.js 24 compatibility. Thanks @dependabot.
+- Added a build-only release workflow dry run to validate and package CLI changes without publishing.
+
 ## [2.1.9] - 2026-10-11
 
 **Highlights:** Watch globs and selected log channels behave correctly, rebuilds and shutdowns retire stale work reliably, and source-map dependencies include denial-of-service security fixes.

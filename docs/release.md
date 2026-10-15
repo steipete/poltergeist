@@ -22,6 +22,8 @@ Releases require explicit product-owner approval. Stop on failed gates; fix the 
 
 ## Build a draft
 
+To validate CLI dependency changes without creating a tag or release, run `gh workflow run release.yml --ref main -f dry_run=true -f version=<current-package-version>`. This checks the supplied version against `package.json`, runs the CLI build, tests, lint, type check, and release guards, then uploads an npm tarball as a workflow artifact. Manual runs never sign macOS artifacts, create a release, publish npm, or update Homebrew. Signed macOS packaging still requires the approved tag workflow below.
+
 Create a signed `v<version>` tag at the verified release commit using the configured Git signing setup, then push the tag. The tag workflow builds the npm tarball, companion app, and universal Homebrew CLI archive, and creates a **draft** GitHub Release named `poltergeist <version>`. Its body comes directly from the version's changelog section via `scripts/release-notes.mjs`.
 
 The macOS jobs use an ephemeral CI keychain and the personal Developer ID identity. The companion app targets macOS 15.0; the Bun CLI binaries target macOS 13.0. `scripts/verify-macos-target.mjs` checks every architecture before packaging, requires both arm64 and x86_64, and rejects a deployment target above the documented floor. Never override a failed check without restoring compatibility.
