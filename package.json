@@ -87,8 +87,8 @@
     "oracle": "oracle"
   },
   "dependencies": {
-    "@earendil-works/pi-tui": "^1.1.0",
-    "@logtape/logtape": "^2.4.0",
+    "@earendil-works/pi-tui": "^1.2.0",
+    "@logtape/logtape": "^2.4.1",
     "arkregex": "^0.0.13",
     "chalk": "^6.0.1",
     "commander": "^15.0.0",
@@ -99,7 +99,7 @@
     "ora": "^9.4.1",
     "wrap-ansi": "^10.0.2",
     "write-file-atomic": "^8.0.0",
-    "zod": "^4.6.5"
+    "zod": "^4.6.7"
   },
   "devDependencies": {
     "@steipete/oracle": "link:../oracle",
@@ -110,9 +110,9 @@
     "@typescript/native-preview": "7.0.0-dev.20260707.2",
     "@vitest/coverage-v8": "^4.1.11",
     "cross-env": "^10.1.0",
-    "oxfmt": "^0.72.0",
-    "oxlint": "^1.87.0",
-    "postcss": "^8.5.29",
+    "oxfmt": "^0.73.0",
+    "oxlint": "^1.88.0",
+    "postcss": "^8.5.30",
     "tsx": "^4.23.15",
     "typedoc": "^0.28.20",
     "typedoc-plugin-mermaid": "^1.12.0",

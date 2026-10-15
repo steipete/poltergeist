@@ -1,6 +1,17 @@
 name: Release
 
 on:
+  workflow_dispatch:
+    inputs:
+      dry_run:
+        description: Validate and package the CLI without publishing
+        type: boolean
+        required: true
+        default: true
+      version:
+        description: Current package version to validate (no version changes)
+        type: string
+        required: true
   push:
     tags:
       - "v*"
@@ -12,9 +23,11 @@ permissions:
 
 jobs:
   build-cli:
-    if: github.event_name == 'push'
+    if: github.event_name == 'push' || (github.event_name == 'workflow_dispatch' && inputs.dry_run)
     name: Build CLI Release
     runs-on: ubuntu-latest
+    permissions:
+      contents: read
     env:
       POLTERGEIST_TEST_MODE: "true"
 
@@ -26,6 +39,12 @@ jobs:
         uses: actions/setup-node@v7
         with:
           node-version: "24"
+
+      - name: Validate dry-run version
+        if: github.event_name == 'workflow_dispatch'
+        env:
+          EXPECTED_VERSION: ${{ inputs.version }}
+        run: node -e 'const actual = require("./package.json").version; if (process.env.EXPECTED_VERSION !== actual) throw new Error("Expected current package version " + actual);'
 
       - name: Enable pnpm
         run: corepack enable pnpm
@@ -44,6 +63,9 @@ jobs:
 
       - name: Run type check
         run: pnpm run typecheck
+
+      - name: Test release guards
+        run: node --test scripts/test-release.mjs
 
       - name: Package for npm
         run: pnpm pack
@@ -206,6 +228,7 @@ jobs:
             poltergeist-macos-universal-*.notary.json
 
   release:
+    if: github.event_name == 'push'
     name: Create GitHub Release
     needs: [build-cli, build-macos, build-homebrew]
     runs-on: ubuntu-latest
