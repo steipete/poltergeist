@@ -27,11 +27,15 @@ jobs:
     name: Publish verified npm tarball
     runs-on: ubuntu-latest
     permissions:
-      contents: read
+      # GitHub requires writer access to read draft release assets.
+      contents: write
       id-token: write
     steps:
       - name: Checkout release tag
         uses: actions/checkout@v7
+        with:
+          ref: v${{ inputs.version }}
+          persist-credentials: false
 
       - name: Setup Node.js
         uses: actions/setup-node@v7
@@ -46,7 +50,7 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          test "$GITHUB_REF" = "refs/tags/v$VERSION"
+          test "$(git rev-parse HEAD)" = "$(git rev-parse "refs/tags/v$VERSION^{commit}")"
           node -e 'if (require("./package.json").version !== process.env.VERSION) throw new Error("Version mismatch")'
           gh release view "v$VERSION" --json isDraft --jq '.isDraft' | grep -qx true
           mkdir npm-release
