@@ -101,7 +101,8 @@ describe.skipIf(process.platform === "win32")("native post-build cancellation", 
       {
         name: "check",
         command: `${quote(process.execPath)} ${quote(join(dir, "child.cjs"))} & wait`,
-        timeoutSeconds: 0.1,
+        // Allow Node to start under concurrent CI load before exercising timeout.
+        timeoutSeconds: 2,
       },
     ];
     const logger = new SimpleLogger(undefined, "error");

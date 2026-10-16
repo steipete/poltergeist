@@ -61,7 +61,7 @@ jobs:
       - name: Publish original tarball with trusted publishing
         env:
           VERSION: ${{ inputs.version }}
-        run: npm publish "npm-release/steipete-poltergeist-$VERSION.tgz" --provenance --access public --ignore-scripts
+        run: npm publish "./npm-release/steipete-poltergeist-$VERSION.tgz" --provenance --access public --ignore-scripts
 
       - name: Verify published bytes
         env:
