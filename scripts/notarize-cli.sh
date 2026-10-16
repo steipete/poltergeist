@@ -13,6 +13,7 @@ trap 'rm -rf "$temp_dir"' EXIT
 key_path="$temp_dir/AuthKey_${APPLE_API_KEY_ID}.p8"
 printf '%s\n' "$APPLE_API_PRIVATE_KEY" > "$key_path"
 chmod 600 "$key_path"
+xcrun notarytool history --key "$key_path" --key-id "$APPLE_API_KEY_ID" --issuer "$APPLE_API_ISSUER_ID" >/dev/null
 (cd "$binary_dir" && zip -q "$temp_dir/cli.zip" poltergeist polter)
 xcrun notarytool submit "$temp_dir/cli.zip" \
   --key "$key_path" --key-id "$APPLE_API_KEY_ID" --issuer "$APPLE_API_ISSUER_ID" \

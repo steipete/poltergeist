@@ -2,8 +2,13 @@
 
 ## [Unreleased]
 
+## [2.1.10] - 2026-10-16
+
+**Highlights:** Refreshed compatible dependencies and validated release packaging, with npm publication now handled by GitHub Actions.
+
 - Updated compatible LogTape, terminal UI, Zod, PostCSS, and lint/format tooling dependencies while preserving Node.js 24 compatibility. Thanks @dependabot.
 - Added a build-only release workflow dry run to validate and package CLI changes without publishing.
+- Moved verified npm tarball publication to GitHub Actions trusted publishing and added notarization authentication preflights.
 
 ## [2.1.9] - 2026-10-11
 

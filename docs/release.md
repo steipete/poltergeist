@@ -48,7 +48,7 @@ codesign --verify --strict --all-architectures polter
 
 Verify the CLI receipt says `Accepted`, compare the archive's SHA-256 with its checksum asset, and run both binaries with `--version` plus a real command in a synthetic project. Check that all package versions match the tag and that the draft release body equals the changelog section.
 
-Publish npm through the npm skill's `publish-package.sh` helper in its shared 1Password tmux session. Extract the verified npm tarball into a clean directory and run the helper there with `npm_config_ignore_scripts=true`; the package is already built and tested by CI, so publishing must not rebuild or alter those bytes. Verify with:
+Publish npm through GitHub Actions after verifying every draft asset. Configure npm trusted publishing for this repository's `release.yml` workflow, then dispatch `gh workflow run release.yml --ref v<version> -f dry_run=false -f version=<version>`. The publish job requires the matching release tag and a draft release, publishes the original tarball with scripts disabled and provenance enabled, and verifies its registry integrity. Before the first OIDC publication, inspect and refresh the npm trusted-publisher record using the npm skill. Do not publish locally. Verify with:
 
 ```sh
 npm view @steipete/poltergeist@<version> version dist-tags.latest dist.tarball dist.integrity time --json
