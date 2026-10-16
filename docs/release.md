@@ -22,7 +22,7 @@ Releases require explicit product-owner approval. Stop on failed gates; fix the 
 
 ## Build a draft
 
-To validate CLI dependency changes without creating a tag or release, run `gh workflow run release.yml --ref main -f dry_run=true -f version=<current-package-version>`. This checks the supplied version against `package.json`, runs the CLI build, tests, lint, type check, and release guards, then uploads an npm tarball as a workflow artifact. Manual runs never sign macOS artifacts, create a release, publish npm, or update Homebrew. Signed macOS packaging still requires the approved tag workflow below.
+To validate CLI dependency changes without creating a tag or release, run `gh workflow run release.yml --ref main -f dry_run=true -f version=<current-package-version>`. This checks the supplied version against `package.json`, runs the CLI build, tests, lint, type check, and release guards, then uploads an npm tarball as a workflow artifact. Dry runs never sign macOS artifacts, create a release, publish npm, or update Homebrew. Signed macOS packaging still requires the approved tag workflow below.
 
 Create a signed `v<version>` tag at the verified release commit using the configured Git signing setup, then push the tag. The tag workflow builds the npm tarball, companion app, and universal Homebrew CLI archive, and creates a **draft** GitHub Release named `poltergeist <version>`. Its body comes directly from the version's changelog section via `scripts/release-notes.mjs`.
 
@@ -48,7 +48,7 @@ codesign --verify --strict --all-architectures polter
 
 Verify the CLI receipt says `Accepted`, compare the archive's SHA-256 with its checksum asset, and run both binaries with `--version` plus a real command in a synthetic project. Check that all package versions match the tag and that the draft release body equals the changelog section.
 
-Publish npm through GitHub Actions after verifying every draft asset. Configure npm trusted publishing for this repository's `release.yml` workflow, then dispatch `gh workflow run release.yml --ref v<version> -f dry_run=false -f version=<version>`. The publish job requires the matching release tag and a draft release, publishes the original tarball with scripts disabled and provenance enabled, and verifies its registry integrity. Before the first OIDC publication, inspect and refresh the npm trusted-publisher record using the npm skill. Do not publish locally. Verify with:
+Publish npm through GitHub Actions after verifying every draft asset. Configure npm trusted publishing for this repository's `release.yml` workflow, then dispatch `gh workflow run release.yml --ref main -f dry_run=false -f version=<version>`. The current workflow checks out the matching release tag and requires a draft release, publishes the original tarball with scripts disabled and provenance enabled, and verifies its registry integrity. This allows a workflow repair to resume the same release without moving its tag. The job needs `contents: write` because GitHub only exposes draft assets to writers. Before the first OIDC publication, inspect and refresh the npm trusted-publisher record using the npm skill. Do not publish locally. Verify with:
 
 ```sh
 npm view @steipete/poltergeist@<version> version dist-tags.latest dist.tarball dist.integrity time --json
