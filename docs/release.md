@@ -55,7 +55,7 @@ npm view @steipete/poltergeist@<version> version dist-tags.latest dist.tarball d
 npx --yes @steipete/poltergeist@<version> --version
 ```
 
-Run the npx smoke test from a clean temporary directory. Then publish the verified GitHub draft. The `release: published` workflow dispatches the Homebrew tap update only after assets are public.
+The workflow waits up to five minutes for npm processing. If processing takes longer, wait for registry visibility and rerun the non-dry dispatch; it skips publication only when the existing registry integrity matches the draft tarball. Run the npx smoke test from a clean temporary directory. Then publish the verified GitHub draft. The `release: published` workflow dispatches the Homebrew tap update only after assets are public.
 
 ## Close out
 

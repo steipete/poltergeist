@@ -58,7 +58,24 @@ jobs:
           tar -xzf "npm-release/steipete-poltergeist-$VERSION.tgz" -C npm-release
           node -e 'const p = require("./npm-release/package/package.json"); if (p.name !== "@steipete/poltergeist" || p.version !== process.env.VERSION) throw new Error("Unexpected npm package")'
 
+      - name: Check whether the original tarball is already published
+        id: npm-state
+        env:
+          VERSION: ${{ inputs.version }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          expected="sha512-$(openssl dgst -sha512 -binary "npm-release/steipete-poltergeist-$VERSION.tgz" | openssl base64 -A)"
+          actual="$(npm view "@steipete/poltergeist@$VERSION" dist.integrity 2>/dev/null || true)"
+          if [[ -n "$actual" ]]; then
+            test "$actual" = "$expected"
+            echo "published=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "published=false" >> "$GITHUB_OUTPUT"
+          fi
+
       - name: Publish original tarball with trusted publishing
+        if: steps.npm-state.outputs.published != 'true'
         env:
           VERSION: ${{ inputs.version }}
         run: npm publish "./npm-release/steipete-poltergeist-$VERSION.tgz" --provenance --access public --ignore-scripts
@@ -70,8 +87,20 @@ jobs:
         run: |
           set -euo pipefail
           expected="sha512-$(openssl dgst -sha512 -binary "npm-release/steipete-poltergeist-$VERSION.tgz" | openssl base64 -A)"
-          actual="$(npm view "@steipete/poltergeist@$VERSION" dist.integrity)"
-          test "$actual" = "$expected"
+          for attempt in {1..30}; do
+            actual="$(npm view "@steipete/poltergeist@$VERSION" dist.integrity 2>/dev/null || true)"
+            if [[ "$actual" = "$expected" ]]; then
+              exit 0
+            fi
+            if [[ -n "$actual" ]]; then
+              echo "Published tarball integrity does not match the release asset" >&2
+              exit 1
+            fi
+            echo "Waiting for npm to finish processing the package ($attempt/30)"
+            sleep 10
+          done
+          echo "The published package is not yet visible in the registry" >&2
+          exit 1
 
   build-cli:
     if: github.event_name == 'push' || (github.event_name == 'workflow_dispatch' && inputs.dry_run)
