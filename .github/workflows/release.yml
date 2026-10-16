@@ -4,12 +4,12 @@ on:
   workflow_dispatch:
     inputs:
       dry_run:
-        description: Validate and package the CLI without publishing
+        description: Validate CLI packaging; false publishes the verified draft npm tarball
         type: boolean
         required: true
         default: true
       version:
-        description: Current package version to validate (no version changes)
+        description: Current package version (non-dry runs require the matching v tag)
         type: string
         required: true
   push:
@@ -22,6 +22,53 @@ permissions:
   contents: write
 
 jobs:
+  publish-npm:
+    if: github.event_name == 'workflow_dispatch' && !inputs.dry_run
+    name: Publish verified npm tarball
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      id-token: write
+    steps:
+      - name: Checkout release tag
+        uses: actions/checkout@v7
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v7
+        with:
+          node-version: "24"
+          registry-url: https://registry.npmjs.org
+
+      - name: Validate tag and download verified draft tarball
+        env:
+          GH_TOKEN: ${{ github.token }}
+          VERSION: ${{ inputs.version }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          test "$GITHUB_REF" = "refs/tags/v$VERSION"
+          node -e 'if (require("./package.json").version !== process.env.VERSION) throw new Error("Version mismatch")'
+          gh release view "v$VERSION" --json isDraft --jq '.isDraft' | grep -qx true
+          mkdir npm-release
+          gh release download "v$VERSION" --pattern "steipete-poltergeist-$VERSION.tgz" --dir npm-release
+          tar -xzf "npm-release/steipete-poltergeist-$VERSION.tgz" -C npm-release
+          node -e 'const p = require("./npm-release/package/package.json"); if (p.name !== "@steipete/poltergeist" || p.version !== process.env.VERSION) throw new Error("Unexpected npm package")'
+
+      - name: Publish original tarball with trusted publishing
+        env:
+          VERSION: ${{ inputs.version }}
+        run: npm publish "npm-release/steipete-poltergeist-$VERSION.tgz" --provenance --access public --ignore-scripts
+
+      - name: Verify published bytes
+        env:
+          VERSION: ${{ inputs.version }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          expected="sha512-$(openssl dgst -sha512 -binary "npm-release/steipete-poltergeist-$VERSION.tgz" | openssl base64 -A)"
+          actual="$(npm view "@steipete/poltergeist@$VERSION" dist.integrity)"
+          test "$actual" = "$expected"
+
   build-cli:
     if: github.event_name == 'push' || (github.event_name == 'workflow_dispatch' && inputs.dry_run)
     name: Build CLI Release

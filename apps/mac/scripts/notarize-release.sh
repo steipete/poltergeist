@@ -25,6 +25,7 @@ SUBMISSION_ZIP="$TEMP_DIR/Poltergeist-notary-submission.zip"
 
 printf '%s\n' "$APPLE_API_PRIVATE_KEY" > "$KEY_PATH"
 chmod 600 "$KEY_PATH"
+xcrun notarytool history --key "$KEY_PATH" --key-id "$APPLE_API_KEY_ID" --issuer "$APPLE_API_ISSUER_ID" >/dev/null
 ditto -c -k --keepParent "$APP_PATH" "$SUBMISSION_ZIP"
 
 xcrun notarytool submit "$SUBMISSION_ZIP" \
