@@ -195,4 +195,14 @@ jobs:
         timeout-minutes: 10
         run: |
           cd apps/mac
-          xcodebuild test -project Poltergeist.xcodeproj -scheme PoltergeistTests -derivedDataPath build -destination 'platform=macOS,arch=arm64' -parallel-testing-enabled NO CODE_SIGN_IDENTITY="" CODE_SIGNING_REQUIRED=NO -quiet
+          xcodebuild build-for-testing -project Poltergeist.xcodeproj -scheme PoltergeistTests -derivedDataPath build -destination 'platform=macOS,arch=arm64' CODE_SIGN_IDENTITY=- CODE_SIGNING_REQUIRED=YES
+          codesign --verify --strict --deep build/Build/Products/Debug/Poltergeist.app
+          xcodebuild test-without-building -project Poltergeist.xcodeproj -scheme PoltergeistTests -derivedDataPath build -destination 'platform=macOS,arch=arm64' -parallel-testing-enabled NO -resultBundlePath build/TestResults.xcresult
+
+      - name: Upload failed Swift test results
+        if: failure()
+        uses: actions/upload-artifact@v7
+        with:
+          name: swift-test-results
+          path: apps/mac/build/TestResults.xcresult
+          if-no-files-found: ignore
