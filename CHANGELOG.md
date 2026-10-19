@@ -4,6 +4,7 @@
 
 - Move macOS CI and release jobs to Xcode 27, preserve macOS 15 app and macOS 13 CLI support, verify Intel CLI execution with Rosetta, and cover signed macOS artifacts in non-publishing release dry runs.
 - Make Swift lint, format, and runtime test failures fail CI instead of reporting success.
+- Fix Swift regression tests to use a fixed progress clock and resolve dynamic system colors before inspecting their color space.
 
 ## [2.1.10] - 2026-10-16
 

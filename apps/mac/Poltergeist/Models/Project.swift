@@ -117,8 +117,12 @@ struct BuildInfo: Equatable, Sendable {
     }
 
     var buildProgress: Double? {
+        buildProgress(at: Date())
+    }
+
+    func buildProgress(at now: Date) -> Double? {
         guard isBuilding, let start = startTime else { return nil }
-        let elapsed = Date().timeIntervalSince(start)
+        let elapsed = now.timeIntervalSince(start)
         // Rough estimate: most builds complete within 30 seconds
         return min(elapsed / 30.0, 0.95)  // Cap at 95% to show indeterminate state
     }
