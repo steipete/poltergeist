@@ -10,22 +10,22 @@ struct ProjectContextMenu: View {
     let projectMonitor: ProjectMonitor
 
     var body: some View {
-        Button(action: {
+        Button {
             NSWorkspace.shared.open(URL(fileURLWithPath: project.path))
-        }) {
+        } label: {
             Label("Open in Finder", systemImage: "folder")
         }
 
-        Button(action: {
+        Button {
             NSWorkspace.shared.open(URL(fileURLWithPath: project.path))
-        }) {
+        } label: {
             Label("Open in Terminal", systemImage: "terminal")
         }
 
         if project.overallStatus == .failed {
             Divider()
 
-            Button(action: {
+            Button {
                 // Copy error to clipboard
                 if let error = project.targets.values.compactMap({ $0.lastBuild?.errorSummary })
                     .first
@@ -33,7 +33,7 @@ struct ProjectContextMenu: View {
                     NSPasteboard.general.clearContents()
                     NSPasteboard.general.setString(error, forType: .string)
                 }
-            }) {
+            } label: {
                 Label("Copy Error", systemImage: "doc.on.clipboard")
             }
         }

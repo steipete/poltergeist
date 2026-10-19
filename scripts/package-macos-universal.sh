@@ -35,8 +35,13 @@ for binary in poltergeist polter; do
   codesign --verify --strict --all-architectures "${binary_dir}/${binary}"
 done
 
-test "$("${binary_dir}/poltergeist" --version)" = "$version"
-test "$("${binary_dir}/polter" --version)" = "$version"
+arch -x86_64 /usr/bin/true || sudo softwareupdate --install-rosetta --agree-to-license
+arch -x86_64 /usr/bin/true
+for architecture in arm64 x86_64; do
+  for binary in poltergeist polter; do
+    test "$(arch -"$architecture" "${binary_dir}/${binary}" --version)" = "$version"
+  done
+done
 
 archive="poltergeist-macos-universal-v${version}.tar.gz"
 bash "$script_dir/notarize-cli.sh" "$binary_dir" "${archive}.notary.json"

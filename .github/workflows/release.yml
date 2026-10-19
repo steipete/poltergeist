@@ -4,7 +4,7 @@ on:
   workflow_dispatch:
     inputs:
       dry_run:
-        description: Validate CLI packaging; false publishes the verified draft npm tarball
+        description: Build and verify all artifacts without publishing; false publishes the verified draft npm tarball
         type: boolean
         required: true
         default: true
@@ -157,9 +157,9 @@ jobs:
           path: "*.tgz"
 
   build-macos:
-    if: github.event_name == 'push'
+    if: github.event_name == 'push' || (github.event_name == 'workflow_dispatch' && inputs.dry_run)
     name: Build macOS App Release
-    runs-on: macos-15
+    runs-on: xcode-27
     env:
       POLTERGEIST_TEST_MODE: "true"
       POLTERGEIST_CODESIGN_IDENTITY: "Developer ID Application: Peter Steinberger (Y5PE65HELJ)"
@@ -168,11 +168,8 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v7
 
-      - name: Setup Xcode
-        uses: maxim-lobanov/setup-xcode@v1
-        with:
-          # Match CI's stable pin; "latest" can select Xcode builds with actool crashes.
-          xcode-version: "16.4"
+      - name: Show image Xcode version
+        run: xcodebuild -version
 
       - name: Install SwiftLint and swift-format
         run: |
@@ -192,7 +189,7 @@ jobs:
 
       - name: Build and sign macOS app (Release)
         env:
-          POLTERGEIST_VERSION: ${{ github.ref_name }}
+          POLTERGEIST_VERSION: ${{ inputs.version || github.ref_name }}
           POLTERGEIST_BUILD_NUMBER: ${{ github.run_number }}
         run: |
           set -euo pipefail
@@ -221,7 +218,7 @@ jobs:
             echo "App not found at $APP_PATH"
             exit 1
           fi
-          ARCHIVE_NAME="Poltergeist-${{ github.ref_name }}-macOS.zip"
+          ARCHIVE_NAME="Poltergeist-${{ inputs.version || github.ref_name }}-macOS.zip"
           ditto -c -k --keepParent "$APP_PATH" "$ARCHIVE_NAME"
 
       - name: Remove temporary signing keychain
@@ -239,9 +236,9 @@ jobs:
             apps/mac/*.zip
 
   build-homebrew:
-    if: github.event_name == 'push'
+    if: github.event_name == 'push' || (github.event_name == 'workflow_dispatch' && inputs.dry_run)
     name: Build Homebrew CLI Asset
-    runs-on: macos-15
+    runs-on: xcode-27
     env:
       POLTERGEIST_TEST_MODE: "true"
 
@@ -274,6 +271,7 @@ jobs:
 
       - name: Package universal Homebrew binaries
         env:
+          RELEASE_VERSION: ${{ inputs.version || github.ref_name }}
           POLTERGEIST_CODESIGN_IDENTITY: "Developer ID Application: Peter Steinberger (Y5PE65HELJ)"
           APPLE_API_KEY_ID: ${{ secrets.APPLE_API_KEY_ID }}
           APPLE_API_ISSUER_ID: ${{ secrets.APPLE_API_ISSUER_ID }}
@@ -281,7 +279,7 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          version="${GITHUB_REF_NAME#v}"
+          version="${RELEASE_VERSION#v}"
           mkdir -p dist-homebrew
 
           bun build src/cli.ts --compile --target=bun-darwin-arm64 --outfile dist-homebrew/poltergeist-arm64 --minify

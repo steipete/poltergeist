@@ -25,10 +25,8 @@ struct PoltergeistApp: App {
                 .frame(width: 0, height: 0)
                 .onAppear {
                     // Close any accidentally opened windows
-                    NSApp.windows.forEach { window in
-                        if window.isVisible {
-                            window.close()
-                        }
+                    for window in NSApp.windows where window.isVisible {
+                        window.close()
                     }
                 }
         }

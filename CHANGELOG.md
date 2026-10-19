@@ -2,6 +2,9 @@
 
 ## [Unreleased]
 
+- Move macOS CI and release jobs to Xcode 27, preserve macOS 15 app and macOS 13 CLI support, verify Intel CLI execution with Rosetta, and cover signed macOS artifacts in non-publishing release dry runs.
+- Make Swift lint, format, and runtime test failures fail CI instead of reporting success.
+
 ## [2.1.10] - 2026-10-16
 
 **Highlights:** Refreshed compatible dependencies and validated release packaging, with npm publication now handled by GitHub Actions.

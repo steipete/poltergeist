@@ -20,7 +20,7 @@ Poltergeist Monitor is a companion app for the Poltergeist build system. It prov
 ## Requirements
 
 - macOS 15.0+
-- Xcode 16.0+
+- Xcode 27 (CI uses the Apple Silicon `xcode-27` runner)
 - Swift 6.0
 
 ## Code Quality Tools
