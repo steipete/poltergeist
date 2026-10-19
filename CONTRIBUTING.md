@@ -7,7 +7,7 @@ Thank you for your interest in contributing to Poltergeist! This guide covers bo
 ### Prerequisites
 
 - **Node.js 24+** and **pnpm 11** for CLI development
-- **Xcode 15+** with Command Line Tools for macOS app development
+- **Xcode 27** with Command Line Tools for macOS app development (CI uses the Apple Silicon `xcode-27` runner)
 - **Watchman** installed (`brew install watchman`)
 - **SwiftLint** and **swift-format** for Swift code quality (`brew install swiftlint swift-format`)
 

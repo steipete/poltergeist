@@ -1,5 +1,9 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
+import { spawnSync } from 'node:child_process';
+import { copyFileSync, mkdirSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs';
+import { tmpdir } from 'node:os';
+import { join } from 'node:path';
 import { verifyMinimum } from './verify-macos-target.mjs';
 import { releaseNotes } from './release-notes.mjs';
 
@@ -20,3 +24,23 @@ test('release notes preserve all bullets and exclude adjacent releases', () => {
   assert.throws(() => releaseNotes(text, '2.1.9'), /Missing/);
   assert.throws(() => releaseNotes(text, '2.1.7'), /highlights/);
 });
+
+for (const [script, tool, args] of [['format.sh', 'swift-format', ['--check']], ['lint.sh', 'swiftlint', []]]) {
+  test(`${script} propagates tool failure`, t => {
+    const root = mkdtempSync(join(tmpdir(), 'poltergeist-swift-check-'));
+    t.after(() => rmSync(root, { recursive: true, force: true }));
+    mkdirSync(join(root, 'scripts'));
+    mkdirSync(join(root, 'bin'));
+    mkdirSync(join(root, 'Poltergeist'));
+    writeFileSync(join(root, 'Poltergeist', 'Fixture.swift'), 'let sample = 1\n');
+    copyFileSync(new URL(`../apps/mac/scripts/${script}`, import.meta.url), join(root, 'scripts', script));
+    const executable = join(root, 'bin', tool);
+    writeFileSync(executable, '#!/bin/sh\necho "synthetic tool failure"\nexit 1\n', { mode: 0o755 });
+    const result = spawnSync('bash', [join(root, 'scripts', script), ...args], {
+      env: { ...process.env, PATH: `${join(root, 'bin')}:${process.env.PATH}` },
+      encoding: 'utf8',
+    });
+    assert.equal(result.status, 1, result.stdout + result.stderr);
+    assert.match(result.stdout + result.stderr, /synthetic tool failure/);
+  });
+}

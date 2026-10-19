@@ -275,7 +275,7 @@ struct BuildInfoTests {
 
     @Test("Build progress calculation")
     func testBuildProgressCalculation() throws {
-        let now = Date()
+        let now = Date(timeIntervalSince1970: 1_000)
 
         // Non-building status should return nil
         let nonBuildingInfo = BuildInfo(
@@ -310,10 +310,11 @@ struct BuildInfoTests {
             startTime: startTime
         )
 
-        let progress = try #require(buildingInfo.buildProgress)
+        let progress = try #require(buildingInfo.buildProgress(at: now))
         #expect(progress > 0.0)
         #expect(progress <= 0.95) // Should be capped at 95%
         #expect(progress == 15.0 / 30.0) // 15 seconds out of 30 second estimate
+        #expect(buildingInfo.buildProgress(at: now.addingTimeInterval(60)) == 0.95)
     }
 }
 

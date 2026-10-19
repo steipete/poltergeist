@@ -98,9 +98,13 @@ struct TargetState: Equatable, @unchecked Sendable {
     var icon: NSImage?  // @unchecked Sendable due to NSImage
 
     var isStale: Bool {
+        isStale(at: Date())
+    }
+
+    func isStale(at now: Date) -> Bool {
         guard let heartbeat = lastHeartbeat else { return true }
         // Use same staleness threshold as CLI (5 minutes = 300 seconds)
-        return Date().timeIntervalSince(heartbeat) > 300
+        return now.timeIntervalSince(heartbeat) > 300
     }
 }
 
@@ -117,8 +121,12 @@ struct BuildInfo: Equatable, Sendable {
     }
 
     var buildProgress: Double? {
+        buildProgress(at: Date())
+    }
+
+    func buildProgress(at now: Date) -> Double? {
         guard isBuilding, let start = startTime else { return nil }
-        let elapsed = Date().timeIntervalSince(start)
+        let elapsed = now.timeIntervalSince(start)
         // Rough estimate: most builds complete within 30 seconds
         return min(elapsed / 30.0, 0.95)  // Cap at 95% to show indeterminate state
     }

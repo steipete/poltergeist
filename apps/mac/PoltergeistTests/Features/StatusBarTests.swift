@@ -38,7 +38,7 @@ struct StatusBarTests {
     }
 
     @Test("Status bar icon creation")
-    func testStatusBarIconCreation() {
+    func testStatusBarIconCreation() throws {
         let statuses: [Project.BuildStatus] = [.idle, .building, .success, .failed]
 
         for status in statuses {
@@ -49,9 +49,9 @@ struct StatusBarTests {
             let image = NSImage(systemSymbolName: iconName, accessibilityDescription: nil)
             #expect(image != nil)
 
-            // Test that color is a valid NSColor
-            #expect(color != nil)
-            #expect(color.colorSpace != nil)
+            // Dynamic system colors must be resolved before inspecting their color space.
+            let resolvedColor = try #require(color.usingColorSpace(.deviceRGB))
+            #expect(resolvedColor.colorSpace == .deviceRGB)
         }
     }
 

@@ -3,7 +3,7 @@
 # SwiftLint script for Poltergeist macOS app
 # This script runs SwiftLint with the project configuration
 
-set -e
+set -euo pipefail
 
 # Change to the directory containing this script
 cd "$(dirname "$0")/.."

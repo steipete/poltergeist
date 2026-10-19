@@ -213,10 +213,8 @@ final class StatusBarController: NSObject {
             })
 
         // Set targets for all items (except quit)
-        menu.items.forEach { item in
-            if item.action != #selector(NSApplication.terminate(_:)) {
-                item.target = self
-            }
+        for item in menu.items where item.action != #selector(NSApplication.terminate(_:)) {
+            item.target = self
         }
 
         // Show menu
