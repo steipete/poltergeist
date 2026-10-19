@@ -98,9 +98,13 @@ struct TargetState: Equatable, @unchecked Sendable {
     var icon: NSImage?  // @unchecked Sendable due to NSImage
 
     var isStale: Bool {
+        isStale(at: Date())
+    }
+
+    func isStale(at now: Date) -> Bool {
         guard let heartbeat = lastHeartbeat else { return true }
         // Use same staleness threshold as CLI (5 minutes = 300 seconds)
-        return Date().timeIntervalSince(heartbeat) > 300
+        return now.timeIntervalSince(heartbeat) > 300
     }
 }
 

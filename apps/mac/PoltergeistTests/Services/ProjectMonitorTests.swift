@@ -113,13 +113,16 @@ final class ProjectMonitorTests {
         // (secondsAgo, expectedStale)
         (60, false),    // 1 minute ago - fresh
         (180, false),   // 3 minutes ago - fresh
+        (299.999, false), // Just before the stale threshold
         (300, false),   // 5 minutes ago - boundary case, should be fresh
+        (300.001, true), // Just after the stale threshold
         (301, true),    // 5 minutes 1 second ago - stale  
         (600, true),    // 10 minutes ago - stale
         (3600, true)    // 1 hour ago - stale
     ])
     func testProcessStalenessDetection(secondsAgo: TimeInterval, expectedStale: Bool) {
-        let heartbeatTime = Date().addingTimeInterval(-secondsAgo)
+        let now = Date(timeIntervalSince1970: 1_750_000_000)
+        let heartbeatTime = now.addingTimeInterval(-secondsAgo)
 
         let targetState = TargetState(
             target: "test",
@@ -129,7 +132,7 @@ final class ProjectMonitorTests {
             icon: nil
         )
 
-        #expect(targetState.isStale == expectedStale)
+        #expect(targetState.isStale(at: now) == expectedStale)
     }
 
     @Test("Nil heartbeat is always stale")
@@ -143,6 +146,7 @@ final class ProjectMonitorTests {
         )
 
         #expect(targetState.isStale == true)
+        #expect(targetState.isStale(at: Date(timeIntervalSince1970: 1_750_000_000)))
     }
 
     // MARK: - State File Processing Tests
