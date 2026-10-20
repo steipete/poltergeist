@@ -2,6 +2,7 @@
 
 ## [Unreleased]
 
+- Updated the terminal panel's pi-tui dependency to 1.3.0 while preserving Node.js 24 compatibility. Thanks @dependabot.
 - Move macOS CI and release jobs to Xcode 27, preserve macOS 15 app and macOS 13 CLI support, verify Intel CLI execution with Rosetta, and cover signed macOS artifacts in non-publishing release dry runs.
 - Make Swift lint, format, and runtime test failures fail CI instead of reporting success.
 - Fix Swift regression tests to use fixed progress and heartbeat clocks and resolve dynamic system colors before inspecting their color space.
