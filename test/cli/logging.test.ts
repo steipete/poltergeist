@@ -83,11 +83,22 @@ describe("readLogEntries", () => {
     expect(entries[1].message).toBe("Retrying");
   });
 
-  it("ignores lines that do not parse", async () => {
-    const file = createTempLogFile("not-a-log-line");
+  it("keeps raw build output that is not a daemon line", async () => {
+    const file = createTempLogFile(
+      [
+        "src/main.go:10: undefined: foo",
+        "2024-01-01T00:00:00.000Z INFO : [demo] Build failed",
+      ].join("\n"),
+    );
     const entries = await readLogEntries(file, "demo");
     cleanup(file);
-    expect(entries).toHaveLength(0);
+    expect(entries).toHaveLength(2);
+    expect(entries[0]).toMatchObject({
+      level: "build",
+      message: "src/main.go:10: undefined: foo",
+      target: "demo",
+    });
+    expect(entries[1].message).toBe("Build failed");
   });
 });
 

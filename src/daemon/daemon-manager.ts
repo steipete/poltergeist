@@ -3,6 +3,7 @@ import { createHash } from "crypto";
 import { existsSync, openSync } from "fs";
 import { mkdir, readFile, unlink, writeFile } from "fs/promises";
 import { dirname, join, sep } from "path";
+import { fileURLToPath } from "url";
 import type { Logger } from "../logger.js";
 import type { PoltergeistConfig } from "../types.js";
 import { FileSystemUtils } from "../utils/filesystem.js";
@@ -10,6 +11,10 @@ import { ProcessManager } from "../utils/process-manager.js";
 import { spawnBunDaemon } from "./daemon-manager-bun.js";
 
 const realSetTimeout = globalThis.setTimeout;
+
+export function daemonDirectoryFromMetaUrl(metaUrl: string): string {
+  return dirname(fileURLToPath(metaUrl));
+}
 
 export interface DaemonInfo {
   pid: number;
@@ -184,8 +189,7 @@ export class DaemonManager {
     if (typeof __dirname !== "undefined") {
       daemonDir = __dirname;
     } else {
-      const currentFileUrl = new URL(import.meta.url);
-      daemonDir = dirname(currentFileUrl.pathname);
+      daemonDir = daemonDirectoryFromMetaUrl(import.meta.url);
     }
 
     const daemonWorkerJs = join(daemonDir, "daemon-worker.js");

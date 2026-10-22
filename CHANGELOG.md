@@ -2,6 +2,9 @@
 
 ## [Unreleased]
 
+- Windows haunt resolves the daemon worker with `fileURLToPath`, so a drive-letter path is not left with a leading slash or percent-encoding.
+- `poltergeist logs` shows raw build output instead of dropping lines that are not daemon records.
+
 ## [2.1.11] - 2026-10-20
 
 **Highlights:** Fixed two documentation-renderer denial-of-service vulnerabilities, refreshed terminal panel dependencies, and strengthened macOS release verification.
