@@ -2,6 +2,7 @@
 
 ## [Unreleased]
 
+- Security: select Go 1.27.3 for the Go CLI example to include the GO-2026-6809 certificate validation fix while preserving its Go 1.22 language minimum.
 - Fix background daemon startup on Windows and from installation paths containing spaces. Thanks @SebTardif.
 - Preserve raw compiler output and JSON diagnostics in `poltergeist logs` without crashing on non-daemon JSON. Thanks @SebTardif.
 

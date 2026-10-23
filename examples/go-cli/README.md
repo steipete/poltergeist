@@ -2,6 +2,8 @@
 
 This example demonstrates Poltergeist auto-detecting a Go module that uses the common `cmd/<name>/main.go` layout.
 
+The module selects patched Go 1.27.3 while retaining the Go 1.22 language minimum.
+
 The generated configuration should include an enabled `greeter` target with the following properties:
 
 - Build command: `mkdir -p ./dist/bin && go build -o ./dist/bin/greeter ./cmd/greeter`
