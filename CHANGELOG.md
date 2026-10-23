@@ -2,9 +2,14 @@
 
 ## [Unreleased]
 
-- Security: select Go 1.27.3 for the Go CLI example to include the GO-2026-6809 certificate validation fix while preserving its Go 1.22 language minimum.
+## [2.1.12] - 2026-10-23
+
+**Highlights:** Fixed background daemon startup and compiler log rendering, and included security fixes for the Go example and Vitest development tooling.
+
 - Fix background daemon startup on Windows and from installation paths containing spaces. Thanks @SebTardif.
 - Preserve raw compiler output and JSON diagnostics in `poltergeist logs` without crashing on non-daemon JSON. Thanks @SebTardif.
+- Security: select Go 1.27.3 for the Go CLI example to include the GO-2026-6809 certificate validation fix while preserving its Go 1.22 language minimum.
+- Security: update Vitest and its coverage tooling to 4.1.12 to fix manual mock code injection and Windows redirect path traversal in development tooling.
 
 ## [2.1.11] - 2026-10-20
 

@@ -1,2 +1,2 @@
 // Hardcoded at build time for compiled binaries; avoid filesystem reads.
-export const PACKAGE_INFO = { version: "2.1.11", name: "@steipete/poltergeist" };
+export const PACKAGE_INFO = { version: "2.1.12", name: "@steipete/poltergeist" };
