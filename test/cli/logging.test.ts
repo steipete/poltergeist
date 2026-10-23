@@ -103,6 +103,23 @@ describe("readLogEntries", () => {
 });
 
 describe("displayLogs", () => {
+  it.each([
+    '{"reason":"compile failed"}',
+    '{"timestamp":123,"level":"error","message":"failed"}',
+    '{"timestamp":"now","level":5,"message":"failed"}',
+    '{"timestamp":"now","level":"error","message":{}}',
+    '{"timestamp":"now","level":"error","message":"failed","target":42}',
+    '{"unfinished":',
+  ])("displays compiler JSON as raw output: %s", async (line) => {
+    const file = createTempLogFile(line);
+    try {
+      await displayLogs(file, { target: "demo", lines: "10" });
+      expect(logSpy.mock.calls.map((call) => call[0]).join("\n")).toContain(line);
+    } finally {
+      cleanup(file);
+    }
+  });
+
   it("prints JSON array when json flag is set", async () => {
     const file = createTempLogFile("2024-01-01T00:00:00Z INFO : [demo] Build started");
 

@@ -12,10 +12,6 @@ import { spawnBunDaemon } from "./daemon-manager-bun.js";
 
 const realSetTimeout = globalThis.setTimeout;
 
-export function daemonDirectoryFromMetaUrl(metaUrl: string): string {
-  return dirname(fileURLToPath(metaUrl));
-}
-
 export interface DaemonInfo {
   pid: number;
   startTime: string;
@@ -189,7 +185,7 @@ export class DaemonManager {
     if (typeof __dirname !== "undefined") {
       daemonDir = __dirname;
     } else {
-      daemonDir = daemonDirectoryFromMetaUrl(import.meta.url);
+      daemonDir = dirname(fileURLToPath(import.meta.url));
     }
 
     const daemonWorkerJs = join(daemonDir, "daemon-worker.js");

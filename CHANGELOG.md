@@ -2,8 +2,8 @@
 
 ## [Unreleased]
 
-- Windows haunt resolves the daemon worker with `fileURLToPath`, so a drive-letter path is not left with a leading slash or percent-encoding.
-- `poltergeist logs` shows raw build output instead of dropping lines that are not daemon records.
+- Fix background daemon startup on Windows and from installation paths containing spaces. Thanks @SebTardif.
+- Preserve raw compiler output and JSON diagnostics in `poltergeist logs` without crashing on non-daemon JSON. Thanks @SebTardif.
 
 ## [2.1.11] - 2026-10-20
 

@@ -11,7 +11,18 @@ export interface LogEntry {
   [key: string]: unknown;
 }
 
-type ParsedLog = { entry?: LogEntry; error?: unknown };
+type ParsedLog = { entry?: LogEntry };
+
+function isLogEntry(value: unknown): value is LogEntry {
+  if (typeof value !== "object" || value === null) return false;
+  const entry = value as Record<string, unknown>;
+  return (
+    typeof entry.timestamp === "string" &&
+    typeof entry.level === "string" &&
+    typeof entry.message === "string" &&
+    (entry.target === undefined || typeof entry.target === "string")
+  );
+}
 
 export function parseLogLine(line: string, targetFilter?: string): ParsedLog {
   // Daemon lines are an ISO or clock timestamp, then a level. Compiler output
@@ -37,11 +48,13 @@ export function parseLogLine(line: string, targetFilter?: string): ParsedLog {
 
   if (line.startsWith("{")) {
     try {
-      const entry = JSON.parse(line) as LogEntry;
-      if (targetFilter && entry.target && entry.target !== targetFilter) {
-        return {};
+      const entry: unknown = JSON.parse(line);
+      if (isLogEntry(entry)) {
+        if (targetFilter && entry.target && entry.target !== targetFilter) {
+          return {};
+        }
+        return { entry };
       }
-      return { entry };
     } catch {
       // A line that starts with "{" but is not daemon JSON is still build output.
     }
