@@ -83,15 +83,43 @@ describe("readLogEntries", () => {
     expect(entries[1].message).toBe("Retrying");
   });
 
-  it("ignores lines that do not parse", async () => {
-    const file = createTempLogFile("not-a-log-line");
+  it("keeps raw build output that is not a daemon line", async () => {
+    const file = createTempLogFile(
+      [
+        "src/main.go:10: undefined: foo",
+        "2024-01-01T00:00:00.000Z INFO : [demo] Build failed",
+      ].join("\n"),
+    );
     const entries = await readLogEntries(file, "demo");
     cleanup(file);
-    expect(entries).toHaveLength(0);
+    expect(entries).toHaveLength(2);
+    expect(entries[0]).toMatchObject({
+      level: "build",
+      message: "src/main.go:10: undefined: foo",
+      target: "demo",
+    });
+    expect(entries[1].message).toBe("Build failed");
   });
 });
 
 describe("displayLogs", () => {
+  it.each([
+    '{"reason":"compile failed"}',
+    '{"timestamp":123,"level":"error","message":"failed"}',
+    '{"timestamp":"now","level":5,"message":"failed"}',
+    '{"timestamp":"now","level":"error","message":{}}',
+    '{"timestamp":"now","level":"error","message":"failed","target":42}',
+    '{"unfinished":',
+  ])("displays compiler JSON as raw output: %s", async (line) => {
+    const file = createTempLogFile(line);
+    try {
+      await displayLogs(file, { target: "demo", lines: "10" });
+      expect(logSpy.mock.calls.map((call) => call[0]).join("\n")).toContain(line);
+    } finally {
+      cleanup(file);
+    }
+  });
+
   it("prints JSON array when json flag is set", async () => {
     const file = createTempLogFile("2024-01-01T00:00:00Z INFO : [demo] Build started");
 

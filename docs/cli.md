@@ -87,6 +87,8 @@ poltergeist build app --json
 
 `status`, `wait`, `build`, and `clean` provide JSON modes where supported. Scripts can wait for a named target, inspect the result, or follow a target's build and test log channels without parsing the interactive panel.
 
+`logs` preserves raw compiler output, including JSON diagnostics, alongside daemon records. Raw output appears with the `build` level; records naming another target are filtered out when you select a target.
+
 Use `poltergeist panel` for the interactive dashboard. Its git summaries, status and summary scripts, log channels, and keyboard controls are documented in the [panel guide](panel.md). Live progress formats are described in [progress reporting](progress.md).
 
 Automatic builds can be suspended without stopping the daemon:

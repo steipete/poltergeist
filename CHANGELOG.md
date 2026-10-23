@@ -2,6 +2,9 @@
 
 ## [Unreleased]
 
+- Fix background daemon startup on Windows and from installation paths containing spaces. Thanks @SebTardif.
+- Preserve raw compiler output and JSON diagnostics in `poltergeist logs` without crashing on non-daemon JSON. Thanks @SebTardif.
+
 ## [2.1.11] - 2026-10-20
 
 **Highlights:** Fixed two documentation-renderer denial-of-service vulnerabilities, refreshed terminal panel dependencies, and strengthened macOS release verification.

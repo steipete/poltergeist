@@ -11,14 +11,31 @@ export interface LogEntry {
   [key: string]: unknown;
 }
 
-type ParsedLog = { entry?: LogEntry; error?: unknown };
+type ParsedLog = { entry?: LogEntry };
+
+function isLogEntry(value: unknown): value is LogEntry {
+  if (typeof value !== "object" || value === null) return false;
+  const entry = value as Record<string, unknown>;
+  return (
+    typeof entry.timestamp === "string" &&
+    typeof entry.level === "string" &&
+    typeof entry.message === "string" &&
+    (entry.target === undefined || typeof entry.target === "string")
+  );
+}
 
 export function parseLogLine(line: string, targetFilter?: string): ParsedLog {
-  // New plain text format: timestamp LEVEL: [target] message
-  const plainTextMatch = line.match(/^(\S+)\s+(\w+)\s*:\s*(?:\[([^\]]+)\]\s*)?(.*)$/);
+  // Daemon lines are an ISO or clock timestamp, then a level. Compiler output
+  // does not use that shape and must stay visible.
+  const plainTextMatch = line.match(
+    /^(\d{4}-\d{2}-\d{2}T\S+|\d{2}:\d{2}:\d{2}(?:\.\d+)?)\s+(debug|info|warn|warning|error|fatal)\s*:\s*(?:\[([^\]]+)\]\s*)?(.*)$/i,
+  );
 
   if (plainTextMatch) {
     const [, timestamp, level, target, message] = plainTextMatch;
+    if (targetFilter && target && target !== targetFilter) {
+      return {};
+    }
     return {
       entry: {
         timestamp,
@@ -31,17 +48,26 @@ export function parseLogLine(line: string, targetFilter?: string): ParsedLog {
 
   if (line.startsWith("{")) {
     try {
-      const entry = JSON.parse(line) as LogEntry;
-      if (targetFilter && entry.target !== targetFilter) {
-        return {};
+      const entry: unknown = JSON.parse(line);
+      if (isLogEntry(entry)) {
+        if (targetFilter && entry.target && entry.target !== targetFilter) {
+          return {};
+        }
+        return { entry };
       }
-      return { entry };
-    } catch (error) {
-      return { error };
+    } catch {
+      // A line that starts with "{" but is not daemon JSON is still build output.
     }
   }
 
-  return {};
+  return {
+    entry: {
+      timestamp: "",
+      level: "build",
+      message: line,
+      ...(targetFilter ? { target: targetFilter } : {}),
+    },
+  };
 }
 
 // Display logs with formatting and filtering
@@ -115,9 +141,12 @@ export async function readLogEntries(
 // Format a single log entry for display
 export function formatLogEntry(entry: LogEntry): void {
   // Handle timestamp - Pino gives us HH:mm:ss format, so use it directly
-  const timestamp = entry.timestamp.includes(":")
-    ? entry.timestamp
-    : new Date(entry.timestamp).toLocaleString();
+  const timestamp =
+    entry.timestamp === ""
+      ? ""
+      : entry.timestamp.includes(":")
+        ? entry.timestamp
+        : new Date(entry.timestamp).toLocaleString();
   const level = formatLogLevel(entry.level);
   const target = entry.target ? chalk.blue(`[${entry.target}]`) : "";
   const message = entry.message;

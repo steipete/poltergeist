@@ -3,6 +3,7 @@ import { createHash } from "crypto";
 import { existsSync, openSync } from "fs";
 import { mkdir, readFile, unlink, writeFile } from "fs/promises";
 import { dirname, join, sep } from "path";
+import { fileURLToPath } from "url";
 import type { Logger } from "../logger.js";
 import type { PoltergeistConfig } from "../types.js";
 import { FileSystemUtils } from "../utils/filesystem.js";
@@ -184,8 +185,7 @@ export class DaemonManager {
     if (typeof __dirname !== "undefined") {
       daemonDir = __dirname;
     } else {
-      const currentFileUrl = new URL(import.meta.url);
-      daemonDir = dirname(currentFileUrl.pathname);
+      daemonDir = dirname(fileURLToPath(import.meta.url));
     }
 
     const daemonWorkerJs = join(daemonDir, "daemon-worker.js");

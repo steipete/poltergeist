@@ -861,14 +861,14 @@ describe("CLI Commands", () => {
   });
 
   describe("logs command", () => {
-    it("should show log viewing not implemented message", async () => {
+    it("should display raw build output", async () => {
       createTestConfig();
       writeFileSync(join(testDir, ".poltergeist.log"), "test logs");
 
       const result = await runCLI(["logs"]);
 
       expect(result.exitCode).toBe(0);
-      expect(result.stdout).toContain("No logs found");
+      expect(result.stdout).toContain("test logs");
     });
 
     it("should fail when log file does not exist", async () => {
