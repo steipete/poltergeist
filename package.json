@@ -1,6 +1,6 @@
 {
   "name": "@steipete/poltergeist",
-  "version": "2.1.11",
+  "version": "2.1.12",
   "description": "The ghost that keeps your builds fresh - a universal file watcher with auto-rebuild for any language or build system",
   "keywords": [
     "automation",
@@ -108,7 +108,7 @@
     "@types/node-notifier": "^8.0.5",
     "@types/write-file-atomic": "^4.0.3",
     "@typescript/native-preview": "7.0.0-dev.20260707.2",
-    "@vitest/coverage-v8": "^4.1.11",
+    "@vitest/coverage-v8": "^4.1.12",
     "cross-env": "^10.1.0",
     "oxfmt": "^0.73.0",
     "oxlint": "^1.88.0",
@@ -118,7 +118,7 @@
     "typedoc-plugin-mermaid": "^1.12.0",
     "typescript": "^6.0.3",
     "vite": "^8.3.4",
-    "vitest": "^4.1.11"
+    "vitest": "^4.1.12"
   },
   "engines": {
     "node": ">=24.0.0"
