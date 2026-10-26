@@ -89,7 +89,7 @@
   "dependencies": {
     "@earendil-works/pi-tui": "^1.2.0",
     "@logtape/logtape": "^2.4.2",
-    "arkregex": "^0.0.13",
+    "arkregex": "^0.0.14",
     "chalk": "^6.0.1",
     "commander": "^15.0.0",
     "es-toolkit": "^1.52.0",
