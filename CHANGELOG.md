@@ -2,6 +2,8 @@
 
 ## [Unreleased]
 
+- Updated LogTape, PostCSS, Oxfmt, and Oxlint to compatible releases while preserving Node.js 24 and Vitest 4 support.
+
 ## [2.1.12] - 2026-10-23
 
 **Highlights:** Fixed background daemon startup and compiler log rendering, and included security fixes for the Go example and Vitest development tooling.
