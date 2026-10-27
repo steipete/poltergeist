@@ -2,6 +2,10 @@
 
 ## [Unreleased]
 
+## [2.1.13] - 2026-10-26
+
+**Highlights:** Updated runtime logging dependencies while preserving Node.js 24 compatibility.
+
 - Updated LogTape, PostCSS, Oxfmt, and Oxlint to compatible releases while preserving Node.js 24 and Vitest 4 support.
 
 ## [2.1.12] - 2026-10-23
