@@ -2,6 +2,8 @@
 
 ## [Unreleased]
 
+- Refresh the terminal panel, regular-expression parser, and Vite while preserving Node.js 24 compatibility. Thanks @dependabot! #294 #295 #296
+
 ## [2.1.13] - 2026-10-26
 
 **Highlights:** Updated runtime logging dependencies while preserving Node.js 24 compatibility.
