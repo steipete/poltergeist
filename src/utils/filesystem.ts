@@ -6,8 +6,13 @@
 import { createHash } from "crypto";
 import { existsSync, mkdirSync, readFileSync, unlinkSync, writeFileSync } from "fs";
 import { tmpdir } from "os";
-import { dirname, join, resolve as resolvePath } from "path";
+import { dirname, join, posix, win32 } from "path";
 import { DEFAULT_LOG_CHANNEL, sanitizeLogChannel } from "./log-channels.js";
+
+type FindUpOptions = {
+  pathApi?: typeof win32;
+  exists?: (candidate: string) => boolean;
+};
 
 /**
  * Centralized file system utilities for Poltergeist operations
@@ -164,27 +169,42 @@ export class FileSystemUtils {
   }
 
   /**
-   * Find a file by walking up the directory tree
-   * @param startDir Starting directory (defaults to current working directory)
+   * Find a file by walking up the directory tree.
+   * The filesystem root is not searched. UNC and `\\?\` walks stop when
+   * the parent path does not change.
    * @param fileName File name to search for
-   * @returns Full path to found file, or null if not found
+   * @param startDir Starting directory (defaults to the current working directory)
+   * @param options Path rules and existence check. Defaults match this platform.
+   * @returns Full path to the file, or null when it is not found
    */
-  public static findFileUpTree(fileName: string, startDir: string = process.cwd()): string | null {
-    let currentDir = resolvePath(startDir);
+  public static findFileUpTree(
+    fileName: string,
+    startDir: string = process.cwd(),
+    options?: FindUpOptions,
+  ): string | null {
+    const pathApi = options?.pathApi ?? (process.platform === "win32" ? win32 : posix);
+    const exists = options?.exists ?? existsSync;
+    let currentDir = pathApi.resolve(startDir);
+    const root =
+      pathApi.sep === "\\"
+        ? pathApi.resolve(currentDir.split(pathApi.sep)[0] + pathApi.sep)
+        : pathApi.resolve("/");
 
-    while (true) {
-      const filePath = resolvePath(currentDir, fileName);
-      if (existsSync(filePath)) {
+    while (currentDir !== root) {
+      const filePath = pathApi.resolve(currentDir, fileName);
+      if (exists(filePath)) {
         return filePath;
       }
 
-      const parent = dirname(currentDir);
-      // UNC share roots and drive roots do not change under dirname.
+      const parent = pathApi.dirname(currentDir);
+      // UNC and \\?\ paths repeat dirname before the drive root comparison matches.
       if (parent === currentDir) {
         return null;
       }
       currentDir = parent;
     }
+
+    return null;
   }
 
   /**
