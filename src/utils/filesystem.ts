@@ -9,11 +9,6 @@ import { tmpdir } from "os";
 import { dirname, join, posix, win32 } from "path";
 import { DEFAULT_LOG_CHANNEL, sanitizeLogChannel } from "./log-channels.js";
 
-type FindUpOptions = {
-  pathApi?: typeof win32;
-  exists?: (candidate: string) => boolean;
-};
-
 /**
  * Centralized file system utilities for Poltergeist operations
  *
@@ -174,16 +169,20 @@ export class FileSystemUtils {
    * the parent path does not change.
    * @param fileName File name to search for
    * @param startDir Starting directory (defaults to the current working directory)
-   * @param options Path rules and existence check. Defaults match this platform.
    * @returns Full path to the file, or null when it is not found
    */
-  public static findFileUpTree(
+  public static findFileUpTree(fileName: string, startDir: string = process.cwd()): string | null {
+    const pathApi = process.platform === "win32" ? win32 : posix;
+    return FileSystemUtils.walkForFile(fileName, startDir, pathApi, existsSync);
+  }
+
+  // Config-walk tests call this with path.win32. The public method stays two arguments.
+  private static walkForFile(
     fileName: string,
-    startDir: string = process.cwd(),
-    options?: FindUpOptions,
+    startDir: string,
+    pathApi: typeof win32,
+    exists: (candidate: string) => boolean,
   ): string | null {
-    const pathApi = options?.pathApi ?? (process.platform === "win32" ? win32 : posix);
-    const exists = options?.exists ?? existsSync;
     let currentDir = pathApi.resolve(startDir);
     const root =
       pathApi.sep === "\\"

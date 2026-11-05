@@ -43,6 +43,16 @@ type ProbeResult = {
   stderr: string;
 };
 
+type FindFileUpTreePublicArguments = Parameters<(typeof FileSystemUtils)["findFileUpTree"]>;
+type FindFileUpTreeHasTwoPublicArguments = FindFileUpTreePublicArguments["length"] extends 1 | 2
+  ? 2 extends FindFileUpTreePublicArguments["length"]
+    ? 3 extends FindFileUpTreePublicArguments["length"]
+      ? never
+      : true
+    : never
+  : never;
+const findFileUpTreeHasTwoPublicArguments: FindFileUpTreeHasTwoPublicArguments = true;
+
 describe("findFileUpTree", () => {
   const roots: string[] = [];
 
@@ -50,6 +60,15 @@ describe("findFileUpTree", () => {
     for (const root of roots.splice(0)) {
       rmSync(root, { recursive: true, force: true });
     }
+  });
+
+  it("accepts only the file name and start directory", () => {
+    // The assignment above is rejected when the public method has another parameter.
+    void findFileUpTreeHasTwoPublicArguments;
+    expect(
+      publicArgumentCount(FileSystemUtils.findFileUpTree),
+      FileSystemUtils.findFileUpTree.toString(),
+    ).toBe(2);
   });
 
   it("finds a config in a parent directory", () => {
@@ -146,6 +165,42 @@ describe("findFileUpTree", () => {
     20_000,
   );
 });
+
+// Function.length stops at startDir's default, so a third parameter still reports 1.
+function publicArgumentCount(fn: (...args: never[]) => unknown): number {
+  const source = Function.prototype.toString.call(fn);
+  const open = source.indexOf("(");
+  let depth = 0;
+  let end = -1;
+  for (let index = open; index < source.length; index += 1) {
+    const ch = source[index];
+    if (ch === "(") {
+      depth += 1;
+    } else if (ch === ")") {
+      depth -= 1;
+      if (depth === 0) {
+        end = index;
+        break;
+      }
+    }
+  }
+  const params = source.slice(open + 1, end).trim();
+  if (params === "") {
+    return 0;
+  }
+  let paren = 0;
+  let count = 1;
+  for (const ch of params) {
+    if (ch === "(") {
+      paren += 1;
+    } else if (ch === ")") {
+      paren -= 1;
+    } else if (ch === "," && paren === 0) {
+      count += 1;
+    }
+  }
+  return count;
+}
 
 function runProbe(input: ProbeInput): Promise<ProbeResult> {
   const child = spawn(process.execPath, ["--import", "tsx", probePath, JSON.stringify(input)], {
