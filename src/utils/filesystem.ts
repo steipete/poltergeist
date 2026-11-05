@@ -6,7 +6,7 @@
 import { createHash } from "crypto";
 import { existsSync, mkdirSync, readFileSync, unlinkSync, writeFileSync } from "fs";
 import { tmpdir } from "os";
-import { dirname, join, resolve as resolvePath, sep } from "path";
+import { dirname, join, resolve as resolvePath } from "path";
 import { DEFAULT_LOG_CHANNEL, sanitizeLogChannel } from "./log-channels.js";
 
 /**
@@ -171,20 +171,20 @@ export class FileSystemUtils {
    */
   public static findFileUpTree(fileName: string, startDir: string = process.cwd()): string | null {
     let currentDir = resolvePath(startDir);
-    const root =
-      process.platform === "win32" ? resolvePath(currentDir.split(sep)[0] + sep) : resolvePath("/");
 
-    while (currentDir !== root) {
+    while (true) {
       const filePath = resolvePath(currentDir, fileName);
-
       if (existsSync(filePath)) {
         return filePath;
       }
 
-      currentDir = dirname(currentDir);
+      const parent = dirname(currentDir);
+      // UNC share roots and drive roots do not change under dirname.
+      if (parent === currentDir) {
+        return null;
+      }
+      currentDir = parent;
     }
-
-    return null;
   }
 
   /**
