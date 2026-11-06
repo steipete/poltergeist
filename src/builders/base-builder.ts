@@ -196,6 +196,11 @@ export abstract class BaseBuilder<T extends Target = Target> {
       let logStream: WriteStream | null = null;
       let buildSettled = false;
       let logStreamFailed = false;
+      let logStreamError: Error | undefined;
+      let reapTimer: ReturnType<typeof setTimeout> | undefined;
+      // A child that ignores SIGTERM still has to exit before the queue starts
+      // another build. One second is enough for a normal shutdown.
+      const logFailureReapMs = 1000;
       let errorBuffer: string[] = [];
       let lastOutputLines: string[] = [];
       const maxErrorLines = 50;
@@ -217,14 +222,31 @@ export abstract class BaseBuilder<T extends Target = Target> {
         buildSettled = true;
         reject(error instanceof Error ? error : new Error(String(error)));
       };
+      const clearReapTimer = (): void => {
+        if (!reapTimer) return;
+        clearTimeout(reapTimer);
+        reapTimer = undefined;
+      };
       const stopChild = (): void => {
         const child = this.currentProcess;
-        if (!child || child.killed) return;
+        if (!child || child.exitCode !== null || child.signalCode !== null) return;
         try {
           child.kill("SIGTERM");
         } catch {
           // The child can exit between the check and the signal.
         }
+        if (reapTimer) return;
+        reapTimer = setTimeout(() => {
+          reapTimer = undefined;
+          if (this.currentProcess !== child) return;
+          if (child.exitCode !== null || child.signalCode !== null) return;
+          try {
+            child.kill("SIGKILL");
+          } catch {
+            // The child exited as the force kill was sent.
+          }
+        }, logFailureReapMs);
+        reapTimer.unref();
       };
       const failBuildForLogStream = (error: unknown): void => {
         if (logStreamFailed) return;
@@ -232,9 +254,20 @@ export abstract class BaseBuilder<T extends Target = Target> {
         const stream = logStream;
         logStream = null;
         const message = error instanceof Error ? error.message : String(error);
-        rejectBuild(new Error(`Failed to write build log: ${message}`));
+        // Keep the failure, but settle from the close handler. Settling here
+        // lets the queue start a new build while this child is still writing,
+        // and the old close handler then clears that newer currentProcess.
+        logStreamError = new Error(`Failed to write build log: ${message}`);
         if (stream && !stream.destroyed) {
           stream.destroy();
+        }
+        if (
+          !this.currentProcess ||
+          this.currentProcess.exitCode !== null ||
+          this.currentProcess.signalCode !== null
+        ) {
+          rejectBuild(logStreamError);
+          return;
         }
         stopChild();
       };
@@ -250,19 +283,36 @@ export abstract class BaseBuilder<T extends Target = Target> {
       const finishLogStream = async (): Promise<void> => {
         const stream = logStream;
         logStream = null;
-        if (!stream || logStreamFailed || stream.destroyed) return;
+        if (!stream || logStreamFailed) return;
+        // Node can destroy the stream before the error event. The flush
+        // failure is already on stream.errored in that window.
+        if (stream.destroyed) {
+          if (stream.errored) failBuildForLogStream(stream.errored);
+          return;
+        }
 
         await new Promise<void>((done) => {
-          const complete = (): void => {
-            stream.removeListener("error", complete);
+          let finished = false;
+          const complete = (error?: Error | null): void => {
+            if (finished) return;
+            finished = true;
+            stream.removeListener("error", onError);
+            // Node 24 reports a failed flush to this callback before "error".
+            if (error) {
+              failBuildForLogStream(error);
+            } else if (stream.errored) {
+              failBuildForLogStream(stream.errored);
+            }
             done();
           };
-          stream.once("error", complete);
+          const onError = (error: Error): void => {
+            complete(error);
+          };
+          stream.once("error", onError);
           try {
             stream.end(complete);
           } catch (error) {
-            failBuildForLogStream(error);
-            done();
+            complete(error instanceof Error ? error : new Error(String(error)));
           }
         });
       };
@@ -411,12 +461,20 @@ export abstract class BaseBuilder<T extends Target = Target> {
       }
 
       this.currentProcess.on("close", async (code) => {
+        const child = this.currentProcess;
         try {
           await finishLogStream();
         } catch (error) {
           failBuildForLogStream(error);
         }
-        this.currentProcess = undefined;
+        clearReapTimer();
+        if (this.currentProcess === child) {
+          this.currentProcess = undefined;
+        }
+        if (logStreamError) {
+          rejectBuild(logStreamError);
+          return;
+        }
         if (buildSettled) return;
 
         if (code === 0) {
@@ -449,12 +507,20 @@ export abstract class BaseBuilder<T extends Target = Target> {
       });
 
       this.currentProcess.on("error", async (error) => {
+        const child = this.currentProcess;
         try {
           await finishLogStream();
         } catch (finishError) {
           failBuildForLogStream(finishError);
         }
-        this.currentProcess = undefined;
+        clearReapTimer();
+        if (this.currentProcess === child) {
+          this.currentProcess = undefined;
+        }
+        if (logStreamError) {
+          rejectBuild(logStreamError);
+          return;
+        }
         if (buildSettled) return;
 
         // Store error context
