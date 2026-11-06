@@ -1,5 +1,5 @@
 import chalk from "chalk";
-import { createReadStream, readFileSync, statSync, watchFile } from "fs";
+import { createReadStream, readFileSync, type Stats, statSync, watchFile } from "fs";
 import { createInterface } from "readline";
 import { ghost } from "../utils/ghost.js";
 
@@ -184,13 +184,27 @@ export function formatLogLevel(level: string): string {
   }
 }
 
+// ino is 0 when the platform cannot report it. birthtime is not part of the
+// identity when ino is real: on Linux the first write moves ctime away from
+// birthtime and would look like a different file.
+function logFileIdentity(stat: Stats): string {
+  if (stat.ino !== 0) {
+    return `${stat.dev}:${stat.ino}`;
+  }
+  const birth = stat.birthtimeMs !== 0 ? String(stat.birthtimeMs) : "0";
+  return `${stat.dev}:0:${birth}`;
+}
+
 // Follow logs in real-time
 export async function followLogs(
   logFile: string,
   targetFilter?: string,
   jsonOutput?: boolean,
 ): Promise<void> {
-  let fileSize = statSync(logFile).size;
+  const initialStat = statSync(logFile);
+  let fileSize = initialStat.size;
+  let identity = logFileIdentity(initialStat);
+  let reportedMissing = false;
 
   console.log(chalk.cyan(`${ghost.brand()} Following Poltergeist logs... (Press Ctrl+C to exit)`));
   if (targetFilter) {
@@ -210,34 +224,63 @@ export async function followLogs(
     }
   }
 
-  // Watch for new log entries
+  // Watch for new log entries. A build reopens the capture with flags "w",
+  // so the next log can shrink or be replaced without ever growing past the old offset.
   watchFile(logFile, { interval: 500 }, (curr) => {
-    if (curr.size > fileSize) {
-      const stream = createReadStream(logFile, {
-        start: fileSize,
-        encoding: "utf-8",
-      });
-
-      const rl = createInterface({
-        input: stream,
-        crlfDelay: Number.POSITIVE_INFINITY,
-      });
-
-      rl.on("line", (line) => {
-        if (!line.trim()) return;
-
-        const { entry } = parseLogLine(line, targetFilter);
-        if (!entry) return;
-
-        if (jsonOutput) {
-          console.log(JSON.stringify(entry));
-        } else {
-          formatLogEntry(entry);
-        }
-      });
-
-      fileSize = curr.size;
+    // A missing path is not a shrink. Clearing the offset here makes the
+    // recreated file replay from the start even when it only grew.
+    if (curr.nlink === 0) {
+      if (!reportedMissing) {
+        reportedMissing = true;
+        console.error(
+          chalk.red(`Failed to read log: ENOENT: no such file or directory, open '${logFile}'`),
+        );
+      }
+      return;
     }
+    reportedMissing = false;
+    const nextIdentity = logFileIdentity(curr);
+    const replaced = nextIdentity !== identity;
+    const shrunk = curr.size < fileSize;
+    if (!replaced && !shrunk && curr.size <= fileSize) {
+      return;
+    }
+
+    const start = replaced || shrunk ? 0 : fileSize;
+    fileSize = curr.size;
+    identity = nextIdentity;
+
+    const stream = createReadStream(logFile, {
+      start,
+      encoding: "utf-8",
+    });
+    const rl = createInterface({
+      input: stream,
+      crlfDelay: Number.POSITIVE_INFINITY,
+    });
+
+    // readline re-emits the stream error. One listener still crashes follow.
+    let reported = false;
+    const reportReadError = (error: Error): void => {
+      if (reported) return;
+      reported = true;
+      console.error(chalk.red(`Failed to read log: ${error.message}`));
+    };
+    stream.on("error", reportReadError);
+    rl.on("error", reportReadError);
+
+    rl.on("line", (line) => {
+      if (!line.trim()) return;
+
+      const { entry } = parseLogLine(line, targetFilter);
+      if (!entry) return;
+
+      if (jsonOutput) {
+        console.log(JSON.stringify(entry));
+      } else {
+        formatLogEntry(entry);
+      }
+    });
   });
 
   // Keep process alive
