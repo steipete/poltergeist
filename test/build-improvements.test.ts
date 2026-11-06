@@ -279,6 +279,47 @@ describe("Build Improvements - Real-time Output & Error Capture", () => {
     expect(logContent).toContain("Warning: deprecated API");
   });
 
+  it("fails the build when the log stream errors", async () => {
+    const logFile = join(tempDir, "capture.log");
+    mkdirSync(logFile);
+
+    let closeHandler: ((code: number | null) => void) | undefined;
+    const mockProcess = {
+      stdout: {
+        on: vi.fn((event: string, handler: (chunk: Buffer) => void) => {
+          if (event === "data") {
+            handler(Buffer.from("partial output before the log open fails\n"));
+          }
+        }),
+      },
+      stderr: { on: vi.fn() },
+      on: vi.fn((event: string, handler: (code: number | null) => void) => {
+        if (event === "close") {
+          closeHandler = handler;
+        }
+      }),
+      kill: vi.fn(),
+      killed: false,
+      exitCode: null,
+    };
+
+    vi.mocked(spawn).mockReturnValue(mockProcess as never);
+
+    const result = await builder.build([], {
+      captureLogs: true,
+      logFile,
+    });
+
+    // A later successful exit must not settle the build a second time.
+    closeHandler?.(0);
+    await new Promise((resolve) => setTimeout(resolve, 50));
+
+    expect(result.status).toBe("failure");
+    expect(result.error).toContain("Failed to write build log");
+    expect(result.error).toContain("EISDIR");
+    expect(mockProcess.kill).toHaveBeenCalledWith("SIGTERM");
+  });
+
   it("should include recent output in error messages", async () => {
     const mockProcess = {
       stdout: {

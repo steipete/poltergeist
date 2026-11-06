@@ -1,6 +1,6 @@
 // Base builder class for all target types
 import { type ChildProcess, execSync, spawn } from "child_process";
-import { createWriteStream, mkdirSync } from "fs";
+import { createWriteStream, mkdirSync, type WriteStream } from "fs";
 import { dirname } from "path";
 import { AsyncLocalStorage } from "node:async_hooks";
 import { recordBuildOutput, recordBuildTarget } from "../core/build-context.js";
@@ -193,7 +193,9 @@ export abstract class BaseBuilder<T extends Target = Target> {
 
       // Always capture output for error diagnosis
       const stdio: ("inherit" | "pipe")[] = ["inherit", "pipe", "pipe"];
-      let logStream: NodeJS.WritableStream | null = null;
+      let logStream: WriteStream | null = null;
+      let buildSettled = false;
+      let logStreamFailed = false;
       let errorBuffer: string[] = [];
       let lastOutputLines: string[] = [];
       const maxErrorLines = 50;
@@ -203,14 +205,65 @@ export abstract class BaseBuilder<T extends Target = Target> {
       const throttleMs = 300;
       let testCurrent = 0;
       let testTotal = 0;
+      // The log stream can fail before the child exits. Settle once so a later
+      // close or a second stream error cannot resolve a failed build or crash.
+      const resolveBuild = (): void => {
+        if (buildSettled) return;
+        buildSettled = true;
+        resolve();
+      };
+      const rejectBuild = (error: unknown): void => {
+        if (buildSettled) return;
+        buildSettled = true;
+        reject(error instanceof Error ? error : new Error(String(error)));
+      };
+      const stopChild = (): void => {
+        const child = this.currentProcess;
+        if (!child || child.killed) return;
+        try {
+          child.kill("SIGTERM");
+        } catch {
+          // The child can exit between the check and the signal.
+        }
+      };
+      const failBuildForLogStream = (error: unknown): void => {
+        if (logStreamFailed) return;
+        logStreamFailed = true;
+        const stream = logStream;
+        logStream = null;
+        const message = error instanceof Error ? error.message : String(error);
+        rejectBuild(new Error(`Failed to write build log: ${message}`));
+        if (stream && !stream.destroyed) {
+          stream.destroy();
+        }
+        stopChild();
+      };
+      const writeBuildLog = (chunk: string | Uint8Array): void => {
+        const stream = logStream;
+        if (!stream || logStreamFailed) return;
+        try {
+          stream.write(chunk);
+        } catch (error) {
+          failBuildForLogStream(error);
+        }
+      };
       const finishLogStream = async (): Promise<void> => {
         const stream = logStream;
         logStream = null;
-        if (!stream) return;
+        if (!stream || logStreamFailed || stream.destroyed) return;
 
-        await new Promise<void>((resolve) => {
-          stream.once("error", resolve);
-          stream.end(resolve);
+        await new Promise<void>((done) => {
+          const complete = (): void => {
+            stream.removeListener("error", complete);
+            done();
+          };
+          stream.once("error", complete);
+          try {
+            stream.end(complete);
+          } catch (error) {
+            failBuildForLogStream(error);
+            done();
+          }
         });
       };
       const updateProgress = (progress: BuildProgress) => {
@@ -233,8 +286,11 @@ export abstract class BaseBuilder<T extends Target = Target> {
         const logDir = dirname(options.logFile);
         mkdirSync(logDir, { recursive: true });
 
-        // Create write stream for log file
-        logStream = createWriteStream(options.logFile, { flags: "w" });
+        // Attach the listener before any write. An unhandled stream error
+        // kills the watcher, which has no uncaughtException handler.
+        const stream = createWriteStream(options.logFile, { flags: "w" });
+        stream.on("error", failBuildForLogStream);
+        logStream = stream;
       }
 
       this.currentProcess = spawn(command, {
@@ -331,10 +387,7 @@ export abstract class BaseBuilder<T extends Target = Target> {
             lastOutputLines = lastOutputLines.slice(-maxOutputLines);
           }
 
-          // Write to log file if capturing
-          if (logStream) {
-            logStream.write(data);
-          }
+          writeBuildLog(data);
 
           // Stream to console in real-time
           process.stdout.write(data);
@@ -350,10 +403,7 @@ export abstract class BaseBuilder<T extends Target = Target> {
             errorBuffer = errorBuffer.slice(-maxErrorLines);
           }
 
-          // Write to log file if capturing
-          if (logStream) {
-            logStream.write(data);
-          }
+          writeBuildLog(data);
 
           // Stream to console in real-time
           process.stderr.write(data);
@@ -361,11 +411,16 @@ export abstract class BaseBuilder<T extends Target = Target> {
       }
 
       this.currentProcess.on("close", async (code) => {
-        await finishLogStream();
+        try {
+          await finishLogStream();
+        } catch (error) {
+          failBuildForLogStream(error);
+        }
         this.currentProcess = undefined;
+        if (buildSettled) return;
 
         if (code === 0) {
-          resolve();
+          resolveBuild();
         } else {
           // Create detailed error message with context
           let errorMessage = `Build process exited with code ${code}`;
@@ -389,13 +444,18 @@ export abstract class BaseBuilder<T extends Target = Target> {
             this.logger.error(`Failed to store build error context: ${stateError}`);
           }
 
-          reject(new Error(errorMessage));
+          rejectBuild(new Error(errorMessage));
         }
       });
 
       this.currentProcess.on("error", async (error) => {
-        await finishLogStream();
+        try {
+          await finishLogStream();
+        } catch (finishError) {
+          failBuildForLogStream(finishError);
+        }
         this.currentProcess = undefined;
+        if (buildSettled) return;
 
         // Store error context
         try {
@@ -410,7 +470,7 @@ export abstract class BaseBuilder<T extends Target = Target> {
           this.logger.error(`Failed to store build error context: ${stateError}`);
         }
 
-        reject(error);
+        rejectBuild(error);
       });
     });
   }
