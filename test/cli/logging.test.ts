@@ -1,8 +1,8 @@
-import { mkdtempSync, rmSync, writeFileSync } from "fs";
+import { mkdtempSync, rmSync, statSync, unwatchFile, writeFileSync } from "fs";
 import { tmpdir } from "os";
 import path from "path";
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { displayLogs, parseLogLine, readLogEntries } from "../../src/cli/logging.js";
+import { displayLogs, followLogs, parseLogLine, readLogEntries } from "../../src/cli/logging.js";
 
 const createTempLogFile = (content: string): string => {
   const dir = mkdtempSync(path.join(tmpdir(), "poltergeist-log-"));
@@ -138,5 +138,110 @@ describe("displayLogs", () => {
 
     const combined = logSpy.mock.calls.map((c) => c[0]).join("\n");
     expect(combined).toContain("No logs found");
+  });
+});
+
+const loggedText = (): string => logSpy.mock.calls.map((call) => call.join(" ")).join("\n");
+
+const waitForLoggedText = async (needle: string, timeoutMs: number): Promise<boolean> => {
+  const started = Date.now();
+  while (Date.now() - started < timeoutMs) {
+    if (loggedText().includes(needle)) return true;
+    await new Promise((resolve) => setTimeout(resolve, 50));
+  }
+  return loggedText().includes(needle);
+};
+
+describe("followLogs", () => {
+  it("emits the new text when the followed log shrinks", async () => {
+    const file = createTempLogFile("a".repeat(100));
+    const offset = statSync(file).size;
+    expect(offset).toBe(100);
+
+    try {
+      void followLogs(file);
+      const sawOriginal = await waitForLoggedText("a".repeat(100), 2000);
+      expect(sawOriginal).toBe(true);
+
+      writeFileSync(file, "hello-from-new-build");
+      const sawRewrite = await waitForLoggedText("hello-from-new-build", 4000);
+      expect(sawRewrite).toBe(true);
+    } finally {
+      unwatchFile(file);
+      cleanup(file);
+    }
+  });
+
+  it("reads from the start when the followed log is replaced by a longer file", async () => {
+    const file = createTempLogFile("a".repeat(100));
+    const offset = statSync(file).size;
+    expect(offset).toBe(100);
+
+    try {
+      void followLogs(file);
+      expect(await waitForLoggedText("a".repeat(100), 2000)).toBe(true);
+
+      rmSync(file);
+      writeFileSync(file, `hello-from-new-build\n${"b".repeat(200)}`);
+      expect(statSync(file).size).toBeGreaterThan(offset);
+      expect(await waitForLoggedText("hello-from-new-build", 4000)).toBe(true);
+    } finally {
+      unwatchFile(file);
+      cleanup(file);
+    }
+  });
+
+  it("does not replay earlier lines when the same log only grows", async () => {
+    const file = createTempLogFile("keep-me\n");
+
+    try {
+      void followLogs(file);
+      expect(await waitForLoggedText("keep-me", 2000)).toBe(true);
+      const before = logSpy.mock.calls.length;
+
+      writeFileSync(file, "keep-me\nhello-appended\n");
+      expect(await waitForLoggedText("hello-appended", 4000)).toBe(true);
+
+      const added = logSpy.mock.calls
+        .slice(before)
+        .map((call) => call.join(" "))
+        .join("\n");
+      expect(added).toContain("hello-appended");
+      expect(added).not.toContain("keep-me");
+    } finally {
+      unwatchFile(file);
+      cleanup(file);
+    }
+  });
+
+  it("reports a read error instead of crashing when the log disappears", async () => {
+    const file = createTempLogFile("a".repeat(50));
+    const crashes: string[] = [];
+    const onCrash = (error: Error): void => {
+      crashes.push(error.message);
+    };
+    process.on("uncaughtException", onCrash);
+
+    try {
+      void followLogs(file);
+      expect(await waitForLoggedText("a".repeat(50), 2000)).toBe(true);
+      rmSync(file);
+
+      const started = Date.now();
+      let errors = "";
+      while (Date.now() - started < 3000) {
+        errors = errorSpy.mock.calls.map((call) => call.join(" ")).join("\n");
+        if (errors.includes("ENOENT")) break;
+        await new Promise((resolve) => setTimeout(resolve, 50));
+      }
+
+      expect(errors).toContain("Failed to read log");
+      expect(errors).toContain("ENOENT");
+      expect(crashes).toEqual([]);
+    } finally {
+      process.off("uncaughtException", onCrash);
+      unwatchFile(file);
+      cleanup(file);
+    }
   });
 });
