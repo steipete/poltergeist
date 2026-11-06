@@ -1,5 +1,13 @@
 import { spawn } from "child_process";
-import { existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "fs";
+import {
+  existsSync,
+  mkdirSync,
+  mkdtempSync,
+  readFileSync,
+  rmSync,
+  WriteStream,
+  writeFileSync,
+} from "fs";
 import { tmpdir } from "os";
 import { join } from "path";
 import { afterAll, afterEach, beforeEach, describe, expect, it, vi } from "vitest";
@@ -277,6 +285,176 @@ describe("Build Improvements - Real-time Output & Error Capture", () => {
     expect(logContent).toContain("Build output line 1");
     expect(logContent).toContain("Build output line 2");
     expect(logContent).toContain("Warning: deprecated API");
+  });
+
+  it("fails the build when the log stream errors", async () => {
+    const logFile = join(tempDir, "capture.log");
+    mkdirSync(logFile);
+
+    let closeHandler: ((code: number | null) => void) | undefined;
+    const mockProcess = {
+      stdout: {
+        on: vi.fn((event: string, handler: (chunk: Buffer) => void) => {
+          if (event === "data") {
+            handler(Buffer.from("partial output before the log open fails\n"));
+          }
+        }),
+      },
+      stderr: { on: vi.fn() },
+      on: vi.fn((event: string, handler: (code: number | null) => void) => {
+        if (event === "close") {
+          closeHandler = handler;
+        }
+      }),
+      kill: vi.fn((signal: NodeJS.Signals) => {
+        mockProcess.killed = true;
+        if (signal === "SIGKILL") {
+          mockProcess.signalCode = signal;
+          closeHandler?.(null);
+        }
+        return true;
+      }),
+      killed: false,
+      exitCode: null as number | null,
+      signalCode: null as NodeJS.Signals | null,
+    };
+
+    vi.mocked(spawn).mockReturnValue(mockProcess as never);
+
+    let settled = false;
+    const pending = builder
+      .build([], {
+        captureLogs: true,
+        logFile,
+      })
+      .finally(() => {
+        settled = true;
+      });
+
+    const termDeadline = Date.now() + 500;
+    while (!mockProcess.kill.mock.calls.some((call) => call[0] === "SIGTERM")) {
+      if (Date.now() >= termDeadline) break;
+      await new Promise((resolve) => setTimeout(resolve, 25));
+    }
+    expect(settled).toBe(false);
+    expect(mockProcess.kill).toHaveBeenCalledWith("SIGTERM");
+
+    const killDeadline = Date.now() + 1500;
+    while (!mockProcess.kill.mock.calls.some((call) => call[0] === "SIGKILL")) {
+      if (Date.now() >= killDeadline) break;
+      await new Promise((resolve) => setTimeout(resolve, 25));
+    }
+    expect(mockProcess.kill).toHaveBeenCalledWith("SIGKILL");
+
+    const result = await pending;
+    expect(result.status).toBe("failure");
+    expect(result.error).toContain("Failed to write build log");
+    expect(result.error).toContain("EISDIR");
+    expect(settled).toBe(true);
+  });
+
+  it("fails the build when the final log flush reports an error", async () => {
+    const logFile = join(tempDir, "capture.log");
+    const flushError = Object.assign(new Error("ENOSPC: no space left on device, write"), {
+      code: "ENOSPC",
+    });
+    const endSpy = vi
+      .spyOn(WriteStream.prototype, "end")
+      .mockImplementation(function endWithFlushError(this: WriteStream, ...args: unknown[]) {
+        const callback = args.find((arg) => typeof arg === "function") as
+          | ((error?: Error | null) => void)
+          | undefined;
+        queueMicrotask(() => callback?.(flushError));
+        return this;
+      });
+
+    const mockProcess = {
+      stdout: {
+        on: vi.fn((event: string, handler: (chunk: Buffer) => void) => {
+          if (event === "data") {
+            handler(Buffer.from("wrote until the disk filled\n"));
+          }
+        }),
+      },
+      stderr: { on: vi.fn() },
+      on: vi.fn((event: string, handler: (code: number | null) => void) => {
+        if (event === "close") {
+          setTimeout(() => handler(0), 10);
+        }
+      }),
+      kill: vi.fn(() => true),
+      killed: false,
+      exitCode: 0,
+      signalCode: null,
+    };
+
+    vi.mocked(spawn).mockReturnValue(mockProcess as never);
+
+    try {
+      const result = await builder.build([], {
+        captureLogs: true,
+        logFile,
+      });
+
+      expect(result.status).toBe("failure");
+      expect(result.error).toContain("Failed to write build log");
+      expect(result.error).toContain("ENOSPC");
+    } finally {
+      endSpy.mockRestore();
+    }
+  });
+
+  it("fails the build when the log stream is already destroyed with an error", async () => {
+    const logFile = join(tempDir, "capture.log");
+    const flushError = Object.assign(new Error("ENOSPC: no space left on device, write"), {
+      code: "ENOSPC",
+    });
+    const endSpy = vi.spyOn(WriteStream.prototype, "end").mockImplementation(function endDestroyed(
+      this: WriteStream,
+      ...args: unknown[]
+    ) {
+      const callback = args.find((arg) => typeof arg === "function") as
+        | ((error?: Error | null) => void)
+        | undefined;
+      Object.defineProperty(this, "destroyed", { value: true });
+      Object.defineProperty(this, "errored", { value: flushError });
+      callback?.();
+      return this;
+    });
+
+    const mockProcess = {
+      stdout: {
+        on: vi.fn((event: string, handler: (chunk: Buffer) => void) => {
+          if (event === "data") {
+            handler(Buffer.from("wrote until the disk filled\n"));
+          }
+        }),
+      },
+      stderr: { on: vi.fn() },
+      on: vi.fn((event: string, handler: (code: number | null) => void) => {
+        if (event === "close") {
+          setTimeout(() => handler(0), 10);
+        }
+      }),
+      kill: vi.fn(() => true),
+      killed: false,
+      exitCode: 0,
+      signalCode: null,
+    };
+
+    vi.mocked(spawn).mockReturnValue(mockProcess as never);
+
+    try {
+      const result = await builder.build([], {
+        captureLogs: true,
+        logFile,
+      });
+
+      expect(result.status).toBe("failure");
+      expect(result.error).toContain("ENOSPC");
+    } finally {
+      endSpy.mockRestore();
+    }
   });
 
   it("should include recent output in error messages", async () => {
