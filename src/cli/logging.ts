@@ -184,13 +184,15 @@ export function formatLogLevel(level: string): string {
   }
 }
 
-// ino is 0 when the platform cannot report it. birthtimeMs matches ctimeMs when
-// creation time is only an alias of ctime, and ctime changes on every write.
+// ino is 0 when the platform cannot report it. birthtime is not part of the
+// identity when ino is real: on Linux the first write moves ctime away from
+// birthtime and would look like a different file.
 function logFileIdentity(stat: Stats): string {
-  const ino = stat.ino === 0 ? "0" : String(stat.ino);
-  const birth =
-    stat.birthtimeMs !== 0 && stat.birthtimeMs !== stat.ctimeMs ? String(stat.birthtimeMs) : "0";
-  return `${stat.dev}:${ino}:${birth}`;
+  if (stat.ino !== 0) {
+    return `${stat.dev}:${stat.ino}`;
+  }
+  const birth = stat.birthtimeMs !== 0 ? String(stat.birthtimeMs) : "0";
+  return `${stat.dev}:0:${birth}`;
 }
 
 // Follow logs in real-time
@@ -202,6 +204,7 @@ export async function followLogs(
   const initialStat = statSync(logFile);
   let fileSize = initialStat.size;
   let identity = logFileIdentity(initialStat);
+  let reportedMissing = false;
 
   console.log(chalk.cyan(`${ghost.brand()} Following Poltergeist logs... (Press Ctrl+C to exit)`));
   if (targetFilter) {
@@ -224,6 +227,18 @@ export async function followLogs(
   // Watch for new log entries. A build reopens the capture with flags "w",
   // so the next log can shrink or be replaced without ever growing past the old offset.
   watchFile(logFile, { interval: 500 }, (curr) => {
+    // A missing path is not a shrink. Clearing the offset here makes the
+    // recreated file replay from the start even when it only grew.
+    if (curr.nlink === 0) {
+      if (!reportedMissing) {
+        reportedMissing = true;
+        console.error(
+          chalk.red(`Failed to read log: ENOENT: no such file or directory, open '${logFile}'`),
+        );
+      }
+      return;
+    }
+    reportedMissing = false;
     const nextIdentity = logFileIdentity(curr);
     const replaced = nextIdentity !== identity;
     const shrunk = curr.size < fileSize;

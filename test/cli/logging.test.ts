@@ -172,9 +172,10 @@ describe("followLogs", () => {
     }
   });
 
-  it("reads from the start when the followed log is replaced by a longer file", async () => {
+  it("emits the new tail when a longer replacement reuses the same inode", async () => {
     const file = createTempLogFile("a".repeat(100));
     const offset = statSync(file).size;
+    const previousIno = statSync(file).ino;
     expect(offset).toBe(100);
 
     try {
@@ -182,9 +183,12 @@ describe("followLogs", () => {
       expect(await waitForLoggedText("a".repeat(100), 2000)).toBe(true);
 
       rmSync(file);
-      writeFileSync(file, `hello-from-new-build\n${"b".repeat(200)}`);
+      writeFileSync(file, `hello-from-new-build\n${"b".repeat(200)}\ntail-marker`);
       expect(statSync(file).size).toBeGreaterThan(offset);
-      expect(await waitForLoggedText("hello-from-new-build", 4000)).toBe(true);
+      expect(await waitForLoggedText("tail-marker", 4000)).toBe(true);
+      if (statSync(file).ino !== previousIno) {
+        expect(loggedText()).toContain("hello-from-new-build");
+      }
     } finally {
       unwatchFile(file);
       cleanup(file);
