@@ -110,7 +110,7 @@
     "@typescript/native-preview": "7.0.0-dev.20260707.2",
     "@vitest/coverage-v8": "^4.1.12",
     "cross-env": "^10.1.0",
-    "oxfmt": "^0.75.0",
+    "oxfmt": "^0.77.0",
     "oxlint": "^1.90.0",
     "postcss": "^8.5.32",
     "tsx": "^4.23.15",
