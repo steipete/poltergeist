@@ -1,6 +1,6 @@
 // Base builder class for all target types
-import { type ChildProcess, execSync, spawn } from "child_process";
-import { createWriteStream, mkdirSync } from "fs";
+import { type ChildProcess, execFile, execSync, spawn } from "child_process";
+import { createWriteStream, mkdirSync, type WriteStream } from "fs";
 import { dirname } from "path";
 import { AsyncLocalStorage } from "node:async_hooks";
 import { recordBuildOutput, recordBuildTarget } from "../core/build-context.js";
@@ -193,7 +193,11 @@ export abstract class BaseBuilder<T extends Target = Target> {
 
       // Always capture output for error diagnosis
       const stdio: ("inherit" | "pipe")[] = ["inherit", "pipe", "pipe"];
-      let logStream: NodeJS.WritableStream | null = null;
+      let logStream: WriteStream | null = null;
+      let buildSettled = false;
+      let logStreamFailed = false;
+      let logStreamError: Error | undefined;
+      let terminateTree: Promise<void> | undefined;
       let errorBuffer: string[] = [];
       let lastOutputLines: string[] = [];
       const maxErrorLines = 50;
@@ -203,14 +207,101 @@ export abstract class BaseBuilder<T extends Target = Target> {
       const throttleMs = 300;
       let testCurrent = 0;
       let testTotal = 0;
+      // The log stream can fail before the child exits. Settle once so a later
+      // close or a second stream error cannot resolve a failed build or crash.
+      const resolveBuild = (): void => {
+        if (buildSettled) return;
+        buildSettled = true;
+        resolve();
+      };
+      const rejectBuild = (error: unknown): void => {
+        if (buildSettled) return;
+        buildSettled = true;
+        reject(error instanceof Error ? error : new Error(String(error)));
+      };
+      const stopChild = (): void => {
+        if (terminateTree) return;
+        // Logging has failed irrecoverably. Kill the owned tree, including
+        // descendants retaining pipes after the shell itself has exited.
+        terminateTree = new Promise<void>((done) => {
+          if (process.platform === "win32" && child.pid) {
+            execFile(
+              "taskkill",
+              ["/PID", String(child.pid), "/T", "/F"],
+              { windowsHide: true, timeout: 1500 },
+              () => done(),
+            );
+          } else {
+            try {
+              if (child.pid) process.kill(-child.pid, "SIGKILL");
+              else child.kill("SIGKILL");
+            } catch (error) {
+              if ((error as NodeJS.ErrnoException).code !== "ESRCH") {
+                child.kill("SIGKILL");
+              }
+            }
+            done();
+          }
+        });
+      };
+      const failBuildForLogStream = (error: unknown): void => {
+        if (logStreamFailed) return;
+        logStreamFailed = true;
+        const stream = logStream;
+        logStream = null;
+        const message = error instanceof Error ? error.message : String(error);
+        // Keep the failure, but settle from the close handler. Settling here
+        // lets the queue start a new build while this child is still writing,
+        // and the old close handler then clears that newer currentProcess.
+        logStreamError = new Error(`Failed to write build log: ${message}`);
+        if (stream && !stream.destroyed) {
+          stream.destroy();
+        }
+        stopChild();
+      };
+      const writeBuildLog = (chunk: string | Uint8Array): void => {
+        const stream = logStream;
+        if (!stream || logStreamFailed) return;
+        try {
+          stream.write(chunk);
+        } catch (error) {
+          failBuildForLogStream(error);
+        }
+      };
       const finishLogStream = async (): Promise<void> => {
         const stream = logStream;
         logStream = null;
-        if (!stream) return;
+        if (!stream || logStreamFailed) return;
+        // Node can destroy the stream before the error event. The flush
+        // failure is already on stream.errored in that window.
+        if (stream.destroyed) {
+          if (stream.errored) failBuildForLogStream(stream.errored);
+          return;
+        }
 
-        await new Promise<void>((resolve) => {
-          stream.once("error", resolve);
-          stream.end(resolve);
+        await new Promise<void>((done) => {
+          let finished = false;
+          const complete = (error?: Error | null): void => {
+            if (finished) return;
+            finished = true;
+            stream.removeListener("error", onError);
+            // Node 24 reports a failed flush to this callback before "error".
+            if (error) {
+              failBuildForLogStream(error);
+            } else if (stream.errored) {
+              failBuildForLogStream(stream.errored);
+            }
+            done();
+          };
+          const onError = (error: Error): void => {
+            complete(error);
+          };
+          stream.once("error", onError);
+          try {
+            stream.end(complete);
+          } catch (error) {
+            complete(error instanceof Error ? error : new Error(String(error)));
+          }
         });
       };
       const updateProgress = (progress: BuildProgress) => {
@@ -233,16 +324,46 @@ export abstract class BaseBuilder<T extends Target = Target> {
         const logDir = dirname(options.logFile);
         mkdirSync(logDir, { recursive: true });
 
-        // Create write stream for log file
-        logStream = createWriteStream(options.logFile, { flags: "w" });
+        // Attach the listener before any write. An unhandled stream error
+        // kills the watcher, which has no uncaughtException handler.
+        const stream = createWriteStream(options.logFile, { flags: "w" });
+        stream.on("error", failBuildForLogStream);
+        logStream = stream;
       }
 
-      this.currentProcess = spawn(command, {
+      const child = spawn(command, {
         cwd: this.projectRoot,
         env,
         shell: true,
+        detached: process.platform !== "win32",
         stdio,
       });
+
+      this.currentProcess = child;
+      const forwardSignal = (signal: NodeJS.Signals): void => {
+        try {
+          if (child.pid && process.platform !== "win32") process.kill(-child.pid, signal);
+          else child.kill(signal);
+        } catch {
+          // The group may already have exited.
+        }
+      };
+      const onSigint = (): void => {
+        process.off("SIGINT", onSigint);
+        forwardSignal("SIGINT");
+        if (process.listenerCount("SIGINT") === 0) process.kill(process.pid, "SIGINT");
+      };
+      const onSigterm = (): void => {
+        process.off("SIGTERM", onSigterm);
+        forwardSignal("SIGTERM");
+        if (process.listenerCount("SIGTERM") === 0) process.kill(process.pid, "SIGTERM");
+      };
+      const removeSignalForwarders = (): void => {
+        process.off("SIGINT", onSigint);
+        process.off("SIGTERM", onSigterm);
+      };
+      process.on("SIGINT", onSigint);
+      process.on("SIGTERM", onSigterm);
 
       // Capture and stream output in real-time
       if (this.currentProcess.stdout && this.currentProcess.stderr) {
@@ -331,10 +452,7 @@ export abstract class BaseBuilder<T extends Target = Target> {
             lastOutputLines = lastOutputLines.slice(-maxOutputLines);
           }
 
-          // Write to log file if capturing
-          if (logStream) {
-            logStream.write(data);
-          }
+          writeBuildLog(data);
 
           // Stream to console in real-time
           process.stdout.write(data);
@@ -350,10 +468,7 @@ export abstract class BaseBuilder<T extends Target = Target> {
             errorBuffer = errorBuffer.slice(-maxErrorLines);
           }
 
-          // Write to log file if capturing
-          if (logStream) {
-            logStream.write(data);
-          }
+          writeBuildLog(data);
 
           // Stream to console in real-time
           process.stderr.write(data);
@@ -361,11 +476,24 @@ export abstract class BaseBuilder<T extends Target = Target> {
       }
 
       this.currentProcess.on("close", async (code) => {
-        await finishLogStream();
-        this.currentProcess = undefined;
+        try {
+          await finishLogStream();
+        } catch (error) {
+          failBuildForLogStream(error);
+        }
+        await terminateTree;
+        removeSignalForwarders();
+        if (this.currentProcess === child) {
+          this.currentProcess = undefined;
+        }
+        if (logStreamError) {
+          rejectBuild(logStreamError);
+          return;
+        }
+        if (buildSettled) return;
 
         if (code === 0) {
-          resolve();
+          resolveBuild();
         } else {
           // Create detailed error message with context
           let errorMessage = `Build process exited with code ${code}`;
@@ -389,13 +517,26 @@ export abstract class BaseBuilder<T extends Target = Target> {
             this.logger.error(`Failed to store build error context: ${stateError}`);
           }
 
-          reject(new Error(errorMessage));
+          rejectBuild(new Error(errorMessage));
         }
       });
 
       this.currentProcess.on("error", async (error) => {
-        await finishLogStream();
-        this.currentProcess = undefined;
+        try {
+          await finishLogStream();
+        } catch (finishError) {
+          failBuildForLogStream(finishError);
+        }
+        await terminateTree;
+        removeSignalForwarders();
+        if (this.currentProcess === child) {
+          this.currentProcess = undefined;
+        }
+        if (logStreamError) {
+          rejectBuild(logStreamError);
+          return;
+        }
+        if (buildSettled) return;
 
         // Store error context
         try {
@@ -410,7 +551,7 @@ export abstract class BaseBuilder<T extends Target = Target> {
           this.logger.error(`Failed to store build error context: ${stateError}`);
         }
 
-        reject(error);
+        rejectBuild(error);
       });
     });
   }
@@ -460,7 +601,15 @@ export abstract class BaseBuilder<T extends Target = Target> {
   public stop(): void {
     if (this.currentProcess) {
       this.logger.info(`[${this.target.name}] Stopping build process`);
-      this.currentProcess.kill("SIGTERM");
+      try {
+        if (this.currentProcess.pid && process.platform !== "win32") {
+          process.kill(-this.currentProcess.pid, "SIGTERM");
+        } else {
+          this.currentProcess.kill("SIGTERM");
+        }
+      } catch {
+        // The process may have exited before stop was called.
+      }
       this.currentProcess = undefined;
     }
   }

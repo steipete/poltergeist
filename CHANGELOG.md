@@ -2,6 +2,9 @@
 
 ## [Unreleased]
 
+- Stop configuration discovery at UNC and extended-path roots; preserve signalled child exit failures; capture build-log write errors without crashing the watcher; resume log following after truncation or replacement; detect modern Bun text lockfiles. Thanks @SebTardif! #308 #309 #310 #311 #312
+- Refresh compatible terminal UI, glob, utility, spinner, Vite, and lint tooling dependencies while retaining Node.js 24.0 support. Thanks @dependabot!
+
 - Update glob, es-toolkit, Node.js types, PostCSS, Oxfmt, and Oxlint while retaining the Node.js 24.0 minimum. Thanks @dependabot! #300 #301 #302 #303 #304 #306
 - Refresh the terminal panel, regular-expression parser, and Vite while preserving Node.js 24 compatibility. Thanks @dependabot! #294 #295 #296
 

@@ -1,5 +1,6 @@
 import chalk from "chalk";
 import { spawn } from "child_process";
+import { constants } from "node:os";
 import { resolve as resolvePath } from "path";
 
 import type { Target } from "../types.js";
@@ -7,6 +8,12 @@ import { poltergeistMessage } from "../utils/ghost.js";
 import { type LaunchInfo, LaunchPreparationError, prepareLaunchInfo } from "../utils/launch.js";
 import { isBinaryFresh, resolveBinaryPath } from "./binaries.js";
 import { getTimeAgo } from "./time.js";
+
+// Node sets `code` to null when the child dies from a signal. Match
+// ChildProcessRunner: 128 + signal number, or 1 when no signal is named.
+function childExitStatus(code: number | null, signal: NodeJS.Signals | null): number {
+  return code ?? (signal ? 128 + (constants.signals[signal] ?? 0) : 1);
+}
 
 export async function executeStaleWithWarning(
   targetName: string,
@@ -106,8 +113,8 @@ export async function executeStaleWithWarning(
       resolve(1);
     });
 
-    child.on("exit", (code: number | null) => {
-      resolve(code || 0);
+    child.on("exit", (code: number | null, signal: NodeJS.Signals | null) => {
+      resolve(childExitStatus(code, signal));
     });
   });
 }
@@ -175,8 +182,8 @@ export function executeTarget(
       resolve(1);
     });
 
-    child.on("exit", (code: number | null) => {
-      resolve(code || 0);
+    child.on("exit", (code: number | null, signal: NodeJS.Signals | null) => {
+      resolve(childExitStatus(code, signal));
     });
   });
 }

@@ -5,6 +5,10 @@ updates:
     schedule:
       interval: "weekly"
     open-pull-requests-limit: 10
+    ignore:
+      # Node-notifier 12 requires Node 24.15+ and changes macOS icon/timeout behavior.
+      - dependency-name: "node-notifier"
+        versions: [">=12"]
     
   - package-ecosystem: "github-actions"
     directory: "/"
