@@ -111,7 +111,7 @@ jobs:
         run: pnpm run build
 
       - name: Test Windows hook process-tree shutdown
-        run: pnpm exec vitest run test/post-build-stop-windows.test.ts
+        run: pnpm exec vitest run test/post-build-stop-windows.test.ts test/build-log-process-tree.test.ts test/utils/find-file-up-tree.test.ts
 
       - name: Test built CLI log rendering and daemon worker resolution
         run: node --test scripts/test-cli-artifacts.mjs
