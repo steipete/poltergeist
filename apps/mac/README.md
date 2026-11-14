@@ -25,7 +25,17 @@ Poltergeist Monitor is a companion app for the Poltergeist build system. It prov
 
 ## Code Quality Tools
 
-This project uses SwiftLint and swift-format with Swift 6 configurations:
+This project uses SwiftLint 0.65.1 and Apple's swift-format 604.0.0 with Swift 6 configurations. On Apple Silicon running macOS 15 or newer, install the same checksum-verified tools as CI and release verification from the repository root:
+
+```bash
+bash scripts/install-linters.sh
+export PATH="$PWD/apps/mac/.build/linters:$PATH"
+cd apps/mac
+./scripts/lint.sh
+./scripts/format.sh --check
+```
+
+Versions and archive checksums live in `scripts/install-linters.sh`; update them together after checking both lint configurations. SwiftLint comes from its upstream portable release; swift-format comes from Homebrew's dependency-free macOS 15+ arm64 bottle.
 
 ### SwiftLint
 - Configuration: `.swiftlint.yml`
