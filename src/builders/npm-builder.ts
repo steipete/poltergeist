@@ -5,6 +5,14 @@ import { join } from "path";
 import type { NPMTarget } from "../types.js";
 import { BaseBuilder } from "./base-builder.js";
 
+// Current Bun writes text bun.lock. Older Bun writes binary bun.lockb.
+// Either file selects Bun. Text is listed first so a tree with both still names bun.lock.
+const BUN_LOCKFILES = ["bun.lock", "bun.lockb"] as const;
+
+function isBunLockPath(filePath: string): boolean {
+  return BUN_LOCKFILES.some((lockfile) => filePath.endsWith(lockfile));
+}
+
 export class NPMBuilder extends BaseBuilder<NPMTarget> {
   protected packageManager: "npm" | "yarn" | "pnpm" | "bun";
   protected buildScript: string;
@@ -25,8 +33,11 @@ export class NPMBuilder extends BaseBuilder<NPMTarget> {
     }
 
     // Auto-detect from lockfiles (order matters - prefer faster tools)
-    if (existsSync(join(this.projectRoot, "bun.lockb"))) {
-      this.logger.info(`[${this.target.name}] Detected Bun from bun.lockb`);
+    const bunLockfile = BUN_LOCKFILES.find((lockfile) =>
+      existsSync(join(this.projectRoot, lockfile)),
+    );
+    if (bunLockfile) {
+      this.logger.info(`[${this.target.name}] Detected Bun from ${bunLockfile}`);
       return "bun";
     }
     if (existsSync(join(this.projectRoot, "pnpm-lock.yaml"))) {
@@ -88,7 +99,7 @@ export class NPMBuilder extends BaseBuilder<NPMTarget> {
         f.endsWith("package-lock.json") ||
         f.endsWith("yarn.lock") ||
         f.endsWith("pnpm-lock.yaml") ||
-        f.endsWith("bun.lockb"),
+        isBunLockPath(f),
     );
 
     if ((packageJsonChanged || lockfileChanged) && this.target.installOnChange !== false) {

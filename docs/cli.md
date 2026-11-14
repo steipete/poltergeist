@@ -147,3 +147,11 @@ Repeated successful builds with the same target configuration coalesce into one 
 - Set `POLTERGEIST_LOG_LEVEL=debug` or pass `--verbose` when diagnosing daemon startup.
 
 The interactive panel needs a real TTY; its input-debugging workflow is in [iTerm panel debugging](iterm-debugging.md).
+
+### Build and execution reliability
+
+Bun auto-detection accepts both `bun.lock` and `bun.lockb`; either lockfile triggers
+dependency installation when it changes. Followed build logs resume from the start
+after truncation or file replacement. A log write failure marks the build failed
+and stops its child before another build can start. Signal-terminated `polter`
+children return a failing exit status (128 plus the signal number on POSIX).

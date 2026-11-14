@@ -127,11 +127,64 @@ describe("NPMBuilder output paths", () => {
       cwd: projectRoot,
       env: expect.any(Object),
       shell: true,
+      detached: process.platform !== "win32",
       stdio: ["inherit", "pipe", "pipe"],
     });
 
     const written = require("fs").readFileSync(logFile, "utf-8");
     expect(written).toContain("out line");
     expect(written).toContain("err line");
+  });
+});
+
+describe("NPMBuilder Bun lockfiles", () => {
+  beforeEach(() => {
+    existsSyncMock.mockReset();
+    execSyncMock.mockReset();
+    spawnMock.mockReset();
+    execSyncMock.mockReturnValue("9.0.0");
+    vi.mocked(logger.info).mockClear();
+  });
+
+  it("detects bun when the project has only a text bun.lock", () => {
+    existsSyncMock.mockImplementation((path) => path === `${projectRoot}/bun.lock`);
+
+    const target = makeTarget({});
+    const builder = new NPMBuilder(target, projectRoot, logger, stateManager);
+
+    expect((builder as any).packageManager).toBe("bun");
+    expect(target.buildCommand).toBe("bun run build");
+    expect(logger.info).toHaveBeenCalledWith("[web] Detected Bun from bun.lock");
+  });
+
+  it("runs install when bun.lock changes", async () => {
+    existsSyncMock.mockImplementation((path) => path === `${projectRoot}/bun.lock`);
+
+    const builder = new NPMBuilder(makeTarget({}), projectRoot, logger, stateManager);
+    execSyncMock.mockClear();
+    vi.mocked(logger.info).mockClear();
+
+    await (builder as any).preBuild(["src/bun.lock"]);
+
+    expect(logger.info).toHaveBeenCalledWith("[web] Package files changed, running install...");
+    expect(execSyncMock).toHaveBeenCalledWith(
+      "bun install",
+      expect.objectContaining({ cwd: projectRoot }),
+    );
+  });
+
+  it("still detects bun from bun.lockb and prefers either Bun lock over npm", () => {
+    existsSyncMock.mockImplementation((path) => path === `${projectRoot}/bun.lockb`);
+    const binaryLockTarget = makeTarget({ name: "binary-lock" });
+    const binaryLockBuilder = new NPMBuilder(binaryLockTarget, projectRoot, logger, stateManager);
+    expect((binaryLockBuilder as any).packageManager).toBe("bun");
+
+    existsSyncMock.mockImplementation(
+      (path) => path === `${projectRoot}/bun.lock` || path === `${projectRoot}/package-lock.json`,
+    );
+    const mixedTarget = makeTarget({ name: "mixed-lock" });
+    const mixedBuilder = new NPMBuilder(mixedTarget, projectRoot, logger, stateManager);
+    expect((mixedBuilder as any).packageManager).toBe("bun");
+    expect(mixedTarget.buildCommand).toBe("bun run build");
   });
 });
