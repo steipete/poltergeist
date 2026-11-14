@@ -163,9 +163,10 @@ jobs:
       - name: Show image Xcode version
         run: xcodebuild -version
 
-      - name: Install SwiftLint and swift-format
+      - name: Install pinned SwiftLint and swift-format
         run: |
-          brew install swiftlint swift-format
+          bash scripts/install-linters.sh "$RUNNER_TEMP/poltergeist-linters"
+          echo "$RUNNER_TEMP/poltergeist-linters" >> "$GITHUB_PATH"
 
       - name: Build macOS app
         run: |
