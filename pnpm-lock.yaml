@@ -25,7 +25,7 @@ importers:
         version: 6.0.1
       commander:
         specifier: ^15.0.0
-        version: 15.0.0
+        version: 15.1.0
       es-toolkit:
         specifier: ^1.53.2
         version: 1.53.2
@@ -859,8 +859,8 @@ packages:
     resolution: {integrity: sha512-bXfOC4QcT1tKXGorxL3wbJm6XJPDqEnij2gQ2m7ESQuE+/z9YFIWnl/5RpTiKWbMq3EVKR4fRLJGn6DVfu0mpw==}
     engines: {node: '>=18.20'}
 
-  commander@15.0.0:
-    resolution: {integrity: sha512-z67u4ZhzCL/Tydu1lJARtEZYWbWaN7oYLHbsuzocr6y4N6WZAagG3RQ4FW61V1/0+jImpj293XfrcYnd1qxtPg==}
+  commander@15.1.0:
+    resolution: {integrity: sha512-cgnQ88TRrWcC7pVq46RzJVRMktu3W2RcbnoidnfBsl1bmDCBwJS/udcIZpKoCrbAYYaCqsz1yZCVIgbIaU3ddQ==}
     engines: {node: '>=22.12.0'}
 
   convert-source-map@2.0.0:
@@ -1916,7 +1916,7 @@ snapshots:
 
   cli-spinners@3.4.0: {}
 
-  commander@15.0.0: {}
+  commander@15.1.0: {}
 
   convert-source-map@2.0.0: {}
 
