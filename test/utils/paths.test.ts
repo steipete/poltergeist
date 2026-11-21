@@ -8,7 +8,7 @@ import {
   normalizePolterArgv,
 } from "../../src/utils/paths.js";
 
-describe.sequential("paths utilities", () => {
+describe("paths utilities", { concurrent: false }, () => {
   const originalArgv = process.argv.slice();
   const originalExecDescriptor = Object.getOwnPropertyDescriptor(process, "execPath");
 

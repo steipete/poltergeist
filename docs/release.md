@@ -4,7 +4,7 @@ Releases require explicit product-owner approval. Stop on failed gates; fix the 
 
 ## Prepare
 
-1. Update compatible dependencies without raising the Node.js 24 floor. Keep TypeScript 6 until TypeDoc supports the TypeScript 7 compiler API.
+1. Update compatible dependencies without raising the Node.js 24 floor. Keep TypeScript 6 until TypeDoc supports the TypeScript 7 compiler API. The TypeDoc patch uses minimatch’s public partial-match API so documentation builds can use the patched minimatch 11 release; retain it until TypeDoc supports that API upstream.
 2. Bump both `package.json` and `src/cli/version.ts`.
 3. Move every unreleased changelog bullet into the new version section, with a one-line `**Highlights:**` first. Preserve an empty `Unreleased` section.
 4. Run the clean gates:

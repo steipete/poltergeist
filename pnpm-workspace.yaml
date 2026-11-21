@@ -1,4 +1,7 @@
 allowBuilds:
   esbuild: false
 overrides:
+  minimatch@<11.0.1: 11.0.9
   uuid@<14.0.2: 14.0.2
+patchedDependencies:
+  typedoc@0.28.20: patches/typedoc@0.28.20.patch
