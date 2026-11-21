@@ -145,7 +145,7 @@ jobs:
         run: pnpm run typecheck
 
       - name: Test release guards
-        run: node --test scripts/test-release.mjs
+        run: node --test scripts/test-release.mjs scripts/test-docs-glob.mjs
 
       - name: Package for npm
         run: pnpm pack

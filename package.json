@@ -87,14 +87,14 @@
     "oracle": "oracle"
   },
   "dependencies": {
-    "@earendil-works/pi-tui": "^1.5.0",
+    "@earendil-works/pi-tui": "^1.5.2",
     "@logtape/logtape": "^2.4.2",
-    "arkregex": "^0.0.14",
+    "arkregex": "^0.0.15",
     "chalk": "^6.0.1",
-    "commander": "^15.0.0",
+    "commander": "^15.1.0",
     "es-toolkit": "^1.53.2",
     "fb-watchman": "^2.0.4",
-    "glob": "^14.0.4",
+    "glob": "^14.0.6",
     "node-notifier": "^10.0.1",
     "ora": "^10.0.0",
     "wrap-ansi": "^10.0.2",
@@ -108,17 +108,17 @@
     "@types/node-notifier": "^8.0.5",
     "@types/write-file-atomic": "^4.0.3",
     "@typescript/native-preview": "7.0.0-dev.20260707.2",
-    "@vitest/coverage-v8": "^4.1.12",
+    "@vitest/coverage-v8": "^5.1.1",
     "cross-env": "^10.1.0",
-    "oxfmt": "^0.78.0",
-    "oxlint": "^1.93.0",
-    "postcss": "^8.5.32",
+    "oxfmt": "^0.79.0",
+    "oxlint": "^1.94.0",
+    "postcss": "^8.5.33",
     "tsx": "^4.23.15",
     "typedoc": "^0.28.20",
     "typedoc-plugin-mermaid": "^1.12.0",
     "typescript": "^6.0.3",
     "vite": "^8.3.8",
-    "vitest": "^4.1.12"
+    "vitest": "^5.1.1"
   },
   "engines": {
     "node": ">=24.0.0"

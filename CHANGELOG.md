@@ -2,6 +2,9 @@
 
 ## [Unreleased]
 
+- Update glob and override TypeDoc’s minimatch to include denial-of-service fixes; refresh terminal UI, command parsing, regex, PostCSS, lint/format and test tooling while preserving Node.js 24 and TypeScript 6 compatibility. Thanks @dependabot!
+- Build the Go example with patched Go 1.27.4 while preserving its Go 1.22 language minimum.
+
 ## [2.1.14] - 2026-11-15
 
 **Highlights:** Hardened configuration discovery, child-process failure reporting, and build-log handling, with refreshed runtime dependencies.
